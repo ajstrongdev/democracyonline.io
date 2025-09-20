@@ -1,11 +1,11 @@
 # PowerShell script to run PostgreSQL in a container on Windows
 param(
-    [string]$ContainerName = ($env:CONTAINER_NAME ?? "my-postgres"),
-    [string]$PostgresUser = ($env:POSTGRES_USER ?? "postgres"),
-    [string]$PostgresPassword = ($env:POSTGRES_PASSWORD ?? "postgres"),
-    [string]$PostgresDb = ($env:POSTGRES_DB ?? "postgres"),
-    [int]$PostgresPort = ($env:POSTGRES_PORT ?? 5432),
-    [string]$PostgresImage = ($env:POSTGRES_IMAGE ?? "docker.io/library/postgres:15")
+    [string]$ContainerName = $(if ($env:CONTAINER_NAME) { $env:CONTAINER_NAME } else { "my-postgres" }),
+    [string]$PostgresUser = $(if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "postgres" }),
+    [string]$PostgresPassword = $(if ($env:POSTGRES_PASSWORD) { $env:POSTGRES_PASSWORD } else { "postgres" }),
+    [string]$PostgresDb = $(if ($env:POSTGRES_DB) { $env:POSTGRES_DB } else { "postgres" }),
+    [int]$PostgresPort = $(if ($env:POSTGRES_PORT) { [int]$env:POSTGRES_PORT } else { 5432 }),
+    [string]$PostgresImage = $(if ($env:POSTGRES_IMAGE) { $env:POSTGRES_IMAGE } else { "docker.io/library/postgres:15" })
 )
 
 # Auto-detect container runtime (podman or docker)
