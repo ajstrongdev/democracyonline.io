@@ -8,11 +8,26 @@ param(
     [string]$PostgresImage = ($env:POSTGRES_IMAGE ?? "docker.io/library/postgres:15")
 )
 
+# Auto-detect container runtime (podman or docker)
+$ContainerCmd = $null
+if (Get-Command podman -ErrorAction SilentlyContinue) {
+    $ContainerCmd = "podman"
+    Write-Host "Using Podman as container runtime" -ForegroundColor Green
+}
+elseif (Get-Command docker -ErrorAction SilentlyContinue) {
+    $ContainerCmd = "docker"
+    Write-Host "Using Docker as container runtime" -ForegroundColor Green
+}
+else {
+    Write-Host "Error: Neither podman nor docker is installed!" -ForegroundColor Red
+    exit 1
+}
+
 # Function to handle cleanup on exit
 function Cleanup {
     Write-Host "`nStopping container..." -ForegroundColor Yellow
     try {
-        & podman stop $ContainerName *>$null
+        & $ContainerCmd stop $ContainerName *>$null
     }
     catch {
         # Ignore errors when stopping
@@ -29,17 +44,17 @@ Write-Host "Postgres Port: $PostgresPort" -ForegroundColor Green
 
 try {
     # Check if container already exists
-    $containerExists = & podman container exists $ContainerName 2>$null
+    $containerExists = & $ContainerCmd container exists $ContainerName 2>$null
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Reusing existing container: $ContainerName" -ForegroundColor Cyan
-        & podman start $ContainerName
+        & $ContainerCmd start $ContainerName *>$null
     }
     else {
         Write-Host "Pulling image $PostgresImage..." -ForegroundColor Cyan
-        & podman pull $PostgresImage
+        & $ContainerCmd pull $PostgresImage
         
         Write-Host "Starting new Postgres container..." -ForegroundColor Cyan
-        & podman run -d `
+        & $ContainerCmd run -d `
             --name $ContainerName `
             --env "POSTGRES_USER=$PostgresUser" `
             --env "POSTGRES_PASSWORD=$PostgresPassword" `
@@ -50,7 +65,7 @@ try {
         Write-Host "Waiting for Postgres to be ready..." -ForegroundColor Cyan
         do {
             Start-Sleep -Seconds 1
-            $ready = & podman exec $ContainerName pg_isready -U $PostgresUser 2>$null
+            $ready = & $ContainerCmd exec $ContainerName pg_isready -U $PostgresUser 2>$null
         } while ($LASTEXITCODE -ne 0)
     }
     
