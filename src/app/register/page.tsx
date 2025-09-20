@@ -1,9 +1,8 @@
 "use client";
 import { auth } from "@/lib/firebase";
-import { useSignInWithEmailAndPassword, useAuthState } from "react-firebase-hooks/auth";
-import React, { useState, useEffect } from "react";
+import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
+import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
     Card,
     CardContent,
@@ -17,66 +16,39 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
-    const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
-    const [user, userLoading] = useAuthState(auth);
+    const [createUserWithEmailAndPassword] = useCreateUserWithEmailAndPassword(auth);
+    const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-    const router = useRouter();
 
-    useEffect(() => {
-        if (user && !userLoading) {
-            router.push("/home");
-        }
-    }, [user, userLoading, router]);
-
-    const signIn = async (e: React.FormEvent<HTMLFormElement>) => {
+    const signUp = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        setLoading(true);
-        setError("");
-        
         try {
-            const res = await signInWithEmailAndPassword(email, password);
+            const res = await createUserWithEmailAndPassword(email, password);
             if (res?.user) {
-                console.log("User signed in:", res.user);
+                console.log("User created:", res.user);
                 router.push("/home");
             }
         } catch (err) {
-            console.error("Error signing in:", err);
-            setError("Failed to sign in. Please check your credentials.");
-        } finally {
-            setLoading(false);
+            console.error("Error creating user:", err);
         }
     };
-
-    if (userLoading) {
-        return (
-            <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 py-12">
-                <p>Loading...</p>
-            </div>
-        );
-    }
-
-    if (user) {
-        return null; // Will redirect in useEffect
-    }
-
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 py-12">
             <Card className="w-full max-w-md">
                 <CardContent className="grid gap-4">
                     <div className="flex flex-col space-y-2 text-center">
                         <h1 className="text-2xl font-semibold tracking-tight">
-                            Sign in to your account
+                            Create an account
                         </h1>
                         <CardDescription>
-                            Enter your email and password to sign in.
+                            Enter your email and password to create an account.
                         </CardDescription>
                     </div>
-                    <form onSubmit={signIn} className="grid gap-4">
+                    <form onSubmit={signUp} className="grid gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>
                             <Input
@@ -98,26 +70,19 @@ export default function Home() {
                                 required
                             />
                         </div>
-                        <Button type="submit" disabled={loading}>
-                            {loading ? "Signing In..." : "Sign In"}
-                        </Button>
-                        {error && (
-                            <p className="text-sm text-destructive text-center">
-                                {error}
-                            </p>
-                        )}
+                        <Button type="submit">Sign Up</Button>
                     </form>
                     <CardFooter className="pt-0 flex justify-center">
                         <p className="text-center text-sm text-muted-foreground">
-                            Don't have an account?{" "}
+                            Already have an account?{" "}
                             <Link
-                                href="/register"
+                                href="/"
                                 className={cn(
                                     buttonVariants({ variant: "link" }),
                                     "p-0 h-auto align-baseline"
                                 )}
                             >
-                                Sign up
+                                Log in
                             </Link>
                         </p>
                     </CardFooter>

@@ -1,10 +1,12 @@
+// React
+import React, { useEffect, useState } from "react";
+
 // Firebase
-import { auth } from "@/lib/firebase";
+import { auth } from "./firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 
 // Other
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 
 export default function withAuth<T extends object>(
   WrappedComponent: React.ComponentType<T>
