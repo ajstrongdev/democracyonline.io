@@ -8,12 +8,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export async function directToProfile(email: string, router: ReturnType<typeof useRouter>) {
-    const usernameResponse = await axios.post<{ username?: string }>(`${process.env.NEXT_PUBLIC_API_URL}/get-username`, {
-        email: email
+    const id = await axios.post<{ id?: string }>(`${process.env.NEXT_PUBLIC_API_URL}/get-username`, {
+        email
     })
 
-    if (usernameResponse.data.username && usernameResponse.data.username !== "") {
-        router.push(`/profile/${usernameResponse.data.username}`);
+    if (id.data.id && id.data.id !== "") {
+        router.push(`/profile/${id.data.id}`);
     }
     else {
         console.log("Couldn't redirect to profile, no username found");

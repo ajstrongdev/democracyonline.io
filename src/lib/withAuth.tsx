@@ -21,7 +21,7 @@ export default function withAuth<T extends object>(
       if (user) {
         setIsAuthenticated(true);
         setIsLoading(false);
-      } else {
+      } else if (!isLoading) {
         setIsAuthenticated(false);
         setIsLoading(false);
         router.push("/");

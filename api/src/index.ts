@@ -28,10 +28,36 @@ async function listTables(client: PoolClient, label: string): Promise<void> {
   res.rows.forEach((r: { table_name: string }) => fastify.log.info(`  - ${r.table_name}`))
 }
 
+async function resetDatabase() {
+  const client = await fastify.pg.connect()
+  try {
+    await client.query(`
+      DO $$
+      DECLARE
+        drop_stmt text;
+      BEGIN
+        SELECT
+          string_agg('DROP TABLE IF EXISTS "' || tablename || '" CASCADE;', ' ')
+        INTO drop_stmt
+        FROM pg_tables
+        WHERE schemaname = 'public';
+
+        IF drop_stmt IS NOT NULL THEN
+          EXECUTE drop_stmt;
+        END IF;
+      END $$;
+    `);
+    await seed();
+  } finally {
+    client.release()
+  }
+}
+
 async function seed() {
   const client = await fastify.pg.connect()
   try {
     await listTables(client, "Tables before seeding");
+
     // Create parties table first (no dependencies)
     await client.query(`
       CREATE TABLE IF NOT EXISTS parties (
@@ -154,7 +180,6 @@ async function seed() {
 }
 
 fastify.get('/seed', async (_, reply) => {
-
   try {
     await seed()
     reply.send({ message: 'Database seeded successfully' })
@@ -164,27 +189,78 @@ fastify.get('/seed', async (_, reply) => {
   }
 })
 
+fastify.get('/reset-database', async (_, reply) => {
+  try {
+    await resetDatabase()
+    reply.send({ message: 'Database reset and seeded successfully' })
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to reset and seed database' })
+  }
+})
+
 fastify.post('/get-username', async (request, reply) => {
   try {
     const client = await fastify.pg.connect()
 
-    let username = "";
+    let id = "";
 
-    const usernameQuery = await client.query(
-      'SELECT username FROM users WHERE email = $1',
+    const idQuery = await client.query(
+      'SELECT id FROM users WHERE email = $1',
       [(request.body as { email: string }).email]
     )
 
-    if (usernameQuery.rows.length > 0) {
-      username = usernameQuery.rows[0].username;
+    if (idQuery.rows.length > 0) {
+      id = idQuery.rows[0].username;
     }
 
-    reply.send({ username })
+    reply.send({ id })
   } catch (error) {
     fastify.log.error(error)
     reply.status(500).send({ error: 'Failed to seed database' })
   }
 })
+
+fastify.get('/users/:id', async (request, reply) => {
+  const { id } = request.params as { id: string }
+  const client = await fastify.pg.connect()
+
+  console.log("id", id)
+  
+  try {
+    const result = await client.query(`
+      SELECT 
+        u.id,
+        u.username,
+        u.role,
+        u.created_at,
+        json_build_object(
+          'id', p.id,
+          'leader', leader.username,
+          'party_name', p.party_name,
+          'party_color', p.party_color,
+          'bio', p.bio,
+          'manifesto_url', p.manifesto_url,
+          'created_at', p.created_at
+        ) AS party
+      FROM users u
+      LEFT JOIN parties p ON u.party_id = p.id
+      LEFT JOIN users leader ON p.leader_id = leader.id
+      WHERE u.id = $1
+    `, [id])
+
+    if (result.rows.length === 0) {
+      reply.status(404).send({ error: 'User not found' })
+    } else {
+      reply.send(result.rows[0])
+    }
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to fetch user' })
+  } finally {
+    client.release()
+  }
+});
 
 fastify.post('/create-user', async (request, reply) => {
   const { email, username } = request.body as { email: string; username: string }
