@@ -314,7 +314,7 @@ function Home() {
                             {member.username}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {member.role} - {(member.id === party.leader_id && <span className={`font-medium text-green-500`}>Party Leader</span>)}
+                            {member.role} {(member.id === party.leader_id && <span className={`font-medium text-green-500`}>- Party Leader</span>)}
                           </p>
                         </div>
                         <Button
