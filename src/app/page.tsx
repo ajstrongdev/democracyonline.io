@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { cn, directToProfile } from "@/lib/utils";
 
 export default function Home() {
     const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
@@ -29,7 +29,7 @@ export default function Home() {
 
     useEffect(() => {
         if (user && !userLoading) {
-            router.push("/home");
+            directToProfile(user.email!, router);
         }
     }, [user, userLoading, router]);
 
@@ -42,7 +42,7 @@ export default function Home() {
             const res = await signInWithEmailAndPassword(email, password);
             if (res?.user) {
                 console.log("User signed in:", res.user);
-                router.push("/home");
+                directToProfile(email!, router);
             }
         } catch (err) {
             console.error("Error signing in:", err);

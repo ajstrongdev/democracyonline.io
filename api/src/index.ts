@@ -164,6 +164,28 @@ fastify.get('/seed', async (_, reply) => {
   }
 })
 
+fastify.post('/get-username', async (request, reply) => {
+  try {
+    const client = await fastify.pg.connect()
+
+    let username = "";
+
+    const usernameQuery = await client.query(
+      'SELECT username FROM users WHERE email = $1',
+      [(request.body as { email: string }).email]
+    )
+
+    if (usernameQuery.rows.length > 0) {
+      username = usernameQuery.rows[0].username;
+    }
+
+    reply.send({ username })
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to seed database' })
+  }
+})
+
 fastify.post('/create-user', async (request, reply) => {
   const { email, username } = request.body as { email: string; username: string }
   const client = await fastify.pg.connect()

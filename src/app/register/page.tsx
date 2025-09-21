@@ -13,7 +13,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { cn, directToProfile } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
@@ -31,7 +31,7 @@ export default function Home() {
       if (res?.user) {
         console.log("User created:", res.user);
         await insertUserToDatabase(email, username);
-        router.push("/home");
+        directToProfile(email, router);
       }
     } catch (err) {
       console.error("Error creating user:", err);
