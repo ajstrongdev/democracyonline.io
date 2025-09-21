@@ -93,11 +93,6 @@ function Home() {
                       <Label className="text-xl font-semibold text-foreground">
                         {party.name}
                       </Label>
-                      {party.leader_id && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Leader: {party.leader_id}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </CardHeader>

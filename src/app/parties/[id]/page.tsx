@@ -194,6 +194,14 @@ function Home() {
                   </h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                            Members:
+                        </span>
+                        <span className="font-medium">
+                            {partyMembers.length}
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-muted-foreground">
                         Party Color:
                       </span>
