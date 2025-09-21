@@ -18,6 +18,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "@fastify/cors": "^11.1.0",
     "@fastify/postgres": "^6.0.2",
     "@types/pg": "^8.15.5",
     "fastify": "^5.6.0",
