@@ -1,12 +1,8 @@
-// React
 import React, { useEffect, useState } from "react";
-
-// Firebase
 import { auth } from "./firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
-
-// Other
 import { useRouter } from "next/navigation";
+import GenericSkeleton from "@/components/genericskeleton";
 
 export default function withAuth<T extends object>(
   WrappedComponent: React.ComponentType<T>
@@ -21,7 +17,7 @@ export default function withAuth<T extends object>(
       if (user) {
         setIsAuthenticated(true);
         setIsLoading(false);
-      } else {
+      } else if (!user && !isLoading) {
         setIsAuthenticated(false);
         setIsLoading(false);
         router.push("/");
@@ -29,7 +25,9 @@ export default function withAuth<T extends object>(
     }, [user, router]);
 
     if (isLoading) {
-      return <div>Loading...</div>;
+      return (
+        <GenericSkeleton />
+      );
     }
 
     if (!isAuthenticated) {
