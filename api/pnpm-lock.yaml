@@ -14,12 +14,18 @@ importers:
       '@fastify/postgres':
         specifier: ^6.0.2
         version: 6.0.2(pg@8.16.3)
+      '@types/pg':
+        specifier: ^8.15.5
+        version: 8.15.5
       fastify:
         specifier: ^5.6.0
         version: 5.6.0
       fastify-plugin:
         specifier: ^5.0.1
         version: 5.0.1
+      pg:
+        specifier: ^8.16.3
+        version: 8.16.3
     devDependencies:
       '@types/node':
         specifier: ^24.5.2
@@ -246,6 +252,9 @@ packages:
 
   '@types/node@24.5.2':
     resolution: {integrity: sha512-FYxk1I7wPv3K2XBaoyH2cTnocQEu8AOZ60hPbsyukMPLv5/5qr7V1i8PLHdl6Zf87I+xZXFvPCXYjiTFq+YSDQ==}
+
+  '@types/pg@8.15.5':
+    resolution: {integrity: sha512-LF7lF6zWEKxuT3/OR8wAZGzkg4ENGXFNyiV/JeOt9z5B+0ZVwbql9McqX5c/WStFq1GaGso7H1AzP/qSzmlCKQ==}
 
   abstract-logging@2.0.1:
     resolution: {integrity: sha512-2BjRTZxTPvheOvGbBslFSYOUkr+SjPtOnrLP33f+VIWLzezQpZcqVg7ja3L4dBXmzzgwT+a029jRx5PCi3JuiA==}
@@ -658,6 +667,12 @@ snapshots:
   '@types/node@24.5.2':
     dependencies:
       undici-types: 7.12.0
+
+  '@types/pg@8.15.5':
+    dependencies:
+      '@types/node': 24.5.2
+      pg-protocol: 1.10.3
+      pg-types: 2.2.0
 
   abstract-logging@2.0.1: {}
 

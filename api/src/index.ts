@@ -25,7 +25,7 @@ async function listTables(client: PoolClient, label: string): Promise<void> {
   `)
 
   fastify.log.info(`${label}:`)
-  res.rows.forEach((r) => fastify.log.info(`  - ${r.table_name}`))
+  res.rows.forEach((r: { table_name: string }) => fastify.log.info(`  - ${r.table_name}`))
 }
 
 async function seed() {
@@ -134,21 +134,20 @@ async function seed() {
     `);
 
     await listTables(client, "Tables after seeding")
-    `)
 
-    // Add foreign key constraint from parties.leader_id to users.id
-    await client.query(`
-      DO $$ BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints 
-          WHERE constraint_name = 'fk_party_leader'
-        ) THEN
-          ALTER TABLE parties 
-          ADD CONSTRAINT fk_party_leader 
-          FOREIGN KEY (leader_id) REFERENCES users(id) ON DELETE SET NULL;
-        END IF;
-      END $$;
-    `)
+    // Add foreign key constraint from parties.leader_id to users.id if not exists
+    try {
+      await client.query(`
+        ALTER TABLE parties
+        ADD CONSTRAINT fk_party_leader
+        FOREIGN KEY (leader_id) REFERENCES users(id) ON DELETE SET NULL;
+      `)
+    } catch (error: any) {
+      // Ignore error if constraint already exists
+      if (error.code !== '42P07') {
+        throw error
+      }
+    }
   } finally {
     client.release()
   }
