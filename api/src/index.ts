@@ -13,20 +13,27 @@ async function seed() {
   const client = await fastify.pg.connect()
   try {
     await client.query(`
-
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `)
-
-    const { rows } = await client.query('')
-    if (parseInt(rows[0].count, 10) === 0) {
-      await client.query(`
-
-      `)
-      fastify.log.info('Seed data inserted into users table')
-    }
   } finally {
     client.release()
   }
 }
+
+fastify.get('/seed', async (_, reply) => {
+  try {
+    await seed()
+    reply.send({ message: 'Database seeded successfully' })
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to seed database' })
+  }
+})
 
 const start = async () => {
   try {

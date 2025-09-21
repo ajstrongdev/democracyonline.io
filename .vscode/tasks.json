@@ -43,6 +43,12 @@
             "group": "build",
             "isBackground": true,
             "problemMatcher": [],
+            "options": {
+                "env": {
+                    "CONNECTION_STRING": "postgresql://postgres:postgres@localhost:5432/postgres",
+                    "PORT": "4000"
+                }
+            },
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -60,6 +66,12 @@
             "group": "build",
             "isBackground": true,
             "problemMatcher": [],
+            "options": {
+                "env": {
+                    "CONNECTION_STRING": "postgresql://postgres:postgres@localhost:5432/postgres",
+                    "PORT": "4000"
+                }
+            },
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -108,7 +120,8 @@
             "dependsOrder": "parallel",
             "dependsOn": [
                 "Start Next.js (Unix/macOS)",
-                "Start Database (Bash)"
+                "Start Database (Bash)",
+                "Start API (Unix/macOS)"
             ],
             "group": {
                 "kind": "build",
@@ -128,7 +141,8 @@
             "dependsOrder": "parallel",
             "dependsOn": [
                 "Start Next.js (Windows)",
-                "Start Database (PowerShell)"
+                "Start Database (PowerShell)",
+                "Start API (Windows)"
             ],
             "group": "build",
             "presentation": {
