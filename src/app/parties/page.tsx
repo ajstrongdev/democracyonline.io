@@ -7,19 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import axios from "axios";
-
-type Party = {
-  id: number;
-  leader_id: number | null;
-  name: string;
-  color: string;
-  bio: string;
-  manifesto_url: string;
-};
+import type { Party } from "@/app/utils/partyHelper";
+import type { UserInfo } from "@/app/utils/userHelper";
+import { auth } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { fetchUserInfo } from "@/app/utils/userHelper";
+import { Handshake } from "lucide-react";
 
 function Home() {
   const [parties, setParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
+  const [thisUser, setThisUser] = useState<UserInfo | null>(null);
+  const [user] = useAuthState(auth);
 
   useEffect(() => {
     const fetchParties = async () => {
@@ -34,7 +33,14 @@ function Home() {
         setLoading(false);
       }
     };
+    const userData = async () => {
+      if (user && user.email) {
+        const userDetails = await fetchUserInfo(user.email);
+        setThisUser(userDetails || null);
+      }
+    }
     fetchParties();
+    userData();
   }, []);
 
   return (
@@ -125,6 +131,20 @@ function Home() {
               </Card>
             ))}
       </div>
+
+      {thisUser?.party_id === null && !loading && (
+        <div className="text-center mt-12 border-t">
+          <p className="mt-8 my-4 text-lg text-foreground">
+            Not a fan of any of these choices? Create your party!
+          </p>
+          <Button asChild variant="default" size="lg">
+            <a href="/parties/create">
+              <Handshake className="mr-2" />
+              Create a Party
+            </a>
+          </Button>
+        </div>
+      )}
 
       {parties.length === 0 && (
         <div className="text-center py-12">

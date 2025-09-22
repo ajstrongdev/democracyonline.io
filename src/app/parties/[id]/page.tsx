@@ -10,24 +10,9 @@ import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { DoorOpen, Scroll, Handshake, Crown } from "lucide-react"
-
-type Party = {
-  id: number;
-  leader_id: number | null;
-  name: string;
-  color: string;
-  bio: string;
-  manifesto_url: string;
-};
-
-type UserInfo = {
-  id: number;
-  email: string;
-  username: string;
-  role: string;
-  party_id: number | null;
-  created_at: string;
-};
+import { fetchUserInfo } from "@/app/utils/userHelper";
+import type { UserInfo } from "@/app/utils/userHelper";
+import type { Party } from "@/app/utils/partyHelper";
 
 function Home() {
   const [party, setParty] = useState<Party | null>(null);
@@ -35,7 +20,6 @@ function Home() {
   const [thisUser, setThisUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [membershipStatus, setMembershipStatus] = useState<boolean>(false);
-  const [loadingData, setLoadingData] = useState<boolean>(true);
   const [user] = useAuthState(auth);
   const router = useRouter();
   const params = useParams();
@@ -120,20 +104,14 @@ function Home() {
   }
 
   useEffect(() => {
-    const fetchUserInfo = async () => {
-      if (!user?.email) return;
-
-      try {
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/users/${user.email}`
-        );
-        setThisUser(response.data);
-      } catch (error) {
-        console.error("Error fetching user info:", error);
+    const fetchData = async () => {
+      if (user?.email) {
+        const userInfo = await fetchUserInfo(user.email);
+        setThisUser(userInfo || null);
       }
     };
+    fetchData();
     fetchParty();
-    fetchUserInfo();
   }, [id, router, user]);
 
   useEffect(() => {
@@ -141,10 +119,6 @@ function Home() {
       fetchMembershipStatus();
     }
   }, [thisUser, id]);
-
-  useEffect(() => {
-    setLoadingData(false);
-  }, [partyMembers, thisUser, party]);
 
   return (
     <div className="container mx-auto py-8 px-4">

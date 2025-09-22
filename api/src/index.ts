@@ -345,6 +345,29 @@ fastify.post('/parties/become-leader', async (request, reply) => {
   }
 })
 
+fastify.post('/parties/create', async (request, reply) => {
+  const { userId, name, color, bio, manifestoUrl } = request.body as { userId: number, name: string, color: string, bio: string, manifestoUrl: string }
+  const client = await fastify.pg.connect()
+  try {
+    const createParty = await client.query(
+      'INSERT INTO parties (leader_id, name, color, bio, manifesto_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [userId, name, color, bio, manifestoUrl]
+    )
+    const partyId = createParty.rows[0].id
+    // Update user partyid
+    await client.query(
+      'UPDATE users SET party_id = $1 WHERE id = $2',
+      [partyId, userId]
+    )
+    reply.send(createParty.rows[0])
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to create party' })
+  } finally {
+    client.release()
+  }
+});
+
 const start = async () => {
   try {
     await fastify.listen({ 
