@@ -196,68 +196,6 @@ fastify.get('/users/:email', async (request, reply) => {
   }
 });
 
-fastify.get('/parties', async (_, reply) => {
-  const client = await fastify.pg.connect()
-  try {
-    const result = await client.query('SELECT * FROM parties')
-    reply.send(result.rows)
-  } catch (error) {
-    fastify.log.error(error)
-    reply.status(500).send({ error: 'Failed to fetch parties' })
-  } finally {
-    client.release()
-  }
-});
-
-fastify.get('/parties/:id', async (request, reply) => {
-  const { id } = request.params as { id: string }
-  const client = await fastify.pg.connect()
-  try {
-    const result = await client.query('SELECT * FROM parties WHERE id = $1', [id])
-    if (result.rows.length === 0) {
-      reply.status(404).send({ error: 'Party not found' })
-    } else {
-      reply.send(result.rows[0])
-    }
-  } catch (error) {
-    fastify.log.error(error)
-    reply.status(500).send({ error: 'Failed to fetch party' })
-  } finally {
-    client.release()
-  }
-});
-
-fastify.get('/parties/:id/members', async (request, reply) => {
-  const { id } = request.params as { id: string }
-  const client = await fastify.pg.connect()
-  try {
-    const result = await client.query('SELECT * FROM users WHERE party_id = $1', [id])
-    reply.send(result.rows)
-  } catch (error) {
-    fastify.log.error(error)
-    reply.status(500).send({ error: 'Failed to fetch party members' })
-  } finally {
-    client.release()
-  }
-});
-
-fastify.post('/parties/check-membership', async (request, reply) => {
-  const { userId, partyId } = request.body as { userId: number, partyId: number }
-  const client = await fastify.pg.connect()
-  try {
-    const result = await client.query(
-      'SELECT * FROM users WHERE id = $1 AND party_id = $2',
-      [userId, partyId]
-    )
-    reply.send(result.rows.length > 0)
-  } catch (error) {
-    fastify.log.error(error)
-    reply.status(500).send({ error: 'Failed to check membership' })
-  } finally {
-    client.release()
-  }
-});
-
 fastify.post('/parties/leave', async (request, reply) => {
   const { userId } = request.body as { userId: number }
   const client = await fastify.pg.connect()
