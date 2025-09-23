@@ -54,7 +54,7 @@ export default function Home() {
 
     if (userLoading) {
         return (
-            <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 py-12">
+            <div className="flex flex-col items-center justify-center bg-background px-6 py-12">
                 <p>Loading...</p>
             </div>
         );
@@ -65,7 +65,7 @@ export default function Home() {
     }
 
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 py-12">
+        <div className="flex flex-col items-center justify-center bg-background px-6 py-12">
             <Card className="w-full max-w-md">
                 <CardContent className="grid gap-4">
                     <div className="flex flex-col space-y-2 text-center">
