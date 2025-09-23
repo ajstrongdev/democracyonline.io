@@ -32,26 +32,24 @@ async function seed() {
   const client = await fastify.pg.connect()
   try {
     await listTables(client, "Tables before seeding");
-    // Create parties table first (no dependencies)
     await client.query(`
       CREATE TABLE IF NOT EXISTS parties (
         id SERIAL PRIMARY KEY,
         leader_id INT,
-        party_name VARCHAR(255) UNIQUE NOT NULL,
-        party_color VARCHAR(7) NOT NULL,
+        name VARCHAR(255) UNIQUE NOT NULL,
+        color VARCHAR(7) NOT NULL,
         bio TEXT,
         manifesto_url VARCHAR(500),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `)
 
-    // Create users table second (references parties)
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
         username VARCHAR(255) UNIQUE NOT NULL,
-        role VARCHAR(50) DEFAULT 'representative',
+        role VARCHAR(50) DEFAULT 'Representative',
         party_id INT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT fk_user_party
@@ -154,7 +152,6 @@ async function seed() {
 }
 
 fastify.get('/seed', async (_, reply) => {
-
   try {
     await seed()
     reply.send({ message: 'Database seeded successfully' })
@@ -176,6 +173,196 @@ fastify.post('/create-user', async (request, reply) => {
   } catch (error) {
     fastify.log.error(error)
     reply.status(500).send({ error: 'Failed to create user' })
+  } finally {
+    client.release()
+  }
+});
+
+fastify.get('/users/:email', async (request, reply) => {
+  const { email } = request.params as { email: string }
+  const client = await fastify.pg.connect()
+  try {
+    const result = await client.query('SELECT * FROM users WHERE email = $1', [email])
+    if (result.rows.length === 0) {
+      reply.status(404).send({ error: 'User not found' })
+    } else {
+      reply.send(result.rows[0])
+    }
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to fetch user' })
+  } finally {
+    client.release()
+  }
+});
+
+fastify.get('/parties', async (_, reply) => {
+  const client = await fastify.pg.connect()
+  try {
+    const result = await client.query('SELECT * FROM parties')
+    reply.send(result.rows)
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to fetch parties' })
+  } finally {
+    client.release()
+  }
+});
+
+fastify.get('/parties/:id', async (request, reply) => {
+  const { id } = request.params as { id: string }
+  const client = await fastify.pg.connect()
+  try {
+    const result = await client.query('SELECT * FROM parties WHERE id = $1', [id])
+    if (result.rows.length === 0) {
+      reply.status(404).send({ error: 'Party not found' })
+    } else {
+      reply.send(result.rows[0])
+    }
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to fetch party' })
+  } finally {
+    client.release()
+  }
+});
+
+fastify.get('/parties/:id/members', async (request, reply) => {
+  const { id } = request.params as { id: string }
+  const client = await fastify.pg.connect()
+  try {
+    const result = await client.query('SELECT * FROM users WHERE party_id = $1', [id])
+    reply.send(result.rows)
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to fetch party members' })
+  } finally {
+    client.release()
+  }
+});
+
+fastify.post('/parties/check-membership', async (request, reply) => {
+  const { userId, partyId } = request.body as { userId: number, partyId: number }
+  const client = await fastify.pg.connect()
+  try {
+    const result = await client.query(
+      'SELECT * FROM users WHERE id = $1 AND party_id = $2',
+      [userId, partyId]
+    )
+    reply.send(result.rows.length > 0)
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to check membership' })
+  } finally {
+    client.release()
+  }
+});
+
+fastify.post('/parties/leave', async (request, reply) => {
+  const { userId } = request.body as { userId: number }
+  const client = await fastify.pg.connect()
+  try {
+    const userResult = await client.query(
+      'SELECT party_id FROM users WHERE id = $1',
+      [userId]
+    )
+    
+    if (userResult.rows.length === 0) {
+      reply.status(404).send({ error: 'User not found' })
+      return
+    }
+
+    const partyId = userResult.rows[0].party_id
+
+      // Remove leadership if leader
+      if (partyId) {
+        await client.query(
+          'UPDATE parties SET leader_id = NULL WHERE id = $1 AND leader_id = $2',
+          [partyId, userId]
+        )
+      }
+      const result = await client.query(
+        'UPDATE users SET party_id = NULL WHERE id = $1 RETURNING *',
+        [userId]
+      )
+
+    reply.send(result.rows[0])
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to leave party' })
+  } finally {
+    client.release()
+  }
+});
+
+fastify.post('/parties/join', async (request, reply) => {
+  const { userId, partyId } = request.body as { userId: number, partyId: number}
+  const client = await fastify.pg.connect()
+  try {
+    const result = await client.query(
+      'UPDATE users SET party_id = $1 WHERE id = $2 RETURNING *',
+      [partyId, userId]
+    )
+    if (result.rows.length === 0) {
+      reply.status(404).send({ error: 'User not found' })
+    } else {
+      reply.send(result.rows[0])
+    }
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to join party' })
+  } finally {
+    client.release()
+  }
+})
+
+fastify.post('/parties/become-leader', async (request, reply) => {
+  const { userId, partyId } = request.body as { userId: number, partyId: number }
+  const client = await fastify.pg.connect()
+  try {
+    const membershipCheck = await client.query(
+      'SELECT * FROM users WHERE id = $1 AND party_id = $2',
+      [userId, partyId]
+    )
+    if (membershipCheck.rows.length === 0) {
+      reply.status(403).send({ error: 'User must be a member of the party to become leader' })
+      return
+    }
+    const result = await client.query(
+      'UPDATE parties SET leader_id = $1 WHERE id = $2 RETURNING *',
+      [userId, partyId]
+    )
+    if (result.rows.length === 0) {
+      reply.status(404).send({ error: 'Party not found' })
+    } else {
+      reply.send(result.rows[0])
+    }
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to become party leader' })
+  } finally {
+    client.release()
+  }
+})
+
+fastify.post('/parties/create', async (request, reply) => {
+  const { userId, name, color, bio, manifestoUrl } = request.body as { userId: number, name: string, color: string, bio: string, manifestoUrl: string }
+  const client = await fastify.pg.connect()
+  try {
+    const createParty = await client.query(
+      'INSERT INTO parties (leader_id, name, color, bio, manifesto_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [userId, name, color, bio, manifestoUrl]
+    )
+    const partyId = createParty.rows[0].id
+    // Update user partyid
+    await client.query(
+      'UPDATE users SET party_id = $1 WHERE id = $2',
+      [partyId, userId]
+    )
+    reply.send(createParty.rows[0])
+  } catch (error) {
+    fastify.log.error(error)
+    reply.status(500).send({ error: 'Failed to create party' })
   } finally {
     client.release()
   }
