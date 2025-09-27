@@ -6,26 +6,27 @@ import { Textarea } from "@/components/ui/textarea";
 import withAuth from "@/lib/withAuth";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import axios from "axios";
-import type { UserInfo } from "@/app/utils/userHelper";
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 
 function Home() {
   const [user] = useAuthState(auth);
-  const [thisUser, setThisUser] = useState<UserInfo | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    const userData = async () => {
+  const { data: thisUser } = useQuery({
+    queryKey: ["user", user?.email],
+    queryFn: async () => {
       if (user && user.email) {
         const userDetails = await fetchUserInfo(user.email);
-        setThisUser(userDetails || null);
+        return userDetails || null;
       }
-    };
-    userData();
-  }, [user]);
+      return null;
+    },
+    enabled: !!user?.email,
+  });
 
   const submitHandler = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -87,6 +88,7 @@ function Home() {
                 type="text"
                 id="color"
                 placeholder="#ff0000"
+                defaultValue="#ff0000"
                 maxLength={7}
                 pattern="^#([A-Fa-f0-9]{6})$"
                 className="w-full"
