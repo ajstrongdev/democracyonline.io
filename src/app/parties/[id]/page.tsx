@@ -71,6 +71,10 @@ function Home() {
         userId: thisUser?.id,
         partyId: id,
       });
+      await axios.post("/api/feed-add", {
+        userId: thisUser?.id,
+        content: `has joined the "${party?.name}".`,
+      });
       return res.data;
     },
     onSuccess: () => {
@@ -88,6 +92,10 @@ function Home() {
       const res = await axios.post("/api/party-leave", {
         userId: thisUser?.id,
         partyId: id,
+      });
+      await axios.post("/api/feed-add", {
+        userId: thisUser?.id,
+        content: `has left the party "${party?.name}".`,
       });
       return res.data;
     },
@@ -107,6 +115,10 @@ function Home() {
         userId: thisUser?.id,
         partyId: id,
       });
+      await axios.post("/api/feed-add", {
+        userId: thisUser?.id,
+        content: `has become the party leader for "${party?.name}".`,
+      });
       return res.data;
     },
     onSuccess: () => {
@@ -116,7 +128,6 @@ function Home() {
         queryKey: ["membershipStatus", thisUser?.id, id],
       });
       queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
-      // window.location.reload();
     },
   });
 

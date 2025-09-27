@@ -39,7 +39,6 @@ function Home() {
     const manifestoUrl = (
       form.elements.namedItem("manifesto") as HTMLInputElement
     )?.value;
-
     try {
       const response = await axios.post("/api/party-create", {
         userId: thisUser.id,
@@ -50,8 +49,15 @@ function Home() {
       });
       router.push(`/parties/${response.data.id}`);
     } catch (error) {
-      alert("Error creating party");
-      router.push("/parties");
+      throw new Error("Error creating party:" + error);
+    }
+    try {
+      await axios.post("/api/feed-add", {
+        userId: thisUser.id,
+        content: `has created a new party: ${name}`,
+      });
+    } catch (error) {
+      throw new Error("Error creating feed item:" + error);
     }
   };
 
