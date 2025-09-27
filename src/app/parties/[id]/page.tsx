@@ -1,134 +1,127 @@
 "use client";
 
 import withAuth from "@/lib/withAuth";
-import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { useRouter, useParams } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { DoorOpen, Scroll, Handshake, Crown } from "lucide-react";
 import { fetchUserInfo } from "@/app/utils/userHelper";
-import type { UserInfo } from "@/app/utils/userHelper";
-import type { Party } from "@/app/utils/partyHelper";
 
 function Home() {
-  const [party, setParty] = useState<Party | null>(null);
-  const [partyMembers, setPartyMembers] = useState<UserInfo[]>([]);
-  const [thisUser, setThisUser] = useState<UserInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [membershipStatus, setMembershipStatus] = useState<boolean>(false);
   const [user] = useAuthState(auth);
   const router = useRouter();
   const params = useParams();
   const id = params.id;
+  const queryClient = useQueryClient();
 
-  const fetchPartyMembers = async () => {
-    try {
-      const response = await axios.get("/api/party-members", {
-        params: { partyId: id },
-      });
-      setPartyMembers(response.data);
-    } catch (error) {
-      console.error("Error fetching party members:", error);
-    }
-  };
+  // Get user info
+  const { data: thisUser } = useQuery({
+    queryKey: ["user", user?.email],
+    queryFn: () =>
+      fetchUserInfo(user?.email || "").then((data) => data || null),
+    enabled: !!user?.email,
+  });
 
-  const fetchMembershipStatus = async () => {
-    try {
-      const response = await axios.post("/api/party-check-membership", {
-        partyId: id,
-        userId: thisUser?.id,
-      });
-      setMembershipStatus(response.data);
-    } catch (error) {
-      console.error("Error fetching membership status:", error);
-    }
-    fetchPartyMembers();
-  };
-
-  const leaveParty = async () => {
-    fetchUserInfo(user?.email || "").then((userInfo) => {
-      setThisUser(userInfo || null);
-    });
-    try {
-      const response = await axios.post("/api/party-leave", {
-        userId: thisUser?.id,
-        partyId: id,
-      });
-      setThisUser(response.data);
-    } catch (error) {
-      console.error("Error leaving party:", error);
-    }
-    fetchMembershipStatus();
-    fetchParty();
-  };
-
-  const joinParty = async () => {
-    try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/parties/join`,
-        {
-          userId: thisUser?.id,
-          partyId: id,
-        }
-      );
-      setThisUser(response.data);
-    } catch (error) {
-      console.error("Error joining party:", error);
-    }
-    await fetchPartyMembers();
-    await fetchMembershipStatus();
-  };
-
-  const fetchParty = async () => {
-    try {
+  // Party info
+  const { data: party, isLoading: partyLoading } = useQuery({
+    queryKey: ["party", id],
+    queryFn: async () => {
       const response = await axios.get("/api/get-party-by-id", {
         params: { partyId: id },
       });
-      setParty(response.data);
-    } catch (error) {
-      console.error("Error fetching party:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return response.data;
+    },
+    enabled: !!id,
+  });
 
-  const becomeLeader = async () => {
-    try {
-      const response = await axios.post("/api/party-become-leader", {
+  // Party members
+  const { data: partyMembers = [] } = useQuery({
+    queryKey: ["partyMembers", id],
+    queryFn: async () => {
+      const response = await axios.get("/api/party-members", {
+        params: { partyId: id },
+      });
+      return response.data;
+    },
+    enabled: !!id,
+  });
+
+  const { data: membershipStatus, isLoading: membershipLoading } = useQuery({
+    queryKey: ["membershipStatus", thisUser?.id, id],
+    queryFn: async () => {
+      if (!thisUser?.id || !id) return false;
+      const response = await axios.post("/api/party-check-membership", {
+        userId: thisUser.id,
+        partyId: id,
+      });
+      return typeof response.data === "boolean" ? response.data : false;
+    },
+    enabled: !!thisUser?.id && !!id,
+    initialData: false,
+  });
+
+  const joinParty = useMutation({
+    mutationFn: async () => {
+      const res = await axios.post("/api/party-join", {
         userId: thisUser?.id,
         partyId: id,
       });
-      setThisUser(response.data);
-    } catch (error) {
-      console.error("Error becoming party leader:", error);
-    }
-    await fetchParty();
-    await fetchMembershipStatus();
-    console.log("Refreshed");
-    // HOTFIX: Temporary hotfix, leaving the party after becoming leader fails because userId not found.
-    window.location.reload();
-  };
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["partyMembers", id] });
+      queryClient.invalidateQueries({
+        queryKey: ["membershipStatus", thisUser?.id, id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
+      queryClient.invalidateQueries({ queryKey: ["party", id] });
+    },
+  });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (user?.email) {
-        const userInfo = await fetchUserInfo(user.email);
-        setThisUser(userInfo || null);
-      }
-    };
-    fetchData();
-    fetchParty();
-  }, [id, router, user]);
+  const leaveParty = useMutation({
+    mutationFn: async () => {
+      const res = await axios.post("/api/party-leave", {
+        userId: thisUser?.id,
+        partyId: id,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["partyMembers", id] });
+      queryClient.invalidateQueries({
+        queryKey: ["membershipStatus", thisUser?.id, id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
+      queryClient.invalidateQueries({ queryKey: ["party", id] });
+    },
+  });
 
-  useEffect(() => {
-    if (thisUser?.id && id) {
-      fetchMembershipStatus();
-    }
-  }, [thisUser, id]);
+  const becomeLeader = useMutation({
+    mutationFn: async () => {
+      const res = await axios.post("/api/party-become-leader", {
+        userId: thisUser?.id,
+        partyId: id,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["party", id] });
+      queryClient.invalidateQueries({ queryKey: ["partyMembers", id] });
+      queryClient.invalidateQueries({
+        queryKey: ["membershipStatus", thisUser?.id, id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
+      // window.location.reload();
+    },
+  });
+
+  const loading =
+    partyLoading || !thisUser || !partyMembers || membershipLoading;
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -205,7 +198,7 @@ function Home() {
                             }
                           >
                             {partyMembers.find(
-                              (member) => member.id === party.leader_id
+                              (member: any) => member.id === party.leader_id
                             )?.username || `User ID ${party.leader_id}`}
                           </Button>
                         </span>
@@ -226,29 +219,37 @@ function Home() {
                     Actions
                   </h3>
                   <div className="space-y-3">
-                    {membershipStatus && (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={leaveParty}
-                      >
-                        <DoorOpen /> Leave Party
-                      </Button>
+                    {membershipLoading ? (
+                      <p className="text-muted-foreground">
+                        Checking membership...
+                      </p>
+                    ) : (
+                      membershipStatus && (
+                        <Button
+                          variant="destructive"
+                          className="w-full justify-start"
+                          onClick={() => leaveParty.mutate()}
+                        >
+                          <DoorOpen /> Leave Party
+                        </Button>
+                      )
                     )}
-                    {membershipStatus && !party.leader_id && (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={becomeLeader}
-                      >
-                        <Crown /> Become Party Leader
-                      </Button>
-                    )}
+                    {membershipStatus &&
+                      party.leader_id === null &&
+                      thisUser?.id !== party.leader_id && (
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                          onClick={() => becomeLeader.mutate()}
+                        >
+                          <Crown /> Become Party Leader
+                        </Button>
+                      )}
                     {thisUser?.party_id === null && (
                       <Button
                         variant="outline"
                         className="w-full justify-start"
-                        onClick={joinParty}
+                        onClick={() => joinParty.mutate()}
                       >
                         <Handshake /> Join Party
                       </Button>
@@ -293,7 +294,7 @@ function Home() {
             <CardContent>
               {partyMembers.length > 0 ? (
                 <div className="space-y-4">
-                  {partyMembers.map((member) => (
+                  {partyMembers.map((member: any) => (
                     <div
                       key={member.id}
                       className="p-4 border rounded-lg hover:shadow transition"

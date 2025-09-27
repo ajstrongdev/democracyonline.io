@@ -1,47 +1,41 @@
 "use client";
 
 import withAuth from "@/lib/withAuth";
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import axios from "axios";
-import type { Party } from "@/app/utils/partyHelper";
-import type { UserInfo } from "@/app/utils/userHelper";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Handshake } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Party } from "@/app/utils/partyHelper";
 
 function Home() {
-  const [parties, setParties] = useState<Party[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [thisUser, setThisUser] = useState<UserInfo | null>(null);
   const [user] = useAuthState(auth);
 
-  useEffect(() => {
-    const fetchParties = async () => {
-      try {
-        const response = await axios.get(
-          '/api/party-list'
-        );
-        setParties(response.data);
-      } catch (error) {
-        console.error("Error fetching parties:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    const userData = async () => {
+  const { data: parties = [] as Party[], isLoading: loading } = useQuery({
+    queryKey: ["parties"],
+    queryFn: async () => {
+      const response = await axios.get("/api/party-list");
+      return response.data;
+    },
+  });
+
+  const { data: thisUser } = useQuery({
+    queryKey: ["user", user?.email],
+    queryFn: async () => {
       if (user && user.email) {
         const userDetails = await fetchUserInfo(user.email);
-        setThisUser(userDetails || null);
+        return userDetails || null;
       }
-    }
-    fetchParties();
-    userData();
-  }, []);
+      return null;
+    },
+    enabled: !!user?.email,
+  });
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -83,7 +77,7 @@ function Home() {
                 </CardContent>
               </Card>
             ))
-          : parties.map((party) => (
+          : parties.map((party: Party) => (
               <Card
                 key={party.id}
                 className="hover:shadow-lg transition-shadow duration-200 border-l-4"
@@ -110,9 +104,14 @@ function Home() {
 
                   <div className="flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center">
                     <div className="flex gap-2">
-                    <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-none">
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 sm:flex-none"
+                      >
                         <a href={`/parties/${party.id}`}>View Details</a>
-                    </Button>
+                      </Button>
                       {party.manifesto_url && (
                         <Button
                           variant="ghost"
