@@ -24,7 +24,7 @@ function Home() {
     const fetchParties = async () => {
       try {
         const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/parties`
+          '/api/party-list'
         );
         setParties(response.data);
       } catch (error) {

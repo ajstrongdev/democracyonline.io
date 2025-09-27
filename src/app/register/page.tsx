@@ -40,13 +40,10 @@ export default function Home() {
 
   const insertUserToDatabase = async (email: string, username: string) => {
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/create-user`,
-        {
-          email,
-          username,
-        }
-      );
+      const response = await axios.post("/api/create-user", {
+        email,
+        username,
+      });
       console.log("User inserted into database:", response.data);
     } catch (error) {
       console.error("Error inserting user into database:", error);

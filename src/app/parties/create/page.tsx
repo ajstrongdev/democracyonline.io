@@ -40,16 +40,13 @@ function Home() {
     )?.value;
 
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/parties/create`,
-        {
-          userId: thisUser.id,
-          name,
-          color,
-          bio,
-          manifestoUrl,
-        }
-      );
+      const response = await axios.post("/api/party-create", {
+        userId: thisUser.id,
+        name,
+        color,
+        bio,
+        manifestoUrl,
+      });
       router.push(`/parties/${response.data.id}`);
     } catch (error) {
       alert("Error creating party");

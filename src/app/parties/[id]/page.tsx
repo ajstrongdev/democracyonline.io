@@ -9,7 +9,7 @@ import { useRouter, useParams } from "next/navigation";
 import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
-import { DoorOpen, Scroll, Handshake, Crown } from "lucide-react"
+import { DoorOpen, Scroll, Handshake, Crown } from "lucide-react";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import type { UserInfo } from "@/app/utils/userHelper";
 import type { Party } from "@/app/utils/partyHelper";
@@ -27,9 +27,9 @@ function Home() {
 
   const fetchPartyMembers = async () => {
     try {
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/parties/${id}/members`
-      );
+      const response = await axios.get("/api/party-members", {
+        params: { partyId: id },
+      });
       setPartyMembers(response.data);
     } catch (error) {
       console.error("Error fetching party members:", error);
@@ -38,21 +38,25 @@ function Home() {
 
   const fetchMembershipStatus = async () => {
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/parties/check-membership`,
-        { userId: thisUser?.id, partyId: id }
-      );
+      const response = await axios.post("/api/party-check-membership", {
+        partyId: id,
+        userId: thisUser?.id,
+      });
       setMembershipStatus(response.data);
     } catch (error) {
       console.error("Error fetching membership status:", error);
     }
-        fetchPartyMembers();
+    fetchPartyMembers();
   };
 
   const leaveParty = async () => {
+    fetchUserInfo(user?.email || "").then((userInfo) => {
+      setThisUser(userInfo || null);
+    });
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/parties/leave`, {
+      const response = await axios.post("/api/party-leave", {
         userId: thisUser?.id,
+        partyId: id,
       });
       setThisUser(response.data);
     } catch (error) {
@@ -64,34 +68,37 @@ function Home() {
 
   const joinParty = async () => {
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/parties/join`, {
-        userId: thisUser?.id,
-        partyId: id,
-      });
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/parties/join`,
+        {
+          userId: thisUser?.id,
+          partyId: id,
+        }
+      );
       setThisUser(response.data);
     } catch (error) {
       console.error("Error joining party:", error);
     }
     await fetchPartyMembers();
     await fetchMembershipStatus();
-  }
+  };
 
   const fetchParty = async () => {
-      try {
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/parties/${id}`
-        );
-        setParty(response.data);
-      } catch (error) {
-        console.error("Error fetching party:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    try {
+      const response = await axios.get("/api/get-party-by-id", {
+        params: { partyId: id },
+      });
+      setParty(response.data);
+    } catch (error) {
+      console.error("Error fetching party:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const becomeLeader = async () => {
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/parties/become-leader`, {
+      const response = await axios.post("/api/party-become-leader", {
         userId: thisUser?.id,
         partyId: id,
       });
@@ -101,7 +108,10 @@ function Home() {
     }
     await fetchParty();
     await fetchMembershipStatus();
-  }
+    console.log("Refreshed");
+    // HOTFIX: Temporary hotfix, leaving the party after becoming leader fails because userId not found.
+    window.location.reload();
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -168,12 +178,8 @@ function Home() {
                   </h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                            Members:
-                        </span>
-                        <span className="font-medium">
-                            {partyMembers.length}
-                        </span>
+                      <span className="text-muted-foreground">Members:</span>
+                      <span className="font-medium">{partyMembers.length}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">
@@ -189,17 +195,19 @@ function Home() {
                     </div>
                     {party.leader_id ? (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Leader:
-                        </span>
+                        <span className="text-muted-foreground">Leader:</span>
                         <span className="font-medium">
-                        <Button
+                          <Button
                             variant="link"
                             className="p-0 h-auto text-base font-medium"
-                            onClick={() => router.push(`/profile/${party.leader_id}`)}
-                        >
-                            {partyMembers.find(member => member.id === party.leader_id)?.username || `User ID ${party.leader_id}`}
-                        </Button>
+                            onClick={() =>
+                              router.push(`/profile/${party.leader_id}`)
+                            }
+                          >
+                            {partyMembers.find(
+                              (member) => member.id === party.leader_id
+                            )?.username || `User ID ${party.leader_id}`}
+                          </Button>
                         </span>
                       </div>
                     ) : (
@@ -237,13 +245,13 @@ function Home() {
                       </Button>
                     )}
                     {thisUser?.party_id === null && (
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start"
-                          onClick={joinParty}
-                        >
-                          <Handshake /> Join Party
-                        </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={joinParty}
+                      >
+                        <Handshake /> Join Party
+                      </Button>
                     )}
                     {party.manifesto_url ? (
                       <Button
@@ -296,7 +304,12 @@ function Home() {
                             {member.username}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {member.role} {(member.id === party.leader_id && <span className={`font-medium text-green-500`}>- Party Leader</span>)}
+                            {member.role}{" "}
+                            {member.id === party.leader_id && (
+                              <span className={`font-medium text-green-500`}>
+                                - Party Leader
+                              </span>
+                            )}
                           </p>
                         </div>
                         <Button
