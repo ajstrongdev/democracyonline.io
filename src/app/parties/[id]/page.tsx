@@ -142,7 +142,7 @@ function Home() {
         <div className="space-y-6">
           <Card className="border-l-4" style={{ borderLeftColor: party.color }}>
             <CardHeader className="pb-6">
-              <div className="flex items-center gap-4">
+              <div className="md:flex items-center gap-4">
                 <div
                   className="flex aspect-square size-16 items-center justify-center rounded-lg shadow-md"
                   style={{ backgroundColor: party.color }}
@@ -152,7 +152,7 @@ function Home() {
                   </span>
                 </div>
                 <div className="flex-1">
-                  <h1 className="text-4xl font-bold text-foreground">
+                  <h1 className="text-2xl mt-8 md:mt-0 md:text-4xl font-bold text-foreground text-wrap break-words">
                     {party.name}
                   </h1>
                 </div>

@@ -61,11 +61,11 @@ function Home() {
           : feed.map((item: FeedItem) => (
               <Card key={item.id} className="p-4">
                 <CardContent className="p-0">
-                  <div className="flex justify-between items-center w-full">
-                    <p className="truncate">
+                  <div className="md:flex justify-between items-center w-full">
+                    <p className="text-wrap">
                       <b>{item.username || "Unknown User"}</b>: {item.content}
                     </p>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap md:ml-4">
                       {new Date(item.created_at).toLocaleString()}
                     </span>
                   </div>
