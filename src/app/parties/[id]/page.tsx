@@ -54,13 +54,10 @@ function Home() {
       setThisUser(userInfo || null);
     });
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/parties/leave`,
-        {
-          userId: thisUser?.id,
-          partyId: id,
-        }
-      );
+      const response = await axios.post("/api/party-leave", {
+        userId: thisUser?.id,
+        partyId: id,
+      });
       setThisUser(response.data);
     } catch (error) {
       console.error("Error leaving party:", error);
@@ -101,13 +98,10 @@ function Home() {
 
   const becomeLeader = async () => {
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/parties/become-leader`,
-        {
-          userId: thisUser?.id,
-          partyId: id,
-        }
-      );
+      const response = await axios.post("/api/party-become-leader", {
+        userId: thisUser?.id,
+        partyId: id,
+      });
       setThisUser(response.data);
     } catch (error) {
       console.error("Error becoming party leader:", error);
