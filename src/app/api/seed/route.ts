@@ -72,7 +72,8 @@ async function seed() {
     await query(`
       CREATE TABLE IF NOT EXISTS bills (
         id SERIAL PRIMARY KEY,
-        stage VARCHAR(50) NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'Queued',
+        stage VARCHAR(50) NOT NULL DEFAULT 'House',
         title VARCHAR(255) NOT NULL,
         creator_id INTEGER REFERENCES users(id),
         content TEXT NOT NULL,
@@ -81,7 +82,7 @@ async function seed() {
     `);
 
     await query(`
-      CREATE TABLE IF NOT EXISTS bill_approval (
+      CREATE TABLE IF NOT EXISTS bill_votes_house (
         id SERIAL PRIMARY KEY,
         bill_id INTEGER REFERENCES bills(id),
         voter_id INTEGER REFERENCES users(id),
@@ -90,7 +91,7 @@ async function seed() {
     `);
 
     await query(`
-      CREATE TABLE IF NOT EXISTS bill_house_votes (
+      CREATE TABLE IF NOT EXISTS bill_votes_senate (
         id SERIAL PRIMARY KEY,
         bill_id INTEGER REFERENCES bills(id),
         voter_id INTEGER REFERENCES users(id),
@@ -99,19 +100,11 @@ async function seed() {
     `);
 
     await query(`
-      CREATE TABLE IF NOT EXISTS bill_senate_votes (
+      CREATE TABLE IF NOT EXISTS bill_votes_president (
         id SERIAL PRIMARY KEY,
         bill_id INTEGER REFERENCES bills(id),
         voter_id INTEGER REFERENCES users(id),
         vote_yes BOOLEAN NOT NULL
-      );
-    `);
-
-    await query(`
-      CREATE TABLE IF NOT EXISTS bill_veto (
-        id SERIAL PRIMARY KEY,
-        bill_id INTEGER REFERENCES bills(id),
-        voter_id INTEGER REFERENCES users(id)
       );
     `);
 
@@ -135,6 +128,22 @@ async function seed() {
       `);
     } catch (error: any) {
       // do nothing
+    }
+
+    // Create 2 test users
+    try {
+      const testUser1 = await query(
+        "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
+        ["test@test.com", "maggietime", "Representative"]
+      );
+      const testUser2 = await query(
+        "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
+        ["test2@test.com", "maggietime2", "Representative"]
+      );
+      console.log("Test users created:", testUser1.rows[0], testUser2.rows[0]);
+    } catch (error) {
+      console.error("Error during seeding:", error);
+      throw error;
     }
   } catch (error) {
     console.error("Error during seeding:", error);
