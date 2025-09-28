@@ -115,6 +115,15 @@ async function seed() {
       );
     `);
 
+    await query(`
+      CREATE TABLE IF NOT EXISTS feed (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     await listTables("Tables after seeding:");
 
     // Add foreign key constraint from parties.leader_id to users.id if not exists

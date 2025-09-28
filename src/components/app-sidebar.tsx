@@ -38,7 +38,7 @@ const data = {
       icon: User,
     },
     {
-      title: "Notifications",
+      title: "Notifications & Feed",
       url: "/notifications",
       icon: Bell,
     },
@@ -74,7 +74,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   React.useEffect(() => {
     setMounted(true);
-    
+
     // Listen for auth state changes
     const unsubscribe = auth.onAuthStateChanged((user) => {
       setUser(user);
@@ -144,25 +144,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={toggleTheme}>
-              {mounted ? (theme === "dark" ? <Sun /> : <Moon />) : <Moon />}
+              {mounted ? theme === "dark" ? <Sun /> : <Moon /> : <Moon />}
               <span>Change theme</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
             {mounted && user ? (
               <SidebarMenuButton onClick={handleSignOut}>
-              <LogOut />
-              <span>Sign out</span>
+                <LogOut />
+                <span>Sign out</span>
               </SidebarMenuButton>
             ) : mounted ? (
               <SidebarMenuButton onClick={() => router.push("/")}>
-              <Crown />
-              <span>Sign in</span>
+                <Crown />
+                <span>Sign in</span>
               </SidebarMenuButton>
             ) : (
               <SidebarMenuButton disabled>
-              <Crown />
-              <span>Loading...</span>
+                <Crown />
+                <span>Loading...</span>
               </SidebarMenuButton>
             )}
           </SidebarMenuItem>
