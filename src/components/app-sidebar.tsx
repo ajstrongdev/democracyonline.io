@@ -13,6 +13,7 @@ import {
   Handshake,
   Newspaper,
   ChevronDown,
+  ChartNoAxesCombined,
 } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
@@ -58,7 +59,7 @@ const data = {
       icon: Newspaper,
     },
     {
-      title: "House of representatives",
+      title: "House of Representatives",
       icon: Building2,
       dropdown: [
         {
@@ -81,7 +82,7 @@ const data = {
         {
           title: "Elections",
           url: "/senate/elections",
-          icon: Crown,
+          icon: ChartNoAxesCombined,
         },
       ],
       url: "/senate",
@@ -98,7 +99,7 @@ const data = {
         {
           title: "Elections",
           url: "/oval-office/elections",
-          icon: Crown,
+          icon: ChartNoAxesCombined,
         },
       ],
       url: "/oval-office",
@@ -166,14 +167,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               {data.navMain.map((item) => {
                 const isActive = pathname === item.url;
                 if (item.dropdown) {
-                  // Dropdown menu item with chevron
+                  const isDropdownOpen = item.dropdown.some(
+                    (sub) =>
+                      pathname === sub.url || pathname.startsWith(sub.url)
+                  );
                   return (
                     <SidebarMenuItem key={item.title}>
-                      <details className="w-full group">
-                        <summary className="flex items-center gap-2 cursor-pointer px-2 py-2 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-                          <item.icon />
-                          <span>{item.title}</span>
-                          <ChevronDown className="ml-auto transition-transform group-open:rotate-180" size={18} />
+                      <details className="w-full group" open={isDropdownOpen}>
+                        <summary className="flex items-center gap-2 cursor-pointer px-2 py-2 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-[15px]">
+                          <item.icon size={20} />
+                          <span className="text-[15px]">{item.title}</span>
+                          <ChevronDown
+                            className="ml-auto transition-transform group-open:rotate-180"
+                            size={20}
+                          />
                         </summary>
                         <SidebarMenuSub>
                           {item.dropdown.map((sub) => (
@@ -196,10 +203,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 // Regular menu item, same size as dropdown headers
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive} className="px-2 py-2 rounded-md">
-                      <a href={item.url}>
-                        <item.icon />
-                        <span>{item.title}</span>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      className="px-2 py-2 rounded-md text-[15px]"
+                    >
+                      <a href={item.url} className="flex items-center gap-2">
+                        <item.icon size={20} />
+                        <span className="text-[15px]">{item.title}</span>
                       </a>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
