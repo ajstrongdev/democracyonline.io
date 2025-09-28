@@ -11,6 +11,7 @@ import {
   Sun,
   Moon,
   Handshake,
+  Newspaper,
 } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
@@ -46,6 +47,11 @@ const data = {
       title: "Political Parties",
       url: "/parties",
       icon: Handshake,
+    },
+    {
+      title: "Bills",
+      url: "/bills",
+      icon: Newspaper,
     },
     {
       title: "House of representatives",

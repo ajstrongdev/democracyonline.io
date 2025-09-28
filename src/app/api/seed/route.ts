@@ -13,6 +13,85 @@ async function listTables(message: string): Promise<void> {
   console.log(res.rows.map((r) => r.table_name));
 }
 
+async function seedData() {
+  try {
+    const testUser1 = await query(
+      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
+      ["test@test.com", "maggietime", "Representative"]
+    );
+    const testUser2 = await query(
+      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
+      ["test2@test.com", "maggietime2", "Representative"]
+    );
+    const testUser3 = await query(
+      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
+      ["test3@test.com", "maggietime3", "Representative"]
+    );
+    const testUser4 = await query(
+      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
+      ["test4@test.com", "maggietime4", "Representative"]
+    );
+    const testUser5 = await query(
+      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
+      ["test5@test.com", "maggietime5", "Representative"]
+    );
+    const testUser6 = await query(
+      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
+      ["test6@test.com", "maggietime6", "Representative"]
+    );
+    const bill = await query(
+      "INSERT INTO bills (status, stage, title, creator_id, content) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [
+        "Voting",
+        "House",
+        "Dummy Bill Title",
+        testUser1.rows[0].id,
+        "This is a dummy bill content.",
+      ]
+    );
+    const queued_bill = await query(
+      "INSERT INTO bills (status, stage, title, creator_id, content) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [
+        "Queued",
+        "House",
+        "Queued Bill Title",
+        testUser2.rows[0].id,
+        "This is a queued bill content.",
+      ]
+    );
+    const house_bills_vote = await query(
+      "INSERT INTO bill_votes_house (bill_id, voter_id, vote_yes) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9), ($10, $11, $12) RETURNING *",
+      [
+        bill.rows[0].id,
+        testUser3.rows[0].id,
+        true,
+        bill.rows[0].id,
+        testUser4.rows[0].id,
+        true,
+        bill.rows[0].id,
+        testUser5.rows[0].id,
+        false,
+        bill.rows[0].id,
+        testUser6.rows[0].id,
+        false,
+      ]
+    );
+    console.log(
+      "Test users created:",
+      testUser1.rows[0],
+      testUser2.rows[0] +
+        testUser3.rows[0] +
+        testUser4.rows[0] +
+        testUser5.rows[0]
+    );
+    console.log("Dummy bill created:", bill.rows[0], queued_bill.rows[0]);
+    console.log("Dummy house votes created:", house_bills_vote.rows);
+  } catch (error) {
+    console.error("Error during seeding:", error);
+    throw error;
+  }
+}
+
 async function seed() {
   await listTables("Tables before seeding:");
   try {
@@ -129,22 +208,7 @@ async function seed() {
     } catch (error: any) {
       // do nothing
     }
-
-    // Create 2 test users
-    try {
-      const testUser1 = await query(
-        "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-        ["test@test.com", "maggietime", "Representative"]
-      );
-      const testUser2 = await query(
-        "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-        ["test2@test.com", "maggietime2", "Representative"]
-      );
-      console.log("Test users created:", testUser1.rows[0], testUser2.rows[0]);
-    } catch (error) {
-      console.error("Error during seeding:", error);
-      throw error;
-    }
+    await seedData();
   } catch (error) {
     console.error("Error during seeding:", error);
     throw error;

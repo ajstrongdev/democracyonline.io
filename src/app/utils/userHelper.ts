@@ -18,3 +18,12 @@ export const fetchUserInfo = async (email: string) => {
     console.error("Error fetching user info:", error);
   }
 };
+
+export const getUserById = async (userId: number) => {
+  try {
+    const response = await axios.post(`/api/get-user-by-id`, { userId });
+    return response.data.username;
+  } catch (error) {
+    return "Unknown User";
+  }
+};

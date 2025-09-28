@@ -5,7 +5,7 @@ import withAuth from "@/lib/withAuth";
 import { useQuery } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
 import axios from "axios";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 type FeedItem = {
   id: number;
