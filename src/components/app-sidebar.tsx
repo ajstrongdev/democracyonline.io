@@ -11,6 +11,9 @@ import {
   Sun,
   Moon,
   Handshake,
+  Newspaper,
+  ChevronDown,
+  ChartNoAxesCombined,
 } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
@@ -27,6 +30,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 
@@ -48,19 +54,55 @@ const data = {
       icon: Handshake,
     },
     {
-      title: "House of representatives",
-      url: "/house-of-representatives",
+      title: "Bills",
+      url: "/bills",
+      icon: Newspaper,
+    },
+    {
+      title: "House of Representatives",
       icon: Building2,
+      dropdown: [
+        {
+          title: "Bills",
+          url: "/house-of-representatives/bills",
+          icon: Newspaper,
+        },
+      ],
+      url: "/house-of-representatives",
     },
     {
       title: "Senate",
-      url: "/senate",
       icon: Landmark,
+      dropdown: [
+        {
+          title: "Bills",
+          url: "/senate/bills",
+          icon: Newspaper,
+        },
+        {
+          title: "Elections",
+          url: "/senate/elections",
+          icon: ChartNoAxesCombined,
+        },
+      ],
+      url: "/senate",
     },
     {
       title: "Oval Office",
-      url: "/oval-office",
       icon: Crown,
+      dropdown: [
+        {
+          title: "Bills",
+          url: "/oval-office/bills",
+          icon: Newspaper,
+        },
+        {
+          title: "Elections",
+          url: "/oval-office/elections",
+          icon: ChartNoAxesCombined,
+        },
+      ],
+      url: "/oval-office",
     },
   ],
 };
@@ -124,12 +166,51 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenu>
               {data.navMain.map((item) => {
                 const isActive = pathname === item.url;
+                if (item.dropdown) {
+                  const isDropdownOpen = item.dropdown.some(
+                    (sub) =>
+                      pathname === sub.url || pathname.startsWith(sub.url)
+                  );
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <details className="w-full group" open={isDropdownOpen}>
+                        <summary className="flex items-center gap-2 cursor-pointer px-2 py-2 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-[15px]">
+                          <item.icon size={20} />
+                          <span className="text-[15px]">{item.title}</span>
+                          <ChevronDown
+                            className="ml-auto transition-transform group-open:rotate-180"
+                            size={20}
+                          />
+                        </summary>
+                        <SidebarMenuSub>
+                          {item.dropdown.map((sub) => (
+                            <SidebarMenuSubItem key={sub.title}>
+                              <SidebarMenuSubButton
+                                href={sub.url}
+                                isActive={pathname === sub.url}
+                                size="sm"
+                              >
+                                <sub.icon size={16} />
+                                <span>{sub.title}</span>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </details>
+                    </SidebarMenuItem>
+                  );
+                }
+                // Regular menu item, same size as dropdown headers
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive}>
-                      <a href={item.url}>
-                        <item.icon />
-                        <span>{item.title}</span>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      className="px-2 py-2 rounded-md text-[15px]"
+                    >
+                      <a href={item.url} className="flex items-center gap-2">
+                        <item.icon size={20} />
+                        <span className="text-[15px]">{item.title}</span>
                       </a>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
