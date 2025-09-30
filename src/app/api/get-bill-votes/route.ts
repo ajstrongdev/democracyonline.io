@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       `SELECT 
                 COUNT(*) FILTER (WHERE vote_yes = true) AS true_count,
                 COUNT(*) FILTER (WHERE vote_yes = false) AS false_count
-             FROM bill_votes_house WHERE bill_id = $1`,
+             FROM bill_votes_${stage.toLowerCase()} WHERE bill_id = $1`,
       [billId]
     );
     return NextResponse.json(

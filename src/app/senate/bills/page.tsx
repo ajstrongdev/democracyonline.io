@@ -23,7 +23,7 @@ type BillItemWithUsername = BillItem & {
   username: string;
 };
 
-function HouseOfRepresentatives() {
+function SenateBills() {
   const [user] = useAuthState(auth);
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -44,7 +44,7 @@ function HouseOfRepresentatives() {
     queryKey: ["bills"],
     queryFn: async () => {
       const res = await axios.get("/api/bills-get-voting", {
-        params: { stage: "House" },
+        params: { stage: "Senate" },
       });
       const bills = res.data.bills || [];
       const billsWithUsernames = await Promise.all(
@@ -64,14 +64,14 @@ function HouseOfRepresentatives() {
     isLoading: votesLoading,
     error: votesError,
   } = useQuery({
-    queryKey: ["houseVotes", data.map((bill: BillItem) => bill.id)],
+    queryKey: ["senateVotes", data.map((bill: BillItem) => bill.id)],
     queryFn: async () => {
       if (data.length === 0) return {};
       const votesResults = await Promise.all(
         data.map(async (bill: BillItem) => {
           const res = await axios.post(`/api/get-bill-votes`, {
             billId: bill.id,
-            stage: "House",
+            stage: "Senate",
           });
           return { billId: bill.id, votes: res.data };
         })
@@ -90,18 +90,18 @@ function HouseOfRepresentatives() {
     isLoading: repsLoading,
     error: repsError,
   } = useQuery({
-    queryKey: ["representatives"],
+    queryKey: ["senators"],
     queryFn: async () => {
       const res = await axios.get("/api/get-role", {
-        params: { role: "Representative" },
+        params: { role: "Senator" },
       });
-      const representatives = res.data.representatives || [];
-      const representativesWithParties = await Promise.all(
-        representatives.map(async (rep: UserInfo) => {
-          return { ...rep };
+      const senators = res.data.senators || res.data.representatives || [];
+      const senatorsWithParties = await Promise.all(
+        senators.map(async (sen: UserInfo) => {
+          return { ...sen };
         })
       );
-      return representativesWithParties;
+      return senatorsWithParties;
     },
   });
 
@@ -115,7 +115,7 @@ function HouseOfRepresentatives() {
       if (!thisUser?.id) return false;
       const res = await axios.post("/api/user-can-vote", {
         userId: thisUser.id,
-        role: "Representative",
+        role: "Senator",
       });
       return res.data.canVote || false;
     },
@@ -131,7 +131,7 @@ function HouseOfRepresentatives() {
           const res = await axios.post(`/api/user-has-voted`, {
             userId: thisUser.id,
             billId: bill.id,
-            stage: "House",
+            stage: "Senate",
           });
           return { billId: bill.id, hasVoted: res.data.hasVoted || false };
         })
@@ -155,10 +155,10 @@ function HouseOfRepresentatives() {
       const res = await axios.post("/api/bill-vote", {
         userId: thisUser.id,
         billId,
-        role: "Representative",
+        role: "Senator",
         vote,
       });
-      queryClient.invalidateQueries({ queryKey: ["houseVotes"] });
+      queryClient.invalidateQueries({ queryKey: ["senateVotes"] });
       queryClient.invalidateQueries({ queryKey: ["hasVoted"] });
       return res.data;
     } catch (error) {
@@ -168,18 +168,16 @@ function HouseOfRepresentatives() {
   };
 
   const bills: BillItemWithUsername[] = data;
-  const representatives: any[] = repsData || [];
+  const senators: any[] = repsData || [];
   const votedRecord =
     bills.length > 0 ? hasVotedData?.[bills[0].id] : undefined;
 
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-foreground mb-2">
-          House of Representatives
-        </h1>
+        <h1 className="text-4xl font-bold text-foreground mb-2">Senate</h1>
         <p className="text-muted-foreground">
-          View and vote on bills currently in the House of Representatives.
+          View and vote on bills currently in the Senate.
         </p>
       </div>
 
@@ -190,7 +188,7 @@ function HouseOfRepresentatives() {
           <div className="text-red-500">Error loading bills.</div>
         ) : bills.length === 0 ? (
           <div className="text-muted-foreground">
-            No bills currently in the House.
+            No bills currently in the Senate.
           </div>
         ) : (
           bills.map((bill: BillItemWithUsername) => (
@@ -237,8 +235,8 @@ function HouseOfRepresentatives() {
                   </div>
                 ) : canVoteError ? (
                   <div className="text-red-500">
-                    You are not a member of the House of Representatives, you
-                    cannot vote on this bill.
+                    You are not a member of the Senate, you cannot vote on this
+                    bill.
                   </div>
                 ) : canVoteData &&
                   hasVotedData &&
@@ -268,30 +266,28 @@ function HouseOfRepresentatives() {
         )}
         <Card className="mb-4 max-h-[500px] overflow-y-auto">
           <CardHeader>
-            <h2 className="text-2xl font-bold">Representatives</h2>
+            <h2 className="text-2xl font-bold">Senators</h2>
           </CardHeader>
           <CardContent>
             {repsLoading ? (
               <GenericSkeleton />
             ) : repsError ? (
-              <div className="text-red-500">Error loading representatives.</div>
-            ) : representatives.length === 0 ? (
-              <div className="text-muted-foreground">
-                No representatives found.
-              </div>
+              <div className="text-red-500">Error loading senators.</div>
+            ) : senators.length === 0 ? (
+              <div className="text-muted-foreground">No senators found.</div>
             ) : (
               <div className="flex flex-col gap-4">
-                {representatives.map((rep: any) => (
-                  <Card key={rep.id} className="shadow-none border">
+                {senators.map((sen: any) => (
+                  <Card key={sen.id} className="shadow-none border">
                     <CardHeader className="flex flex-row items-center justify-between p-4">
                       <div>
                         <h3 className="text-lg font-semibold">
-                          {rep.username}
+                          {sen.username}
                         </h3>
                       </div>
                       <Button
                         variant="outline"
-                        onClick={() => router.push(`/profile/${rep.id}`)}
+                        onClick={() => router.push(`/profile/${sen.id}`)}
                       >
                         View Profile
                       </Button>
@@ -307,4 +303,4 @@ function HouseOfRepresentatives() {
   );
 }
 
-export default withAuth(HouseOfRepresentatives);
+export default withAuth(SenateBills);
