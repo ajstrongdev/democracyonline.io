@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
@@ -43,7 +43,9 @@ function HouseOfRepresentatives() {
   } = useQuery({
     queryKey: ["bills"],
     queryFn: async () => {
-      const res = await axios.get("/api/house-bills");
+      const res = await axios.get("/api/bills-get-voting", {
+        params: { stage: "House" },
+      });
       const bills = res.data.bills || [];
       const billsWithUsernames = await Promise.all(
         bills.map(async (item: BillItem) => {
@@ -67,8 +69,9 @@ function HouseOfRepresentatives() {
       if (data.length === 0) return {};
       const votesResults = await Promise.all(
         data.map(async (bill: BillItem) => {
-          const res = await axios.post(`/api/get-house-votes`, {
+          const res = await axios.post(`/api/get-bill-votes`, {
             billId: bill.id,
+            stage: "House",
           });
           return { billId: bill.id, votes: res.data };
         })
@@ -89,12 +92,13 @@ function HouseOfRepresentatives() {
   } = useQuery({
     queryKey: ["representatives"],
     queryFn: async () => {
-      const res = await axios.get("/api/get-representatives");
+      const res = await axios.get("/api/get-role", {
+        params: { role: "Representative" },
+      });
       const representatives = res.data.representatives || [];
       const representativesWithParties = await Promise.all(
         representatives.map(async (rep: UserInfo) => {
-          const party = await getPartyById(rep.party_id || 0);
-          return { ...rep, party };
+          return { ...rep };
         })
       );
       return representativesWithParties;
@@ -118,11 +122,7 @@ function HouseOfRepresentatives() {
     enabled: !!thisUser?.id,
   });
 
-  const {
-    data: hasVotedData,
-    isLoading: hasVotedLoading,
-    error: hasVotedError,
-  } = useQuery({
+  const { data: hasVotedData } = useQuery({
     queryKey: ["hasVoted", thisUser?.id],
     queryFn: async () => {
       if (!thisUser?.id) return {};
@@ -136,7 +136,6 @@ function HouseOfRepresentatives() {
         })
       );
 
-      // Build a lookup map: { [billId]: true/false }
       const votesMap: Record<number, boolean> = {};
       votesResults.forEach(({ billId, hasVoted }) => {
         votesMap[billId] = hasVoted;
@@ -145,17 +144,6 @@ function HouseOfRepresentatives() {
     },
     enabled: thisUser?.id && data.length > 0,
   });
-
-  const getPartyById = async (partyId: number) => {
-    try {
-      const response = await axios.get(
-        `/api/get-party-by-id?partyId=${partyId}`
-      );
-      return response.data.name;
-    } catch (error) {
-      return "Unknown Party";
-    }
-  };
 
   const voteOnBill = async (billId: number, vote: boolean) => {
     if (!thisUser?.id) {

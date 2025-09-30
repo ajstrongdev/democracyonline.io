@@ -3,7 +3,7 @@ import { query } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
-    const { billId } = await request.json();
+    const { billId, stage } = await request.json();
     if (!billId) {
       return NextResponse.json(
         { error: "Missing billId parameter" },
@@ -11,8 +11,8 @@ export async function POST(request: NextRequest) {
       );
     }
     const billRes = await query(
-      "SELECT id FROM bills WHERE id = $1 AND status = 'Voting' AND stage = 'House'",
-      [billId]
+      "SELECT id FROM bills WHERE id = $1 AND status = 'Voting' AND stage = $2",
+      [billId, stage]
     );
     if (!billRes.rows || billRes.rows.length === 0) {
       return NextResponse.json(
