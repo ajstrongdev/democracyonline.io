@@ -3,16 +3,16 @@ import { query } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, billId } = await request.json();
+    const { userId, billId, stage } = await request.json();
 
-    if (!userId || !billId) {
+    if (!userId || !billId || !stage) {
       return NextResponse.json(
         { hasVoted: false, error: "Missing parameters" },
         { status: 400 }
       );
     }
     const res = await query(
-      "SELECT * FROM bill_votes_house WHERE voter_id = $1 AND bill_id = $2",
+      `SELECT * FROM bill_votes_${stage.toLowerCase()} WHERE voter_id = $1 AND bill_id = $2`,
       [userId, billId]
     );
 

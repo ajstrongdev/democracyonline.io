@@ -2,6 +2,42 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
 export async function GET() {
+  try {
+    // Check if the senate has a current bill in progress
+    const res = await query(
+      "SELECT * FROM bills WHERE stage = 'Senate' AND status = 'Voting'"
+    );
+    if (res.rows.length !== 0) {
+      // Count votes
+      const bill = res.rows[0];
+      const votesRes = await query(
+        "SELECT vote_yes, COUNT(*) as count FROM bill_votes_senate WHERE bill_id = $1 GROUP BY vote_yes",
+        [bill.id]
+      );
+      const yesVotes =
+        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0;
+      const noVotes =
+        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0;
+      if (yesVotes > noVotes) {
+        // Bill passes
+        await query(
+          "UPDATE bills SET stage = 'President', status = 'Voting' WHERE id = $1",
+          [bill.id]
+        );
+      } else {
+        // Bill fails
+        await query("UPDATE bills SET status = 'Defeated' WHERE id = $1", [
+          bill.id,
+        ]);
+      }
+    }
+  } catch (error) {
+    console.error("Error in the senate:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
   // Check if the house has a current bill in progress
   try {
     const res = await query(
