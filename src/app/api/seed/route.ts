@@ -179,7 +179,7 @@ async function seed() {
     `);
 
     await query(`
-      CREATE TABLE IF NOT EXISTS bill_votes_president (
+      CREATE TABLE IF NOT EXISTS bill_votes_presidential (
         id SERIAL PRIMARY KEY,
         bill_id INTEGER REFERENCES bills(id),
         voter_id INTEGER REFERENCES users(id),
