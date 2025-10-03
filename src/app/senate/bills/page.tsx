@@ -261,6 +261,13 @@ function SenateBills() {
                   </div>
                 )}
               </CardFooter>
+              <CardFooter>
+                <p className="text-sm text-muted-foreground">
+                  Bills reset daily at UTC midnight. After 24 hours votes will
+                  be tallied and the bill will either pass to the Oval Office
+                  for signature or be defeated.
+                </p>
+              </CardFooter>
             </Card>
           ))
         )}
@@ -274,7 +281,9 @@ function SenateBills() {
             ) : repsError ? (
               <div className="text-red-500">Error loading senators.</div>
             ) : senators.length === 0 ? (
-              <div className="text-muted-foreground">No senators found.</div>
+              <div className="text-muted-foreground">
+                No senators have been elected.
+              </div>
             ) : (
               <div className="flex flex-col gap-4">
                 {senators.map((sen: any) => (
@@ -297,6 +306,11 @@ function SenateBills() {
               </div>
             )}
           </CardContent>
+          <CardFooter>
+            <p className="text-sm text-muted-foreground">
+              Members of the Senate review and vote on legislation.
+            </p>
+          </CardFooter>
         </Card>
       </div>
     </div>

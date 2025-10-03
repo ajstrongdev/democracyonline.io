@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   } else if (role === "Senator") {
     table = "bill_votes_senate";
   } else if (role === "President") {
-    table = "bill_votes_president";
+    table = "bill_votes_presidential";
   } else {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
