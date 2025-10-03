@@ -1,103 +1,128 @@
-import Image from "next/image";
+"use client";
+import { auth } from "@/lib/firebase";
+import { useSignInWithEmailAndPassword, useAuthState } from "react-firebase-hooks/auth";
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+} from "@/components/ui/card";
+import {
+    Button,
+    buttonVariants,
+} from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
+    const [user, userLoading] = useAuthState(auth);
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const router = useRouter();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    useEffect(() => {
+        if (user && !userLoading) {
+            router.push("/home");
+        }
+    }, [user, userLoading, router]);
+
+    const signIn = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setLoading(true);
+        setError("");
+        
+        try {
+            const res = await signInWithEmailAndPassword(email, password);
+            if (res?.user) {
+                console.log("User signed in:", res.user);
+                router.push("/home");
+            }
+        } catch (err) {
+            console.error("Error signing in:", err);
+            setError("Failed to sign in. Please check your credentials.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (userLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center bg-background px-6 py-12">
+                <p>Loading...</p>
+            </div>
+        );
+    }
+
+    if (user) {
+        return null; // Will redirect in useEffect
+    }
+
+    return (
+        <div className="flex flex-col items-center justify-center bg-background px-6 py-12">
+            <Card className="w-full max-w-md">
+                <CardContent className="grid gap-4">
+                    <div className="flex flex-col space-y-2 text-center">
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            Sign in to your account
+                        </h1>
+                        <CardDescription>
+                            Enter your email and password to sign in.
+                        </CardDescription>
+                    </div>
+                    <form onSubmit={signIn} className="grid gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                autoFocus
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="password">Password</Label>
+                            <Input
+                                id="password"
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <Button type="submit" disabled={loading}>
+                            {loading ? "Signing In..." : "Sign In"}
+                        </Button>
+                        {error && (
+                            <p className="text-sm text-destructive text-center">
+                                {error}
+                            </p>
+                        )}
+                    </form>
+                    <CardFooter className="pt-0 flex justify-center">
+                        <p className="text-center text-sm text-muted-foreground">
+                            Don't have an account?{" "}
+                            <Link
+                                href="/register"
+                                className={cn(
+                                    buttonVariants({ variant: "link" }),
+                                    "p-0 h-auto align-baseline"
+                                )}
+                            >
+                                Sign up
+                            </Link>
+                        </p>
+                    </CardFooter>
+                </CardContent>
+            </Card>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+    );
 }
