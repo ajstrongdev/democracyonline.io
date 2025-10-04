@@ -13,6 +13,29 @@ async function listTables(message: string): Promise<void> {
   console.log(res.rows.map((r) => r.table_name));
 }
 
+async function dropTables(): Promise<void> {
+  const tables = [
+    "bill_votes_presidential",
+    "bill_votes_senate",
+    "bill_votes_house",
+    "bills",
+    "candidates",
+    "votes",
+    "elections",
+    "users",
+    "parties",
+    "feed",
+  ];
+  for (const table of tables) {
+    try {
+      await query(`DROP TABLE IF EXISTS ${table} CASCADE;`);
+      console.log(`Dropped table ${table}`);
+    } catch (error) {
+      console.error(`Error dropping table ${table}:`, error);
+    }
+  }
+}
+
 async function seedData() {
   try {
     const testUser1 = await query(
@@ -38,6 +61,22 @@ async function seedData() {
     const testUser6 = await query(
       "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
       ["test6@test.com", "maggietime6", "Representative"]
+    );
+    const testUser7 = await query(
+      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
+      ["test7@test.com", "maggietime7", "Representative"]
+    );
+    const testUser8 = await query(
+      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
+      ["test8@test.com", "maggietime8", "Representative"]
+    );
+    const testUser9 = await query(
+      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
+      ["test9@test.com", "maggietime9", "Representative"]
+    );
+    const testUser10 = await query(
+      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
+      ["test10@test.com", "maggietime10", "Representative"]
     );
     const bill = await query(
       "INSERT INTO bills (status, stage, title, creator_id, content) VALUES ($1, $2, $3, $4, $5) RETURNING *",
@@ -76,6 +115,39 @@ async function seedData() {
         false,
       ]
     );
+    const election_president = await query(
+      "INSERT INTO elections (election, status, days_left) VALUES ($1, $2, $3) RETURNING *",
+      ["President", "Candidate", 5]
+    );
+    const election_senate = await query(
+      "INSERT INTO elections (election, status, days_left) VALUES ($1, $2, $3) RETURNING *",
+      ["Senate", "Candidate", 2]
+    );
+    const candidate_president = await query(
+      "INSERT INTO candidates (user_id, election, votes) VALUES ($1, $2, $3), ($4, $5, $6) RETURNING *",
+      [
+        testUser2.rows[0].id,
+        "President",
+        121,
+        testUser7.rows[0].id,
+        "President",
+        43,
+      ]
+    );
+    const candidate_senate = await query(
+      "INSERT INTO candidates (user_id, election, votes) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9) RETURNING *",
+      [
+        testUser3.rows[0].id,
+        "Senate",
+        15,
+        testUser6.rows[0].id,
+        "Senate",
+        27,
+        testUser9.rows[0].id,
+        "Senate",
+        12,
+      ]
+    );
     console.log(
       "Test users created:",
       testUser1.rows[0],
@@ -86,6 +158,11 @@ async function seedData() {
     );
     console.log("Dummy bill created:", bill.rows[0], queued_bill.rows[0]);
     console.log("Dummy house votes created:", house_bills_vote.rows);
+    console.log("Dummy elections created:", election_president.rows[0]);
+    console.log("Dummy elections created:", election_senate.rows[0]);
+    console.log("Dummy candidates created:", candidate_president.rows);
+    console.log("Dummy candidates created:", candidate_senate.rows);
+    await listTables("Tables after seeding data:");
   } catch (error) {
     console.error("Error during seeding:", error);
     throw error;
@@ -94,6 +171,7 @@ async function seedData() {
 
 async function seed() {
   await listTables("Tables before seeding:");
+  await dropTables();
   try {
     await query(`
       CREATE TABLE IF NOT EXISTS parties (
@@ -123,28 +201,30 @@ async function seed() {
     `);
 
     await query(`
+      CREATE TABLE IF NOT EXISTS elections (
+        election VARCHAR(50) PRIMARY KEY NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'Candidacy',
+        days_left INTEGER NOT NULL
+      );
+    `);
+
+    await query(`
       CREATE TABLE IF NOT EXISTS candidates (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        standing_for VARCHAR(255) NOT NULL
+        user_id INT REFERENCES users(id),
+        election VARCHAR(50) REFERENCES elections(election),
+        votes INTEGER DEFAULT 0,
+        hasWon BOOLEAN DEFAULT NULL,
+        UNIQUE(user_id, election)
       );
     `);
 
     await query(`
-      CREATE TABLE IF NOT EXISTS presidential_election (
+      CREATE TABLE IF NOT EXISTS votes (
         id SERIAL PRIMARY KEY,
-        voter_id INTEGER REFERENCES users(id),
-        candidate_id INTEGER REFERENCES users(id),
-        points_won INTEGER NOT NULL
-      );
-    `);
-
-    await query(`
-      CREATE TABLE IF NOT EXISTS senate_election (
-        id SERIAL PRIMARY KEY,
-        voter_id INTEGER REFERENCES users(id),
-        candidate_id INTEGER REFERENCES users(id),
-        points_won INTEGER NOT NULL
+        user_id INT REFERENCES users(id),
+        election VARCHAR(50) REFERENCES elections(election),
+        UNIQUE(user_id, election)
       );
     `);
 
@@ -205,6 +285,7 @@ async function seed() {
         ADD CONSTRAINT fk_party_leader
         FOREIGN KEY (leader_id) REFERENCES users(id) ON DELETE SET NULL;
       `);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
     } catch (error: any) {
       // do nothing
     }

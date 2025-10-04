@@ -1,0 +1,28 @@
+# GCP Project Configuration
+project_id = "your-gcp-project-id"
+region     = "europe-west2"
+
+# Application Configuration
+app_name    = "online-democratic-republic"
+environment = "production"
+
+# Database Configuration
+db_tier = "db-f1-micro" # Use db-g1-small for better performance
+db_name = "odr_db"
+db_user = "odr_user"
+
+# Firebase Configuration
+# Get these from your Firebase project settings
+firebase_api_key               = "your-firebase-api-key"
+firebase_auth_domain           = "your-project.firebaseapp.com"
+firebase_project_id            = "your-firebase-project-id"
+firebase_storage_bucket        = "your-project.appspot.com"
+firebase_messaging_sender_id   = "your-sender-id"
+firebase_app_id                = "your-app-id"
+firebase_measurement_id        = "G-XXXXXXXXXX"
+
+# Cloud Run Configuration
+cloud_run_cpu           = "1"
+cloud_run_memory        = "512Mi"
+cloud_run_min_instances = 0  # Scale to zero for cost savings
+cloud_run_max_instances = 10

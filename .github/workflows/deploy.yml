@@ -1,0 +1,93 @@
+name: CD - Deploy to GCP
+
+on:
+  push:
+    branches:
+      - master
+
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  GCP_PROJECT_ID: fir-test-cee1e
+  GCP_REGION: europe-west2
+  SERVICE_NAME: odr
+  ARTIFACT_REPO: odr-docker
+
+jobs:
+  deploy:
+    name: Build and Deploy to Cloud Run
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # Required for Workload Identity Federation
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+      - name: Fetch Firebase credentials from Secret Manager
+        id: secrets
+        run: |
+          for secret in api-key auth-domain project-id storage-bucket messaging-sender-id app-id measurement-id; do
+            var_name=$(echo "FIREBASE_${secret}" | tr '[:lower:]-' '[:upper:]_')
+            value=$(gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-${secret}")
+            echo "${var_name}=${value}" >> $GITHUB_OUTPUT
+          done
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="${{ steps.secrets.outputs.FIREBASE_API_KEY }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="${{ steps.secrets.outputs.FIREBASE_AUTH_DOMAIN }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID="${{ steps.secrets.outputs.FIREBASE_PROJECT_ID }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="${{ steps.secrets.outputs.FIREBASE_STORAGE_BUCKET }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="${{ steps.secrets.outputs.FIREBASE_MESSAGING_SENDER_ID }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_APP_ID="${{ steps.secrets.outputs.FIREBASE_APP_ID }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="${{ steps.secrets.outputs.FIREBASE_MEASUREMENT_ID }}" \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest \
+            .
+
+      - name: Push Docker image to Artifact Registry
+        run: |
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --quiet
+
+      - name: Get Cloud Run URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.url)')
+          echo "🚀 Deployed to: $SERVICE_URL"
+          echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_ENV
+
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: ${{ env.GCP_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: ${{ env.SERVICE_URL }}" >> $GITHUB_STEP_SUMMARY
