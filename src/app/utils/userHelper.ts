@@ -27,3 +27,15 @@ export const getUserById = async (userId: number) => {
     return "Unknown User";
   }
 };
+
+export const getUserFullById = async (
+  userId: number
+): Promise<UserInfo | null> => {
+  try {
+    const response = await axios.post(`/api/get-user-by-id`, { userId });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching user by id:", error);
+    return null;
+  }
+};

@@ -189,7 +189,7 @@ async function seed() {
         id SERIAL PRIMARY KEY,
         user_id INT REFERENCES users(id),
         election VARCHAR(50) REFERENCES elections(election),
-        vote_points INTEGER DEFAULT 0,
+        votes INTEGER DEFAULT 0,
         hasWon BOOLEAN DEFAULT NULL,
         UNIQUE(user_id, election)
       );

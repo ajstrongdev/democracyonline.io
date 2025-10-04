@@ -15,8 +15,9 @@ import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { fetchUserInfo } from "@/app/utils/userHelper";
-import { getUserById } from "@/app/utils/userHelper";
+import { getUserById, getUserFullById } from "@/app/utils/userHelper";
 import { UserInfo } from "@/app/utils/userHelper";
+import { Party } from "@/app/utils/partyHelper";
 
 function PresidentElections() {
   const [user] = useAuthState(auth);
@@ -63,15 +64,66 @@ function PresidentElections() {
     retry: false,
   });
 
+  const CandidateItem = ({ userId }: { userId: number }) => {
+    const { data: candidateUser, isLoading: userLoading } = useQuery({
+      queryKey: ["candidateUser", userId],
+      queryFn: () => getUserFullById(Number(userId)),
+      enabled: !!userId,
+    });
+
+    const { data: party, isLoading: partyLoading } = useQuery<Party>({
+      queryKey: ["party", candidateUser?.party_id],
+      queryFn: () =>
+        axios
+          .get("/api/get-party-by-id", {
+            params: { partyId: candidateUser?.party_id },
+          })
+          .then((res) => res.data),
+      enabled: !!candidateUser?.party_id,
+    });
+
+    if (userLoading) {
+      return <GenericSkeleton />;
+    }
+
+    if (!candidateUser) {
+      return <div className="p-2">Unknown candidate</div>;
+    }
+
+    return (
+      <Card className="py-4 my-4">
+        <CardContent className="md:flex md:items-center md:justify-between">
+          {partyLoading ? (
+            <p className="text-sm text-muted-foreground">Loading party...</p>
+          ) : party ? (
+            <h1>
+              {candidateUser.username} |{" "}
+              <span style={{ color: party.color }}>{party.name}</span>
+            </h1>
+          ) : (
+            <p>
+              {candidateUser.username} |{" "}
+              <span className="text-muted-foreground">Independent</span>
+            </p>
+          )}
+          {electionInfo.status === "Voting" && (
+            <Button>Vote for {candidateUser.username}</Button>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   const standAsCandidate = async () => {
     if (!thisUser) return;
     try {
-      const response = await axios.post("/api/election-stand-candidate", {
+      await axios.post("/api/election-stand-candidate", {
         userId: thisUser.id,
         election: "President",
       });
       await refetch();
       await refetchCandidates();
+      queryClient.invalidateQueries({ queryKey: ["candidates", "President"] });
     } catch (error) {
       console.error("Error standing as candidate:", error);
     }
@@ -106,6 +158,16 @@ function PresidentElections() {
         </Alert>
       ) : (
         <>
+          {electionInfo && electionInfo.status == "Voting" && (
+            <Alert className="mb-6">
+              <AlertTitle className="font-bold">Elections are live!</AlertTitle>
+              <AlertDescription>
+                The presidential elections are now in the voting phase. Cast
+                your vote for your preferred candidate before the elections
+                close.
+              </AlertDescription>
+            </Alert>
+          )}
           {electionInfo && electionInfo.status === "Candidate" && (
             <>
               {candidatesLoading ? (
@@ -146,6 +208,19 @@ function PresidentElections() {
                 </Alert>
               )}
             </>
+          )}
+          {electionInfo && (
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Candidates</h2>
+              {candidates && candidates.length > 0 ? (
+                <div className="space-y-2">
+                  {candidates.map((candidate: any) => {
+                    const userId = candidate.userId || candidate.user_id;
+                    return <CandidateItem key={candidate.id} userId={userId} />;
+                  })}
+                </div>
+              ) : null}
+            </div>
           )}
         </>
       )}
