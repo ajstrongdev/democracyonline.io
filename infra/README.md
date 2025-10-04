@@ -72,6 +72,7 @@ This directory contains Terraform configuration for deploying the Online Democra
    - Adjust resource sizing if needed
 
 3. **Update the backend configuration in `main.tf`**
+
    ```hcl
    backend "gcs" {
      bucket = "your-terraform-state-bucket"  # Update this
@@ -133,6 +134,7 @@ This directory contains Terraform configuration for deploying the Online Democra
    ```
 
 4. **Deploy to Cloud Run**
+
    ```bash
    gcloud run deploy online-democratic-republic \
      --image europe-west2-docker.pkg.dev/YOUR_PROJECT_ID/online-democratic-republic-docker/online-democratic-republic:latest \
@@ -210,6 +212,7 @@ After deployment, you may need to run migrations or seed data:
    ```
 
 2. **Run migrations from another terminal**
+
    ```bash
    # Get database credentials from Secret Manager or Terraform output
    # Then connect with psql or your migration tool
@@ -237,13 +240,16 @@ Before destroying, consider:
 
 ## Files Overview
 
-- `main.tf` - Main Terraform configuration, provider setup, and API enablement
+- `main.tf` - Complete infrastructure configuration including:
+  - Provider setup and API enablement
+  - Artifact Registry for Docker images
+  - Cloud SQL PostgreSQL instance and database
+  - Secret Manager for all secrets (using loops for Firebase configs)
+  - Cloud Run service and IAM configuration
+  - All outputs
 - `variables.tf` - Input variable definitions
-- `database.tf` - Cloud SQL PostgreSQL instance and database configuration
-- `secrets.tf` - Secret Manager resources for sensitive data
-- `cloud-run.tf` - Cloud Run service and IAM configuration
-- `outputs.tf` - Output values after deployment
 - `terraform.tfvars.example` - Example variables file
+- `.terraform.lock.hcl` - Dependency lock file (auto-generated)
 
 ## Security Notes
 
@@ -301,5 +307,5 @@ With the current configuration (scale to zero, minimal instance):
 
 ## Support
 
-For Terraform issues, see: https://registry.terraform.io/providers/hashicorp/google/latest/docs
-For GCP issues, see: https://cloud.google.com/docs
+For Terraform issues, see: <https://registry.terraform.io/providers/hashicorp/google/latest/docs>
+For GCP issues, see: <https://cloud.google.com/docs>

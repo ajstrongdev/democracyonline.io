@@ -23,7 +23,33 @@ provider "google" {
   region  = var.region
 }
 
-# Enable required GCP APIs
+# ============================================
+# LOCALS - Configuration and Data
+# ============================================
+
+locals {
+  # Firebase secrets mapping
+  firebase_secrets = {
+    api-key             = var.firebase_api_key
+    auth-domain         = var.firebase_auth_domain
+    project-id          = var.firebase_project_id
+    storage-bucket      = var.firebase_storage_bucket
+    messaging-sender-id = var.firebase_messaging_sender_id
+    app-id              = var.firebase_app_id
+    measurement-id      = var.firebase_measurement_id
+  }
+
+  # All secret IDs for IAM binding
+  all_secret_ids = concat(
+    ["${var.app_name}-db-connection-string"],
+    [for key, _ in local.firebase_secrets : "${var.app_name}-firebase-${key}"]
+  )
+}
+
+# ============================================
+# API ENABLEMENT
+# ============================================
+
 resource "google_project_service" "required_apis" {
   for_each = toset([
     "cloudresourcemanager.googleapis.com",
@@ -38,4 +64,276 @@ resource "google_project_service" "required_apis" {
 
   service            = each.value
   disable_on_destroy = false
+}
+
+# ============================================
+# ARTIFACT REGISTRY
+# ============================================
+
+resource "google_artifact_registry_repository" "docker_repo" {
+  location      = var.region
+  repository_id = "${var.app_name}-docker"
+  description   = "Docker repository for ${var.app_name}"
+  format        = "DOCKER"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# ============================================
+# DATABASE
+# ============================================
+
+resource "random_password" "db_password" {
+  length  = 32
+  special = true
+}
+
+resource "google_sql_database_instance" "postgres" {
+  name             = "${var.app_name}-postgres-${var.environment}"
+  database_version = "POSTGRES_15"
+  region           = var.region
+
+  settings {
+    tier              = var.db_tier
+    availability_type = "ZONAL"
+    disk_size         = 10
+    disk_type         = "PD_HDD"
+
+    backup_configuration {
+      enabled                        = true
+      start_time                     = "03:00"
+      point_in_time_recovery_enabled = false
+      transaction_log_retention_days = 1
+      backup_retention_settings {
+        retained_backups = 7
+      }
+    }
+
+    ip_configuration {
+      ipv4_enabled = true
+      authorized_networks {
+        name  = "allow-all-temp"
+        value = "0.0.0.0/0"
+      }
+    }
+
+    insights_config {
+      query_insights_enabled = false
+    }
+  }
+
+  deletion_protection = true
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_sql_database" "database" {
+  name     = var.db_name
+  instance = google_sql_database_instance.postgres.name
+}
+
+resource "google_sql_user" "user" {
+  name     = var.db_user
+  instance = google_sql_database_instance.postgres.name
+  password = random_password.db_password.result
+}
+
+# ============================================
+# SECRET MANAGER
+# ============================================
+
+# Database connection string secret
+resource "google_secret_manager_secret" "db_connection_string" {
+  secret_id = "${var.app_name}-db-connection-string"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "db_connection_string" {
+  secret      = google_secret_manager_secret.db_connection_string.id
+  secret_data = "postgresql://${var.db_user}:${random_password.db_password.result}@${google_sql_database_instance.postgres.public_ip_address}:5432/${var.db_name}?sslmode=no-verify"
+}
+
+# Firebase secrets (using for_each to reduce duplication)
+resource "google_secret_manager_secret" "firebase" {
+  for_each = local.firebase_secrets
+
+  secret_id = "${var.app_name}-firebase-${each.key}"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "firebase" {
+  for_each = local.firebase_secrets
+
+  secret      = google_secret_manager_secret.firebase[each.key].id
+  secret_data = each.value
+}
+
+# ============================================
+# CLOUD RUN
+# ============================================
+
+resource "google_service_account" "cloud_run_sa" {
+  account_id   = "${var.app_name}-cloud-run"
+  display_name = "Service Account for ${var.app_name} Cloud Run"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Grant Cloud Run SA access to all secrets
+resource "google_secret_manager_secret_iam_member" "cloud_run_secret_access" {
+  for_each = toset(local.all_secret_ids)
+
+  secret_id = each.value
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+
+  depends_on = [
+    google_secret_manager_secret.db_connection_string,
+    google_secret_manager_secret.firebase,
+  ]
+}
+
+resource "google_project_iam_member" "cloud_run_sql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+}
+
+resource "google_cloud_run_v2_service" "app" {
+  name     = var.app_name
+  location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    service_account = google_service_account.cloud_run_sa.email
+
+    scaling {
+      min_instance_count = var.cloud_run_min_instances
+      max_instance_count = var.cloud_run_max_instances
+    }
+
+    containers {
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
+
+      ports {
+        container_port = 3000
+      }
+
+      resources {
+        limits = {
+          cpu    = var.cloud_run_cpu
+          memory = var.cloud_run_memory
+        }
+        cpu_idle = true
+      }
+
+      env {
+        name = "CONNECTION_STRING"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.db_connection_string.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name  = "NODE_ENV"
+        value = "production"
+      }
+    }
+  }
+
+  depends_on = [
+    google_project_service.required_apis,
+    google_secret_manager_secret_version.db_connection_string,
+  ]
+}
+
+resource "google_cloud_run_v2_service_iam_member" "public_access" {
+  location = google_cloud_run_v2_service.app.location
+  name     = google_cloud_run_v2_service.app.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# ============================================
+# OUTPUTS
+# ============================================
+
+output "cloud_run_url" {
+  description = "The URL of the deployed Cloud Run service"
+  value       = google_cloud_run_v2_service.app.uri
+}
+
+output "artifact_registry_repository" {
+  description = "The Artifact Registry repository URL"
+  value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}"
+}
+
+output "database_instance_name" {
+  description = "The name of the Cloud SQL instance"
+  value       = google_sql_database_instance.postgres.name
+}
+
+output "database_public_ip" {
+  description = "The public IP address of the Cloud SQL instance"
+  value       = google_sql_database_instance.postgres.public_ip_address
+}
+
+output "database_connection_name" {
+  description = "The connection name of the Cloud SQL instance"
+  value       = google_sql_database_instance.postgres.connection_name
+}
+
+output "service_account_email" {
+  description = "The email of the Cloud Run service account"
+  value       = google_service_account.cloud_run_sa.email
+}
+
+output "next_steps" {
+  description = "Next steps to deploy your application"
+  value       = <<-EOT
+
+    ============================================
+    Infrastructure deployed successfully! 🎉
+    ============================================
+
+    Cloud Run URL: ${google_cloud_run_v2_service.app.uri}
+
+    Next steps:
+
+    1. Build and push your Docker image:
+
+       gcloud auth configure-docker ${var.region}-docker.pkg.dev
+
+       docker build -t ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${var.app_name}:latest .
+
+       docker push ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${var.app_name}:latest
+
+    2. Deploy to Cloud Run:
+
+       gcloud run deploy ${var.app_name} \
+         --image ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${var.app_name}:latest \
+         --region ${var.region}
+
+    3. Your database is ready at:
+       Host: ${google_sql_database_instance.postgres.public_ip_address}
+       Database: ${var.db_name}
+       User: ${var.db_user}
+
+       Connection string is stored in Secret Manager.
+
+    ============================================
+  EOT
 }
