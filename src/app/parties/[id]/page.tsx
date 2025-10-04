@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import withAuth from "@/lib/withAuth";
@@ -350,7 +351,8 @@ function Home() {
               Party Not Found
             </h2>
             <p className="text-muted-foreground mb-4">
-              The party you're looking for doesn't exist or has been removed.
+              The party you&apos;re looking for doesn&apos;t exist or has been
+              removed.
             </p>
             <Button onClick={() => router.push("/parties")}>
               ← Back to All Parties

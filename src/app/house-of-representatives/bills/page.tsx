@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import withAuth from "@/lib/withAuth";
@@ -168,6 +169,7 @@ function HouseOfRepresentatives() {
   };
 
   const bills: BillItemWithUsername[] = data;
+
   const representatives: any[] = repsData || [];
   const votedRecord =
     bills.length > 0 ? hasVotedData?.[bills[0].id] : undefined;

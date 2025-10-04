@@ -49,6 +49,7 @@ function Bills() {
       setTitle("");
       setContent("");
       router.push("/bills");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err?.response?.data?.error || "Failed to create bill.");
     } finally {
