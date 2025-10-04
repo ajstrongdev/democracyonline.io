@@ -1,0 +1,25 @@
+name: Game Advance Scheduler
+
+on:
+  schedule:
+    # Every 5 minutes (change to "0 0 * * *" for daily at midnight UTC)
+    - cron: "*/5 * * * *"
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  game-advance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call game-advance endpoint
+        run: |
+          response=$(curl -s -w "\n%{http_code}" "${{ secrets.PROD_URL }}/api/game-advance")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+
+          if [ "$http_code" -ne 200 ]; then
+            echo "Error: API call failed with status $http_code"
+            exit 1
+          fi
