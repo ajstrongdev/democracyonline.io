@@ -110,6 +110,7 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = React.useState<any>(null);
   const router = useRouter();
   const pathname = usePathname();

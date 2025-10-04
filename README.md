@@ -1,36 +1,141 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Online Democratic Republic
+
+A Next.js application for democratic participation, deployed on Google Cloud Platform.
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Styling**: Tailwind CSS
+- **Database**: PostgreSQL 15 (Cloud SQL)
+- **Authentication**: Firebase Auth
+- **Deployment**: Cloud Run (GCP)
+- **Infrastructure**: Terraform
+- **CI/CD**: GitHub Actions
 
 ## Getting Started
 
-First, run the development server:
+### Local Development
+
+1. **Install dependencies:**
+
+   ```bash
+   pnpm install
+   ```
+
+2. **Set up environment variables:**
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Fill in your Firebase and database credentials.
+
+3. **Start the development server:**
+
+   ```bash
+   pnpm dev
+   ```
+
+4. **Start the database (optional):**
+
+   ```bash
+   # Using the provided script
+   bash src/scripts/postgres.sh
+   ```
+
+Open [http://localhost:3000](http://localhost:3000) to see the application.
+
+## Deployment
+
+### Prerequisites
+
+- GCP account with billing enabled
+- Terraform installed
+- GitHub repository with Actions enabled
+
+### Infrastructure Setup
+
+1. **Deploy infrastructure with Terraform:**
+
+   ```bash
+   cd infra
+   cp terraform.tfvars.example terraform.tfvars
+   # Edit terraform.tfvars with your values
+   terraform init
+   terraform apply
+   ```
+
+2. **Configure GitHub Actions:**
+
+   ```bash
+   cd .github
+   ./setup-workload-identity.sh
+   ```
+
+   Add the generated secrets to your GitHub repository.
+
+### Deploying
+
+**Automatic (via GitHub Actions):**
+
+- Push to `master` branch to trigger deployment
+
+**Manual:**
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+./deploy.sh
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+See [Infrastructure README](./infra/README.md) and [GitHub Actions README](./.github/README.md) for detailed documentation.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+├── src/
+│   ├── app/              # Next.js app directory
+│   ├── components/       # React components
+│   ├── lib/             # Utilities and configurations
+│   └── scripts/         # Helper scripts
+├── infra/               # Terraform configuration
+├── .github/
+│   └── workflows/       # GitHub Actions CI/CD
+├── dockerfile           # Docker build configuration
+└── cloudbuild.yaml      # Cloud Build config (alternative to GitHub Actions)
+```
 
-## Learn More
+## Documentation
 
-To learn more about Next.js, take a look at the following resources:
+- [Infrastructure Guide](./infra/README.md) - Terraform deployment
+- [GitHub Actions Setup](./.github/README.md) - CI/CD configuration
+- [Build Guide](./BUILD_GUIDE.md) - Docker build and environment variables
+- [Deployment Guide](./DEPLOYMENT.md) - Quick start deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment Variables
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Build-time (NEXT*PUBLIC*\*)
 
-## Deploy on Vercel
+Required during Docker build, embedded in client-side code:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `NEXT_PUBLIC_FIREBASE_API_KEY`
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `NEXT_PUBLIC_FIREBASE_APP_ID`
+- `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Runtime (Server-side only)
+
+- `CONNECTION_STRING` - PostgreSQL connection string
+
+## Contributing
+
+1. Create a feature branch
+2. Make your changes
+3. Ensure CI passes
+4. Create a pull request to `develop`
+5. Merge to `master` to deploy
+
+## License
+
+[Add your license here]

@@ -1,0 +1,49 @@
+name: CI - Lint and Build
+
+on:
+  push:
+    branches-ignore:
+      - master # Don't run on master since CD will handle it
+  pull_request:
+    branches:
+      - develop
+      - master
+
+jobs:
+  lint-and-build:
+    name: Lint and Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ESLint
+        run: pnpm run lint
+
+      - name: Build Next.js application
+        run: pnpm run build
+        env:
+          # Dummy values for build-time NEXT_PUBLIC_ variables
+          # These are required for the build to succeed but won't be used
+          NEXT_PUBLIC_FIREBASE_API_KEY: "dummy-for-ci"
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "dummy-for-ci"
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: "dummy-for-ci"
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "dummy-for-ci"
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "dummy-for-ci"
+          NEXT_PUBLIC_FIREBASE_APP_ID: "dummy-for-ci"
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: "dummy-for-ci"
