@@ -13,6 +13,29 @@ async function listTables(message: string): Promise<void> {
   console.log(res.rows.map((r) => r.table_name));
 }
 
+async function dropTables(): Promise<void> {
+  const tables = [
+    "bill_votes_presidential",
+    "bill_votes_senate",
+    "bill_votes_house",
+    "bills",
+    "candidates",
+    "votes",
+    "elections",
+    "users",
+    "parties",
+    "feed",
+  ];
+  for (const table of tables) {
+    try {
+      await query(`DROP TABLE IF EXISTS ${table} CASCADE;`);
+      console.log(`Dropped table ${table}`);
+    } catch (error) {
+      console.error(`Error dropping table ${table}:`, error);
+    }
+  }
+}
+
 async function seedData() {
   try {
     const testUser1 = await query(
@@ -94,35 +117,35 @@ async function seedData() {
     );
     const election_president = await query(
       "INSERT INTO elections (election, status, days_left) VALUES ($1, $2, $3) RETURNING *",
-      ["President", "Candidate", 3]
+      ["President", "Candidate", 5]
     );
     const election_senate = await query(
       "INSERT INTO elections (election, status, days_left) VALUES ($1, $2, $3) RETURNING *",
       ["Senate", "Candidate", 2]
     );
     const candidate_president = await query(
-      "INSERT INTO candidates (user_id, election, vote_points) VALUES ($1, $2, $3), ($4, $5, $6) RETURNING *",
+      "INSERT INTO candidates (user_id, election, votes) VALUES ($1, $2, $3), ($4, $5, $6) RETURNING *",
       [
         testUser2.rows[0].id,
         "President",
-        0,
+        121,
         testUser7.rows[0].id,
         "President",
-        0,
+        43,
       ]
     );
     const candidate_senate = await query(
-      "INSERT INTO candidates (user_id, election, vote_points) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9) RETURNING *",
+      "INSERT INTO candidates (user_id, election, votes) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9) RETURNING *",
       [
-        testUser1.rows[0].id,
+        testUser3.rows[0].id,
         "Senate",
-        0,
+        15,
         testUser6.rows[0].id,
         "Senate",
-        0,
+        27,
         testUser9.rows[0].id,
         "Senate",
-        0,
+        12,
       ]
     );
     console.log(
@@ -148,6 +171,7 @@ async function seedData() {
 
 async function seed() {
   await listTables("Tables before seeding:");
+  await dropTables();
   try {
     await query(`
       CREATE TABLE IF NOT EXISTS parties (

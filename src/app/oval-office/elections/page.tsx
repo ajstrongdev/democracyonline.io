@@ -1,12 +1,7 @@
 "use client";
 
 import withAuth from "@/lib/withAuth";
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
@@ -15,8 +10,7 @@ import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { fetchUserInfo } from "@/app/utils/userHelper";
-import { getUserById, getUserFullById } from "@/app/utils/userHelper";
-import { UserInfo } from "@/app/utils/userHelper";
+import { getUserFullById } from "@/app/utils/userHelper";
 import { Party } from "@/app/utils/partyHelper";
 
 function PresidentElections() {
@@ -64,7 +58,30 @@ function PresidentElections() {
     retry: false,
   });
 
-  const CandidateItem = ({ userId }: { userId: number }) => {
+  // Check if user has voted
+  const { data: hasVotedData, refetch: refetchHasVoted } = useQuery({
+    queryKey: ["hasVoted", "President", thisUser?.id],
+    queryFn: () =>
+      axios
+        .post("/api/elections-has-voted", {
+          userId: thisUser?.id,
+          election: "President",
+        })
+        .then((res) => res.data),
+    enabled: !!thisUser && !!electionInfo && electionInfo.status === "Voting",
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+
+  const hasVoted = hasVotedData?.hasVoted || false;
+
+  const CandidateItem = ({
+    userId,
+    candidateId,
+  }: {
+    userId: number;
+    candidateId: number;
+  }) => {
     const { data: candidateUser, isLoading: userLoading } = useQuery({
       queryKey: ["candidateUser", userId],
       queryFn: () => getUserFullById(Number(userId)),
@@ -107,8 +124,66 @@ function PresidentElections() {
             </p>
           )}
           {electionInfo.status === "Voting" && (
-            <Button>Vote for {candidateUser.username}</Button>
+            <Button
+              onClick={() => voteForCandidate(candidateId)}
+              disabled={hasVoted}
+            >
+              {hasVoted
+                ? "Already Voted"
+                : `Vote for ${candidateUser.username}`}
+            </Button>
           )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const ResultsItem = ({
+    userId,
+    votes,
+  }: {
+    userId: number;
+    votes: number;
+  }) => {
+    const { data: candidateUser, isLoading: userLoading } = useQuery({
+      queryKey: ["candidateUser", userId],
+      queryFn: () => getUserFullById(Number(userId)),
+      enabled: !!userId,
+    });
+
+    const { data: party } = useQuery<Party>({
+      queryKey: ["party", candidateUser?.party_id],
+      queryFn: () =>
+        axios
+          .get("/api/get-party-by-id", {
+            params: { partyId: candidateUser?.party_id },
+          })
+          .then((res) => res.data),
+      enabled: !!candidateUser?.party_id,
+    });
+
+    if (userLoading) {
+      return <GenericSkeleton />;
+    }
+
+    if (!candidateUser) {
+      return <div className="p-2">Unknown candidate</div>;
+    }
+
+    return (
+      <Card>
+        <CardHeader>
+          <h3 className="text-xl font-semibold">{candidateUser.username}</h3>
+          <p
+            className="text-sm text-muted-foreground"
+            style={{ color: party?.color }}
+          >
+            {party?.name || "Independent"}
+          </p>
+        </CardHeader>
+        <CardContent>
+          <p className="text-2xl font-bold text-primary">{votes}</p>
+          <p className="text-sm text-muted-foreground">votes</p>
         </CardContent>
       </Card>
     );
@@ -129,6 +204,26 @@ function PresidentElections() {
     }
   };
 
+  const voteForCandidate = async (candidateId: number) => {
+    if (!thisUser) return;
+    try {
+      await axios.post("/api/elections-vote", {
+        userId: thisUser.id,
+        candidateId,
+        election: "President",
+      });
+      await refetch();
+      await refetchCandidates();
+      await refetchHasVoted();
+      queryClient.invalidateQueries({ queryKey: ["candidates", "President"] });
+      queryClient.invalidateQueries({
+        queryKey: ["hasVoted", "President", thisUser.id],
+      });
+    } catch (error) {
+      console.error("Error voting for candidate:", error);
+    }
+  };
+
   const isAlreadyCandidate =
     candidates &&
     Array.isArray(candidates) &&
@@ -139,11 +234,35 @@ function PresidentElections() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-4">Presidential Elections</h1>
-      <p className="text-muted-foreground mb-6">
-        Step into the political arena. Declare your candidacy, campaign for
-        votes, and compete with other players to become the next President.
-      </p>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-4">Presidential Elections</h1>
+          <p className="text-muted-foreground mb-6">
+            Step into the political arena. Declare your candidacy, campaign for
+            votes, and compete with other players to become the next President.
+          </p>
+        </div>
+        {electionInfo && (
+          <Card>
+            <CardContent>
+              {electionInfo.status === "Candidate" ? (
+                <p className="text-muted-foreground text-sm">
+                  Polls open in <b>{electionInfo.days_left} days</b>.
+                </p>
+              ) : electionInfo.status === "Voting" ? (
+                <p className="text-muted-foreground text-sm">
+                  Election ends in <b>{electionInfo.days_left} days</b>.
+                </p>
+              ) : electionInfo.status === "Concluded" ? (
+                <p className="text-muted-foreground text-sm">
+                  You can stand as a candidate for the next election in{" "}
+                  <b>{electionInfo.days_left} days</b>.
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+        )}
+      </div>
       {isLoading ? (
         <GenericSkeleton />
       ) : isError ? (
@@ -209,6 +328,46 @@ function PresidentElections() {
               )}
             </>
           )}
+          {electionInfo && electionInfo.status === "Concluded" && (
+            <Alert className="mb-6">
+              <AlertTitle className="font-bold">Elections concluded</AlertTitle>
+              <AlertDescription>
+                The presidential elections have concluded. Here are the final
+                results.
+              </AlertDescription>
+            </Alert>
+          )}
+          {/* Election Results */}
+          {electionInfo &&
+            (electionInfo.status === "Concluded" ||
+              electionInfo.status === "Voting") && (
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold mb-4">
+                  {electionInfo.status === "Concluded"
+                    ? "Election Results"
+                    : "Current Results"}
+                </h2>
+                {candidates && candidates.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[...candidates]
+                      .sort((a: any, b: any) => (b.votes || 0) - (a.votes || 0))
+                      .map((candidate: any) => {
+                        const userId = candidate.userId || candidate.user_id;
+                        const votes = candidate.votes || 0;
+                        return (
+                          <ResultsItem
+                            key={candidate.id}
+                            userId={userId}
+                            votes={votes}
+                          />
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No candidates yet.</p>
+                )}
+              </div>
+            )}
           {electionInfo && (
             <div>
               <h2 className="text-2xl font-bold mb-4">Candidates</h2>
@@ -216,7 +375,13 @@ function PresidentElections() {
                 <div className="space-y-2">
                   {candidates.map((candidate: any) => {
                     const userId = candidate.userId || candidate.user_id;
-                    return <CandidateItem key={candidate.id} userId={userId} />;
+                    return (
+                      <CandidateItem
+                        key={candidate.id}
+                        userId={userId}
+                        candidateId={candidate.id}
+                      />
+                    );
                   })}
                 </div>
               ) : null}
