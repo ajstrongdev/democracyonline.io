@@ -205,6 +205,7 @@ async function seed() {
         ADD CONSTRAINT fk_party_leader
         FOREIGN KEY (leader_id) REFERENCES users(id) ON DELETE SET NULL;
       `);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
     } catch (error: any) {
       // do nothing
     }

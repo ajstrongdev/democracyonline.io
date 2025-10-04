@@ -13,6 +13,7 @@ import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Handshake } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Party } from "@/app/utils/partyHelper";
+import Link from "next/link";
 
 function Home() {
   const [user] = useAuthState(auth);
@@ -137,10 +138,10 @@ function Home() {
             Not a fan of any of these choices? Create your party!
           </p>
           <Button asChild variant="default" size="lg">
-            <a href="/parties/create">
+            <Link href="/parties/create">
               <Handshake className="mr-2" />
               Create a Party
-            </a>
+            </Link>
           </Button>
         </div>
       )}
