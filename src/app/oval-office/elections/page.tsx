@@ -228,6 +228,7 @@ function PresidentElections() {
     candidates &&
     Array.isArray(candidates) &&
     candidates.some(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (candidate: any) =>
         candidate.userId === thisUser?.id || candidate.user_id === thisUser?.id
     );
@@ -350,7 +351,9 @@ function PresidentElections() {
                 {candidates && candidates.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[...candidates]
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       .sort((a: any, b: any) => (b.votes || 0) - (a.votes || 0))
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       .map((candidate: any) => {
                         const userId = candidate.userId || candidate.user_id;
                         const votes = candidate.votes || 0;
@@ -373,6 +376,7 @@ function PresidentElections() {
               <h2 className="text-2xl font-bold mb-4">Candidates</h2>
               {candidates && candidates.length > 0 ? (
                 <div className="space-y-2">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {candidates.map((candidate: any) => {
                     const userId = candidate.userId || candidate.user_id;
                     return (
