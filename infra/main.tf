@@ -60,6 +60,7 @@ resource "google_project_service" "required_apis" {
     "secretmanager.googleapis.com",
     "cloudbuild.googleapis.com",
     "compute.googleapis.com",
+    "cloudscheduler.googleapis.com",
   ])
 
   service            = each.value
@@ -254,6 +255,15 @@ resource "google_cloud_run_v2_service" "app" {
     }
   }
 
+  # Ignore changes to the container image since it's managed by CI/CD
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+      client,
+      client_version,
+    ]
+  }
+
   depends_on = [
     google_project_service.required_apis,
     google_secret_manager_secret_version.db_connection_string,
@@ -265,6 +275,54 @@ resource "google_cloud_run_v2_service_iam_member" "public_access" {
   name     = google_cloud_run_v2_service.app.name
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+# ============================================
+# CLOUD SCHEDULER
+# ============================================
+
+# Service account for Cloud Scheduler
+resource "google_service_account" "scheduler_sa" {
+  account_id   = "${var.app_name}-scheduler"
+  display_name = "Service Account for ${var.app_name} Cloud Scheduler"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Grant the scheduler service account permission to invoke Cloud Run
+resource "google_cloud_run_v2_service_iam_member" "scheduler_invoker" {
+  location = google_cloud_run_v2_service.app.location
+  name     = google_cloud_run_v2_service.app.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.scheduler_sa.email}"
+}
+
+# Cloud Scheduler job to hit game-advance endpoint every 5 minutes
+resource "google_cloud_scheduler_job" "game_advance" {
+  name             = "${var.app_name}-game-advance"
+  description      = "Trigger game advancement every 5 minutes"
+  schedule         = "*/5 * * * *"
+  time_zone        = "UTC"
+  attempt_deadline = "320s"
+  region           = var.region
+
+  retry_config {
+    retry_count = 3
+  }
+
+  http_target {
+    http_method = "GET"
+    uri         = "${google_cloud_run_v2_service.app.uri}/api/game-advance"
+
+    oidc_token {
+      service_account_email = google_service_account.scheduler_sa.email
+    }
+  }
+
+  depends_on = [
+    google_project_service.required_apis,
+    google_cloud_run_v2_service.app,
+  ]
 }
 
 # ============================================
@@ -299,6 +357,11 @@ output "database_connection_name" {
 output "service_account_email" {
   description = "The email of the Cloud Run service account"
   value       = google_service_account.cloud_run_sa.email
+}
+
+output "scheduler_job_name" {
+  description = "The name of the Cloud Scheduler job for game advancement"
+  value       = google_cloud_scheduler_job.game_advance.name
 }
 
 output "next_steps" {
