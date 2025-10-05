@@ -120,6 +120,8 @@ export async function GET() {
       }
     }
     if (electionStatus === "Voting") {
+      // Set the number of seats for the next senate election
+      await updateSenateSeats();
       if (daysLeft > 1) {
         // Decrement days left
         await query(
@@ -198,8 +200,6 @@ export async function GET() {
         await query(
           "UPDATE elections SET status = 'Candidate', days_left = 2 WHERE election = 'Senate'"
         );
-        // Set the number of seats for the next senate election
-        await updateSenateSeats();
       }
     }
   } catch (error) {

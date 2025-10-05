@@ -282,7 +282,8 @@ function SenateElections() {
               <AlertTitle className="font-bold">Elections are live!</AlertTitle>
               <AlertDescription>
                 The Senate elections are now in the voting phase. Cast your vote
-                for your preferred candidate before the elections close.
+                for your preferred candidate before the elections close. There
+                are {electionInfo.seats} seats available.
               </AlertDescription>
             </Alert>
           )}
@@ -306,10 +307,7 @@ function SenateElections() {
                   >
                     <>
                       Stand as a candidate in the upcoming Senate elections and
-                      become the voice of the people.{" "}
-                      {electionInfo.seats > 1
-                        ? `There are ${electionInfo.seats} seats available.`
-                        : "There is 1 seat available."}
+                      become the voice of the people.
                       {!isAlreadyCandidate && thisUser ? (
                         <Button
                           className="mt-4 md:mt-0"
