@@ -1,6 +1,21 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+function calculate(x: number) {
+  return 0.2 * x + 0.3 * x * Math.exp(-0.0183 * x);
+}
+
+async function updateSenateSeats() {
+  // Determine number of seats based on total player count
+  const usersRes = await query("SELECT COUNT(*) FROM users");
+  const population = usersRes.rows[0]?.count || 0;
+  const senators = Math.max(1, Math.floor(calculate(population)));
+
+  await query("UPDATE elections SET seats = $1 WHERE election = 'Senate'", [
+    senators,
+  ]);
+}
+
 export async function GET() {
   // Presidential elections
   try {
@@ -9,9 +24,7 @@ export async function GET() {
       "SELECT * FROM elections WHERE election = 'President'"
     );
     const electionStatus = res.rows[0]?.status;
-    console.log("Election Status:", electionStatus);
     const daysLeft = res.rows[0]?.days_left;
-    console.log("Days Left:", daysLeft);
     if (electionStatus === "Candidate") {
       if (daysLeft > 1) {
         // Decrement days left
@@ -79,6 +92,118 @@ export async function GET() {
     }
   } catch (error) {
     console.error("Error handling presidential election status:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+  // Senate elections
+  try {
+    // Get "status" of senate election
+    const res = await query(
+      "SELECT * FROM elections WHERE election = 'Senate'"
+    );
+    const electionStatus = res.rows[0]?.status;
+    const daysLeft = res.rows[0]?.days_left;
+    const seats = res.rows[0]?.seats || 1;
+    if (electionStatus === "Candidate") {
+      if (daysLeft > 1) {
+        // Decrement days left
+        await query(
+          "UPDATE elections SET days_left = days_left - 1 WHERE election = 'Senate'"
+        );
+      } else {
+        // Transition to "Voting" phase and set days_left to 2 for voting period
+        await query(
+          "UPDATE elections SET status = 'Voting', days_left = 2 WHERE election = 'Senate'"
+        );
+      }
+    }
+    if (electionStatus === "Voting") {
+      if (daysLeft > 1) {
+        // Decrement days left
+        await query(
+          "UPDATE elections SET days_left = days_left - 1 WHERE election = 'Senate'"
+        );
+      } else {
+        // Remove all users with role "Senator" before electing new ones
+        await query(
+          "UPDATE users SET role = 'Representative' WHERE role = 'Senator'"
+        );
+        // Election ends, determine winners
+        const seatsRes = await query(
+          "SELECT seats FROM elections WHERE election = 'Senate'"
+        );
+        const seats = seatsRes.rows[0]?.seats || 1;
+
+        // Fetch ALL candidates to properly handle ties
+        const candidatesRes = await query(
+          "SELECT * FROM candidates WHERE election = 'Senate' ORDER BY votes DESC"
+        );
+
+        const allCandidates = candidatesRes.rows;
+        let winners;
+        if (allCandidates.length > 0) {
+          // Get the vote threshold for the last seat
+          const provisionalWinners = allCandidates.slice(0, seats);
+          const lastWinnerVotes =
+            provisionalWinners[provisionalWinners.length - 1].votes;
+
+          // Find all candidates tied with the last seat
+          const tiedCandidates = allCandidates.filter(
+            (c) => c.votes === lastWinnerVotes
+          );
+
+          if (tiedCandidates.length > 1) {
+            // Tie detected - get non-tied winners and randomly select from tied candidates
+            const nonTiedWinners = allCandidates.filter(
+              (w) => w.votes > lastWinnerVotes
+            );
+            const tiedSeats = seats - nonTiedWinners.length;
+            const shuffledTiedCandidates = tiedCandidates.sort(
+              () => 0.5 - Math.random()
+            );
+            const selectedTiedWinners = shuffledTiedCandidates.slice(
+              0,
+              tiedSeats
+            );
+            winners = nonTiedWinners.concat(selectedTiedWinners);
+          } else {
+            winners = provisionalWinners;
+          }
+
+          // Update the role of the winning users to "Senator"
+          const winnerIds = winners.map((w) => w.user_id);
+          await query(
+            `UPDATE users SET role = 'Senator' WHERE id = ANY($1::int[])`,
+            [winnerIds]
+          );
+          // Move to "Concluded" status
+          await query(
+            "UPDATE elections SET status = 'Concluded', days_left = 3 WHERE election = 'Senate'"
+          );
+        }
+      }
+    }
+    if (electionStatus === "Concluded") {
+      if (daysLeft > 1) {
+        // Decrement days left
+        await query(
+          "UPDATE elections SET days_left = days_left - 1 WHERE election = 'Senate'"
+        );
+      } else {
+        // Reset election to "Candidate" phase for next cycle
+        await query("DELETE FROM candidates WHERE election = 'Senate'");
+        await query("DELETE FROM votes WHERE election = 'Senate'");
+        await query(
+          "UPDATE elections SET status = 'Candidate', days_left = 2 WHERE election = 'Senate'"
+        );
+        // Set the number of seats for the next senate election
+        await updateSenateSeats();
+      }
+    }
+  } catch (error) {
+    console.error("Error handling senate election status:", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
       { status: 500 }

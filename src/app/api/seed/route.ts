@@ -121,7 +121,7 @@ async function seedData() {
     );
     const election_senate = await query(
       "INSERT INTO elections (election, status, days_left) VALUES ($1, $2, $3) RETURNING *",
-      ["Senate", "Candidate", 2]
+      ["Senate", "Concluded", 3]
     );
     const candidate_president = await query(
       "INSERT INTO candidates (user_id, election, votes) VALUES ($1, $2, $3), ($4, $5, $6) RETURNING *",
@@ -204,6 +204,7 @@ async function seed() {
       CREATE TABLE IF NOT EXISTS elections (
         election VARCHAR(50) PRIMARY KEY NOT NULL,
         status VARCHAR(50) NOT NULL DEFAULT 'Candidacy',
+        seats INTEGER,
         days_left INTEGER NOT NULL
       );
     `);
