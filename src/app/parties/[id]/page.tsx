@@ -12,6 +12,7 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { DoorOpen, Scroll, Handshake, Crown } from "lucide-react";
 import { fetchUserInfo } from "@/app/utils/userHelper";
+import { Key } from "react";
 
 function Home() {
   const [user] = useAuthState(auth);
@@ -266,25 +267,6 @@ function Home() {
                         <Handshake /> Join Party
                       </Button>
                     )}
-                    {party.manifesto_url ? (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() =>
-                          window.open(party.manifesto_url, "_blank")
-                        }
-                      >
-                        <Scroll /> Read Party Manifesto
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                        disabled
-                      >
-                        📄 No Manifesto Available
-                      </Button>
-                    )}
                     <Button
                       variant="outline"
                       className="w-full justify-start"
@@ -297,6 +279,27 @@ function Home() {
               </div>
             </CardContent>
           </Card>
+          {party && party.stances && party.stances.length > 0 && (
+            <Card>
+              <CardHeader>
+                <h2 className="text-2xl font-semibold text-foreground">
+                  Policies
+                </h2>
+              </CardHeader>
+              <CardContent>
+                {party.stances.map((stance: {issue: string, value: string, id: Key}) => (
+                  <div key={stance.id}>
+                    <h3 className="text-xl font-medium text-foreground mb-2">
+                      {stance.issue}
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                      {stance.value}
+                    </p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <h2 className="text-2xl font-semibold text-foreground">
