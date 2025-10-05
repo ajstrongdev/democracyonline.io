@@ -69,11 +69,11 @@ export async function GET() {
           await query("UPDATE users SET role = 'President' WHERE id = $1", [
             winner.user_id,
           ]);
-          // Move to "Concluded" status
-          await query(
-            "UPDATE elections SET status = 'Concluded', days_left = 4 WHERE election = 'President'"
-          );
         }
+        // Move to "Concluded" status regardless of whether there was a winner
+        await query(
+          "UPDATE elections SET status = 'Concluded', days_left = 4 WHERE election = 'President'"
+        );
       }
     } else if (electionStatus === "Concluded") {
       if (daysLeft > 1) {
@@ -144,7 +144,6 @@ export async function GET() {
         );
 
         const allCandidates = candidatesRes.rows;
-        let winners;
         if (allCandidates.length > 0) {
           // Get the vote threshold for the last seat
           const provisionalWinners = allCandidates.slice(0, seats);
@@ -156,6 +155,7 @@ export async function GET() {
             (c) => c.votes === lastWinnerVotes
           );
 
+          let winners;
           if (tiedCandidates.length > 1) {
             // Tie detected - get non-tied winners and randomly select from tied candidates
             const nonTiedWinners = allCandidates.filter(
@@ -180,11 +180,11 @@ export async function GET() {
             `UPDATE users SET role = 'Senator' WHERE id = ANY($1::int[])`,
             [winnerIds]
           );
-          // Move to "Concluded" status
-          await query(
-            "UPDATE elections SET status = 'Concluded', days_left = 3 WHERE election = 'Senate'"
-          );
         }
+        // Move to "Concluded" status regardless of whether there were candidates
+        await query(
+          "UPDATE elections SET status = 'Concluded', days_left = 3 WHERE election = 'Senate'"
+        );
       }
     }
     if (electionStatus === "Concluded") {
