@@ -58,6 +58,20 @@ function PresidentElections() {
     retry: false,
   });
 
+  // Check if user is a candidate in any election
+  const { data: isCandidateData } = useQuery({
+    queryKey: ["isCandidate", thisUser?.id],
+    queryFn: () =>
+      axios
+        .post("/api/election-is-candidate", {
+          candidate: thisUser?.id,
+        })
+        .then((res) => res.data),
+    enabled: !!thisUser,
+  });
+
+  const isACandidate = isCandidateData?.isCandidate || false;
+
   // Check if user has voted
   const { data: hasVotedData, refetch: refetchHasVoted } = useQuery({
     queryKey: ["hasVoted", "President", thisUser?.id],
@@ -301,7 +315,7 @@ function PresidentElections() {
                   </AlertTitle>
                   <AlertDescription
                     className={
-                      !isAlreadyCandidate
+                      !isAlreadyCandidate && !isACandidate
                         ? "md:flex md:items-center md:justify-between"
                         : ""
                     }
@@ -310,19 +324,23 @@ function PresidentElections() {
                       Stand as a candidate in the upcoming presidential
                       elections. Rally support amongst players and become the
                       next President!
-                      {!isAlreadyCandidate && thisUser ? (
+                      {!isAlreadyCandidate && !isACandidate && thisUser ? (
                         <Button
                           className="mt-4 md:mt-0"
                           onClick={standAsCandidate}
                         >
                           Declare Candidacy!
                         </Button>
-                      ) : (
+                      ) : isAlreadyCandidate ? (
                         <h2 className="mt-2 text-green-500 font-semibold">
-                          You are currently a candidate in the upcoming
-                          presidential election. Good luck!
+                          You are currently a candidate in the upcoming Senate
+                          elections. Good luck!
                         </h2>
-                      )}
+                      ) : isACandidate && !isAlreadyCandidate ? (
+                        <h2 className="mt-2 text-yellow-500 font-semibold">
+                          You are a candidate in another election.
+                        </h2>
+                      ) : null}
                     </>
                   </AlertDescription>
                 </Alert>

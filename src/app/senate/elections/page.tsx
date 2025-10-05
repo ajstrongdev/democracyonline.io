@@ -57,6 +57,20 @@ function SenateElections() {
     retry: false,
   });
 
+  // Check if user is a candidate in any election
+  const { data: isCandidateData } = useQuery({
+    queryKey: ["isCandidate", thisUser?.id],
+    queryFn: () =>
+      axios
+        .post("/api/election-is-candidate", {
+          candidate: thisUser?.id,
+        })
+        .then((res) => res.data),
+    enabled: !!thisUser,
+  });
+
+  const isACandidate = isCandidateData?.isCandidate || false;
+
   // Check if user has voted
   const { data: hasVotedData, refetch: refetchHasVoted } = useQuery({
     queryKey: ["hasVoted", "Senate", thisUser?.id],
@@ -300,7 +314,7 @@ function SenateElections() {
                   </AlertTitle>
                   <AlertDescription
                     className={
-                      !isAlreadyCandidate
+                      !isAlreadyCandidate && !isACandidate
                         ? "md:flex md:items-center md:justify-between"
                         : ""
                     }
@@ -308,19 +322,23 @@ function SenateElections() {
                     <>
                       Stand as a candidate in the upcoming Senate elections and
                       become the voice of the people.
-                      {!isAlreadyCandidate && thisUser ? (
+                      {!isAlreadyCandidate && !isACandidate && thisUser ? (
                         <Button
                           className="mt-4 md:mt-0"
                           onClick={standAsCandidate}
                         >
                           Declare Candidacy!
                         </Button>
-                      ) : (
+                      ) : isAlreadyCandidate ? (
                         <h2 className="mt-2 text-green-500 font-semibold">
                           You are currently a candidate in the upcoming Senate
                           elections. Good luck!
                         </h2>
-                      )}
+                      ) : isACandidate && !isAlreadyCandidate ? (
+                        <h2 className="mt-2 text-yellow-500 font-semibold">
+                          You are a candidate in another election.
+                        </h2>
+                      ) : null}
                     </>
                   </AlertDescription>
                 </Alert>
