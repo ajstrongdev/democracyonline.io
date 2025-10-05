@@ -27,6 +27,16 @@ function Home() {
     },
     enabled: !!user?.email,
   });
+  
+  const { data: stances } = useQuery({
+    queryKey: ["stances"],
+    queryFn: async () => {
+      const res = await axios.get("/api/get-stance-types");
+      const stances = res.data || [];
+      console.log(stances.types)
+      return stances.types;
+    },
+  });
 
   const submitHandler = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -36,16 +46,22 @@ function Home() {
     const name = (form.elements.namedItem("name") as HTMLInputElement)?.value;
     const color = (form.elements.namedItem("color") as HTMLInputElement)?.value;
     const bio = (form.elements.namedItem("bio") as HTMLInputElement)?.value;
-    const manifestoUrl = (
-      form.elements.namedItem("manifesto") as HTMLInputElement
-    )?.value;
+
+    const stanceValues: {id: Number, value: string }[] = [];
+    stances.forEach((stance: any) => {
+      stanceValues.push({
+        id: stance.id,
+        value: (form.elements.namedItem(stance.id) as HTMLInputElement)?.value
+      })
+    })
+
     try {
       const response = await axios.post("/api/party-create", {
         userId: thisUser.id,
         name,
         color,
         bio,
-        manifestoUrl,
+        stanceValues
       });
       router.push(`/parties/${response.data.id}`);
     } catch (error) {
@@ -137,19 +153,21 @@ function Home() {
               className="min-h-[80px]"
             />
           </div>
-          <div className="grid grid-cols-1 gap-2">
-            <Label
-              htmlFor="manifesto"
-              className="text-lg font-medium text-foreground"
-            >
-              Manifesto URL
-            </Label>
-            <Input
-              type="url"
-              id="manifesto"
-              placeholder="https://example.com/manifesto"
-            />
-          </div>
+          {stances && stances && stances.length > 0 && stances.map((stance: any) => (
+            <div className="grid grid-cols-1 gap-2" key={stance.id}>
+              <Label
+                htmlFor="bio"
+                className="text-lg font-medium text-foreground"
+              >
+                {stance.issue}
+              </Label>
+              <Textarea
+                id={stance.id}
+                placeholder={stance.description}
+                className="min-h-[80px]"
+              />
+            </div>
+          ))}
           <Button type="submit" className="w-full py-3">
             Create Party
           </Button>
