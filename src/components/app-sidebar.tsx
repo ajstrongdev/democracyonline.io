@@ -150,7 +150,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <div className="flex items-center gap-4">
                   <Logo />
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="font-bold">Democracy Online</span>
+                    <p className="font-bold">
+                      <span className="text-red-600 dark:text-red-400">
+                        democracy
+                      </span>
+                      <span className="text-blue-600 dark:text-blue-400">
+                        online
+                      </span>
+                      .io
+                    </p>
                   </div>
                 </div>
               </div>
