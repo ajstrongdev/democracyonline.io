@@ -121,7 +121,7 @@ async function seedData() {
     );
     const election_senate = await query(
       "INSERT INTO elections (election, status, days_left) VALUES ($1, $2, $3) RETURNING *",
-      ["Senate", "Concluded", 3]
+      ["Senate", "Candidate", 2]
     );
     const candidate_president = await query(
       "INSERT INTO candidates (user_id, election, votes) VALUES ($1, $2, $3), ($4, $5, $6) RETURNING *",

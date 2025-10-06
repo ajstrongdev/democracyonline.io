@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChartNoAxesCombined,
 } from "lucide-react";
+import { Logo } from "@/components/logo";
 import { signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -44,7 +45,7 @@ const data = {
       icon: User,
     },
     {
-      title: "Notifications & Feed",
+      title: "Feed",
       url: "/notifications",
       icon: Bell,
     },
@@ -146,14 +147,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <div className="flex flex-col items-start gap-0.5">
-                <div className="flex items-center gap-2">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Crown className="size-4" />
-                  </div>
+                <div className="flex items-center gap-4">
+                  <Logo />
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="font-semibold">
-                      Online Democratic Republic
-                    </span>
+                    <span className="font-bold">Democracy Online</span>
                   </div>
                 </div>
               </div>

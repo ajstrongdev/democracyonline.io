@@ -211,6 +211,10 @@ function SenateElections() {
       });
       await refetch();
       await refetchCandidates();
+      await axios.post("/api/feed-add", {
+        userId: thisUser.id,
+        content: `Is running as a candidate for the Senate.`,
+      });
       queryClient.invalidateQueries({ queryKey: ["candidates", "Senate"] });
     } catch (error) {
       console.error("Error standing as candidate:", error);
