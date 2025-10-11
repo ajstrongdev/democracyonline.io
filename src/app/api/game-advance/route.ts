@@ -69,6 +69,10 @@ export async function GET() {
           await query("UPDATE users SET role = 'President' WHERE id = $1", [
             winner.user_id,
           ]);
+          await query("INSERT INTO feed (user_id, content) VALUES ($1, $2)", [
+            winner.user_id,
+            `has been elected as the President!`,
+          ]);
         }
         // Move to "Concluded" status regardless of whether there was a winner
         await query(
@@ -180,6 +184,13 @@ export async function GET() {
             `UPDATE users SET role = 'Senator' WHERE id = ANY($1::int[])`,
             [winnerIds]
           );
+          // Add feed entries for each new senator
+          for (const winner of winners) {
+            await query("INSERT INTO feed (user_id, content) VALUES ($1, $2)", [
+              winner.user_id,
+              `has been elected as a Senator!`,
+            ]);
+          }
         }
         // Move to "Concluded" status regardless of whether there were candidates
         await query(

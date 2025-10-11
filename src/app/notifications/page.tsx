@@ -43,17 +43,12 @@ function Home() {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-foreground mb-2">
-          Notifications & Feed
-        </h1>
+        <h1 className="text-4xl font-bold text-foreground mb-2">Feed</h1>
         <p className="text-muted-foreground">
-          View the latest updates, and your notifications here.
+          Stay updated with the latest activities in the community.
         </p>
       </div>
       <div className="space-y-4">
-        <h1 className="text-3xl font-bold text-foreground mb-4 border-b pb-2">
-          Global Feed
-        </h1>
         {loading
           ? Array.from({ length: 5 }).map((_, index) => (
               <GenericSkeleton key={index} />

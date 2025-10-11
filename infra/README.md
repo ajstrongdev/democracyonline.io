@@ -1,6 +1,6 @@
 # Infrastructure Deployment Guide
 
-This directory contains Terraform configuration for deploying the Online Democratic Republic application to Google Cloud Platform (GCP).
+This directory contains Terraform configuration for deploying the Democracy Online application to Google Cloud Platform (GCP).
 
 ## Architecture Overview
 

@@ -21,8 +21,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Online Democratic Republic",
-  description: "A digital platform for democratic participation",
+  title: "Democracy Online",
+  description:
+    "An online web game of democratic government. Participate in a virtual democracy!",
 };
 
 export default function RootLayout({

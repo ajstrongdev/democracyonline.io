@@ -160,6 +160,12 @@ function HouseOfRepresentatives() {
         role: "Representative",
         vote,
       });
+      await axios.post("/api/feed-add", {
+        userId: thisUser.id,
+        content: `Voted ${
+          vote ? "FOR" : "AGAINST"
+        } bill #${billId} in the House of Representatives.`,
+      });
       queryClient.invalidateQueries({ queryKey: ["houseVotes"] });
       queryClient.invalidateQueries({ queryKey: ["hasVoted"] });
       return res.data;

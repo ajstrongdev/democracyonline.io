@@ -211,6 +211,10 @@ function PresidentElections() {
         userId: thisUser.id,
         election: "President",
       });
+      await axios.post("/api/feed-add", {
+        userId: thisUser.id,
+        content: `Declared their candidacy for President.`,
+      });
       await refetch();
       await refetchCandidates();
       queryClient.invalidateQueries({ queryKey: ["candidates", "President"] });

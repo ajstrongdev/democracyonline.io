@@ -45,6 +45,10 @@ export default function Home() {
         username,
       });
       console.log("User inserted into database:", response.data);
+      await axios.post("/api/feed-add", {
+        userId: response.data.id,
+        content: "Just spawned into existence!",
+      });
     } catch (error) {
       console.error("Error inserting user into database:", error);
     }

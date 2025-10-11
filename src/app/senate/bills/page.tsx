@@ -160,6 +160,12 @@ function SenateBills() {
         role: "Senator",
         vote,
       });
+      await axios.post("/api/feed-add", {
+        userId: thisUser.id,
+        content: `Voted ${
+          vote ? "FOR" : "AGAINST"
+        } bill #${billId} in the Senate.`,
+      });
       queryClient.invalidateQueries({ queryKey: ["senateVotes"] });
       queryClient.invalidateQueries({ queryKey: ["hasVoted"] });
       return res.data;
