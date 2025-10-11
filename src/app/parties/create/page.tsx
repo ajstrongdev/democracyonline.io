@@ -16,20 +16,20 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 
+export const leanings = [
+  "Far Left",
+  "Left",
+  "Center Left",
+  "Center",
+  "Center Right",
+  "Right",
+  "Far Right",
+];
+
 function Home() {
   const [user] = useAuthState(auth);
   const router = useRouter();
   const [leaning, setLeaning] = React.useState([3]);
-
-    const leanings = [
-      "Far Left",
-      "Left",
-      "Center Left",
-      "Center",
-      "Center Right",
-      "Right",
-      "Far Right",
-    ]
 
   const { data: thisUser } = useQuery({
     queryKey: ["user", user?.email],
@@ -42,13 +42,13 @@ function Home() {
     },
     enabled: !!user?.email,
   });
-  
+
   const { data: stances } = useQuery({
     queryKey: ["stances"],
     queryFn: async () => {
       const res = await axios.get("/api/get-stance-types");
       const stances = res.data || [];
-      console.log(stances.types)
+      console.log(stances.types);
       return stances.types;
     },
   });
@@ -68,13 +68,13 @@ function Home() {
       return;
     }
 
-    const stanceValues: {id: number, value: string }[] = [];
+    const stanceValues: { id: number; value: string }[] = [];
     stances.forEach((stance: any) => {
       stanceValues.push({
         id: stance.id,
-        value: (form.elements.namedItem(stance.id) as HTMLInputElement)?.value
-      })
-    })
+        value: (form.elements.namedItem(stance.id) as HTMLInputElement)?.value,
+      });
+    });
 
     try {
       const response = await axios.post("/api/party-create", {
@@ -83,7 +83,7 @@ function Home() {
         color,
         bio,
         stanceValues,
-        leaningValue
+        leaningValue,
       });
       router.push(`/parties/${response.data.id}`);
     } catch (error) {
@@ -118,7 +118,7 @@ function Home() {
             >
               Party Name<span className="text-red-500">*</span>
             </Label>
-            <Input type="text" id="name" placeholder="Enter party name"/>
+            <Input type="text" id="name" placeholder="Enter party name" />
           </div>
           <div className="grid grid-cols-1 gap-2">
             <Label
@@ -176,9 +176,9 @@ function Home() {
             />
           </div>
           <div>
-            
             <Label className="block text-center mb-8">
-              <span className="text-lg font-medium">Political Leaning: </span><span className="font-sm">{leanings[leaning[0]]}</span>
+              <span className="text-lg font-medium">Political Leaning: </span>
+              <span className="font-sm">{leanings[leaning[0]]}</span>
             </Label>
 
             <div className="relative px-2">
@@ -193,27 +193,36 @@ function Home() {
               <div className="flex justify-between mt-2 text-xs text-muted-foreground">
                 {leanings.map((label, i) => (
                   <span key={i} className="text-center w-12 ">
-                    {i === 0 ? "Far Left" : i === 6 ? "Far Right" : i - 3 === 0 ? "Center" : ""}
+                    {i === 0
+                      ? "Far Left"
+                      : i === 6
+                      ? "Far Right"
+                      : i - 3 === 0
+                      ? "Center"
+                      : ""}
                   </span>
                 ))}
               </div>
             </div>
           </div>
-          {stances && stances && stances.length > 0 && stances.map((stance: any) => (
-            <div className="grid grid-cols-1 gap-2" key={stance.id}>
-              <Label
-                htmlFor="bio"
-                className="text-lg font-medium text-foreground"
-              >
-                {stance.issue}
-              </Label>
-              <Textarea
-                id={stance.id}
-                placeholder={stance.description}
-                className="min-h-[80px]"
-              />
-            </div>
-          ))}
+          {stances &&
+            stances &&
+            stances.length > 0 &&
+            stances.map((stance: any) => (
+              <div className="grid grid-cols-1 gap-2" key={stance.id}>
+                <Label
+                  htmlFor="bio"
+                  className="text-lg font-medium text-foreground"
+                >
+                  {stance.issue}
+                </Label>
+                <Textarea
+                  id={stance.id}
+                  placeholder={stance.description}
+                  className="min-h-[80px]"
+                />
+              </div>
+            ))}
           <Button type="submit" className="w-full py-3">
             Create Party
           </Button>

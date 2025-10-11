@@ -25,6 +25,9 @@ async function dropTables(): Promise<void> {
     "users",
     "parties",
     "feed",
+    "chats",
+    "political_stances",
+    "party_stances",
   ];
   for (const table of tables) {
     try {
@@ -39,44 +42,44 @@ async function dropTables(): Promise<void> {
 async function seedData() {
   try {
     const testUser1 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test@test.com", "maggietime", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test@test.com", "maggietime", "Representative", "Center Left"]
     );
     const testUser2 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test2@test.com", "maggietime2", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test2@test.com", "maggietime2", "Representative", "Center Right"]
     );
     const testUser3 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test3@test.com", "maggietime3", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test3@test.com", "maggietime3", "Representative", "Right"]
     );
     const testUser4 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test4@test.com", "maggietime4", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test4@test.com", "maggietime4", "Representative", "Far Left"]
     );
     const testUser5 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test5@test.com", "maggietime5", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test5@test.com", "maggietime5", "Representative", "Far Right"]
     );
     const testUser6 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test6@test.com", "maggietime6", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test6@test.com", "maggietime6", "Representative", "Left"]
     );
     const testUser7 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test7@test.com", "maggietime7", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test7@test.com", "maggietime7", "Representative", "Left"]
     );
     const testUser8 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test8@test.com", "maggietime8", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test8@test.com", "maggietime8", "Representative", "Left"]
     );
     const testUser9 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test9@test.com", "maggietime9", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test9@test.com", "maggietime9", "Representative", "Left"]
     );
     const testUser10 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test10@test.com", "maggietime10", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test10@test.com", "maggietime10", "Representative", "Left"]
     );
     const bill = await query(
       "INSERT INTO bills (status, stage, title, creator_id, content) VALUES ($1, $2, $3, $4, $5) RETURNING *",
@@ -159,9 +162,9 @@ async function seedData() {
         "What is your party’s approach to government and authority?",
         "(e.g., strong central government vs. local autonomy, civil liberties, surveillance, law enforcement)",
         "What is your party’s stance on foreign relations and national defense?",
-        "(e.g., diplomacy, military strength, isolationism vs. interventionism, alliances)"
+        "(e.g., diplomacy, military strength, isolationism vs. interventionism, alliances)",
       ]
-    )
+    );
 
     console.log(
       "Test users created:",
@@ -223,6 +226,8 @@ async function seed() {
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
         username VARCHAR(255) UNIQUE NOT NULL,
+        bio TEXT,
+        political_leaning VARCHAR(50),
         role VARCHAR(50) DEFAULT 'Representative',
         party_id INT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
