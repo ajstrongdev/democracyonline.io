@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import axios from "axios";
 
 export async function POST(request: NextRequest) {
   const { userId, name, color, bio, stanceValues, leaningValue } = await request.json();
