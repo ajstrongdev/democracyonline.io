@@ -199,6 +199,14 @@ function Home() {
                         <span className="font-mono text-xs">{party.color}</span>
                       </div>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Leaning:
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs">{party.leaning}</span>
+                      </div>
+                    </div>
                     {party.leader_id ? (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Leader:</span>
@@ -283,7 +291,7 @@ function Home() {
             <Card>
               <CardHeader>
                 <h2 className="text-2xl font-semibold text-foreground">
-                  Policies
+                  Party Platform
                 </h2>
               </CardHeader>
               <CardContent>
@@ -293,7 +301,7 @@ function Home() {
                       {stance.issue}
                     </h3>
                     <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                      {stance.value}
+                      {stance.value || "No stance provided."}
                     </p>
                   </div>
                 ))}

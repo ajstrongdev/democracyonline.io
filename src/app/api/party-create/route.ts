@@ -3,11 +3,11 @@ import { query } from "@/lib/db";
 import axios from "axios";
 
 export async function POST(request: NextRequest) {
-  const { userId, name, color, bio, stanceValues } = await request.json();
+  const { userId, name, color, bio, stanceValues, leaningValue } = await request.json();
   try {
     const createParty = await query(
-      "INSERT INTO parties (leader_id, name, color, bio) VALUES ($1, $2, $3, $4) RETURNING *",
-      [userId, name, color, bio]
+      "INSERT INTO parties (leader_id, name, color, bio, leaning) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [userId, name, color, bio, leaningValue]
     );
     const partyId = createParty.rows[0].id;
     // Update user partyid

@@ -197,7 +197,8 @@ async function seed() {
         color VARCHAR(7) NOT NULL,
         bio TEXT,
         political_leaning VARCHAR(50),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        leaning VARCHAR(25)
       );
     `);
 
