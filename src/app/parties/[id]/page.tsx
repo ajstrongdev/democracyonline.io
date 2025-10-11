@@ -201,7 +201,7 @@ function Home() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">
-                        Leaning:
+                        Political Leaning:
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs">{party.leaning}</span>
