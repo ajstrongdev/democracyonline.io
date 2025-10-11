@@ -151,10 +151,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <Logo />
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <p className="font-bold">
-                      <span className="text-red-600 dark:text-red-400">
+                      <span className="text-primary dark:text-[#44efa7]">
                         democracy
                       </span>
-                      <span className="text-blue-600 dark:text-blue-400">
+                      <span className="text-[#3b82f6] dark:text-[#60a5fa]">
                         online
                       </span>
                       .io
