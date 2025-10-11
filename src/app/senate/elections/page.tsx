@@ -12,6 +12,7 @@ import { auth } from "@/lib/firebase";
 import { fetchUserInfo, getUserFullById } from "@/app/utils/userHelper";
 import { Party } from "@/app/utils/partyHelper";
 import { Chat } from "@/components/Chat";
+import { CandidatesChart } from "@/components/CandidateChart";
 
 function SenateElections() {
   const [user] = useAuthState(auth);
@@ -371,28 +372,32 @@ function SenateElections() {
                     : "Current Results"}
                 </h2>
                 {candidates && candidates.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
+                    <CandidatesChart
+                      candidates={candidates}
+                    />
                     {[...candidates]
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       .sort((a: any, b: any) => (b.votes || 0) - (a.votes || 0))
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       .map((candidate: any) => {
-                        const userId = candidate.userId || candidate.user_id;
-                        const votes = candidate.votes || 0;
+                        const userId = candidate.userId || candidate.user_id
+                        const votes = candidate.votes || 0
                         return (
                           <ResultsItem
                             key={candidate.id}
                             userId={userId}
                             votes={votes}
                           />
-                        );
+                        )
                       })}
                   </div>
                 ) : (
                   <p className="text-muted-foreground">No candidates yet.</p>
                 )}
               </div>
-            )}
+            )
+          }
           {thisUser && (
             <Chat
               room="senate-election"
