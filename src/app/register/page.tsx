@@ -68,10 +68,10 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center bg-background px-6 py-12">
-      <Card className="w-full max-w-md">
-        <CardContent className="grid gap-4">
-          <div className="flex flex-col space-y-2 text-center">
+    <div className="flex flex-col items-center justify-center py-4 md:py-12 bg-background px-4 ">
+      <Card className="w-full max-w-md mx-auto">
+        <CardContent className="pt-6">
+          <div className="flex flex-col space-y-2 text-center mb-4">
             <h1 className="text-2xl font-semibold tracking-tight">
               Create your politician
             </h1>
@@ -119,15 +119,15 @@ export default function Home() {
                 required
               />
             </div>
-            <div>
-              <Label className="block text-center mb-8">
+            <div className="grid gap-2">
+              <Label className="block text-center mb-4">
                 <span className="text-lg font-medium">
                   Your Political Leaning:{" "}
                 </span>
                 <span className="font-sm">{leanings[leaning[0]]}</span>
               </Label>
 
-              <div className="relative px-2">
+              <div className="w-full">
                 <Slider
                   value={leaning}
                   onValueChange={setLeaning}
@@ -138,7 +138,11 @@ export default function Home() {
 
                 <div className="flex justify-between mt-2 text-xs text-muted-foreground">
                   {leanings.map((label, i) => (
-                    <span key={i} className="text-center w-12 ">
+                    <span
+                      key={i}
+                      className="text-center flex-shrink-0"
+                      style={{ width: "14.28%" }}
+                    >
                       {i === 0
                         ? "Far Left"
                         : i === 6
@@ -150,38 +154,38 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="bio">
-                  Bio <span className="text-red-500">*</span>
-                </Label>
-                <Textarea
-                  id="bio"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  required
-                  placeholder="Tell us about yourself..."
-                  rows={4}
-                  className="resize-none"
-                />
-              </div>
+            </div>
+            <div className="grid gap-2 mt-2">
+              <Label htmlFor="bio">
+                Bio <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="bio"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                required
+                placeholder="Tell us about yourself..."
+                rows={4}
+                className="resize-none"
+              />
             </div>
             <Button type="submit">Sign Up</Button>
           </form>
-          <CardFooter className="pt-0 flex justify-center">
-            <p className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link
-                href="/"
-                className={cn(
-                  buttonVariants({ variant: "link" }),
-                  "p-0 h-auto align-baseline"
-                )}
-              >
-                Log in
-              </Link>
-            </p>
-          </CardFooter>
         </CardContent>
+        <CardFooter className="flex justify-center">
+          <p className="text-center text-sm text-muted-foreground">
+            Already have an account?{" "}
+            <Link
+              href="/"
+              className={cn(
+                buttonVariants({ variant: "link" }),
+                "p-0 h-auto align-baseline"
+              )}
+            >
+              Log in
+            </Link>
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );
