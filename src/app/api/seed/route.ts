@@ -148,6 +148,21 @@ async function seedData() {
         12,
       ]
     );
+
+    const political_stances = await query(
+      "INSERT INTO political_stances (issue, description) VALUES ($1, $2), ($3, $4), ($5, $6), ($7, $8) RETURNING *",
+      [
+        "What is your party’s stance on the economy?",
+        "(e.g., free market vs. planned economy, taxation, welfare, trade)",
+        "How does your party view social and cultural issues?",
+        "(e.g., individual freedoms, tradition vs. progress, equality, religion, education)",
+        "What is your party’s approach to government and authority?",
+        "(e.g., strong central government vs. local autonomy, civil liberties, surveillance, law enforcement)",
+        "What is your party’s stance on foreign relations and national defense?",
+        "(e.g., diplomacy, military strength, isolationism vs. interventionism, alliances)"
+      ]
+    )
+
     console.log(
       "Test users created:",
       testUser1.rows[0],
@@ -162,6 +177,7 @@ async function seedData() {
     console.log("Dummy elections created:", election_senate.rows[0]);
     console.log("Dummy candidates created:", candidate_president.rows);
     console.log("Dummy candidates created:", candidate_senate.rows);
+    console.log("Dummy political stances created:", political_stances.rows);
     await listTables("Tables after seeding data:");
   } catch (error) {
     console.error("Error during seeding:", error);
@@ -180,9 +196,26 @@ async function seed() {
         name VARCHAR(255) UNIQUE NOT NULL,
         color VARCHAR(7) NOT NULL,
         bio TEXT,
-        manifesto_url VARCHAR(500),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        political_leaning VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        leaning VARCHAR(25)
       );
+    `);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS political_stances (
+        id SERIAL PRIMARY KEY,
+        issue VARCHAR(100) NOT NULL,
+        description VARCHAR(255) NOT NULL
+      )  
+    `);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS party_stances (
+        party_id INT REFERENCES parties(id),
+        stance_id INT REFERENCES political_stances(id),
+        value VARCHAR(1024) NOT NULL
+      )  
     `);
 
     await query(`
