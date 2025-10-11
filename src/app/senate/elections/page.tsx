@@ -14,10 +14,8 @@ import { Party } from "@/app/utils/partyHelper";
 import { Chat } from "@/components/Chat";
 import {
   ChartContainer,
-  ChartLegend,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegendContent,
   type ChartConfig
 } from "@/components/ui/chart"
 import { Pie, PieChart, Cell, ResponsiveContainer, Label } from "recharts"
@@ -402,22 +400,45 @@ function SenateElections() {
                                 }))}
                                 dataKey="value"
                                 nameKey="name"
-                                innerRadius={40}
-                                outerRadius={80}
+                                innerRadius={75}
+                                outerRadius={95}
                                 paddingAngle={3}
                                 labelLine={false}
                               >
                                 {candidates.map((c: any, idx: number) => (
                                   <Cell
                                     key={idx}
-                                    fill={c.color || `var(--chart-${(idx % 6) + 1})`}
+                                    fill={c.color || `grey`}
                                   />
                                 ))}
                                 <Label
-                                  value={candidates.reduce((sum: number, c: any) => sum + (c.votes ?? 0), 0)}
-                                  position="center"
-                                  className="text-lg font-semibold"
-                                  fill="white"
+                                  content={({ viewBox }) => {
+                                    if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                                      return (
+                                        <text
+                                          x={viewBox.cx}
+                                          y={viewBox.cy}
+                                          textAnchor="middle"
+                                          dominantBaseline="middle"
+                                        >
+                                          <tspan
+                                            x={viewBox.cx}
+                                            y={viewBox.cy}
+                                            className="fill-foreground text-3xl font-bold"
+                                          >
+                                            {candidates.reduce((sum: number, c: any) => sum + (c.votes ?? 0), 0)}
+                                          </tspan>
+                                          <tspan
+                                            x={viewBox.cx}
+                                            y={(viewBox.cy || 0) + 24}
+                                            className="fill-muted-foreground"
+                                          >
+                                            Total Votes
+                                          </tspan>
+                                        </text>
+                                      )
+                                    }
+                                  }}
                                 />
                               </Pie>
                               <ChartTooltip content={<ChartTooltipContent />} />
@@ -429,7 +450,7 @@ function SenateElections() {
                             <div key={idx} className="flex flex-col items-center text-sm">
                               <div
                                 className="w-3 h-3 rounded-sm mb-1"
-                                style={{ backgroundColor: c.color || `var(--chart-${(idx % 6) + 1})` }}
+                                style={{ backgroundColor: c.color || `grey` }}
                               />
                               <span className="text-muted-foreground">{c.votes ?? 0}</span>
                             </div>
