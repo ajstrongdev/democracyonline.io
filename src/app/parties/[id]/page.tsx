@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
-import { DoorOpen, Scroll, Handshake, Crown } from "lucide-react";
+import { DoorOpen, Handshake, Crown } from "lucide-react";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Key } from "react";
 import { Chat } from "@/components/Chat";
@@ -205,7 +205,9 @@ function Home() {
                         Political Leaning:
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs">{party.leaning}</span>
+                        <span className="font-mono text-xs">
+                          {party.leaning}
+                        </span>
                       </div>
                     </div>
                     {party.leader_id ? (
@@ -296,16 +298,18 @@ function Home() {
                 </h2>
               </CardHeader>
               <CardContent>
-                {party.stances.map((stance: {issue: string, value: string, id: Key}) => (
-                  <div key={stance.id}>
-                    <h3 className="text-xl font-medium text-foreground mb-2">
-                      {stance.issue}
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                      {stance.value || "No stance provided."}
-                    </p>
-                  </div>
-                ))}
+                {party.stances.map(
+                  (stance: { issue: string; value: string; id: Key }) => (
+                    <div key={stance.id}>
+                      <h3 className="text-xl font-medium text-foreground mb-2">
+                        {stance.issue}
+                      </h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                        {stance.value || "No stance provided."}
+                      </p>
+                    </div>
+                  )
+                )}
               </CardContent>
             </Card>
           )}
