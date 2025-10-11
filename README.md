@@ -1,4 +1,4 @@
-# Online Democratic Republic
+# Democracy Online
 
 A Next.js application for democratic participation, deployed on Google Cloud Platform.
 

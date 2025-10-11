@@ -237,6 +237,7 @@ async function seed() {
       CREATE TABLE IF NOT EXISTS elections (
         election VARCHAR(50) PRIMARY KEY NOT NULL,
         status VARCHAR(50) NOT NULL DEFAULT 'Candidacy',
+        seats INTEGER,
         days_left INTEGER NOT NULL
       );
     `);
@@ -305,6 +306,17 @@ async function seed() {
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
         content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS chats (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        room VARCHAR(255) NOT NULL,
+        username VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);

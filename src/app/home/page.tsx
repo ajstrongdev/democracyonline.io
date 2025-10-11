@@ -40,7 +40,7 @@ function Home() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Welcome to Online Democratic Republic</CardTitle>
+          <CardTitle>Welcome to Democracy Online</CardTitle>
           <CardDescription>You are successfully signed in!</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
