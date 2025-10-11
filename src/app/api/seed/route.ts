@@ -277,6 +277,17 @@ async function seed() {
       );
     `);
 
+    await query(`
+      CREATE TABLE IF NOT EXISTS chats (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        room VARCHAR(255) NOT NULL,
+        username VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     await listTables("Tables after seeding:");
 
     // Add foreign key constraint from parties.leader_id to users.id if not exists

@@ -11,6 +11,7 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { fetchUserInfo, getUserFullById } from "@/app/utils/userHelper";
 import { Party } from "@/app/utils/partyHelper";
+import { Chat } from "@/components/Chat";
 
 function SenateElections() {
   const [user] = useAuthState(auth);
@@ -388,6 +389,14 @@ function SenateElections() {
                 )}
               </div>
             )}
+          {thisUser && (
+            <Chat
+              room="senate-election"
+              userId={thisUser.id}
+              username={thisUser.username}
+              title="Election Discussion"
+            />
+          )}
           {electionInfo && (
             <div>
               <h2 className="text-2xl font-bold mb-4">Candidates</h2>
