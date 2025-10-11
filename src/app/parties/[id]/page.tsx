@@ -2,7 +2,7 @@
 "use client";
 
 import withAuth from "@/lib/withAuth";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { useRouter, useParams } from "next/navigation";
@@ -13,6 +13,7 @@ import { auth } from "@/lib/firebase";
 import { DoorOpen, Scroll, Handshake, Crown } from "lucide-react";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Key } from "react";
+import { Chat } from "@/components/Chat";
 
 function Home() {
   const [user] = useAuthState(auth);
@@ -308,6 +309,17 @@ function Home() {
               </CardContent>
             </Card>
           )}
+          {membershipLoading
+            ? null
+            : membershipStatus &&
+              thisUser && (
+                <Chat
+                  room={`party-${id}`}
+                  userId={thisUser.id}
+                  username={thisUser.username}
+                  title="Party Chat"
+                />
+              )}
           <Card>
             <CardHeader>
               <h2 className="text-2xl font-semibold text-foreground">

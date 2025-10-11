@@ -159,6 +159,12 @@ function OvalOfficeBills() {
         role: "President",
         vote,
       });
+      await axios.post("/api/feed-add", {
+        userId: thisUser.id,
+        content: `${
+          vote ? "Signed" : "Vetoed"
+        } bill #${billId} in the Oval Office.`,
+      });
       queryClient.invalidateQueries({ queryKey: ["ovalOfficeVotes"] });
       queryClient.invalidateQueries({ queryKey: ["hasVoted"] });
       return res.data;
