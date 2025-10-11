@@ -12,6 +12,7 @@ import { auth } from "@/lib/firebase";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import { getUserFullById } from "@/app/utils/userHelper";
 import { Party } from "@/app/utils/partyHelper";
+import { Chat } from "@/components/Chat";
 
 function PresidentElections() {
   const [user] = useAuthState(auth);
@@ -389,6 +390,14 @@ function PresidentElections() {
                 )}
               </div>
             )}
+          {thisUser && (
+            <Chat
+              room="presidential-election"
+              userId={thisUser.id}
+              username={thisUser.username}
+              title="Election Discussion"
+            />
+          )}
           {electionInfo && (
             <div>
               <h2 className="text-2xl font-bold mb-4">Candidates</h2>
