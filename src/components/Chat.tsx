@@ -54,7 +54,7 @@ export function Chat({ room, userId, username, title = "Chat" }: ChatProps) {
     <Card className="my-4">
       <CardTitle className="px-4 text-lg font-medium text-foreground">
         <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
-        <Card className="bg-border my-4">
+        <Card className="bg-sidebar my-4">
           <CardContent className="space-y-4 max-h-96 overflow-y-auto scrollbar-thin">
             {getChats.isLoading ? (
               <p className="text-muted-foreground">Loading messages...</p>
