@@ -2,7 +2,7 @@
 "use client";
 
 import withAuth from "@/lib/withAuth";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { useRouter, useParams } from "next/navigation";
@@ -10,8 +10,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
-import { DoorOpen, Scroll, Handshake, Crown } from "lucide-react";
+import { DoorOpen, Handshake, Crown } from "lucide-react";
 import { fetchUserInfo } from "@/app/utils/userHelper";
+import { Key } from "react";
+import { Chat } from "@/components/Chat";
 
 function Home() {
   const [user] = useAuthState(auth);
@@ -198,6 +200,16 @@ function Home() {
                         <span className="font-mono text-xs">{party.color}</span>
                       </div>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Political Leaning:
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs">
+                          {party.leaning}
+                        </span>
+                      </div>
+                    </div>
                     {party.leader_id ? (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Leader:</span>
@@ -266,25 +278,6 @@ function Home() {
                         <Handshake /> Join Party
                       </Button>
                     )}
-                    {party.manifesto_url ? (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() =>
-                          window.open(party.manifesto_url, "_blank")
-                        }
-                      >
-                        <Scroll /> Read Party Manifesto
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                        disabled
-                      >
-                        📄 No Manifesto Available
-                      </Button>
-                    )}
                     <Button
                       variant="outline"
                       className="w-full justify-start"
@@ -297,6 +290,40 @@ function Home() {
               </div>
             </CardContent>
           </Card>
+          {party && party.stances && party.stances.length > 0 && (
+            <Card>
+              <CardHeader>
+                <h2 className="text-2xl font-semibold text-foreground">
+                  Party Platform
+                </h2>
+              </CardHeader>
+              <CardContent>
+                {party.stances.map(
+                  (stance: { issue: string; value: string; id: Key }) => (
+                    <div key={stance.id}>
+                      <h3 className="text-xl font-medium text-foreground mb-2">
+                        {stance.issue}
+                      </h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                        {stance.value || "No stance provided."}
+                      </p>
+                    </div>
+                  )
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {membershipLoading
+            ? null
+            : membershipStatus &&
+              thisUser && (
+                <Chat
+                  room={`party-${id}`}
+                  userId={thisUser.id}
+                  username={thisUser.username}
+                  title="Party Chat"
+                />
+              )}
           <Card>
             <CardHeader>
               <h2 className="text-2xl font-semibold text-foreground">

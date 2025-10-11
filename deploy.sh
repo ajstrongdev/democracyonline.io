@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deploy script for Online Democratic Republic
+# Deploy script for Democracy Online
 # This script helps you deploy your application to GCP
 
 set -e

@@ -25,6 +25,9 @@ async function dropTables(): Promise<void> {
     "users",
     "parties",
     "feed",
+    "chats",
+    "political_stances",
+    "party_stances",
   ];
   for (const table of tables) {
     try {
@@ -39,44 +42,44 @@ async function dropTables(): Promise<void> {
 async function seedData() {
   try {
     const testUser1 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test@test.com", "maggietime", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test@test.com", "maggietime", "Representative", "Center Left"]
     );
     const testUser2 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test2@test.com", "maggietime2", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test2@test.com", "maggietime2", "Representative", "Center Right"]
     );
     const testUser3 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test3@test.com", "maggietime3", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test3@test.com", "maggietime3", "Representative", "Right"]
     );
     const testUser4 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test4@test.com", "maggietime4", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test4@test.com", "maggietime4", "Representative", "Far Left"]
     );
     const testUser5 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test5@test.com", "maggietime5", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test5@test.com", "maggietime5", "Representative", "Far Right"]
     );
     const testUser6 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test6@test.com", "maggietime6", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test6@test.com", "maggietime6", "Representative", "Left"]
     );
     const testUser7 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test7@test.com", "maggietime7", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test7@test.com", "maggietime7", "Representative", "Left"]
     );
     const testUser8 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test8@test.com", "maggietime8", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test8@test.com", "maggietime8", "Representative", "Left"]
     );
     const testUser9 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test9@test.com", "maggietime9", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test9@test.com", "maggietime9", "Representative", "Left"]
     );
     const testUser10 = await query(
-      "INSERT INTO users (email, username, role) VALUES ($1, $2, $3) RETURNING *",
-      ["test10@test.com", "maggietime10", "Representative"]
+      "INSERT INTO users (email, username, role, political_leaning) VALUES ($1, $2, $3, $4) RETURNING *",
+      ["test10@test.com", "maggietime10", "Representative", "Left"]
     );
     const bill = await query(
       "INSERT INTO bills (status, stage, title, creator_id, content) VALUES ($1, $2, $3, $4, $5) RETURNING *",
@@ -148,6 +151,21 @@ async function seedData() {
         12,
       ]
     );
+
+    const political_stances = await query(
+      "INSERT INTO political_stances (issue, description) VALUES ($1, $2), ($3, $4), ($5, $6), ($7, $8) RETURNING *",
+      [
+        "What is your party’s stance on the economy?",
+        "(e.g., free market vs. planned economy, taxation, welfare, trade)",
+        "How does your party view social and cultural issues?",
+        "(e.g., individual freedoms, tradition vs. progress, equality, religion, education)",
+        "What is your party’s approach to government and authority?",
+        "(e.g., strong central government vs. local autonomy, civil liberties, surveillance, law enforcement)",
+        "What is your party’s stance on foreign relations and national defense?",
+        "(e.g., diplomacy, military strength, isolationism vs. interventionism, alliances)",
+      ]
+    );
+
     console.log(
       "Test users created:",
       testUser1.rows[0],
@@ -162,6 +180,7 @@ async function seedData() {
     console.log("Dummy elections created:", election_senate.rows[0]);
     console.log("Dummy candidates created:", candidate_president.rows);
     console.log("Dummy candidates created:", candidate_senate.rows);
+    console.log("Dummy political stances created:", political_stances.rows);
     await listTables("Tables after seeding data:");
   } catch (error) {
     console.error("Error during seeding:", error);
@@ -180,9 +199,26 @@ async function seed() {
         name VARCHAR(255) UNIQUE NOT NULL,
         color VARCHAR(7) NOT NULL,
         bio TEXT,
-        manifesto_url VARCHAR(500),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        political_leaning VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        leaning VARCHAR(25)
       );
+    `);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS political_stances (
+        id SERIAL PRIMARY KEY,
+        issue VARCHAR(100) NOT NULL,
+        description VARCHAR(255) NOT NULL
+      )  
+    `);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS party_stances (
+        party_id INT REFERENCES parties(id),
+        stance_id INT REFERENCES political_stances(id),
+        value VARCHAR(1024) NOT NULL
+      )  
     `);
 
     await query(`
@@ -190,6 +226,8 @@ async function seed() {
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
         username VARCHAR(255) UNIQUE NOT NULL,
+        bio TEXT,
+        political_leaning VARCHAR(50),
         role VARCHAR(50) DEFAULT 'Representative',
         party_id INT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -204,6 +242,7 @@ async function seed() {
       CREATE TABLE IF NOT EXISTS elections (
         election VARCHAR(50) PRIMARY KEY NOT NULL,
         status VARCHAR(50) NOT NULL DEFAULT 'Candidacy',
+        seats INTEGER,
         days_left INTEGER NOT NULL
       );
     `);
@@ -272,6 +311,17 @@ async function seed() {
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
         content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS chats (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        room VARCHAR(255) NOT NULL,
+        username VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);

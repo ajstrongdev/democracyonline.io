@@ -19,6 +19,7 @@ import type { BillItem } from "@/app/utils/billHelper";
 import { getUserById } from "@/app/utils/userHelper";
 import { UserInfo } from "@/app/utils/userHelper";
 import { useRouter } from "next/navigation";
+import { Chat } from "@/components/Chat";
 
 type BillItemWithUsername = BillItem & {
   username: string;
@@ -158,6 +159,12 @@ function HouseOfRepresentatives() {
         billId,
         role: "Representative",
         vote,
+      });
+      await axios.post("/api/feed-add", {
+        userId: thisUser.id,
+        content: `Voted ${
+          vote ? "FOR" : "AGAINST"
+        } bill #${billId} in the House of Representatives.`,
       });
       queryClient.invalidateQueries({ queryKey: ["houseVotes"] });
       queryClient.invalidateQueries({ queryKey: ["hasVoted"] });
@@ -318,6 +325,14 @@ function HouseOfRepresentatives() {
           </CardFooter>
         </Card>
       </div>
+      {canVoteData && thisUser && (
+        <Chat
+          room="house"
+          userId={thisUser.id}
+          username={thisUser.username}
+          title="House Chamber"
+        />
+      )}
     </div>
   );
 }

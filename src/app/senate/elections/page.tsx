@@ -9,13 +9,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
-import { fetchUserInfo } from "@/app/utils/userHelper";
-import { getUserFullById } from "@/app/utils/userHelper";
+import { fetchUserInfo, getUserFullById } from "@/app/utils/userHelper";
 import { Party } from "@/app/utils/partyHelper";
 import { Chat } from "@/components/Chat";
 import { CandidatesChart } from "@/components/CandidateChart";
 
-function PresidentElections() {
+function SenateElections() {
   const [user] = useAuthState(auth);
   const queryClient = useQueryClient();
 
@@ -33,10 +32,10 @@ function PresidentElections() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["electionInfo", "President"],
+    queryKey: ["electionInfo", "Senate"],
     queryFn: () =>
       axios
-        .get("/api/election-info", { params: { election: "President" } })
+        .get("/api/election-info", { params: { election: "Senate" } })
         .then((res) => res.data),
     enabled: !!thisUser,
     refetchOnWindowFocus: false,
@@ -48,11 +47,11 @@ function PresidentElections() {
     refetch: refetchCandidates,
     isLoading: candidatesLoading,
   } = useQuery({
-    queryKey: ["candidates", "President"],
+    queryKey: ["candidates", "Senate"],
     queryFn: () =>
       axios
         .get("/api/election-get-candidates", {
-          params: { election: "President" },
+          params: { election: "Senate" },
         })
         .then((res) => res.data),
     enabled: !!electionInfo,
@@ -76,12 +75,12 @@ function PresidentElections() {
 
   // Check if user has voted
   const { data: hasVotedData, refetch: refetchHasVoted } = useQuery({
-    queryKey: ["hasVoted", "President", thisUser?.id],
+    queryKey: ["hasVoted", "Senate", thisUser?.id],
     queryFn: () =>
       axios
         .post("/api/elections-has-voted", {
           userId: thisUser?.id,
-          election: "President",
+          election: "Senate",
         })
         .then((res) => res.data),
     enabled: !!thisUser && !!electionInfo && electionInfo.status === "Voting",
@@ -210,15 +209,15 @@ function PresidentElections() {
     try {
       await axios.post("/api/election-stand-candidate", {
         userId: thisUser.id,
-        election: "President",
-      });
-      await axios.post("/api/feed-add", {
-        userId: thisUser.id,
-        content: `Declared their candidacy for President.`,
+        election: "Senate",
       });
       await refetch();
       await refetchCandidates();
-      queryClient.invalidateQueries({ queryKey: ["candidates", "President"] });
+      await axios.post("/api/feed-add", {
+        userId: thisUser.id,
+        content: `Is running as a candidate for the Senate.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["candidates", "Senate"] });
     } catch (error) {
       console.error("Error standing as candidate:", error);
     }
@@ -230,14 +229,14 @@ function PresidentElections() {
       await axios.post("/api/elections-vote", {
         userId: thisUser.id,
         candidateId,
-        election: "President",
+        election: "Senate",
       });
       await refetch();
       await refetchCandidates();
       await refetchHasVoted();
-      queryClient.invalidateQueries({ queryKey: ["candidates", "President"] });
+      queryClient.invalidateQueries({ queryKey: ["candidates", "Senate"] });
       queryClient.invalidateQueries({
-        queryKey: ["hasVoted", "President", thisUser.id],
+        queryKey: ["hasVoted", "Senate", thisUser.id],
       });
     } catch (error) {
       console.error("Error voting for candidate:", error);
@@ -257,10 +256,10 @@ function PresidentElections() {
     <div className="container mx-auto p-4">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-3xl font-bold mb-4">Presidential Elections</h1>
+          <h1 className="text-3xl font-bold mb-4">Senate Elections</h1>
           <p className="text-muted-foreground mb-6">
-            Step into the political arena. Declare your candidacy, campaign for
-            votes, and compete with other players to become the next President.
+            Participate in the democratic process by standing as a candidate or
+            voting for in the Senate elections.
           </p>
         </div>
         {electionInfo && (
@@ -302,9 +301,9 @@ function PresidentElections() {
             <Alert className="mb-6">
               <AlertTitle className="font-bold">Elections are live!</AlertTitle>
               <AlertDescription>
-                The presidential elections are now in the voting phase. Cast
-                your vote for your preferred candidate before the elections
-                close.
+                The Senate elections are now in the voting phase. Cast your vote
+                for your preferred candidate before the elections close. There
+                are {electionInfo.seats} seats available.
               </AlertDescription>
             </Alert>
           )}
@@ -327,9 +326,8 @@ function PresidentElections() {
                     }
                   >
                     <>
-                      Stand as a candidate in the upcoming presidential
-                      elections. Rally support amongst players and become the
-                      next President!
+                      Stand as a candidate in the upcoming Senate elections and
+                      become the voice of the people.
                       {!isAlreadyCandidate && !isACandidate && thisUser ? (
                         <Button
                           className="mt-4 md:mt-0"
@@ -357,8 +355,9 @@ function PresidentElections() {
             <Alert className="mb-6">
               <AlertTitle className="font-bold">Elections concluded</AlertTitle>
               <AlertDescription>
-                The presidential elections have concluded. Here are the final
-                results.
+                The Senate elections have concluded. Here are the final results.
+                The top {electionInfo.seats > 1 ? electionInfo.seats : 1}{" "}
+                candidates have been elected to the Senate.
               </AlertDescription>
             </Alert>
           )}
@@ -382,25 +381,26 @@ function PresidentElections() {
                       .sort((a: any, b: any) => (b.votes || 0) - (a.votes || 0))
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       .map((candidate: any) => {
-                        const userId = candidate.userId || candidate.user_id;
-                        const votes = candidate.votes || 0;
+                        const userId = candidate.userId || candidate.user_id
+                        const votes = candidate.votes || 0
                         return (
                           <ResultsItem
                             key={candidate.id}
                             userId={userId}
                             votes={votes}
                           />
-                        );
+                        )
                       })}
                   </div>
                 ) : (
                   <p className="text-muted-foreground">No candidates yet.</p>
                 )}
               </div>
-            )}
+            )
+          }
           {thisUser && (
             <Chat
-              room="presidential-election"
+              room="senate-election"
               userId={thisUser.id}
               username={thisUser.username}
               title="Election Discussion"
@@ -432,4 +432,4 @@ function PresidentElections() {
   );
 }
 
-export default withAuth(PresidentElections);
+export default withAuth(SenateElections);

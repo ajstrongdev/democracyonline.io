@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +13,23 @@ import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Slider } from "@/components/ui/slider";
+
+export const leanings = [
+  "Far Left",
+  "Left",
+  "Center Left",
+  "Center",
+  "Center Right",
+  "Right",
+  "Far Right",
+];
 
 function Home() {
   const [user] = useAuthState(auth);
   const router = useRouter();
+  const [leaning, setLeaning] = React.useState([3]);
 
   const { data: thisUser } = useQuery({
     queryKey: ["user", user?.email],
@@ -28,6 +43,16 @@ function Home() {
     enabled: !!user?.email,
   });
 
+  const { data: stances } = useQuery({
+    queryKey: ["stances"],
+    queryFn: async () => {
+      const res = await axios.get("/api/get-stance-types");
+      const stances = res.data || [];
+      console.log(stances.types);
+      return stances.types;
+    },
+  });
+
   const submitHandler = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!thisUser?.id) return;
@@ -36,16 +61,29 @@ function Home() {
     const name = (form.elements.namedItem("name") as HTMLInputElement)?.value;
     const color = (form.elements.namedItem("color") as HTMLInputElement)?.value;
     const bio = (form.elements.namedItem("bio") as HTMLInputElement)?.value;
-    const manifestoUrl = (
-      form.elements.namedItem("manifesto") as HTMLInputElement
-    )?.value;
+    const leaningValue = leanings[leaning[0]];
+
+    if (bio === "" || name === "" || color === "") {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    const stanceValues: { id: number; value: string }[] = [];
+    stances.forEach((stance: any) => {
+      stanceValues.push({
+        id: stance.id,
+        value: (form.elements.namedItem(stance.id) as HTMLInputElement)?.value,
+      });
+    });
+
     try {
       const response = await axios.post("/api/party-create", {
         userId: thisUser.id,
         name,
         color,
         bio,
-        manifestoUrl,
+        stanceValues,
+        leaningValue,
       });
       router.push(`/parties/${response.data.id}`);
     } catch (error) {
@@ -78,7 +116,7 @@ function Home() {
               htmlFor="name"
               className="text-lg font-medium text-foreground"
             >
-              Party Name
+              Party Name<span className="text-red-500">*</span>
             </Label>
             <Input type="text" id="name" placeholder="Enter party name" />
           </div>
@@ -87,7 +125,7 @@ function Home() {
               htmlFor="color"
               className="text-lg font-medium text-foreground"
             >
-              Party Color
+              Party Color<span className="text-red-500">*</span>
             </Label>
             <div className="flex items-center gap-3">
               <Input
@@ -129,7 +167,7 @@ function Home() {
               htmlFor="bio"
               className="text-lg font-medium text-foreground"
             >
-              Party Bio
+              Party Bio<span className="text-red-500">*</span>
             </Label>
             <Textarea
               id="bio"
@@ -137,19 +175,54 @@ function Home() {
               className="min-h-[80px]"
             />
           </div>
-          <div className="grid grid-cols-1 gap-2">
-            <Label
-              htmlFor="manifesto"
-              className="text-lg font-medium text-foreground"
-            >
-              Manifesto URL
+          <div>
+            <Label className="block text-center mb-8">
+              <span className="text-lg font-medium">Political Leaning: </span>
+              <span className="font-sm">{leanings[leaning[0]]}</span>
             </Label>
-            <Input
-              type="url"
-              id="manifesto"
-              placeholder="https://example.com/manifesto"
-            />
+
+            <div className="relative px-2">
+              <Slider
+                value={leaning}
+                onValueChange={setLeaning}
+                max={6}
+                step={1}
+                className="cursor-pointer"
+              />
+
+              <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                {leanings.map((label, i) => (
+                  <span key={i} className="text-center w-12 ">
+                    {i === 0
+                      ? "Far Left"
+                      : i === 6
+                      ? "Far Right"
+                      : i - 3 === 0
+                      ? "Center"
+                      : ""}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
+          {stances &&
+            stances &&
+            stances.length > 0 &&
+            stances.map((stance: any) => (
+              <div className="grid grid-cols-1 gap-2" key={stance.id}>
+                <Label
+                  htmlFor="bio"
+                  className="text-lg font-medium text-foreground"
+                >
+                  {stance.issue}
+                </Label>
+                <Textarea
+                  id={stance.id}
+                  placeholder={stance.description}
+                  className="min-h-[80px]"
+                />
+              </div>
+            ))}
           <Button type="submit" className="w-full py-3">
             Create Party
           </Button>
