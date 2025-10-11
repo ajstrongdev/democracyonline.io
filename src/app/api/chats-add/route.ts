@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
       [user_id, room, username, message]
     );
 
-    return NextResponse.json({ message: "Chat added" }, { status: 200 });
+    return NextResponse.json({ message: "Chat added" }, { status: 201 });
   } catch (error) {
     console.error("Error adding chat:", error);
     return NextResponse.json(

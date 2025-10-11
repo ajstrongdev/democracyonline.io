@@ -98,12 +98,14 @@ export function Chat({ room, userId, username, title = "Chat" }: ChatProps) {
               name="message"
               placeholder="Type your message..."
               className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              required
             />
             <Button
               type="submit"
               className="h-auto w-full md:w-auto mt-4 md:mt-0"
+              disabled={addChat.isPending}
             >
-              Send
+              {addChat.isPending ? "Sending..." : "Send"}
             </Button>
           </div>
         </form>
