@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
       userId,
     ]);
 
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     stanceValues.forEach( async (stance: any) => {
       await query(
         "INSERT INTO party_stances (party_id, stance_id, value) VALUES ($1, $2, $3)",
