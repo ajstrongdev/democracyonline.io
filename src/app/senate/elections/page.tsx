@@ -377,7 +377,9 @@ function SenateElections() {
                       candidates={candidates}
                     />
                     {[...candidates]
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       .sort((a: any, b: any) => (b.votes || 0) - (a.votes || 0))
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       .map((candidate: any) => {
                         const userId = candidate.userId || candidate.user_id
                         const votes = candidate.votes || 0
