@@ -16,7 +16,7 @@ export function Logo({
   return (
     <div
       className={cn(
-        "flex aspect-square items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-blue-500 text-primary-foreground",
+        "flex aspect-square items-center justify-center rounded-lg bg-gradient-to-br from-[#44efa7] to-[#121510] text-primary-foreground",
         sizes.container
       )}
     >
