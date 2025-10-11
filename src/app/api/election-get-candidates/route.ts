@@ -11,7 +11,16 @@ export async function GET(request: NextRequest) {
     );
   }
   const candidates = await query(
-    "SELECT * FROM candidates WHERE election = $1",
+    `
+    SELECT 
+      candidates.*,
+      users.username,
+      parties.color
+    FROM candidates
+    INNER JOIN users ON candidates.user_id = users.id
+    LEFT JOIN parties ON users.party_id = parties.id
+    WHERE candidates.election = $1
+    `,
     [election]
   );
   return NextResponse.json(candidates.rows);

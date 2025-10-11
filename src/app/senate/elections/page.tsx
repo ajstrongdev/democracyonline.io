@@ -12,10 +12,25 @@ import { auth } from "@/lib/firebase";
 import { fetchUserInfo, getUserFullById } from "@/app/utils/userHelper";
 import { Party } from "@/app/utils/partyHelper";
 import { Chat } from "@/components/Chat";
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegendContent,
+  type ChartConfig
+} from "@/components/ui/chart"
+import { Pie, PieChart, Cell, ResponsiveContainer, Label } from "recharts"
 
 function SenateElections() {
   const [user] = useAuthState(auth);
   const queryClient = useQueryClient();
+
+  const chartConfig: ChartConfig = {
+    a: { label: "Candidate A", color: "var(--chart-1)" },
+    b: { label: "Candidate B", color: "var(--chart-2)" },
+    c: { label: "Candidate C", color: "var(--chart-3)" },
+  }
 
   // Get user info
   const { data: thisUser } = useQuery({
@@ -371,28 +386,77 @@ function SenateElections() {
                     : "Current Results"}
                 </h2>
                 {candidates && candidates.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
+                    <Card className="row-span-2 h-[24rem] flex items-center justify-center">
+                      <CardContent className="w-full h-full flex flex-col items-center justify-center pt-6">
+                        <ChartContainer
+                          config={chartConfig}
+                          className="w-48 h-48 flex items-center justify-center"
+                        >
+                          <ResponsiveContainer width="100%" height={250}>
+                            <PieChart>
+                              <Pie
+                                data={candidates.map((c: any) => ({
+                                  name: c.username,
+                                  value: c.votes ?? 0,
+                                }))}
+                                dataKey="value"
+                                nameKey="name"
+                                innerRadius={40}
+                                outerRadius={80}
+                                paddingAngle={3}
+                                labelLine={false}
+                              >
+                                {candidates.map((c: any, idx: number) => (
+                                  <Cell
+                                    key={idx}
+                                    fill={c.color || `var(--chart-${(idx % 6) + 1})`}
+                                  />
+                                ))}
+                                <Label
+                                  value={candidates.reduce((sum: number, c: any) => sum + (c.votes ?? 0), 0)}
+                                  position="center"
+                                  className="text-lg font-semibold"
+                                  fill="white"
+                                />
+                              </Pie>
+                              <ChartTooltip content={<ChartTooltipContent />} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </ChartContainer>
+                        <div className="flex flex-wrap justify-center gap-4 mt-2">
+                          {candidates.map((c: any, idx: number) => (
+                            <div key={idx} className="flex flex-col items-center text-sm">
+                              <div
+                                className="w-3 h-3 rounded-sm mb-1"
+                                style={{ backgroundColor: c.color || `var(--chart-${(idx % 6) + 1})` }}
+                              />
+                              <span className="text-muted-foreground">{c.votes ?? 0}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
                     {[...candidates]
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       .sort((a: any, b: any) => (b.votes || 0) - (a.votes || 0))
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       .map((candidate: any) => {
-                        const userId = candidate.userId || candidate.user_id;
-                        const votes = candidate.votes || 0;
+                        const userId = candidate.userId || candidate.user_id
+                        const votes = candidate.votes || 0
                         return (
                           <ResultsItem
                             key={candidate.id}
                             userId={userId}
                             votes={votes}
                           />
-                        );
+                        )
                       })}
                   </div>
                 ) : (
                   <p className="text-muted-foreground">No candidates yet.</p>
                 )}
               </div>
-            )}
+            )
+          }
           {thisUser && (
             <Chat
               room="senate-election"
