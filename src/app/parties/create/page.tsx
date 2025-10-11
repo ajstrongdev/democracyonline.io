@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,7 +68,7 @@ function Home() {
       return;
     }
 
-    const stanceValues: {id: Number, value: string }[] = [];
+    const stanceValues: {id: number, value: string }[] = [];
     stances.forEach((stance: any) => {
       stanceValues.push({
         id: stance.id,
