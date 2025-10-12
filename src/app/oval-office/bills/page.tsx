@@ -16,7 +16,7 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import type { BillItem } from "@/app/utils/billHelper";
-import { getUserById } from "@/app/utils/userHelper";
+import { getUserFullById } from "@/app/utils/userHelper";
 import { UserInfo } from "@/app/utils/userHelper";
 import { useRouter } from "next/navigation";
 
@@ -50,8 +50,8 @@ function OvalOfficeBills() {
       const bills = res.data.bills || [];
       const billsWithUsernames = await Promise.all(
         bills.map(async (item: BillItem) => {
-          const username = await getUserById(item.creator_id);
-          return { ...item, username };
+          const user = await getUserFullById(item.creator_id);
+          return { ...item, username: user?.username || "Unknown" };
         })
       );
       console.log(billsWithUsernames);
@@ -96,10 +96,21 @@ function OvalOfficeBills() {
       const res = await axios.get("/api/get-role", {
         params: { role: "President" },
       });
-      const senators = res.data.senators || res.data.representatives || [];
+      const presidents = res.data.representatives || [];
       const presidentsWithParties = await Promise.all(
-        senators.map(async (sen: UserInfo) => {
-          return { ...sen };
+        presidents.map(async (pres: UserInfo) => {
+          if (!pres.party_id) {
+            return { ...pres, partyName: "Independent", partyColor: null };
+          }
+          const partyRes = await fetch(
+            `/api/get-party-by-id?partyId=${pres.party_id}`
+          );
+          const partyData = await partyRes.json();
+          return {
+            ...pres,
+            partyName: partyData?.name || "Independent",
+            partyColor: partyData?.color || null,
+          };
         })
       );
       return presidentsWithParties;
@@ -299,6 +310,12 @@ function OvalOfficeBills() {
                         <h3 className="text-lg font-semibold">
                           {sen.username}
                         </h3>
+                        <p
+                          className="text-sm text-muted-foreground"
+                          style={{ color: sen.partyColor }}
+                        >
+                          {sen.partyName}
+                        </p>
                       </div>
                       <Button
                         variant="outline"

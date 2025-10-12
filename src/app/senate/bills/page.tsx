@@ -16,7 +16,7 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import type { BillItem } from "@/app/utils/billHelper";
-import { getUserById } from "@/app/utils/userHelper";
+import { getUserFullById } from "@/app/utils/userHelper";
 import { UserInfo } from "@/app/utils/userHelper";
 import { useRouter } from "next/navigation";
 import { Chat } from "@/components/Chat";
@@ -51,8 +51,8 @@ function SenateBills() {
       const bills = res.data.bills || [];
       const billsWithUsernames = await Promise.all(
         bills.map(async (item: BillItem) => {
-          const username = await getUserById(item.creator_id);
-          return { ...item, username };
+          const user = await getUserFullById(item.creator_id);
+          return { ...item, username: user?.username || "Unknown" };
         })
       );
       console.log(billsWithUsernames);
@@ -97,13 +97,24 @@ function SenateBills() {
       const res = await axios.get("/api/get-role", {
         params: { role: "Senator" },
       });
-      const senators = res.data.senators || res.data.representatives || [];
-      const senatorsWithParties = await Promise.all(
-        senators.map(async (sen: UserInfo) => {
-          return { ...sen };
+      const representatives = res.data.representatives || [];
+      const representativesWithParties = await Promise.all(
+        representatives.map(async (rep: UserInfo) => {
+          if (!rep.party_id) {
+            return { ...rep, partyName: "Independent", partyColor: null };
+          }
+          const partyRes = await fetch(
+            `/api/get-party-by-id?partyId=${rep.party_id}`
+          );
+          const partyData = await partyRes.json();
+          return {
+            ...rep,
+            partyName: partyData?.name || "Independent",
+            partyColor: partyData?.color || null,
+          };
         })
       );
-      return senatorsWithParties;
+      return representativesWithParties;
     },
   });
 
@@ -301,6 +312,12 @@ function SenateBills() {
                         <h3 className="text-lg font-semibold">
                           {sen.username}
                         </h3>
+                        <p
+                          className="text-sm text-muted-foreground"
+                          style={{ color: sen.partyColor }}
+                        >
+                          {sen.partyName}
+                        </p>
                       </div>
                       <Button
                         variant="outline"
