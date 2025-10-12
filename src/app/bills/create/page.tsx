@@ -69,9 +69,6 @@ function Bills() {
         </p>
       </div>
       <div className="space-y-4">
-        <h1 className="text-3xl font-bold text-foreground mb-4 border-b pb-2">
-          New Bill Form
-        </h1>
         <Card>
           <CardContent>
             <form className="space-y-6" onSubmit={handleSubmit}>
