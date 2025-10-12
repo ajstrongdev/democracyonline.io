@@ -4,6 +4,8 @@ export type UserInfo = {
   id: number;
   email: string;
   username: string;
+  bio: string;
+  political_leaning: string;
   role: string;
   party_id: number | null;
   created_at: string;
