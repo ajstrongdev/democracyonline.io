@@ -9,6 +9,7 @@ import GenericSkeleton from "@/components/genericskeleton";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Handshake, Crown } from "lucide-react";
 
 function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -73,10 +74,15 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                 <h1 className="text-2xl mt-8 md:mt-0 md:text-3xl font-bold text-foreground text-wrap break-words">
                   {userData?.username}&apos;s Profile
                 </h1>
-                <p className="mt-1">
-                  {userData?.role}
-                  {userData?.id == partyData?.leader_id && ", Party Leader"}
+                <p className="mt-1 flex items-center gap-2">
+                  <Handshake className="w-4 h-4" /> {userData?.role}
                 </p>
+                {userData?.id == partyData?.leader_id && (
+                  <div className="mt-1 flex items-center gap-2 text-sm font-medium text-yellow-500">
+                    <Crown className="w-4 h-4" />
+                    Party Leader
+                  </div>
+                )}
               </div>
             </div>
           </CardHeader>
