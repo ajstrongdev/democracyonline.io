@@ -25,9 +25,7 @@ export default function withAuth<T extends object>(
     }, [user, router]);
 
     if (isLoading) {
-      return (
-        <GenericSkeleton />
-      );
+      return <GenericSkeleton />;
     }
 
     if (!isAuthenticated) {
