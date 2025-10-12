@@ -13,6 +13,7 @@ import { fetchUserInfo, getUserFullById } from "@/app/utils/userHelper";
 import { Party } from "@/app/utils/partyHelper";
 import { Chat } from "@/components/Chat";
 import { CandidatesChart } from "@/components/CandidateChart";
+import Link from "next/link";
 
 function SenateElections() {
   const [user] = useAuthState(auth);
@@ -128,26 +129,49 @@ function SenateElections() {
           {partyLoading ? (
             <p className="text-sm text-muted-foreground">Loading party...</p>
           ) : party ? (
-            <h1>
-              {candidateUser.username} |{" "}
-              <span style={{ color: party.color }}>{party.name}</span>
-            </h1>
+            <>
+              <div>
+                <h1 className="text-xl font-semibold">
+                  {candidateUser.username}
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Current role: {candidateUser.role}
+                </p>
+                <p
+                  className="text-sm text-muted-foreground mt-1"
+                  style={party ? { color: party.color } : {}}
+                >
+                  <span className="text-muted-foreground">Party:</span>{" "}
+                  {party ? party.name : "Independent"}
+                </p>
+              </div>
+            </>
           ) : (
-            <p>
-              {candidateUser.username} |{" "}
-              <span className="text-muted-foreground">Independent</span>
-            </p>
+            <div>
+              <h1 className="text-xl font-semibold">
+                {candidateUser.username}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Party: Independent
+              </p>
+            </div>
           )}
-          {electionInfo.status === "Voting" && (
-            <Button
-              onClick={() => voteForCandidate(candidateId)}
-              disabled={hasVoted}
-            >
-              {hasVoted
-                ? "Already Voted"
-                : `Vote for ${candidateUser.username}`}
+          <div className="mt-4 md:mt-0 flex items-center">
+            <Button asChild>
+              <Link href={`/profile/${candidateUser.id}`}>View Profile</Link>
             </Button>
-          )}
+            {electionInfo.status === "Voting" && (
+              <Button
+                onClick={() => voteForCandidate(candidateId)}
+                disabled={hasVoted}
+                className="ml-4"
+              >
+                {hasVoted
+                  ? "Already Voted"
+                  : `Vote for ${candidateUser.username}`}
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     );
@@ -373,31 +397,28 @@ function SenateElections() {
                 </h2>
                 {candidates && candidates.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
-                    <CandidatesChart
-                      candidates={candidates}
-                    />
+                    <CandidatesChart candidates={candidates} />
                     {[...candidates]
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       .sort((a: any, b: any) => (b.votes || 0) - (a.votes || 0))
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       .map((candidate: any) => {
-                        const userId = candidate.userId || candidate.user_id
-                        const votes = candidate.votes || 0
+                        const userId = candidate.userId || candidate.user_id;
+                        const votes = candidate.votes || 0;
                         return (
                           <ResultsItem
                             key={candidate.id}
                             userId={userId}
                             votes={votes}
                           />
-                        )
+                        );
                       })}
                   </div>
                 ) : (
                   <p className="text-muted-foreground">No candidates yet.</p>
                 )}
               </div>
-            )
-          }
+            )}
           {thisUser && (
             <Chat
               room="senate-election"
