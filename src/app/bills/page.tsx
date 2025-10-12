@@ -63,18 +63,62 @@ function Bills() {
           </Card>
         ) : data && data.length > 0 ? (
           data.map((bill) => (
-            <Card key={bill.id} className="mb-4 last:mb-0">
+            <Card key={bill.id} id={bill.id} className="mb-4 last:mb-0">
               <CardContent>
-                <h2 className="text-xl font-semibold">
-                  Bill #{bill.id}: {bill.title}
-                </h2>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Proposed By:{" "}
-                  <b className="text-black dark:text-white">{bill.username}</b>{" "}
-                  | Status: {bill.status} | Stage: {bill.stage} | Created at:{" "}
-                  {new Date(bill.created_at).toLocaleDateString()}
-                </p>
-                <p className="text-foreground">{bill.content}</p>
+                {/* Bill details */}
+                <div>
+                  <h2 className="text-xl font-semibold">
+                    Bill #{bill.id}: {bill.title}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Proposed By:{" "}
+                    <b className="text-black dark:text-white">{bill.username}</b>{" "}
+                    | Status: {bill.status} | Stage: {bill.stage} | Created at:{" "}
+                    {new Date(bill.created_at).toLocaleDateString()}
+                  </p>
+                  <p className="text-foreground mt-5 sm:mt-3">{bill.content}</p>
+                </div>
+
+                {/* Bill voting */}
+                <div className="grid lg:grid-cols-3 grid-cols-1 mt-3">
+                  <div>
+                    <h2 className="text-xl font-semibold mb-2">House</h2>
+                    <div className="flex items-center gap-4">
+                      <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
+                        Votes For: {bill.house_total_yes}
+                      </span>
+                      <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
+                        Votes Against: {bill.house_total_no}
+                      </span>
+                    </div>
+                  </div>
+                  {bill.stage !== "House" && (
+                    <div>
+                      <h2 className="text-xl font-semibold mb-2 sm:mt-0 mt-2">Senate</h2>
+                      <div className="flex items-center gap-4">
+                        <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
+                          Votes For: {bill.senate_total_yes}
+                        </span>
+                        <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
+                          Votes Against: {bill.senate_total_no}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {bill.stage === "Presidential" && (
+                    <div>
+                      <h2 className="text-xl font-semibold mb-2 sm:mt-0 mt-2">Presidential</h2>
+                      <div className="flex items-center gap-4">
+                        <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
+                          Votes For: {bill.presidential_total_yes}
+                        </span>
+                        <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
+                          Votes Against: {bill.presidential_total_no}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))
