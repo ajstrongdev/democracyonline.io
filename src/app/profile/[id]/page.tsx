@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import withAuth from "@/lib/withAuth";
@@ -5,13 +6,7 @@ import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getUserFullById } from "@/app/utils/userHelper";
 import GenericSkeleton from "@/components/genericskeleton";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -76,9 +71,12 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
               ></div>
               <div className="flex-1">
                 <h1 className="text-2xl mt-8 md:mt-0 md:text-3xl font-bold text-foreground text-wrap break-words">
-                  {userData?.username}'s Profile
+                  {userData?.username}&apos;s Profile
                 </h1>
-                <p className="mt-1">{userData?.role}</p>
+                <p className="mt-1">
+                  {userData?.role}
+                  {userData?.id == partyData?.leader_id && ", Party Leader"}
+                </p>
               </div>
             </div>
           </CardHeader>
@@ -150,6 +148,11 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                   <p className="text-card-foreground leading-relaxed">
                     {partyData.bio}
                   </p>
+                  <Button asChild className="mt-4 float-right">
+                    <Link href={`/parties/${partyData.id}`}>
+                      View Party Page
+                    </Link>
+                  </Button>
                 </div>
               </>
             )}
