@@ -35,11 +35,9 @@ function Bills() {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-foreground mb-2">
-          Legislative Bills
-        </h1>
+        <h1 className="text-4xl font-bold text-foreground mb-2">Bills</h1>
         <p className="text-muted-foreground">
-          View and track the status of legislative bills here.
+          View and track the status of bills here.
         </p>
         <Button asChild className="mt-4 hover:cursor-pointer">
           <Link href="/bills/create">Create New Bill</Link>
@@ -72,7 +70,9 @@ function Bills() {
                   </h2>
                   <p className="text-sm text-muted-foreground mb-2">
                     Proposed By:{" "}
-                    <b className="text-black dark:text-white">{bill.username}</b>{" "}
+                    <b className="text-black dark:text-white">
+                      {bill.username}
+                    </b>{" "}
                     | Status: {bill.status} | Stage: {bill.stage} | Created at:{" "}
                     {new Date(bill.created_at).toLocaleDateString()}
                   </p>
@@ -94,7 +94,9 @@ function Bills() {
                   </div>
                   {bill.stage !== "House" && (
                     <div>
-                      <h2 className="text-xl font-semibold mb-2 sm:mt-0 mt-2">Senate</h2>
+                      <h2 className="text-xl font-semibold mb-2 sm:mt-0 mt-2">
+                        Senate
+                      </h2>
                       <div className="flex items-center gap-4">
                         <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
                           Votes For: {bill.senate_total_yes}
@@ -107,7 +109,9 @@ function Bills() {
                   )}
                   {bill.stage === "Presidential" && (
                     <div>
-                      <h2 className="text-xl font-semibold mb-2 sm:mt-0 mt-2">Presidential</h2>
+                      <h2 className="text-xl font-semibold mb-2 sm:mt-0 mt-2">
+                        Presidential
+                      </h2>
                       <div className="flex items-center gap-4">
                         <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
                           Votes For: {bill.presidential_total_yes}
