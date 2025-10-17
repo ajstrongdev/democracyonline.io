@@ -14,6 +14,7 @@ import { DoorOpen, Handshake, Crown, Pencil } from "lucide-react";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Key } from "react";
 import { Chat } from "@/components/Chat";
+import { toast } from "sonner";
 
 function Home() {
   const [user] = useAuthState(auth);
@@ -133,6 +134,18 @@ function Home() {
       queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
     },
   });
+
+  const kickMember = async (id: number) => {
+    try {
+      await axios.post("/api/party-kick", {
+        userId: id,
+      });
+      toast.success("Member kicked successfully.");
+      queryClient.invalidateQueries({ queryKey: ["partyMembers", id] });
+    } catch (error) {
+      toast.error("Failed to kick member.");
+    }
+  };
 
   const loading =
     partyLoading || !thisUser || !partyMembers || membershipLoading;
@@ -361,13 +374,26 @@ function Home() {
                             )}
                           </p>
                         </div>
-                        <Button
-                          size="sm"
-                          className="text-sm"
-                          onClick={() => router.push(`/profile/${member.id}`)}
-                        >
-                          View Profile
-                        </Button>
+                        <div>
+                          {party.leader_id === thisUser?.id &&
+                            member.id !== party.leader_id && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="text-sm mr-2"
+                                onClick={() => kickMember(member.id)}
+                              >
+                                Kick Member
+                              </Button>
+                            )}
+                          <Button
+                            size="sm"
+                            className="text-sm"
+                            onClick={() => router.push(`/profile/${member.id}`)}
+                          >
+                            View Profile
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
