@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
-import { DoorOpen, Handshake, Crown } from "lucide-react";
+import { DoorOpen, Handshake, Crown, Pencil } from "lucide-react";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Key } from "react";
 import { Chat } from "@/components/Chat";
@@ -257,6 +257,15 @@ function Home() {
                           <DoorOpen /> Leave Party
                         </Button>
                       )
+                    )}
+                    {membershipStatus && party.leader_id === thisUser?.id && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => router.push(`/parties/manage/${id}`)}
+                      >
+                        <Pencil /> Edit Party Info
+                      </Button>
                     )}
                     {membershipStatus &&
                       party.leader_id === null &&
