@@ -124,7 +124,7 @@ function ManageParty() {
           Manage Party
         </h1>
         <p className="text-muted-foreground">
-          Edit your party's information here.
+          Edit your party&apos;s information here.
         </p>
       </div>
       {loading ? (
