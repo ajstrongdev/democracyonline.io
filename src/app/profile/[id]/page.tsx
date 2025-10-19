@@ -10,9 +10,12 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Handshake, Crown } from "lucide-react";
+import { auth } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
 
 function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const [user] = useAuthState(auth);
 
   const { data: userData, isLoading } = useQuery({
     queryKey: ["userInfo", id],
@@ -84,6 +87,13 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                   </div>
                 )}
               </div>
+              {userData?.email === user?.email && (
+                <div className="mt-4 md:mt-0">
+                  <Button asChild>
+                    <Link href="/user-settings">Edit Profile</Link>
+                  </Button>
+                </div>
+              )}
             </div>
           </CardHeader>
         </Card>
