@@ -10,10 +10,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
-import { DoorOpen, Handshake, Crown } from "lucide-react";
+import { DoorOpen, Handshake, Crown, Pencil } from "lucide-react";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Key } from "react";
 import { Chat } from "@/components/Chat";
+import { toast } from "sonner";
 
 function Home() {
   const [user] = useAuthState(auth);
@@ -133,6 +134,18 @@ function Home() {
       queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
     },
   });
+
+  const kickMember = async (userId: number) => {
+    try {
+      await axios.post("/api/party-kick", {
+        userId: userId,
+      });
+      toast.success("Member kicked successfully.");
+      queryClient.invalidateQueries({ queryKey: ["partyMembers", id] });
+    } catch (error) {
+      toast.error("Failed to kick member.");
+    }
+  };
 
   const loading =
     partyLoading || !thisUser || !partyMembers || membershipLoading;
@@ -258,6 +271,15 @@ function Home() {
                         </Button>
                       )
                     )}
+                    {membershipStatus && party.leader_id === thisUser?.id && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => router.push(`/parties/manage/${id}`)}
+                      >
+                        <Pencil /> Edit Party Info
+                      </Button>
+                    )}
                     {membershipStatus &&
                       party.leader_id === null &&
                       thisUser?.id !== party.leader_id && (
@@ -352,13 +374,26 @@ function Home() {
                             )}
                           </p>
                         </div>
-                        <Button
-                          size="sm"
-                          className="text-sm"
-                          onClick={() => router.push(`/profile/${member.id}`)}
-                        >
-                          View Profile
-                        </Button>
+                        <div>
+                          {party.leader_id === thisUser?.id &&
+                            member.id !== party.leader_id && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="text-sm mr-2"
+                                onClick={() => kickMember(member.id)}
+                              >
+                                Kick Member
+                              </Button>
+                            )}
+                          <Button
+                            size="sm"
+                            className="text-sm"
+                            onClick={() => router.push(`/profile/${member.id}`)}
+                          >
+                            View Profile
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
