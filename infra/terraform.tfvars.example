@@ -20,6 +20,7 @@ firebase_storage_bucket        = "your-project.appspot.com"
 firebase_messaging_sender_id   = "your-sender-id"
 firebase_app_id                = "your-app-id"
 firebase_measurement_id        = "G-XXXXXXXXXX"
+cron_secret = "base64-string"
 
 # Cloud Run Configuration
 cloud_run_cpu           = "1"

@@ -101,3 +101,9 @@ variable "cloud_run_max_instances" {
   type        = number
   default     = 10
 }
+
+variable "cron_secret" {
+  description = "Secret key for securing API endpoints"
+  type        = string
+  sensitive   = true
+}
