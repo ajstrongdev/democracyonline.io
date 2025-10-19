@@ -135,10 +135,10 @@ function Home() {
     },
   });
 
-  const kickMember = async (id: number) => {
+  const kickMember = async (userId: number) => {
     try {
       await axios.post("/api/party-kick", {
-        userId: id,
+        userId: userId,
       });
       toast.success("Member kicked successfully.");
       queryClient.invalidateQueries({ queryKey: ["partyMembers", id] });
