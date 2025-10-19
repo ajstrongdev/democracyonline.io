@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
 function calculate(x: number) {
@@ -16,7 +16,24 @@ async function updateSenateSeats() {
   ]);
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get("authorization");
+  const expectedToken = process.env.CRON_SECRET;
+
+  if (!expectedToken) {
+    console.error("CRON_SECRET environment variable is not set");
+    return NextResponse.json(
+      { success: false, error: "Server configuration error" },
+      { status: 500 }
+    );
+  }
+
+  if (authHeader !== `Bearer ${expectedToken}`) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
   // Presidential elections
   try {
     const res = await query(
