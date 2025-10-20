@@ -194,6 +194,15 @@ resource "google_secret_manager_secret" "cron_secret" {
   depends_on = [google_project_service.required_apis]
 }
 
+resource "google_secret_manager_secret_version" "cron_secret" {
+  secret      = google_secret_manager_secret.cron_secret.id
+  secret_data = var.cron_secret
+
+  lifecycle {
+    ignore_changes = [secret_data]
+  }
+}
+
 # ============================================
 # CLOUD RUN
 # ============================================
@@ -258,6 +267,16 @@ resource "google_cloud_run_v2_service" "app" {
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.db_connection_string.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "CRON_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.cron_secret.secret_id
             version = "latest"
           }
         }
