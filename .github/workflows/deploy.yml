@@ -47,6 +47,10 @@ jobs:
             echo "${var_name}=${value}" >> $GITHUB_OUTPUT
           done
 
+      - name: Update cron secret in Secret Manager
+        run: |
+          echo -n "${{ secrets.CRON_SECRET }}" | gcloud secrets versions add ${{ env.SERVICE_NAME }}-cron-secret --data-file=-
+
       - name: Build Docker image
         run: |
           docker build \
