@@ -20,6 +20,11 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const expectedToken = process.env.CRON_SECRET;
 
+  console.log("Request headers:", Array.from(request.headers.entries()));
+  console.log("Received auth header:", authHeader);
+  console.log("Expected token:", expectedToken);
+  console.log("Do they match?", authHeader === `Bearer ${expectedToken}`);
+
   if (!expectedToken) {
     console.error("CRON_SECRET environment variable is not set");
     return NextResponse.json(
