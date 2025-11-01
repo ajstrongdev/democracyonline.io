@@ -37,7 +37,7 @@ export default function Home() {
         console.log("User created:", res.user);
         const leaningItem = leanings[leaning[0]];
         await insertUserToDatabase(email, username, bio, leaningItem);
-        router.push("/home");
+        router.push("/profile");
       }
     } catch (err) {
       console.error("Error creating user:", err);

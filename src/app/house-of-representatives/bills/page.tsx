@@ -16,7 +16,7 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import type { BillItem } from "@/app/utils/billHelper";
-import { getUserById } from "@/app/utils/userHelper";
+import { getUserFullById } from "@/app/utils/userHelper";
 import { UserInfo } from "@/app/utils/userHelper";
 import { useRouter } from "next/navigation";
 import { Chat } from "@/components/Chat";
@@ -51,8 +51,8 @@ function HouseOfRepresentatives() {
       const bills = res.data.bills || [];
       const billsWithUsernames = await Promise.all(
         bills.map(async (item: BillItem) => {
-          const username = await getUserById(item.creator_id);
-          return { ...item, username };
+          const user = await getUserFullById(item.creator_id);
+          return { ...item, username: user?.username || "Unknown" };
         })
       );
       console.log(billsWithUsernames);
@@ -87,6 +87,23 @@ function HouseOfRepresentatives() {
     enabled: data.length > 0,
   });
 
+  // Get party data from party ids of representatives
+  const { data: partyData } = useQuery({
+    queryKey: ["parties", thisUser?.party_id],
+    queryFn: async () => {
+      if (!thisUser?.party_id) return null;
+      return fetch(`/api/get-party-by-id?partyId=${thisUser.party_id}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((res) => res.json())
+        .then((data) => data || null);
+    },
+    enabled: !!thisUser?.party_id,
+  });
+
   const {
     data: repsData,
     isLoading: repsLoading,
@@ -100,7 +117,18 @@ function HouseOfRepresentatives() {
       const representatives = res.data.representatives || [];
       const representativesWithParties = await Promise.all(
         representatives.map(async (rep: UserInfo) => {
-          return { ...rep };
+          if (!rep.party_id) {
+            return { ...rep, partyName: "Independent", partyColor: null };
+          }
+          const partyRes = await fetch(
+            `/api/get-party-by-id?partyId=${rep.party_id}`
+          );
+          const partyData = await partyRes.json();
+          return {
+            ...rep,
+            partyName: partyData?.name || "Independent",
+            partyColor: partyData?.color || null,
+          };
         })
       );
       return representativesWithParties;
@@ -304,6 +332,12 @@ function HouseOfRepresentatives() {
                         <h3 className="text-lg font-semibold">
                           {rep.username}
                         </h3>
+                        <p
+                          className="text-sm text-muted-foreground"
+                          style={{ color: rep.partyColor }}
+                        >
+                          {rep.partyName}
+                        </p>
                       </div>
                       <Button
                         variant="outline"

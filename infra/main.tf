@@ -42,8 +42,12 @@ locals {
   # All secret IDs for IAM binding
   all_secret_ids = concat(
     ["${var.app_name}-db-connection-string"],
+    ["${var.app_name}-cron-secret"],
     [for key, _ in local.firebase_secrets : "${var.app_name}-firebase-${key}"]
   )
+
+  # API Auth token
+  cron_secret = var.cron_secret
 }
 
 # ============================================
@@ -179,6 +183,26 @@ resource "google_secret_manager_secret_version" "firebase" {
   secret_data = each.value
 }
 
+# Cron secret for securing API endpoints
+resource "google_secret_manager_secret" "cron_secret" {
+  secret_id = "${var.app_name}-cron-secret"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "cron_secret" {
+  secret      = google_secret_manager_secret.cron_secret.id
+  secret_data = var.cron_secret
+
+  lifecycle {
+    ignore_changes = [secret_data]
+  }
+}
+
 # ============================================
 # CLOUD RUN
 # ============================================
@@ -249,6 +273,16 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
+        name = "CRON_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.cron_secret.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
         name  = "NODE_ENV"
         value = "production"
       }
@@ -297,11 +331,11 @@ resource "google_cloud_run_v2_service_iam_member" "scheduler_invoker" {
   member   = "serviceAccount:${google_service_account.scheduler_sa.email}"
 }
 
-# Cloud Scheduler job to hit game-advance endpoint every 5 minutes
+# Cloud Scheduler job to hit game-advance endpoint once per day at midnight UTC
 resource "google_cloud_scheduler_job" "game_advance" {
   name             = "${var.app_name}-game-advance"
-  description      = "Trigger game advancement every 5 minutes"
-  schedule         = "*/5 * * * *"
+  description      = "Trigger game advancement daily at midnight UTC"
+  schedule         = "0 0 * * *"
   time_zone        = "UTC"
   attempt_deadline = "320s"
   region           = var.region
@@ -313,6 +347,10 @@ resource "google_cloud_scheduler_job" "game_advance" {
   http_target {
     http_method = "GET"
     uri         = "${google_cloud_run_v2_service.app.uri}/api/game-advance"
+
+    headers = {
+      "Authorization" = "Bearer ${var.cron_secret}"
+    }
 
     oidc_token {
       service_account_email = google_service_account.scheduler_sa.email

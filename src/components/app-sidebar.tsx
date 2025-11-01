@@ -14,6 +14,7 @@ import {
   Newspaper,
   ChevronDown,
   ChartNoAxesCombined,
+  MessageSquare,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { signOut } from "firebase/auth";
@@ -229,6 +230,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter>
         <SidebarSeparator />
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() =>
+                window.open("https://discord.gg/m7gDfgJund", "_blank")
+              }
+            >
+              <MessageSquare />
+              <span>Discord</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={toggleTheme}>
               {mounted ? theme === "dark" ? <Sun /> : <Moon /> : <Moon />}
