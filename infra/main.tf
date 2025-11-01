@@ -114,12 +114,14 @@ resource "google_sql_database_instance" "postgres" {
       }
     }
 
+    # Network configuration with SSL enforcement
+    # - Public IP enabled for Cloud SQL Proxy connections
+    # - SSL/TLS encryption enforced (ENCRYPTED_ONLY mode)
+    # - Google-managed server certificates (automatic rotation)
+    # - No authorized networks (all access via Cloud SQL Proxy)
     ip_configuration {
       ipv4_enabled = true
-      authorized_networks {
-        name  = "allow-all-temp"
-        value = "0.0.0.0/0"
-      }
+      ssl_mode     = "ENCRYPTED_ONLY"
     }
 
     insights_config {
@@ -148,6 +150,11 @@ resource "google_sql_user" "user" {
 # ============================================
 
 # Database connection string secret
+# Connection uses Cloud SQL Proxy via Unix socket:
+# - Connects to /cloudsql/PROJECT:REGION:INSTANCE socket
+# - SSL/TLS encryption enforced (Cloud SQL Proxy handles this)
+# - Google-managed certificates (no manual cert management needed)
+# - IAM authentication supported (using Cloud Run service account)
 resource "google_secret_manager_secret" "db_connection_string" {
   secret_id = "${var.app_name}-db-connection-string"
 
@@ -160,7 +167,7 @@ resource "google_secret_manager_secret" "db_connection_string" {
 
 resource "google_secret_manager_secret_version" "db_connection_string" {
   secret      = google_secret_manager_secret.db_connection_string.id
-  secret_data = "postgresql://${var.db_user}:${random_password.db_password.result}@${google_sql_database_instance.postgres.public_ip_address}:5432/${var.db_name}?sslmode=no-verify"
+  secret_data = "postgresql://${var.db_user}:${random_password.db_password.result}@localhost:5432/${var.db_name}?host=/cloudsql/${google_sql_database_instance.postgres.connection_name}"
 }
 
 # Firebase secrets (using for_each to reduce duplication)
@@ -287,6 +294,13 @@ resource "google_cloud_run_v2_service" "app" {
         value = "production"
       }
     }
+
+    # Cloud SQL Proxy connection
+    # Automatically handles SSL/TLS encryption and authentication
+    # Creates Unix socket at /cloudsql/PROJECT:REGION:INSTANCE
+    annotations = {
+      "run.googleapis.com/cloudsql-instances" = google_sql_database_instance.postgres.connection_name
+    }
   }
 
   # Ignore changes to the container image since it's managed by CI/CD
@@ -383,12 +397,12 @@ output "database_instance_name" {
 }
 
 output "database_public_ip" {
-  description = "The public IP address of the Cloud SQL instance"
+  description = "The public IP address of the Cloud SQL instance (accessed via Cloud SQL Proxy)"
   value       = google_sql_database_instance.postgres.public_ip_address
 }
 
 output "database_connection_name" {
-  description = "The connection name of the Cloud SQL instance"
+  description = "The connection name of the Cloud SQL instance (for Cloud SQL Proxy)"
   value       = google_sql_database_instance.postgres.connection_name
 }
 
@@ -428,12 +442,15 @@ output "next_steps" {
          --image ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${var.app_name}:latest \
          --region ${var.region}
 
-    3. Your database is ready at:
-       Host: ${google_sql_database_instance.postgres.public_ip_address}
+    3. Your database is secured with Cloud SQL Proxy:
+       Connection: ${google_sql_database_instance.postgres.connection_name}
        Database: ${var.db_name}
        User: ${var.db_user}
 
        Connection string is stored in Secret Manager.
+       Cloud Run connects via Cloud SQL Proxy (automatic SSL/TLS).
+       Public IP: ${google_sql_database_instance.postgres.public_ip_address}
+       (Only accessible via Cloud SQL Proxy authentication)
 
     ============================================
   EOT
