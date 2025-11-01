@@ -253,7 +253,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <span>Sign out</span>
               </SidebarMenuButton>
             ) : mounted ? (
-              <SidebarMenuButton onClick={() => router.push("/")}>
+              <SidebarMenuButton onClick={() => router.push("/sign-in")}>
                 <Crown />
                 <span>Sign in</span>
               </SidebarMenuButton>
