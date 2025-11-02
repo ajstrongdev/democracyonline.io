@@ -188,6 +188,48 @@ async function seedData() {
   }
 }
 
+async function seedDataProd() {
+  // Add stances to DB
+  await query(
+    "INSERT INTO political_stances (issue, description) VALUES ($1, $2), ($3, $4), ($5, $6), ($7, $8) RETURNING *",
+    [
+      "What is your party’s stance on the economy?",
+      "(e.g., free market vs. planned economy, taxation, welfare, trade)",
+      "How does your party view social and cultural issues?",
+      "(e.g., individual freedoms, tradition vs. progress, equality, religion, education)",
+      "What is your party’s approach to government and authority?",
+      "(e.g., strong central government vs. local autonomy, civil liberties, surveillance, law enforcement)",
+      "What is your party’s stance on foreign relations and national defense?",
+      "(e.g., diplomacy, military strength, isolationism vs. interventionism, alliances)",
+    ]
+  );
+  // Setup election timers
+  const election_president = await query(
+    "INSERT INTO elections (election, status, days_left) VALUES ($1, $2, $3) RETURNING *",
+    ["President", "Candidate", 5]
+  );
+  const election_senate = await query(
+    "INSERT INTO elections (election, status, days_left) VALUES ($1, $2, $3) RETURNING *",
+    ["Senate", "Candidate", 2]
+  );
+  // Create user accounts
+  const users = await query(`
+    INSERT INTO users (email, username, bio, political_leaning, role)
+    VALUES
+      ('ajstrongdev@pm.me', 'bisexualmargretthatcher', 'Practicing bisexual Margaret Thatcher has become an activist and eco-socialist, fighting injustice and climate change all whilst serving and snatching milk.', 'Left', 'President'),
+      ('jenewland1999@gmail.com', 'AIGore', 'Former tech CEO who traded growth charts for policy reform. Determined to fix a system that''s forgotten its citizens. Advocates for green innovation, digital transparency, and a welfare state that works in the modern age. Progress through pragmatism, not promises.', 'Center Left', 'Senator'),
+      ('robertjenner5@outlook.com', 'WebExtension', 'I have no clue', 'Right', 'Senator')
+    RETURNING *;
+  `);
+  // Create first bill
+  const bill = await query(`
+    INSERT INTO bills (status, stage, title, creator_id, content)
+    VALUES
+      ('Voting', 'House', 'The Provisional Governance Act', 1, 'To ensure the establishment of a democratic government, this Act hereby recognises the Privisional Congress, composed of both the House of Representatives and the Senate, as the lawful legislative body of the Republic. THe president, elected by our members, shall serve as the head of state and government, empowered to enforce laws and oversee executive administration. This provisional framework shall remain in effect until a permanent constitution is ratified.')
+    RETURNING *;
+  `);
+}
+
 async function seed() {
   await listTables("Tables before seeding:");
   await dropTables();
@@ -339,7 +381,8 @@ async function seed() {
     } catch (error: any) {
       // do nothing
     }
-    await seedData();
+    await seedDataProd(); // call production seed data
+    // await seedData();
   } catch (error) {
     console.error("Error during seeding:", error);
     throw error;
