@@ -17,6 +17,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { LaunchCountdown } from "@/components/LaunchCountdown";
 
 export default function Home() {
   const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
@@ -26,6 +27,12 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const [launchTime] = useState(new Date("2025-11-02T20:00:00Z"));
+  const [isLaunched, setIsLaunched] = useState(false);
+
+  useEffect(() => {
+    setIsLaunched(new Date() >= launchTime);
+  }, [launchTime]);
 
   useEffect(() => {
     if (user && !userLoading) {
@@ -56,6 +63,23 @@ export default function Home() {
     return (
       <div className="flex flex-col items-center justify-center bg-background px-6 py-12">
         <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isLaunched) {
+    return (
+      <div className="flex flex-col items-center justify-center bg-background px-6 py-12">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="flex flex-col space-y-2 text-center">
+              <LaunchCountdown />
+              <CardDescription>
+                Democracyonline.io goes live on November 2nd, at 8:00 PM GMT
+              </CardDescription>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

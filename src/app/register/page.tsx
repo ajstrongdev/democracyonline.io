@@ -1,7 +1,7 @@
 "use client";
 import { auth } from "@/lib/firebase";
 import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import axios from "axios";
 import {
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Slider } from "@/components/ui/slider";
 import { leanings } from "../parties/create/page";
+import { LaunchCountdown } from "@/components/LaunchCountdown";
 
 export default function Home() {
   const [createUserWithEmailAndPassword] =
@@ -28,6 +29,12 @@ export default function Home() {
   const [username, setUsername] = useState("");
   const [leaning, setLeaning] = React.useState([3]);
   const [bio, setBio] = useState("");
+  const [launchTime] = useState(new Date("2025-11-02T20:00:00Z"));
+  const [isLaunched, setIsLaunched] = useState(false);
+
+  useEffect(() => {
+    setIsLaunched(new Date() >= launchTime);
+  }, [launchTime]);
 
   const signUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -66,6 +73,23 @@ export default function Home() {
       console.error("Error inserting user into database:", error);
     }
   };
+
+  if (!isLaunched) {
+    return (
+      <div className="flex flex-col items-center justify-center bg-background px-6 py-12">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="flex flex-col space-y-2 text-center">
+              <LaunchCountdown />
+              <CardDescription>
+                Democracyonline.io goes live on November 2nd, at 8:00 PM GMT
+              </CardDescription>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center py-4 md:py-12 bg-background px-4 ">

@@ -273,7 +273,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <Crown />
                 <span>Sign in</span>
               </SidebarMenuButton>
-            )}
+            ) : null}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
