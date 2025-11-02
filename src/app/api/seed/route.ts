@@ -225,9 +225,13 @@ async function seedDataProd() {
   const bill = await query(`
     INSERT INTO bills (status, stage, title, creator_id, content)
     VALUES
-      ('Voting', 'House', 'The Provisional Governance Act', 1, 'To ensure the establishment of a democratic government, this Act hereby recognises the Privisional Congress, composed of both the House of Representatives and the Senate, as the lawful legislative body of the Republic. THe president, elected by our members, shall serve as the head of state and government, empowered to enforce laws and oversee executive administration. This provisional framework shall remain in effect until a permanent constitution is ratified.')
+      ('Voting', 'House', 'The Provisional Governance Act', 1, 'To ensure the establishment of a democratic government, this Act hereby recognises the Privisional Congress, composed of both the House of Representatives and the Senate, as the lawful legislative body of the Republic. The president, elected by our members, shall serve as the head of state and government, empowered to enforce laws and oversee executive administration. This provisional framework shall remain in effect until a permanent constitution is ratified.')
     RETURNING *;
   `);
+  console.log("Production seed data inserted:", {
+    users: users.rows,
+    bill: bill.rows[0],
+  });
 }
 
 async function seed() {
