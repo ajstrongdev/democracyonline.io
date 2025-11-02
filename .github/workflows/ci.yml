@@ -40,11 +40,20 @@ jobs:
         id: secrets
         run: |
           # Fetch Firebase Admin SDK credentials
-          for secret in admin-project-id admin-client-email admin-private-key; do
-            var_name=$(echo "FIREBASE_${secret}" | tr '[:lower:]-' '[:upper:]_')
-            value=$(gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-${secret}")
-            echo "${var_name}=${value}" >> $GITHUB_OUTPUT
-          done
+          FIREBASE_ADMIN_PROJECT_ID=$(gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-admin-project-id")
+          FIREBASE_ADMIN_CLIENT_EMAIL=$(gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-admin-client-email")
+          FIREBASE_ADMIN_PRIVATE_KEY=$(gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-admin-private-key")
+
+          # Export as output using proper encoding for multiline values
+          echo "FIREBASE_ADMIN_PROJECT_ID=${FIREBASE_ADMIN_PROJECT_ID}" >> $GITHUB_OUTPUT
+          echo "FIREBASE_ADMIN_CLIENT_EMAIL=${FIREBASE_ADMIN_CLIENT_EMAIL}" >> $GITHUB_OUTPUT
+
+          # Use EOF delimiter for multiline private key
+          {
+            echo 'FIREBASE_ADMIN_PRIVATE_KEY<<EOF'
+            echo "${FIREBASE_ADMIN_PRIVATE_KEY}"
+            echo EOF
+          } >> $GITHUB_OUTPUT
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
