@@ -22,9 +22,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Play | democracyonline.io",
+  title: "democracyonline.io",
   description:
-    "An online web game of democratic government. Participate in a virtual democracy!",
+    "Step into an online political simulation where you shape the outcome and the future of our republic",
 };
 
 export default function RootLayout({
