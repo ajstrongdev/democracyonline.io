@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { auth } from "./firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
@@ -8,27 +8,20 @@ export default function withAuth<T extends object>(
   WrappedComponent: React.ComponentType<T>
 ) {
   function ProtectedRoute(props: T) {
-    const [isLoading, setIsLoading] = useState(true);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [user] = useAuthState(auth);
+    const [user, loading] = useAuthState(auth);
     const router = useRouter();
 
     useEffect(() => {
-      if (user) {
-        setIsAuthenticated(true);
-        setIsLoading(false);
-      } else if (!user && !isLoading) {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        router.push("/");
+      if (!loading && !user) {
+        router.push("/sign-in");
       }
-    }, [user, router]);
+    }, [user, loading, router]);
 
-    if (isLoading) {
+    if (loading) {
       return <GenericSkeleton />;
     }
 
-    if (!isAuthenticated) {
+    if (!user) {
       return null;
     }
 
