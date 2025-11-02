@@ -27,3 +27,8 @@ cloud_run_cpu           = "1"
 cloud_run_memory        = "512Mi"
 cloud_run_min_instances = 0  # Scale to zero for cost savings
 cloud_run_max_instances = 10
+
+# Custom Domain Configuration (optional)
+# Leave empty ("") to skip load balancer setup
+# Example: "example.com" or "www.example.com"
+custom_domain = ""

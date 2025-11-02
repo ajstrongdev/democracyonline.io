@@ -9,7 +9,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 7.5.0"
+      version = "~> 7.9.0"
     }
     random = {
       source  = "hashicorp/random"
@@ -65,6 +65,7 @@ resource "google_project_service" "required_apis" {
     "cloudbuild.googleapis.com",
     "compute.googleapis.com",
     "cloudscheduler.googleapis.com",
+    "certificatemanager.googleapis.com",
   ])
 
   service            = each.value
@@ -242,9 +243,10 @@ resource "google_project_iam_member" "cloud_run_sql_client" {
 }
 
 resource "google_cloud_run_v2_service" "app" {
-  name     = var.app_name
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL"
+  name                 = var.app_name
+  location             = var.region
+  ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  default_uri_disabled = true
 
   template {
     service_account = google_service_account.cloud_run_sa.email
@@ -293,6 +295,11 @@ resource "google_cloud_run_v2_service" "app" {
         name  = "NODE_ENV"
         value = "production"
       }
+
+      env {
+        name  = "NEXT_PUBLIC_SITE_URL"
+        value = "https://${var.custom_domain}"
+      }
     }
 
     # Cloud SQL Proxy connection
@@ -318,6 +325,7 @@ resource "google_cloud_run_v2_service" "app" {
   ]
 }
 
+# Allow public access to Cloud Run service (required for load balancer)
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
   location = google_cloud_run_v2_service.app.location
   name     = google_cloud_run_v2_service.app.name
@@ -360,14 +368,11 @@ resource "google_cloud_scheduler_job" "game_advance" {
 
   http_target {
     http_method = "GET"
-    uri         = "${google_cloud_run_v2_service.app.uri}/api/game-advance"
-
-    headers = {
-      "Authorization" = "Bearer ${var.cron_secret}"
-    }
+    uri         = "https://${var.custom_domain}/api/game-advance"
 
     oidc_token {
       service_account_email = google_service_account.scheduler_sa.email
+      audience              = "https://${var.custom_domain}"
     }
   }
 
@@ -375,6 +380,125 @@ resource "google_cloud_scheduler_job" "game_advance" {
     google_project_service.required_apis,
     google_cloud_run_v2_service.app,
   ]
+}
+
+# ============================================
+# LOAD BALANCER & CUSTOM DOMAIN
+# ============================================
+
+# Reserve a static IP address for the load balancer
+resource "google_compute_global_address" "default" {
+  name = "${var.app_name}-lb-ip"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Create a Network Endpoint Group (NEG) for Cloud Run
+resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
+  name                  = "${var.app_name}-neg"
+  network_endpoint_type = "SERVERLESS"
+  region                = var.region
+
+  cloud_run {
+    service = google_cloud_run_v2_service.app.name
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Backend service for the load balancer
+resource "google_compute_backend_service" "default" {
+  name                  = "${var.app_name}-backend-v2"
+  protocol              = "HTTP"
+  port_name             = "http"
+  timeout_sec           = 30
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+
+  backend {
+    group = google_compute_region_network_endpoint_group.cloudrun_neg.id
+  }
+
+  log_config {
+    enable      = true
+    sample_rate = 1.0
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# URL map for routing
+resource "google_compute_url_map" "default" {
+  name            = "${var.app_name}-url-map-v2"
+  default_service = google_compute_backend_service.default.id
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Managed SSL certificate
+resource "google_compute_managed_ssl_certificate" "default" {
+  name = "${var.app_name}-ssl-cert"
+
+  managed {
+    domains = [var.custom_domain]
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# HTTPS proxy
+resource "google_compute_target_https_proxy" "default" {
+  name             = "${var.app_name}-https-proxy-v2"
+  url_map          = google_compute_url_map.default.id
+  ssl_certificates = [google_compute_managed_ssl_certificate.default.id]
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# HTTPS forwarding rule
+resource "google_compute_global_forwarding_rule" "https" {
+  name                  = "${var.app_name}-https-forwarding-rule-v2"
+  target                = google_compute_target_https_proxy.default.id
+  port_range            = "443"
+  ip_address            = google_compute_global_address.default.address
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# HTTP to HTTPS redirect
+resource "google_compute_url_map" "https_redirect" {
+  name = "${var.app_name}-https-redirect-v2"
+
+  default_url_redirect {
+    https_redirect         = true
+    redirect_response_code = "MOVED_PERMANENTLY_DEFAULT"
+    strip_query            = false
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# HTTP proxy for redirect
+resource "google_compute_target_http_proxy" "https_redirect" {
+  name    = "${var.app_name}-http-proxy-v2"
+  url_map = google_compute_url_map.https_redirect.id
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# HTTP forwarding rule for redirect
+resource "google_compute_global_forwarding_rule" "http" {
+  name                  = "${var.app_name}-http-forwarding-rule-v2"
+  target                = google_compute_target_http_proxy.https_redirect.id
+  port_range            = "80"
+  ip_address            = google_compute_global_address.default.address
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+
+  depends_on = [google_project_service.required_apis]
 }
 
 # ============================================
@@ -416,6 +540,21 @@ output "scheduler_job_name" {
   value       = google_cloud_scheduler_job.game_advance.name
 }
 
+output "load_balancer_ip" {
+  description = "The static IP address of the load balancer"
+  value       = google_compute_global_address.default.address
+}
+
+output "custom_domain" {
+  description = "The custom domain configured for the application"
+  value       = var.custom_domain
+}
+
+output "ssl_certificate_status" {
+  description = "The status of the managed SSL certificate"
+  value       = google_compute_managed_ssl_certificate.default.managed[0].domains
+}
+
 output "next_steps" {
   description = "Next steps to deploy your application"
   value       = <<-EOT
@@ -424,7 +563,11 @@ output "next_steps" {
     Infrastructure deployed successfully! 🎉
     ============================================
 
-    Cloud Run URL: ${google_cloud_run_v2_service.app.uri}
+    Custom Domain: https://${var.custom_domain}
+    Load Balancer IP: ${google_compute_global_address.default.address}
+
+    Note: Cloud Run default URL is disabled for security.
+    Access only via: https://${var.custom_domain}
 
     Next steps:
 
@@ -451,6 +594,23 @@ output "next_steps" {
        Cloud Run connects via Cloud SQL Proxy (automatic SSL/TLS).
        Public IP: ${google_sql_database_instance.postgres.public_ip_address}
        (Only accessible via Cloud SQL Proxy authentication)
+
+    4. Configure your DNS:
+
+       Add an A record in your DNS provider pointing to:
+       ${google_compute_global_address.default.address}
+
+       Example DNS record:
+       Type: A
+       Name: ${var.custom_domain == "www.${replace(var.custom_domain, "www.", "")}" ? "www" : "@"}
+       Value: ${google_compute_global_address.default.address}
+       TTL: 300
+
+       SSL Certificate Status: Provisioning (may take up to 15 minutes)
+       The certificate will automatically provision once DNS is configured.
+
+       Security: Cloud Run service is only accessible via the load balancer.
+       Direct access to Cloud Run URL is disabled.
 
     ============================================
   EOT

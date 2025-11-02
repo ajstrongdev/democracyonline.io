@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { OAuth2Client } from "google-auth-library";
+
+const oAuth2Client = new OAuth2Client();
 
 function calculate(x: number) {
   return 0.2 * x + 0.3 * x * Math.exp(-0.0183 * x);
@@ -17,28 +20,50 @@ async function updateSenateSeats() {
 }
 
 export async function GET(request: NextRequest) {
+  // Validate OIDC token from Cloud Scheduler
   const authHeader = request.headers.get("authorization");
-  const expectedToken = process.env.CRON_SECRET;
 
-  console.log("Request headers:", Array.from(request.headers.entries()));
-  console.log("Received auth header:", authHeader);
-  console.log("Expected token:", expectedToken);
-  console.log("Do they match?", authHeader === `Bearer ${expectedToken}`);
-
-  if (!expectedToken) {
-    console.error("CRON_SECRET environment variable is not set");
-    return NextResponse.json(
-      { success: false, error: "Server configuration error" },
-      { status: 500 }
-    );
-  }
-
-  if (authHeader !== `Bearer ${expectedToken}`) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    console.error("Missing or invalid Authorization header");
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
       { status: 401 }
     );
   }
+
+  const token = authHeader.substring(7); // Remove "Bearer " prefix
+
+  try {
+    // Verify the OIDC token
+    const ticket = await oAuth2Client.verifyIdToken({
+      idToken: token,
+      audience:
+        process.env.NEXT_PUBLIC_SITE_URL || "https://democracyonline.io",
+    });
+
+    const payload = ticket.getPayload();
+
+    // Verify it's from the scheduler service account
+    // The email should be: <app-name>-scheduler@<project-id>.iam.gserviceaccount.com
+    const expectedEmailPattern = /-scheduler@.*\.iam\.gserviceaccount\.com$/;
+
+    if (!payload?.email || !expectedEmailPattern.test(payload.email)) {
+      console.error("Invalid service account:", payload?.email);
+      return NextResponse.json(
+        { success: false, error: "Unauthorized - Invalid service account" },
+        { status: 401 }
+      );
+    }
+
+    console.log("Authenticated request from:", payload.email);
+  } catch (error) {
+    console.error("Token validation failed:", error);
+    return NextResponse.json(
+      { success: false, error: "Unauthorized - Invalid token" },
+      { status: 401 }
+    );
+  }
+
   // Presidential elections
   try {
     const res = await query(
