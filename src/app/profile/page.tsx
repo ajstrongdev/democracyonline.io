@@ -26,9 +26,11 @@ function ProfileRedirect() {
     }
   }, [thisUser, router]);
 
-  if (isLoading) {
+  if (isLoading || thisUser) {
     return <GenericSkeleton />;
   }
+
+  return <GenericSkeleton />;
 }
 
 export default withAuth(ProfileRedirect);

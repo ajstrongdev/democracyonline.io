@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChartNoAxesCombined,
   MessageSquare,
+  Notebook,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { signOut } from "firebase/auth";
@@ -141,6 +142,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   };
 
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader>
@@ -229,6 +235,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <SidebarSeparator />
+
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -241,26 +248,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => router.push("/releases")}
+              isActive={pathname === "/releases"}
+            >
+              <Notebook />
+              <span>Releases</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
             <SidebarMenuButton onClick={toggleTheme}>
-              {mounted ? theme === "dark" ? <Sun /> : <Moon /> : <Moon />}
+              {theme === "dark" ? <Sun /> : <Moon />}
               <span>Change theme</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            {mounted && user ? (
+            {user ? (
               <SidebarMenuButton onClick={handleSignOut}>
                 <LogOut />
                 <span>Sign out</span>
               </SidebarMenuButton>
-            ) : mounted ? (
+            ) : (
               <SidebarMenuButton onClick={() => router.push("/")}>
                 <Crown />
                 <span>Sign in</span>
-              </SidebarMenuButton>
-            ) : (
-              <SidebarMenuButton disabled>
-                <Crown />
-                <span>Loading...</span>
               </SidebarMenuButton>
             )}
           </SidebarMenuItem>

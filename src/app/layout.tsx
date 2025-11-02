@@ -36,6 +36,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <Toaster position="top-center" richColors />
         <QueryProviderWrapper>
@@ -45,9 +46,9 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <SidebarProvider>
+            <SidebarProvider suppressHydrationWarning>
               <AppSidebar />
-              <SidebarInset>
+              <SidebarInset suppressHydrationWarning>
                 <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
                   <SidebarTrigger className="-ml-1" />
                 </header>
