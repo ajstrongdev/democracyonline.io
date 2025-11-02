@@ -76,17 +76,11 @@ export default function AdminUserManager() {
   }
 
   return (
-    <div className="container mx-auto p-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
-        <p className="text-muted-foreground">
-          Manage Firebase Authentication users
-        </p>
-      </div>
-
-      <div className="mb-4">
-        <p className="text-sm text-muted-foreground">
-          Total users: {users.length}
+    <div className="container mx-auto p-4 sm:p-8 max-w-7xl">
+      <div className="mb-6">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-2">Admin Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
+          Manage Firebase Authentication users • Total: {users.length}
         </p>
       </div>
 

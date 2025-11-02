@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,11 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import axios from "axios";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
 
 const ALLOWED_ADMIN_EMAILS = [
   "jenewland1999@gmail.com",
@@ -43,11 +44,25 @@ export default function UserList({ initialUsers, onRefresh }: UserListProps) {
   const [users, setUsers] = useState<FirebaseUser[]>(initialUsers);
   const [loading, setLoading] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Update users when initialUsers changes
   useEffect(() => {
     setUsers(initialUsers);
   }, [initialUsers]);
+
+  // Filter users based on search query
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery.trim()) return users;
+
+    const query = searchQuery.toLowerCase();
+    return users.filter(
+      (u) =>
+        u.email?.toLowerCase().includes(query) ||
+        u.displayName?.toLowerCase().includes(query) ||
+        u.uid.toLowerCase().includes(query)
+    );
+  }, [users, searchQuery]);
 
   const handleRefresh = async () => {
     if (onRefresh) {
@@ -115,92 +130,129 @@ export default function UserList({ initialUsers, onRefresh }: UserListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">User Management</h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          <RefreshCw
-            className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
-          />
-          Refresh
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial sm:w-64">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by email, name, or UID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="Refresh user list"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4">
-        {users.map((u) => {
+      {searchQuery && (
+        <p className="text-sm text-muted-foreground">
+          Found {filteredUsers.length} user
+          {filteredUsers.length !== 1 ? "s" : ""}
+        </p>
+      )}
+
+      <div className="grid gap-3">
+        {filteredUsers.map((u) => {
           const isAdmin = !!(u.email && ALLOWED_ADMIN_EMAILS.includes(u.email));
 
           return (
-            <Card key={u.uid}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg">
+            <Card key={u.uid} className="hover:bg-accent/50 transition-colors">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-base leading-tight">
                       {u.displayName || u.email || "Unknown User"}
                     </CardTitle>
-                    <CardDescription>
-                      {u.email && <span className="block">{u.email}</span>}
-                      <span className="text-xs">UID: {u.uid}</span>
+                    <CardDescription className="mt-1">
+                      {u.email && (
+                        <span className="block text-xs truncate">
+                          {u.email}
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {u.uid}
+                      </span>
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1 justify-end">
                     {isAdmin && (
-                      <span className="px-2 py-1 text-xs font-semibold text-blue-600 bg-blue-100 dark:bg-blue-900 dark:text-blue-200 rounded">
+                      <span className="px-2 py-0.5 text-xs font-semibold text-blue-600 bg-blue-100 dark:bg-blue-900 dark:text-blue-200 rounded whitespace-nowrap">
                         Admin
                       </span>
                     )}
                     {u.disabled && (
-                      <span className="px-2 py-1 text-xs font-semibold text-red-600 bg-red-100 dark:bg-red-900 dark:text-red-200 rounded">
+                      <span className="px-2 py-0.5 text-xs font-semibold text-red-600 bg-red-100 dark:bg-red-900 dark:text-red-200 rounded whitespace-nowrap">
                         Disabled
                       </span>
                     )}
                     {!u.emailVerified && (
-                      <span className="px-2 py-1 text-xs font-semibold text-yellow-600 bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-200 rounded">
+                      <span className="px-2 py-0.5 text-xs font-semibold text-yellow-600 bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-200 rounded whitespace-nowrap">
                         Unverified
                       </span>
                     )}
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground space-y-1">
+              <CardContent className="pt-0">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="text-xs text-muted-foreground space-x-3">
                     {u.creationTime && (
-                      <p>
+                      <span>
                         Created: {new Date(u.creationTime).toLocaleDateString()}
-                      </p>
+                      </span>
                     )}
                     {u.lastSignInTime && (
-                      <p>
-                        Last sign in:{" "}
+                      <span>
+                        Last login:{" "}
                         {new Date(u.lastSignInTime).toLocaleDateString()}
-                      </p>
+                      </span>
                     )}
                   </div>
                   <Button
                     variant={u.disabled ? "default" : "destructive"}
+                    size="sm"
                     onClick={() =>
                       handleToggleUserStatus(u.uid, u.disabled, u.email)
                     }
                     disabled={loading === u.uid || isAdmin}
+                    className="w-full sm:w-auto"
                   >
                     {isAdmin
-                      ? "Admin Protected"
+                      ? "Protected"
                       : loading === u.uid
-                      ? "Processing..."
+                      ? "..."
                       : u.disabled
-                      ? "Enable User"
-                      : "Disable User"}
+                      ? "Enable"
+                      : "Disable"}
                   </Button>
                 </div>
               </CardContent>
             </Card>
           );
         })}
+
+        {filteredUsers.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">
+              {searchQuery
+                ? "No users found matching your search."
+                : "No users to display."}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

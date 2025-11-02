@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { verifyAdminAccess, ALLOWED_ADMIN_EMAILS } from "@/lib/adminAuth";
+import { handleUserBan } from "@/lib/userBanActions";
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,8 +32,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update user status
+    // Update user status in Firebase
     await adminAuth.updateUser(uid, { disabled });
+
+    // If disabling user, handle database cleanup
+    if (disabled && targetUser.email) {
+      try {
+        await handleUserBan(uid, targetUser.email);
+      } catch (dbError) {
+        console.error("Error during user ban database cleanup:", dbError);
+        // Continue even if DB cleanup fails - Firebase disable succeeded
+      }
+    }
 
     return NextResponse.json({
       success: true,
