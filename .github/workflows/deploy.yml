@@ -47,10 +47,27 @@ jobs:
             echo "${var_name}=${value}" >> $GITHUB_OUTPUT
           done
 
+          # Fetch Firebase Admin SDK credentials
+          for secret in admin-project-id admin-client-email admin-private-key; do
+            var_name=$(echo "FIREBASE_${secret}" | tr '[:lower:]-' '[:upper:]_')
+            value=$(gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-${secret}")
+            echo "${var_name}=${value}" >> $GITHUB_OUTPUT
+          done
+
       - name: Build Docker image
+        env:
+          DOCKER_BUILDKIT: 1
         run: |
+          # Create temporary files for secrets
+          echo -n "${{ steps.secrets.outputs.FIREBASE_ADMIN_PROJECT_ID }}" > /tmp/firebase_admin_project_id
+          echo -n "${{ steps.secrets.outputs.FIREBASE_ADMIN_CLIENT_EMAIL }}" > /tmp/firebase_admin_client_email
+          echo -n "${{ steps.secrets.outputs.FIREBASE_ADMIN_PRIVATE_KEY }}" > /tmp/firebase_admin_private_key
+
           docker build \
             --platform linux/amd64 \
+            --secret id=firebase_admin_project_id,src=/tmp/firebase_admin_project_id \
+            --secret id=firebase_admin_client_email,src=/tmp/firebase_admin_client_email \
+            --secret id=firebase_admin_private_key,src=/tmp/firebase_admin_private_key \
             --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="${{ steps.secrets.outputs.FIREBASE_API_KEY }}" \
             --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="${{ steps.secrets.outputs.FIREBASE_AUTH_DOMAIN }}" \
             --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID="${{ steps.secrets.outputs.FIREBASE_PROJECT_ID }}" \
@@ -61,6 +78,9 @@ jobs:
             -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
             -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest \
             .
+
+          # Clean up temporary secret files
+          rm -f /tmp/firebase_admin_project_id /tmp/firebase_admin_client_email /tmp/firebase_admin_private_key
 
       - name: Push Docker image to Artifact Registry
         run: |

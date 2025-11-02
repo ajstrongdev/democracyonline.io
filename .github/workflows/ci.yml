@@ -45,3 +45,7 @@ jobs:
           NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "dummy-for-ci"
           NEXT_PUBLIC_FIREBASE_APP_ID: "dummy-for-ci"
           NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: "dummy-for-ci"
+          # Dummy Firebase Admin SDK credentials for build-time
+          FIREBASE_ADMIN_PROJECT_ID: "dummy-for-ci"
+          FIREBASE_ADMIN_CLIENT_EMAIL: "dummy@dummy.iam.gserviceaccount.com"
+          FIREBASE_ADMIN_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7VJTUt9Us8cKj\nMzEfYyjiWA4R4/M2bS1+fWIcPm15A4hJGYW7cDI6YH6A\n-----END PRIVATE KEY-----\n"

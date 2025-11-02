@@ -20,6 +20,14 @@ firebase_storage_bucket        = "your-project.appspot.com"
 firebase_messaging_sender_id   = "your-sender-id"
 firebase_app_id                = "your-app-id"
 firebase_measurement_id        = "G-XXXXXXXXXX"
+
+# Firebase Admin SDK Configuration
+# Get these from your Firebase project settings > Service accounts
+# Download the service account JSON file and extract these values
+firebase_admin_project_id      = "your-firebase-project-id"
+firebase_admin_client_email    = "firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com"
+firebase_admin_private_key     = "-----BEGIN PRIVATE KEY-----\nYOUR-PRIVATE-KEY-HERE\n-----END PRIVATE KEY-----\n"
+
 cron_secret = "base64-string"
 
 # Cloud Run Configuration
