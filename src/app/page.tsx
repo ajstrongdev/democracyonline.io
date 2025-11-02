@@ -1,126 +1,115 @@
 "use client";
-import { auth } from "@/lib/firebase";
-import {
-  useSignInWithEmailAndPassword,
-  useAuthState,
-} from "react-firebase-hooks/auth";
-import React, { useState, useEffect } from "react";
-import Link from "next/link";
+
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Handshake, ChartLine, BookOpen, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-} from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 
-export default function Home() {
-  const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
-  const [user, userLoading] = useAuthState(auth);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+const features = [
+  {
+    title: "Create your party",
+    description: "Create your own political party, and mobilize support!",
+    icon: <Handshake />,
+  },
+  {
+    title: "Run in Elections",
+    description:
+      "Mark your political journey and run for office in the Senate or for the Presidency.",
+    icon: <ChartLine />,
+  },
+  {
+    title: "Vote on issues",
+    description: "Vote on issues and pass policies that matter to you.",
+    icon: <BookOpen />,
+  },
+];
+
+export default function HomePage() {
   const router = useRouter();
-
-  useEffect(() => {
-    if (user && !userLoading) {
-      router.push("/profile");
-    }
-  }, [user, userLoading, router]);
-
-  const signIn = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await signInWithEmailAndPassword(email, password);
-      if (res?.user) {
-        console.log("User signed in:", res.user);
-        router.push("/profile");
-      }
-    } catch (err) {
-      console.error("Error signing in:", err);
-      setError("Failed to sign in. Please check your credentials.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (userLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center bg-background px-6 py-12">
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  if (user) {
-    return null; // Will redirect in useEffect
-  }
-
   return (
-    <div className="flex flex-col items-center justify-center bg-background px-6 py-12">
-      <Card className="w-full max-w-md">
-        <CardContent className="grid gap-4">
-          <div className="flex flex-col space-y-2 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Sign in to your account
-            </h1>
-            <CardDescription>
-              Enter your email and password to sign in.
-            </CardDescription>
-          </div>
-          <form onSubmit={signIn} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoFocus
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Signing In..." : "Sign In"}
-            </Button>
-            {error && (
-              <p className="text-sm text-destructive text-center">{error}</p>
-            )}
-          </form>
-          <CardFooter className="pt-0 flex justify-center">
-            <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/register"
-                className={cn(
-                  buttonVariants({ variant: "link" }),
-                  "p-0 h-auto align-baseline"
-                )}
-              >
-                Sign up
-              </Link>
-            </p>
-          </CardFooter>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen  my-8 flex flex-col items-center justify-center px-6">
+      <div className="relative text-center max-w-3xl">
+        <div className="absolute inset-0 opacity-30 dark:opacity-10 scale-300">
+          <Image
+            src="/us-outline.png"
+            alt="US Map Outline"
+            fill
+            className="object-contain"
+            priority
+          />
+        </div>
+
+        <motion.h1
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="text-5xl md:text-6xl font-bold tracking-tight relative"
+        >
+          <span className="text-green-400">democracy</span>
+          <span className="text-blue-400">online</span>
+          <span>.io</span>
+        </motion.h1>
+
+        <motion.div
+          className="mt-8"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <p className="text-lg text-left text-foreground">
+            Join the fight for democracy and make your voice heard.
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4, duration: 0.8 }}
+          className="mt-8 z-10 relative"
+        >
+          <Button
+            size="lg"
+            className="text-white font-semibold px-6 py-3 rounded-xl flex items-center gap-2"
+            onClick={() => router.push("/sign-in")}
+          >
+            Start Campaign
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </motion.div>
+      </div>
+
+      <div className="mt-32 grid md:grid-cols-3 gap-8 max-w-6xl w-full">
+        {features.map((feature, i) => (
+          <motion.div
+            key={feature.title}
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-800 backdrop-blur-sm hover:border-green-600 transition-all h-full">
+              <CardContent className="p-6 text-center">
+                <div className="text-green-600 dark:text-green-400 mb-4 flex justify-center">
+                  {feature.icon}
+                </div>
+                <h3 className="text-xl font-semibold mb-2 text-foreground">
+                  {feature.title}
+                </h3>
+                <p className="text-green-700 dark:text-green-300 text-sm">
+                  {feature.description}
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="mt-24 text-green-600 dark:text-green-400 text-sm opacity-60">
+        &copy; {new Date().getFullYear()} democracyonline.io - All rights
+        reserved.
+      </div>
     </div>
   );
 }
