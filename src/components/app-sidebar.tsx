@@ -38,6 +38,7 @@ import {
   SidebarMenuSubButton,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import Link from "next/link";
 
 const data = {
   navMain: [
@@ -153,28 +154,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <div className="flex flex-col items-start gap-0.5">
-                <div className="flex items-center gap-4">
-                  <Logo />
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <p className="font-bold">
-                      <span className="text-primary dark:text-[#44efa7]">
-                        democracy
-                      </span>
-                      <span className="text-[#3b82f6] dark:text-[#60a5fa]">
-                        online
-                      </span>
-                      .io
-                    </p>
-                  </div>
+              <Link href="/" className="flex items-center gap-4">
+                <Logo />
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <p className="font-bold">
+                    <span className="text-primary dark:text-[#44efa7]">
+                      democracy
+                    </span>
+                    <span className="text-[#3b82f6] dark:text-[#60a5fa]">
+                      online
+                    </span>
+                    .io
+                  </p>
                 </div>
-              </div>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
+        <SidebarGroup className={user ? "" : "hidden"}>
           <SidebarGroupContent>
             <SidebarMenu>
               {data.navMain.map((item) => {
