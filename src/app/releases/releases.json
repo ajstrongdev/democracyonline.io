@@ -1,5 +1,20 @@
 [
   {
+    "version": "1.0.1",
+    "date": "2025-11-02",
+    "title": "Hotfix Release",
+    "description": "This hotfix addresses a data fetching issue.",
+    "features": [],
+    "bugfixes": [
+      "Fixed issue where user lookups were case-sensitive, preventing some users from being found."
+    ],
+    "improvements": [
+            "We have introduced a dashboard for site administrators to assist with user management."
+
+    ],
+    "technical": []
+  },
+  {
     "version": "1.0.0",
     "date": "2025-11-02",
     "title": "Initial Release",
