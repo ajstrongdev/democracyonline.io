@@ -62,9 +62,7 @@ export function LaunchCountdown() {
         <div className="text-center">
           <div className="flex items-center justify-center gap-2 mb-8">
             <Rocket className="w-5 h-5 text-green-600 dark:text-green-400" />
-            <h2 className="text-xl font-semibold text-foreground">
-              Launch Countdown
-            </h2>
+            <h2 className="text-xl font-semibold text-foreground">Release</h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             {[
