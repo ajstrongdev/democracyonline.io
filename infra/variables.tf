@@ -107,3 +107,9 @@ variable "cron_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "custom_domain" {
+  description = "Custom domain for the application (e.g., example.com or www.example.com)"
+  type        = string
+  default     = "democracyonline.io"
+}
