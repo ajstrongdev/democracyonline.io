@@ -1,0 +1,22 @@
+[
+  {
+    "version": "1.0.0",
+    "date": "2025-11-02",
+    "title": "Initial Release",
+    "description": "Welcome to democracyonline.io! We are happy to have our initial release of our game live, allowing players to engage in a virtual democracy!",
+    "features": [
+      "User registration and authentication system.",
+      "Create and join political parties.",
+      "Propose and vote on legislation.",
+      "Run for office in Senate and Presidential elections.",
+      "Vote in elections.",
+      "Real-time chat and communication.",
+      "User profiles and customization.",
+      "Activity feed to stay updated on political developments.",
+      "Party management tools for leaders and members."
+    ],
+    "bugfixes": [],
+    "improvements": [],
+    "technical": []
+    }
+]
