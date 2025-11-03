@@ -101,9 +101,9 @@ export async function GET(request: NextRequest) {
         );
         let winner = candidatesRes.rows[0];
         // Check for ties
-        const topVotes = winner?.votes;
+        const topVotes = Number(winner?.votes || 0);
         const tiedCandidates = candidatesRes.rows.filter(
-          (c) => c.votes === topVotes
+          (c) => Number(c.votes) === topVotes
         );
 
         if (tiedCandidates.length > 1) {
@@ -198,19 +198,20 @@ export async function GET(request: NextRequest) {
         if (allCandidates.length > 0) {
           // Get the vote threshold for the last seat
           const provisionalWinners = allCandidates.slice(0, seats);
-          const lastWinnerVotes =
-            provisionalWinners[provisionalWinners.length - 1].votes;
+          const lastWinnerVotes = Number(
+            provisionalWinners[provisionalWinners.length - 1].votes
+          );
 
           // Find all candidates tied with the last seat
           const tiedCandidates = allCandidates.filter(
-            (c) => c.votes === lastWinnerVotes
+            (c) => Number(c.votes) === lastWinnerVotes
           );
 
           let winners;
           if (tiedCandidates.length > 1) {
             // Tie detected - get non-tied winners and randomly select from tied candidates
             const nonTiedWinners = allCandidates.filter(
-              (w) => w.votes > lastWinnerVotes
+              (w) => Number(w.votes) > lastWinnerVotes
             );
             const tiedSeats = seats - nonTiedWinners.length;
             const shuffledTiedCandidates = tiedCandidates.sort(
