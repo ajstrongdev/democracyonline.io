@@ -11,7 +11,7 @@ function calculate(x: number) {
 async function updateSenateSeats() {
   // Determine number of seats based on total player count (excluding banned users)
   const usersRes = await query(
-    "SELECT COUNT(*) FROM users WHERE username != 'Banned User'"
+    "SELECT COUNT(*) FROM users WHERE username NOT LIKE 'Banned User%'"
   );
   const population = usersRes.rows[0]?.count || 0;
   const senators = Math.max(1, Math.floor(calculate(population)));
@@ -386,6 +386,30 @@ export async function GET(request: NextRequest) {
         nextBill.id,
       ]);
     }
+
+    // Cleanup: delete all parties with zero members
+    try {
+      // First, get parties with zero members
+      const emptyPartiesRes = await query(`
+        SELECT p.id FROM parties p
+        WHERE NOT EXISTS (
+          SELECT 1 FROM users u WHERE u.party_id = p.id
+        )
+      `);
+
+      // Delete each empty party along with its stances
+      for (const party of emptyPartiesRes.rows) {
+        await query("DELETE FROM party_stances WHERE party_id = $1", [
+          party.id,
+        ]);
+        await query("DELETE FROM parties WHERE id = $1", [party.id]);
+        console.log(`Deleted empty party with ID: ${party.id}`);
+      }
+    } catch (error) {
+      console.error("Error deleting zero-member parties:", error);
+      // Do not fail the entire job for cleanup errors
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error advancing bill:", error);
