@@ -248,6 +248,25 @@ function PresidentElections() {
     }
   };
 
+  const revokeCandidacy = async () => {
+    if (!thisUser) return;
+    try {
+      await axios.post("/api/election-remove-candidate", {
+        userId: thisUser.id,
+        election: "President",
+      });
+      await refetch();
+      await refetchCandidates();
+      await axios.post("/api/feed-add", {
+        userId: thisUser.id,
+        content: `Is no longer running as a candidate for President.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["candidates", "Senate"] });
+    } catch (error) {
+      console.error("Error revoking candidacy:", error);
+    }
+  };
+
   const voteForCandidate = async (candidateId: number) => {
     if (!thisUser) return;
     try {
@@ -345,7 +364,7 @@ function PresidentElections() {
                   </AlertTitle>
                   <AlertDescription
                     className={
-                      !isAlreadyCandidate && !isACandidate
+                      !isACandidate
                         ? "md:flex md:items-center md:justify-between"
                         : ""
                     }
@@ -362,10 +381,12 @@ function PresidentElections() {
                           Declare Candidacy!
                         </Button>
                       ) : isAlreadyCandidate ? (
-                        <h2 className="mt-2 text-green-500 font-semibold">
-                          You are currently a candidate in the upcoming
-                          Presidential elections. Good luck!
-                        </h2>
+                        <Button
+                          className="mt-4 md:mt-0"
+                          onClick={revokeCandidacy}
+                        >
+                          Drop out
+                        </Button>
                       ) : isACandidate && !isAlreadyCandidate ? (
                         <h2 className="mt-2 text-yellow-500 font-semibold">
                           You are a candidate in another election.
