@@ -6,22 +6,32 @@ export async function GET() {
     const res = await query(`
       SELECT 
         bills.*,
-        COUNT(CASE WHEN bill_votes_house.vote_yes = TRUE THEN 1 END) AS house_total_yes,
-        COUNT(CASE WHEN bill_votes_house.vote_yes = FALSE THEN 1 END) AS house_total_no,
-        COUNT(CASE WHEN bill_votes_senate.vote_yes = TRUE THEN 1 END) AS senate_total_yes,
-        COUNT(CASE WHEN bill_votes_senate.vote_yes = FALSE THEN 1 END) AS senate_total_no,
-        COUNT(CASE WHEN bill_votes_presidential.vote_yes = TRUE THEN 1 END) AS presidential_total_yes,
-        COUNT(CASE WHEN bill_votes_presidential.vote_yes = FALSE THEN 1 END) AS presidential_total_no
+        COALESCE(house_yes.count, 0) AS house_total_yes,
+        COALESCE(house_no.count, 0) AS house_total_no,
+        COALESCE(senate_yes.count, 0) AS senate_total_yes,
+        COALESCE(senate_no.count, 0) AS senate_total_no,
+        COALESCE(pres_yes.count, 0) AS presidential_total_yes,
+        COALESCE(pres_no.count, 0) AS presidential_total_no
       FROM
         bills
       LEFT JOIN
-        bill_votes_house ON bill_votes_house.bill_id = bills.id
+        (SELECT bill_id, COUNT(*) as count FROM bill_votes_house WHERE vote_yes = TRUE GROUP BY bill_id) house_yes
+        ON house_yes.bill_id = bills.id
       LEFT JOIN
-        bill_votes_senate ON bill_votes_senate.bill_id = bills.id
+        (SELECT bill_id, COUNT(*) as count FROM bill_votes_house WHERE vote_yes = FALSE GROUP BY bill_id) house_no
+        ON house_no.bill_id = bills.id
       LEFT JOIN
-        bill_votes_presidential ON bill_votes_presidential.bill_id = bills.id
-      GROUP BY
-        bills.id
+        (SELECT bill_id, COUNT(*) as count FROM bill_votes_senate WHERE vote_yes = TRUE GROUP BY bill_id) senate_yes
+        ON senate_yes.bill_id = bills.id
+      LEFT JOIN
+        (SELECT bill_id, COUNT(*) as count FROM bill_votes_senate WHERE vote_yes = FALSE GROUP BY bill_id) senate_no
+        ON senate_no.bill_id = bills.id
+      LEFT JOIN
+        (SELECT bill_id, COUNT(*) as count FROM bill_votes_presidential WHERE vote_yes = TRUE GROUP BY bill_id) pres_yes
+        ON pres_yes.bill_id = bills.id
+      LEFT JOIN
+        (SELECT bill_id, COUNT(*) as count FROM bill_votes_presidential WHERE vote_yes = FALSE GROUP BY bill_id) pres_no
+        ON pres_no.bill_id = bills.id
       ORDER BY
         created_at DESC
     `);

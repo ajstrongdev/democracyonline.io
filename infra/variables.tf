@@ -78,6 +78,24 @@ variable "firebase_measurement_id" {
   type        = string
 }
 
+# Firebase Admin SDK Variables
+variable "firebase_admin_project_id" {
+  description = "Firebase Admin SDK Project ID"
+  type        = string
+}
+
+variable "firebase_admin_client_email" {
+  description = "Firebase Admin SDK Client Email"
+  type        = string
+  sensitive   = true
+}
+
+variable "firebase_admin_private_key" {
+  description = "Firebase Admin SDK Private Key"
+  type        = string
+  sensitive   = true
+}
+
 variable "cloud_run_cpu" {
   description = "CPU allocation for Cloud Run"
   type        = string

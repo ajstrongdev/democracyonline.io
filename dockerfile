@@ -48,12 +48,19 @@ ENV NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$NEXT_PUBLIC_FIREBASE_MESSAGING_SEN
 ENV NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID
 ENV NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=$NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 
-RUN \
-  if [ -f yarn.lock ]; then yarn run build; \
-  elif [ -f package-lock.json ]; then npm run build; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
-  else echo "Lockfile not found." && exit 1; \
-  fi
+# Mount Firebase Admin SDK credentials as secrets during build
+# These are mounted at build time and not stored in the image layers
+RUN --mount=type=secret,id=firebase_admin_project_id \
+    --mount=type=secret,id=firebase_admin_client_email \
+    --mount=type=secret,id=firebase_admin_private_key \
+    export FIREBASE_ADMIN_PROJECT_ID=$(cat /run/secrets/firebase_admin_project_id) && \
+    export FIREBASE_ADMIN_CLIENT_EMAIL=$(cat /run/secrets/firebase_admin_client_email) && \
+    export FIREBASE_ADMIN_PRIVATE_KEY=$(cat /run/secrets/firebase_admin_private_key) && \
+    if [ -f yarn.lock ]; then yarn run build; \
+    elif [ -f package-lock.json ]; then npm run build; \
+    elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
+    else echo "Lockfile not found." && exit 1; \
+    fi
 
 # Production image, copy all the files and run next
 FROM base AS runner

@@ -9,14 +9,51 @@ on:
       - develop
       - master
 
+env:
+  GCP_PROJECT_ID: fir-test-cee1e
+  GCP_REGION: europe-west2
+  SERVICE_NAME: odr
+
 jobs:
   lint-and-build:
     name: Lint and Build
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      id-token: write # Required for Workload Identity Federation
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Fetch Firebase Admin credentials from Secret Manager
+        id: secrets
+        run: |
+          # Fetch Firebase Admin SDK credentials
+          FIREBASE_ADMIN_PROJECT_ID=$(gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-admin-project-id")
+          FIREBASE_ADMIN_CLIENT_EMAIL=$(gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-admin-client-email")
+          FIREBASE_ADMIN_PRIVATE_KEY=$(gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-admin-private-key")
+
+          # Export as output using proper encoding for multiline values
+          echo "FIREBASE_ADMIN_PROJECT_ID=${FIREBASE_ADMIN_PROJECT_ID}" >> $GITHUB_OUTPUT
+          echo "FIREBASE_ADMIN_CLIENT_EMAIL=${FIREBASE_ADMIN_CLIENT_EMAIL}" >> $GITHUB_OUTPUT
+
+          # Use EOF delimiter for multiline private key
+          {
+            echo 'FIREBASE_ADMIN_PRIVATE_KEY<<EOF'
+            echo "${FIREBASE_ADMIN_PRIVATE_KEY}"
+            echo EOF
+          } >> $GITHUB_OUTPUT
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -45,3 +82,7 @@ jobs:
           NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "dummy-for-ci"
           NEXT_PUBLIC_FIREBASE_APP_ID: "dummy-for-ci"
           NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: "dummy-for-ci"
+          # Real Firebase Admin SDK credentials from Secret Manager
+          FIREBASE_ADMIN_PROJECT_ID: ${{ steps.secrets.outputs.FIREBASE_ADMIN_PROJECT_ID }}
+          FIREBASE_ADMIN_CLIENT_EMAIL: ${{ steps.secrets.outputs.FIREBASE_ADMIN_CLIENT_EMAIL }}
+          FIREBASE_ADMIN_PRIVATE_KEY: ${{ steps.secrets.outputs.FIREBASE_ADMIN_PRIVATE_KEY }}

@@ -9,8 +9,10 @@ function calculate(x: number) {
 }
 
 async function updateSenateSeats() {
-  // Determine number of seats based on total player count
-  const usersRes = await query("SELECT COUNT(*) FROM users");
+  // Determine number of seats based on total player count (excluding banned users)
+  const usersRes = await query(
+    "SELECT COUNT(*) FROM users WHERE username != 'Banned User'"
+  );
   const population = usersRes.rows[0]?.count || 0;
   const senators = Math.max(1, Math.floor(calculate(population)));
 
@@ -101,9 +103,9 @@ export async function GET(request: NextRequest) {
         );
         let winner = candidatesRes.rows[0];
         // Check for ties
-        const topVotes = winner?.votes;
+        const topVotes = Number(winner?.votes || 0);
         const tiedCandidates = candidatesRes.rows.filter(
-          (c) => c.votes === topVotes
+          (c) => Number(c.votes) === topVotes
         );
 
         if (tiedCandidates.length > 1) {
@@ -198,19 +200,20 @@ export async function GET(request: NextRequest) {
         if (allCandidates.length > 0) {
           // Get the vote threshold for the last seat
           const provisionalWinners = allCandidates.slice(0, seats);
-          const lastWinnerVotes =
-            provisionalWinners[provisionalWinners.length - 1].votes;
+          const lastWinnerVotes = Number(
+            provisionalWinners[provisionalWinners.length - 1].votes
+          );
 
           // Find all candidates tied with the last seat
           const tiedCandidates = allCandidates.filter(
-            (c) => c.votes === lastWinnerVotes
+            (c) => Number(c.votes) === lastWinnerVotes
           );
 
           let winners;
           if (tiedCandidates.length > 1) {
             // Tie detected - get non-tied winners and randomly select from tied candidates
             const nonTiedWinners = allCandidates.filter(
-              (w) => w.votes > lastWinnerVotes
+              (w) => Number(w.votes) > lastWinnerVotes
             );
             const tiedSeats = seats - nonTiedWinners.length;
             const shuffledTiedCandidates = tiedCandidates.sort(
@@ -279,17 +282,19 @@ export async function GET(request: NextRequest) {
         "SELECT vote_yes, COUNT(*) as count FROM bill_votes_presidential WHERE bill_id = $1 GROUP BY vote_yes",
         [bill.id]
       );
-      const yesVotes =
-        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0;
-      const noVotes =
-        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0;
+      const yesVotes = Number(
+        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0
+      );
+      const noVotes = Number(
+        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0
+      );
       if (yesVotes > noVotes) {
         // Bill passes
         await query("UPDATE bills SET status = 'Passed' WHERE id = $1", [
           bill.id,
         ]);
       } else {
-        // Bill fails
+        // Bill fails (ties count as defeat)
         await query("UPDATE bills SET status = 'Defeated' WHERE id = $1", [
           bill.id,
         ]);
@@ -314,10 +319,12 @@ export async function GET(request: NextRequest) {
         "SELECT vote_yes, COUNT(*) as count FROM bill_votes_senate WHERE bill_id = $1 GROUP BY vote_yes",
         [bill.id]
       );
-      const yesVotes =
-        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0;
-      const noVotes =
-        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0;
+      const yesVotes = Number(
+        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0
+      );
+      const noVotes = Number(
+        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0
+      );
       if (yesVotes > noVotes) {
         // Bill passes
         await query(
@@ -325,7 +332,7 @@ export async function GET(request: NextRequest) {
           [bill.id]
         );
       } else {
-        // Bill fails
+        // Bill fails (ties count as defeat)
         await query("UPDATE bills SET status = 'Defeated' WHERE id = $1", [
           bill.id,
         ]);
@@ -350,10 +357,12 @@ export async function GET(request: NextRequest) {
         "SELECT vote_yes, COUNT(*) as count FROM bill_votes_house WHERE bill_id = $1 GROUP BY vote_yes",
         [bill.id]
       );
-      const yesVotes =
-        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0;
-      const noVotes =
-        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0;
+      const yesVotes = Number(
+        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0
+      );
+      const noVotes = Number(
+        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0
+      );
       if (yesVotes > noVotes) {
         // Bill passes to Senate
         await query(
@@ -361,7 +370,7 @@ export async function GET(request: NextRequest) {
           [bill.id]
         );
       } else {
-        // Bill fails
+        // Bill fails (ties count as defeat)
         await query("UPDATE bills SET status = 'Defeated' WHERE id = $1", [
           bill.id,
         ]);

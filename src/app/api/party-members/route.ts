@@ -12,9 +12,10 @@ export async function GET(request: Request) {
     );
   }
   try {
-    const result = await query("SELECT * FROM users WHERE party_id = $1", [
-      partyId,
-    ]);
+    const result = await query(
+      "SELECT * FROM users WHERE party_id = $1 AND username != 'Banned User'",
+      [partyId]
+    );
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error("Database query error:", error);

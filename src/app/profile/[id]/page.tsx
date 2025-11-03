@@ -17,12 +17,17 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [user] = useAuthState(auth);
 
-  const { data: userData, isLoading } = useQuery({
+  const {
+    data: userData,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["userInfo", id],
     queryFn: async () => {
       return getUserFullById(Number(id)).then((data) => data || null);
     },
     enabled: !!id,
+    retry: false,
   });
 
   const { data: partyData, isLoading: partyLoading } = useQuery({
@@ -58,6 +63,52 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
 
   if (isLoading || partyLoading || votesLoading) {
     return <GenericSkeleton />;
+  }
+
+  // Check if user is disabled
+  if (error) {
+    return (
+      <div className="container mx-auto p-4">
+        <Card className="mt-8">
+          <CardHeader>
+            <h1 className="text-2xl font-bold text-foreground">
+              Profile Not Available
+            </h1>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              This user profile is not available. The user may have been
+              disabled or removed.
+            </p>
+            <Button asChild className="mt-4">
+              <Link href="/">Return Home</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!userData) {
+    return (
+      <div className="container mx-auto p-4">
+        <Card className="mt-8">
+          <CardHeader>
+            <h1 className="text-2xl font-bold text-foreground">
+              User Not Found
+            </h1>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              The user you are looking for does not exist.
+            </p>
+            <Button asChild className="mt-4">
+              <Link href="/">Return Home</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
