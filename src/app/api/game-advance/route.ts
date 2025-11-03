@@ -11,7 +11,7 @@ function calculate(x: number) {
 async function updateSenateSeats() {
   // Determine number of seats based on total player count (excluding banned users)
   const usersRes = await query(
-    "SELECT COUNT(*) FROM users WHERE username != 'Banned User'"
+    "SELECT COUNT(*) FROM users WHERE username NOT LIKE 'Banned User%'"
   );
   const population = usersRes.rows[0]?.count || 0;
   const senators = Math.max(1, Math.floor(calculate(population)));
