@@ -24,10 +24,37 @@ export async function handleUserBan(uid: string, userEmail: string) {
     // 1. Update user: set username to "Banned User" and remove party_id
     await query(
       "UPDATE users SET username = $1, party_id = NULL WHERE id = $2",
-      ["Banned User", userId]
+      [
+        `Banned User ${userId}-${Buffer.from(Math.random().toString())
+          .toString("base64")
+          .slice(0, 8)}`,
+        userId,
+      ]
     );
 
-    // 2. Delete all bills created by this user
+    // 2. Delete all bill votes and bills created by this user
+    // First, get all bills created by this user
+    const billsResult = await query(
+      "SELECT id FROM bills WHERE creator_id = $1",
+      [userId]
+    );
+    const billIds = billsResult.rows.map((row) => row.id);
+
+    // Delete all votes for these bills (in all chambers)
+    if (billIds.length > 0) {
+      await query("DELETE FROM bill_votes_house WHERE bill_id = ANY($1)", [
+        billIds,
+      ]);
+      await query("DELETE FROM bill_votes_senate WHERE bill_id = ANY($1)", [
+        billIds,
+      ]);
+      await query(
+        "DELETE FROM bill_votes_presidential WHERE bill_id = ANY($1)",
+        [billIds]
+      );
+    }
+
+    // Now delete the bills themselves
     await query("DELETE FROM bills WHERE creator_id = $1", [userId]);
 
     // 3. Update all chat messages from this user to "Deleted message." and username to "Banned User"
@@ -36,7 +63,8 @@ export async function handleUserBan(uid: string, userEmail: string) {
       ["Deleted message.", "Banned User", userId]
     );
 
-    // 4. Delete all feed entries created by this user
+    // 4. Delete all feed entries created by this user or mentioning them
+    // First delete entries created by the user
     await query("DELETE FROM feed WHERE user_id = $1", [userId]);
 
     // 5. If user was party leader, remove leadership and check if party should be deleted
