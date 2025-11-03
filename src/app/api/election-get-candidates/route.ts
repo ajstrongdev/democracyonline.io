@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     FROM candidates
     INNER JOIN users ON candidates.user_id = users.id
     LEFT JOIN parties ON users.party_id = parties.id
-    WHERE candidates.election = $1 AND users.username != 'Banned User'
+    WHERE candidates.election = $1 AND users.username NOT LIKE 'Banned User%'
     `,
     [election]
   );

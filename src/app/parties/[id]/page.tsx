@@ -110,6 +110,7 @@ function Home() {
       });
       queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
       queryClient.invalidateQueries({ queryKey: ["party", id] });
+      router.push("/parties");
     },
   });
 

@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const res = await query(
-      "SELECT * FROM users WHERE role = $1 AND username != 'Banned User'",
+      "SELECT * FROM users WHERE role = $1 AND username NOT LIKE 'Banned User%'",
       [role]
     );
     return NextResponse.json({ representatives: res.rows }, { status: 200 });
