@@ -389,13 +389,22 @@ export async function GET(request: NextRequest) {
 
     // Cleanup: delete all parties with zero members
     try {
-      // If membership is tracked via users.party_id:
-      await query(`
-        DELETE FROM parties p
+      // First, get parties with zero members
+      const emptyPartiesRes = await query(`
+        SELECT p.id FROM parties p
         WHERE NOT EXISTS (
           SELECT 1 FROM users u WHERE u.party_id = p.id
         )
       `);
+
+      // Delete each empty party along with its stances
+      for (const party of emptyPartiesRes.rows) {
+        await query("DELETE FROM party_stances WHERE party_id = $1", [
+          party.id,
+        ]);
+        await query("DELETE FROM parties WHERE id = $1", [party.id]);
+        console.log(`Deleted empty party with ID: ${party.id}`);
+      }
     } catch (error) {
       console.error("Error deleting zero-member parties:", error);
       // Do not fail the entire job for cleanup errors
