@@ -48,11 +48,16 @@ jobs:
           done
 
           # Fetch Firebase Admin SDK credentials
-          for secret in admin-project-id admin-client-email admin-private-key; do
+          for secret in admin-project-id admin-client-email; do
             var_name=$(echo "FIREBASE_${secret}" | tr '[:lower:]-' '[:upper:]_')
             value=$(gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-${secret}")
             echo "${var_name}=${value}" >> $GITHUB_OUTPUT
           done
+
+          # Handle multiline private key with EOF delimiter
+          echo "FIREBASE_ADMIN_PRIVATE_KEY<<EOF" >> $GITHUB_OUTPUT
+          gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-admin-private-key" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
         env:
