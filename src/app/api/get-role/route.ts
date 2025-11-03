@@ -6,7 +6,10 @@ export async function GET(request: NextRequest) {
   const role = searchParams.get("role");
 
   try {
-    const res = await query("SELECT * FROM users WHERE role = $1", [role]);
+    const res = await query(
+      "SELECT * FROM users WHERE role = $1 AND username != 'Banned User'",
+      [role]
+    );
     return NextResponse.json({ representatives: res.rows }, { status: 200 });
   } catch (error) {
     return NextResponse.json(

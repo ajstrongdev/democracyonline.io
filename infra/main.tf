@@ -39,11 +39,19 @@ locals {
     measurement-id      = var.firebase_measurement_id
   }
 
+  # Firebase Admin SDK secrets mapping
+  firebase_admin_secrets = {
+    admin-project-id   = var.firebase_admin_project_id
+    admin-client-email = var.firebase_admin_client_email
+    admin-private-key  = var.firebase_admin_private_key
+  }
+
   # All secret IDs for IAM binding
   all_secret_ids = concat(
     ["${var.app_name}-db-connection-string"],
     ["${var.app_name}-cron-secret"],
-    [for key, _ in local.firebase_secrets : "${var.app_name}-firebase-${key}"]
+    [for key, _ in local.firebase_secrets : "${var.app_name}-firebase-${key}"],
+    [for key, _ in local.firebase_admin_secrets : "${var.app_name}-firebase-${key}"]
   )
 
   # API Auth token
@@ -191,6 +199,26 @@ resource "google_secret_manager_secret_version" "firebase" {
   secret_data = each.value
 }
 
+# Firebase Admin SDK secrets
+resource "google_secret_manager_secret" "firebase_admin" {
+  for_each = local.firebase_admin_secrets
+
+  secret_id = "${var.app_name}-firebase-${each.key}"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "firebase_admin" {
+  for_each = local.firebase_admin_secrets
+
+  secret      = google_secret_manager_secret.firebase_admin[each.key].id
+  secret_data = each.value
+}
+
 # Cron secret for securing API endpoints
 resource "google_secret_manager_secret" "cron_secret" {
   secret_id = "${var.app_name}-cron-secret"
@@ -233,6 +261,7 @@ resource "google_secret_manager_secret_iam_member" "cloud_run_secret_access" {
   depends_on = [
     google_secret_manager_secret.db_connection_string,
     google_secret_manager_secret.firebase,
+    google_secret_manager_secret.firebase_admin,
   ]
 }
 
@@ -286,6 +315,36 @@ resource "google_cloud_run_v2_service" "app" {
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.cron_secret.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "FIREBASE_ADMIN_PROJECT_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase_admin["admin-project-id"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "FIREBASE_ADMIN_CLIENT_EMAIL"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase_admin["admin-client-email"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "FIREBASE_ADMIN_PRIVATE_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase_admin["admin-private-key"].secret_id
             version = "latest"
           }
         }

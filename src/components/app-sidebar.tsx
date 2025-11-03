@@ -16,12 +16,14 @@ import {
   ChartNoAxesCombined,
   MessageSquare,
   Notebook,
+  Shield,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { auth } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
 
 import {
   Sidebar,
@@ -114,20 +116,21 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [user, setUser] = React.useState<any>(null);
+  const [user] = useAuthState(auth);
   const router = useRouter();
   const pathname = usePathname();
 
+  const ALLOWED_ADMIN_EMAILS = [
+    "jenewland1999@gmail.com",
+    "ajstrongdev@pm.me",
+    "robertjenner5@outlook.com",
+    "spam@hpsaucii.dev",
+  ];
+
+  const isAdmin = user?.email && ALLOWED_ADMIN_EMAILS.includes(user.email);
+
   React.useEffect(() => {
     setMounted(true);
-
-    // Listen for auth state changes
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setUser(user);
-    });
-
-    return () => unsubscribe();
   }, []);
 
   const toggleTheme = () => {
@@ -236,6 +239,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarSeparator />
 
         <SidebarMenu>
+          {isAdmin && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => router.push("/admin")}
+                isActive={pathname === "/admin"}
+                className="bg-primary/10 hover:bg-primary/20 text-primary font-semibold"
+              >
+                <Shield />
+                <span>Admin Panel</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() =>
