@@ -261,7 +261,7 @@ function PresidentElections() {
         userId: thisUser.id,
         content: `Is no longer running as a candidate for President.`,
       });
-      queryClient.invalidateQueries({ queryKey: ["candidates", "Senate"] });
+      queryClient.invalidateQueries({ queryKey: ["candidates", "President"] });
     } catch (error) {
       console.error("Error revoking candidacy:", error);
     }
