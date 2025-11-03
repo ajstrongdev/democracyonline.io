@@ -102,6 +102,12 @@ export async function checkAndDeleteParty(partyId: number) {
  */
 export async function deleteParty(partyId: number) {
   try {
+    // Get party name for feed deletion
+    const partyResult = await query("SELECT name FROM parties WHERE id = $1", [
+      partyId,
+    ]);
+    const partyName = partyResult.rows[0]?.name;
+
     // 1. Set all users' party_id to null
     await query("UPDATE users SET party_id = NULL WHERE party_id = $1", [
       partyId,
@@ -110,7 +116,15 @@ export async function deleteParty(partyId: number) {
     // 2. Delete party stances
     await query("DELETE FROM party_stances WHERE party_id = $1", [partyId]);
 
-    // 3. Delete the party
+    // 3. Delete feed entries related to this party
+    // This removes entries like "has created a new party: {name}"
+    if (partyName) {
+      await query("DELETE FROM feed WHERE content LIKE $1", [
+        `%has created a new party: ${partyName}%`,
+      ]);
+    }
+
+    // 4. Delete the party
     await query("DELETE FROM parties WHERE id = $1", [partyId]);
 
     console.log(`Party ${partyId} deleted successfully`);

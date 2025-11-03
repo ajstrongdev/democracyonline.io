@@ -32,6 +32,7 @@ interface FirebaseUser {
   emailVerified: boolean;
   creationTime?: string;
   lastSignInTime?: string;
+  username?: string;
 }
 
 interface UserListProps {
@@ -60,6 +61,7 @@ export default function UserList({ initialUsers, onRefresh }: UserListProps) {
       (u) =>
         u.email?.toLowerCase().includes(query) ||
         u.displayName?.toLowerCase().includes(query) ||
+        u.username?.toLowerCase().includes(query) ||
         u.uid.toLowerCase().includes(query)
     );
   }, [users, searchQuery]);
@@ -137,7 +139,7 @@ export default function UserList({ initialUsers, onRefresh }: UserListProps) {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search by email, name, or UID..."
+              placeholder="Search by email, username, name, or UID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -174,15 +176,15 @@ export default function UserList({ initialUsers, onRefresh }: UserListProps) {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <CardTitle className="text-base leading-tight">
-                      {u.displayName || u.email || "Unknown User"}
+                      {u.username || u.displayName || u.email || "Unknown User"}
                     </CardTitle>
-                    <CardDescription className="mt-1">
+                    <CardDescription className="mt-1 space-y-0.5">
                       {u.email && (
                         <span className="block text-xs truncate">
                           {u.email}
                         </span>
                       )}
-                      <span className="text-xs text-muted-foreground">
+                      <span className="block text-xs text-muted-foreground truncate">
                         {u.uid}
                       </span>
                     </CardDescription>
@@ -196,11 +198,6 @@ export default function UserList({ initialUsers, onRefresh }: UserListProps) {
                     {u.disabled && (
                       <span className="px-2 py-0.5 text-xs font-semibold text-red-600 bg-red-100 dark:bg-red-900 dark:text-red-200 rounded whitespace-nowrap">
                         Disabled
-                      </span>
-                    )}
-                    {!u.emailVerified && (
-                      <span className="px-2 py-0.5 text-xs font-semibold text-yellow-600 bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-200 rounded whitespace-nowrap">
-                        Unverified
                       </span>
                     )}
                   </div>

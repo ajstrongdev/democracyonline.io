@@ -5,7 +5,9 @@ import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import axios from "axios";
 import UserList from "./UserList";
+import PartyList from "./PartyList";
 import GenericSkeleton from "@/components/genericskeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface FirebaseUser {
   uid: string;
@@ -16,12 +18,27 @@ interface FirebaseUser {
   emailVerified: boolean;
   creationTime?: string;
   lastSignInTime?: string;
+  username?: string;
+}
+
+interface Party {
+  id: number;
+  name: string;
+  description: string;
+  economic_position: number;
+  social_position: number;
+  leader_id: number | null;
+  leader_username: string | null;
+  member_count: number;
+  created_at: string;
 }
 
 export default function AdminUserManager() {
   const [user, loading] = useAuthState(auth);
   const [users, setUsers] = useState<FirebaseUser[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingParties, setLoadingParties] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
@@ -54,13 +71,44 @@ export default function AdminUserManager() {
     }
   }, [user]);
 
+  const fetchParties = useCallback(async () => {
+    if (!user) {
+      setLoadingParties(false);
+      return;
+    }
+
+    try {
+      setLoadingParties(true);
+      const idToken = await user.getIdToken();
+
+      const response = await axios.post(
+        "/api/admin/list-parties",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      );
+
+      setParties(response.data.parties);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching parties:", err);
+      setError("Failed to load parties");
+    } finally {
+      setLoadingParties(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!loading) {
       fetchUsers();
+      fetchParties();
     }
-  }, [loading, fetchUsers]);
+  }, [loading, fetchUsers, fetchParties]);
 
-  if (loading || loadingUsers) {
+  if (loading || (loadingUsers && loadingParties)) {
     return <GenericSkeleton />;
   }
 
@@ -80,11 +128,22 @@ export default function AdminUserManager() {
       <div className="mb-6">
         <h1 className="text-3xl sm:text-4xl font-bold mb-2">Admin Dashboard</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Manage Firebase Authentication users • Total: {users.length}
+          Manage users and parties
         </p>
       </div>
 
-      <UserList initialUsers={users} onRefresh={fetchUsers} />
+      <Tabs defaultValue="users" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="users">Users ({users.length})</TabsTrigger>
+          <TabsTrigger value="parties">Parties ({parties.length})</TabsTrigger>
+        </TabsList>
+        <TabsContent value="users" className="mt-6">
+          <UserList initialUsers={users} onRefresh={fetchUsers} />
+        </TabsContent>
+        <TabsContent value="parties" className="mt-6">
+          <PartyList initialParties={parties} onRefresh={fetchParties} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
