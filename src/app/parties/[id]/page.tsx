@@ -26,6 +26,7 @@ function Home() {
   const queryClient = useQueryClient();
   const [showKickDialog, setShowKickDialog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{ id: number; username: string } | null>(null);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   // Get user info
   const { data: thisUser } = useQuery({
@@ -274,7 +275,7 @@ function Home() {
                         <Button
                           variant="destructive"
                           className="w-full justify-start"
-                          onClick={() => leaveParty.mutate()}
+                          onClick={() => setShowLeaveDialog(true)}
                         >
                           <DoorOpen /> Leave Party
                         </Button>
@@ -456,6 +457,31 @@ function Home() {
             handlekickMember(selectedMember.id);
           }
           setShowKickDialog(false);
+        }}
+      />
+      <MessageDialog
+        open={showLeaveDialog}
+        onOpenChange={setShowLeaveDialog}
+        title="Leave party?"
+        description={
+          <span className="text-left leading-relaxed">
+            <span className="block">
+              Are you sure you want to leave{" "}
+              <span className="font-semibold">
+                {party?.name ?? "this party"}
+              </span>
+              ?
+            </span>
+          </span>
+        }
+        confirmText="Leave"
+        cancelText="Cancel"
+        confirmAriaLabel="Confirm leave"
+        cancelAriaLabel="Cancel leave"
+        variant="destructive"
+        onConfirm={() => {
+          leaveParty.mutate();
+          setShowLeaveDialog(false);
         }}
       />
     </div>
