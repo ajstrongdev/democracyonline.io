@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.0.2",
+    "date": "2025-11-03",
+    "title": "Hotfix Release",
+    "description": "This hotfix release focuses on resolving issues regarding user management, and improving the overall user experience.",
+    "features": [],
+    "bugfixes": [
+      "Resolved issues with banned user content still displaying."
+    ],
+    "improvements": [
+      "Parties are now disbanded when the last member leaves. Parties that are currently without members will be automatically disbanded on next game step."
+    ],
+    "technical": []
+  },
+  {
     "version": "1.0.1",
     "date": "2025-11-02",
     "title": "Hotfix Release",
