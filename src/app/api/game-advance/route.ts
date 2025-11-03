@@ -5,7 +5,7 @@ import { OAuth2Client } from "google-auth-library";
 const oAuth2Client = new OAuth2Client();
 
 function calculate(x: number) {
-  return 0.2 * x + 0.3 * x * Math.exp(-0.0183 * x);
+  return Math.ceil(x * 0.15);
 }
 
 async function updateSenateSeats() {
