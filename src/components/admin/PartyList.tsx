@@ -196,13 +196,7 @@ export default function PartyList({
             </CardHeader>
             <CardContent className="pt-0">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="text-xs text-muted-foreground space-x-3">
-                  <span>
-                    Economic: {party.economic_position?.toFixed(1) || "N/A"}
-                  </span>
-                  <span>
-                    Social: {party.social_position?.toFixed(1) || "N/A"}
-                  </span>
+                <div className="text-xs text-muted-foreground">
                   {party.created_at && (
                     <span>
                       Created: {new Date(party.created_at).toLocaleDateString()}
