@@ -15,10 +15,13 @@ import { Party } from "@/app/utils/partyHelper";
 import { Chat } from "@/components/Chat";
 import { CandidatesChart } from "@/components/CandidateChart";
 import Link from "next/link";
+import { MessageDialog } from "@/components/ui/MessageDialog";
+import { useState } from "react";
 
 function PresidentElections() {
   const [user] = useAuthState(auth);
   const queryClient = useQueryClient();
+  const [showCandidacyDialog, setShowCandidacyDialog] = useState(false);
 
   // Get user info
   const { data: thisUser } = useQuery({
@@ -229,7 +232,7 @@ function PresidentElections() {
     );
   };
 
-  const standAsCandidate = async () => {
+  const handleCandidacyConfirm = async () => {
     if (!thisUser) return;
     try {
       await axios.post("/api/election-stand-candidate", {
@@ -246,6 +249,10 @@ function PresidentElections() {
     } catch (error) {
       console.error("Error standing as candidate:", error);
     }
+  };
+
+  const standAsCandidate = () => {
+    setShowCandidacyDialog(true);
   };
 
   const voteForCandidate = async (candidateId: number) => {
@@ -450,6 +457,32 @@ function PresidentElections() {
           )}
         </>
       )}
+      <MessageDialog
+        open={showCandidacyDialog}
+        onOpenChange={setShowCandidacyDialog}
+        title="Important Election Rule"
+        description={
+          <span className="text-left leading-relaxed">
+            <span className="block">
+              <span className="font-semibold">Warning:</span> If you declare your
+              candidacy for the presidential election, you{" "}
+              <span className="font-semibold">cannot</span> be a candidate for any
+              other elections during this cycle.
+            </span>
+            <span className="mt-2 block">
+              This is a binding decision that prevents running for multiple positions
+              simultaneously. You can declare candidacy for other offices again after
+              this election has concluded.
+            </span>
+          </span>
+        }
+        confirmText="I Understand, Declare Candidacy"
+        cancelText="Cancel"
+        confirmAriaLabel="Confirm and declare candidacy"
+        cancelAriaLabel="Cancel declaration"
+        variant="destructive"
+        onConfirm={handleCandidacyConfirm}
+      />
     </div>
   );
 }
