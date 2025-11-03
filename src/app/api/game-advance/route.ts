@@ -386,6 +386,21 @@ export async function GET(request: NextRequest) {
         nextBill.id,
       ]);
     }
+
+    // Cleanup: delete all parties with zero members
+    try {
+      // If membership is tracked via users.party_id:
+      await query(`
+        DELETE FROM parties p
+        WHERE NOT EXISTS (
+          SELECT 1 FROM users u WHERE u.party_id = p.id
+        )
+      `);
+    } catch (error) {
+      console.error("Error deleting zero-member parties:", error);
+      // Do not fail the entire job for cleanup errors
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error advancing bill:", error);
