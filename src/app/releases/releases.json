@@ -6,11 +6,11 @@
     "description": "This hotfix addresses a data fetching issue.",
     "features": [],
     "bugfixes": [
-      "Fixed issue where user lookups were case-sensitive, preventing some users from being found."
+      "Fixed issue where user lookups were case-sensitive, preventing some users from being found.",
+      "Fixed an issue where the bill status would always return defeated, even if it had moved onto the next stage of the legislative process. We have manually corrected the statuses of bills that have been affected."
     ],
     "improvements": [
-            "We have introduced a dashboard for site administrators to assist with user management."
-
+      "We have introduced a dashboard for site administrators to assist with user management."
     ],
     "technical": []
   },

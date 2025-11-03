@@ -279,17 +279,19 @@ export async function GET(request: NextRequest) {
         "SELECT vote_yes, COUNT(*) as count FROM bill_votes_presidential WHERE bill_id = $1 GROUP BY vote_yes",
         [bill.id]
       );
-      const yesVotes =
-        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0;
-      const noVotes =
-        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0;
+      const yesVotes = Number(
+        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0
+      );
+      const noVotes = Number(
+        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0
+      );
       if (yesVotes > noVotes) {
         // Bill passes
         await query("UPDATE bills SET status = 'Passed' WHERE id = $1", [
           bill.id,
         ]);
       } else {
-        // Bill fails
+        // Bill fails (ties count as defeat)
         await query("UPDATE bills SET status = 'Defeated' WHERE id = $1", [
           bill.id,
         ]);
@@ -314,10 +316,12 @@ export async function GET(request: NextRequest) {
         "SELECT vote_yes, COUNT(*) as count FROM bill_votes_senate WHERE bill_id = $1 GROUP BY vote_yes",
         [bill.id]
       );
-      const yesVotes =
-        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0;
-      const noVotes =
-        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0;
+      const yesVotes = Number(
+        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0
+      );
+      const noVotes = Number(
+        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0
+      );
       if (yesVotes > noVotes) {
         // Bill passes
         await query(
@@ -325,7 +329,7 @@ export async function GET(request: NextRequest) {
           [bill.id]
         );
       } else {
-        // Bill fails
+        // Bill fails (ties count as defeat)
         await query("UPDATE bills SET status = 'Defeated' WHERE id = $1", [
           bill.id,
         ]);
@@ -350,10 +354,12 @@ export async function GET(request: NextRequest) {
         "SELECT vote_yes, COUNT(*) as count FROM bill_votes_house WHERE bill_id = $1 GROUP BY vote_yes",
         [bill.id]
       );
-      const yesVotes =
-        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0;
-      const noVotes =
-        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0;
+      const yesVotes = Number(
+        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0
+      );
+      const noVotes = Number(
+        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0
+      );
       if (yesVotes > noVotes) {
         // Bill passes to Senate
         await query(
@@ -361,7 +367,7 @@ export async function GET(request: NextRequest) {
           [bill.id]
         );
       } else {
-        // Bill fails
+        // Bill fails (ties count as defeat)
         await query("UPDATE bills SET status = 'Defeated' WHERE id = $1", [
           bill.id,
         ]);
