@@ -223,22 +223,23 @@ export default function PartyList({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Party</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete{" "}
-              <strong>{partyToDelete?.name}</strong>?
-              <br />
-              <br />
-              This will:
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>
-                  Remove all {partyToDelete?.member_count} members from the
-                  party
-                </li>
-                <li>Delete all party stances</li>
-                <li>Permanently delete the party</li>
-              </ul>
-              <br />
-              This action cannot be undone.
+            <AlertDialogDescription asChild>
+              <div>
+                <p>
+                  Are you sure you want to delete{" "}
+                  <strong>{partyToDelete?.name}</strong>?
+                </p>
+                <p className="mt-4">This will:</p>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>
+                    Remove all {partyToDelete?.member_count} members from the
+                    party
+                  </li>
+                  <li>Delete all party stances</li>
+                  <li>Permanently delete the party</li>
+                </ul>
+                <p className="mt-4">This action cannot be undone.</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
