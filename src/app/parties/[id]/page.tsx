@@ -15,6 +15,8 @@ import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Key } from "react";
 import { Chat } from "@/components/Chat";
 import { toast } from "sonner";
+import { MessageDialog } from "@/components/ui/MessageDialog";
+import { useState } from "react";
 
 function Home() {
   const [user] = useAuthState(auth);
@@ -22,6 +24,8 @@ function Home() {
   const params = useParams();
   const id = params.id;
   const queryClient = useQueryClient();
+  const [showKickDialog, setShowKickDialog] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<{ id: number; username: string } | null>(null);
 
   // Get user info
   const { data: thisUser } = useQuery({
@@ -135,7 +139,7 @@ function Home() {
     },
   });
 
-  const kickMember = async (userId: number) => {
+  const handlekickMember = async (userId: number) => {
     try {
       await axios.post("/api/party-kick", {
         userId: userId,
@@ -145,6 +149,11 @@ function Home() {
     } catch (error) {
       toast.error("Failed to kick member.");
     }
+  };
+  
+  const kickMember = (member: { id: number; username: string }) => {
+    setSelectedMember({ id: member.id, username: member.username });
+    setShowKickDialog(true);
   };
 
   const loading =
@@ -381,7 +390,7 @@ function Home() {
                                 variant="destructive"
                                 size="sm"
                                 className="text-sm mr-2"
-                                onClick={() => kickMember(member.id)}
+                                onClick={() => kickMember({ id: member.id, username: member.username })}
                               >
                                 Kick Member
                               </Button>
@@ -422,6 +431,33 @@ function Home() {
           </CardContent>
         </Card>
       )}
+      <MessageDialog
+        open={showKickDialog}
+        onOpenChange={setShowKickDialog}
+        title="Kick party member?"
+        description={
+         <span className="text-left leading-relaxed">
+           <span className="block">
+              Are you sure you want to remove{" "}
+              <span className="font-semibold">
+                {selectedMember?.username ?? "this member"}
+              </span>{" "}
+              from the party?
+            </span>
+          </span>
+        }
+        confirmText="Kick"
+        cancelText="Cancel"
+        confirmAriaLabel="Confirm kick"
+        cancelAriaLabel="Cancel kick"
+        variant="destructive"
+        onConfirm={() => {
+          if (selectedMember?.id != null) {
+            handlekickMember(selectedMember.id);
+          }
+          setShowKickDialog(false);
+        }}
+      />
     </div>
   );
 }
