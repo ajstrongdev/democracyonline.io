@@ -14,7 +14,7 @@ async function updateSenateSeats() {
     "SELECT COUNT(*) FROM users WHERE username NOT LIKE 'Banned User%'"
   );
   const population = usersRes.rows[0]?.count || 0;
-  const senators = Math.max(1, Math.floor(calculate(population)));
+  const senators = Math.max(1, calculate(population));
 
   await query("UPDATE elections SET seats = $1 WHERE election = 'Senate'", [
     senators,
@@ -158,7 +158,6 @@ export async function GET(request: NextRequest) {
     );
     const electionStatus = res.rows[0]?.status;
     const daysLeft = res.rows[0]?.days_left;
-    const seats = res.rows[0]?.seats || 1;
     if (electionStatus === "Candidate") {
       if (daysLeft > 1) {
         // Decrement days left
@@ -166,6 +165,8 @@ export async function GET(request: NextRequest) {
           "UPDATE elections SET days_left = days_left - 1 WHERE election = 'Senate'"
         );
       } else {
+        // Update seats before transitioning to voting
+        await updateSenateSeats();
         // Transition to "Voting" phase and set days_left to 2 for voting period
         await query(
           "UPDATE elections SET status = 'Voting', days_left = 2 WHERE election = 'Senate'"
@@ -173,8 +174,6 @@ export async function GET(request: NextRequest) {
       }
     }
     if (electionStatus === "Voting") {
-      // Set the number of seats for the next senate election
-      await updateSenateSeats();
       if (daysLeft > 1) {
         // Decrement days left
         await query(
@@ -247,8 +246,7 @@ export async function GET(request: NextRequest) {
           "UPDATE elections SET status = 'Concluded', days_left = 3 WHERE election = 'Senate'"
         );
       }
-    }
-    if (electionStatus === "Concluded") {
+    } else if (electionStatus === "Concluded") {
       if (daysLeft > 1) {
         // Decrement days left
         await query(
