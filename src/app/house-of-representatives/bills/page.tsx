@@ -302,8 +302,8 @@ function HouseOfRepresentatives() {
               </CardFooter>
               <CardFooter>
                 <p className="text-sm text-muted-foreground">
-                  Bills reset daily at midnight UTC. After 24 hours votes will
-                  be tallied and the bill will either pass to the Senate or be
+                  Bills reset daily at 8pm UTC. After 24 hours votes will be
+                  tallied and the bill will either pass to the Senate or be
                   defeated.
                 </p>
               </CardFooter>

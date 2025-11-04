@@ -281,8 +281,8 @@ function OvalOfficeBills() {
               </CardFooter>
               <CardFooter>
                 <p className="text-sm text-muted-foreground">
-                  Bills reset daily at midnight UTC. If a bill has no votes
-                  after 24 hours, it is automatically vetoed.
+                  Bills reset daily at 8pm UTC. If a bill has no votes after 24
+                  hours, it is automatically vetoed.
                 </p>
               </CardFooter>
             </Card>

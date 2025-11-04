@@ -282,9 +282,9 @@ function SenateBills() {
               </CardFooter>
               <CardFooter>
                 <p className="text-sm text-muted-foreground">
-                  Bills reset daily at UTC midnight. After 24 hours votes will
-                  be tallied and the bill will either pass to the Oval Office
-                  for signature or be defeated.
+                  Bills reset daily at 8pm UTC. After 24 hours votes will be
+                  tallied and the bill will either pass to the Oval Office for
+                  signature or be defeated.
                 </p>
               </CardFooter>
             </Card>
