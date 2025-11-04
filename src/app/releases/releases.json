@@ -8,6 +8,7 @@
     "bugfixes": [],
     "improvements": [
       "The game step now runs at 8pm UTC daily, instead of midnight UTC.",
+      "We have added confirmation prompts for multiple user actions to prevent accidental submissions.",
       "Improved account deletion for banned users."
     ],
     "technical": []
