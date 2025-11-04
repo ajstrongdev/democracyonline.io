@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const ALLOWED_ADMIN_EMAILS = [
   "jenewland1999@gmail.com",
@@ -34,6 +35,7 @@ export default function DBUserList() {
   const [users, setUsers] = useState<DatabaseUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const purgeUserData = async (id: string) => {
     if (!user) {
@@ -124,15 +126,40 @@ export default function DBUserList() {
     );
   }
 
+  // Filter users based on search query
+  const filteredUsers = users.filter((dbUser) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      dbUser.username.toLowerCase().includes(query) ||
+      dbUser.email.toLowerCase().includes(query) ||
+      dbUser.id.toString().toLowerCase().includes(query) ||
+      dbUser.role.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <div className="p-6 space-y-4">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Database Users</h1>
-        <p className="text-muted-foreground">Total users: {users.length}</p>
+        <p className="text-muted-foreground">
+          Total users: {users.length}{" "}
+          {searchQuery && `(Showing ${filteredUsers.length})`}
+        </p>
+      </div>
+
+      {/* Search Input */}
+      <div className="mb-4">
+        <Input
+          type="text"
+          placeholder="Search by username, email, ID, or role..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="max-w-md"
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {users.map((dbUser) => (
+        {filteredUsers.map((dbUser) => (
           <Card key={dbUser.id}>
             <CardHeader>
               <CardTitle>{dbUser.username}</CardTitle>
@@ -169,9 +196,15 @@ export default function DBUserList() {
         ))}
       </div>
 
-      {users.length === 0 && (
+      {filteredUsers.length === 0 && !searchQuery && (
         <div className="text-center text-muted-foreground py-12">
           No users found in the database.
+        </div>
+      )}
+
+      {filteredUsers.length === 0 && searchQuery && (
+        <div className="text-center text-muted-foreground py-12">
+          No users match your search query.
         </div>
       )}
     </div>
