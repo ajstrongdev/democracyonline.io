@@ -261,6 +261,7 @@ function SenateElections() {
         content: `Is no longer running as a candidate for the Senate.`,
       });
       queryClient.invalidateQueries({ queryKey: ["candidates", "Senate"] });
+      queryClient.invalidateQueries({ queryKey: ["isCandidate", thisUser.id] });
     } catch (error) {
       console.error("Error revoking candidacy:", error);
     }
@@ -363,7 +364,7 @@ function SenateElections() {
                   </AlertTitle>
                   <AlertDescription
                     className={
-                      !isACandidate
+                      isAlreadyCandidate || !isACandidate
                         ? "md:flex md:items-center md:justify-between"
                         : ""
                     }
