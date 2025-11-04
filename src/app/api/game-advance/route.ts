@@ -254,7 +254,7 @@ export async function GET(request: NextRequest) {
               `
               SELECT id AS user_id
               FROM users
-              WHERE username != 'Banned User'
+              WHERE username NOT LIKE 'Banned User%'
                 AND role NOT IN ('President', 'Senator')
                 AND id <> ALL($1::int[])
               ORDER BY RANDOM()
