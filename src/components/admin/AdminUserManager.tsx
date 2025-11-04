@@ -6,6 +6,7 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import axios from "axios";
 import UserList from "./UserList";
 import PartyList from "./PartyList";
+import DBUserList from "./DBUserList";
 import GenericSkeleton from "@/components/genericskeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -133,15 +134,19 @@ export default function AdminUserManager() {
       </div>
 
       <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="users">Users ({users.length})</TabsTrigger>
           <TabsTrigger value="parties">Parties ({parties.length})</TabsTrigger>
+          <TabsTrigger value="dbusers">Purge from DB</TabsTrigger>
         </TabsList>
         <TabsContent value="users" className="mt-6">
           <UserList initialUsers={users} onRefresh={fetchUsers} />
         </TabsContent>
         <TabsContent value="parties" className="mt-6">
           <PartyList initialParties={parties} onRefresh={fetchParties} />
+        </TabsContent>
+        <TabsContent value="dbusers" className="mt-6">
+          <DBUserList />
         </TabsContent>
       </Tabs>
     </div>

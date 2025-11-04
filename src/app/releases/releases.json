@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.0.3",
+    "date": "2025-11-04",
+    "title": "Hotfix Release",
+    "description": "This hotfix release includes small improvements and bug fixes to enhance user experience.",
+    "features": [],
+    "bugfixes": [],
+    "improvements": [
+      "The game step now runs at 8pm UTC daily, instead of midnight UTC.",
+      "We have added confirmation prompts for multiple user actions to prevent accidental submissions.",
+      "Improved account deletion for banned users."
+    ],
+    "technical": []
+  },
+  {
     "version": "1.0.2",
     "date": "2025-11-03",
     "title": "Hotfix Release",

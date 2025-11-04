@@ -20,6 +20,8 @@ import { getUserFullById } from "@/app/utils/userHelper";
 import { UserInfo } from "@/app/utils/userHelper";
 import { useRouter } from "next/navigation";
 import { Chat } from "@/components/Chat";
+import { MessageDialog } from "@/components/ui/MessageDialog";
+import { useState } from "react";
 
 type BillItemWithUsername = BillItem & {
   username: string;
@@ -29,6 +31,8 @@ function SenateBills() {
   const [user] = useAuthState(auth);
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [showVoteDialog, setShowVoteDialog] = useState(false);
+  const [pendingVote, setPendingVote] = useState<{ billId: number; vote: boolean; title: string } | null>(null);
 
   // Get user info
   const { data: thisUser } = useQuery({
@@ -261,10 +265,20 @@ function SenateBills() {
                   hasVotedData &&
                   hasVotedData[bill.id] === false ? (
                   <div className="flex space-x-2">
-                    <Button onClick={() => voteOnBill(bill.id, true)}>
+                    <Button
+                      onClick={() => {
+                        setPendingVote({ billId: bill.id, vote: true, title: bill.title });
+                        setShowVoteDialog(true);
+                      }}
+                    >
                       Vote For
                     </Button>
-                    <Button onClick={() => voteOnBill(bill.id, false)}>
+                    <Button
+                      onClick={() => {
+                        setPendingVote({ billId: bill.id, vote: false, title: bill.title });
+                        setShowVoteDialog(true);
+                      }}
+                    >
                       Vote Against
                     </Button>
                   </div>
@@ -282,9 +296,9 @@ function SenateBills() {
               </CardFooter>
               <CardFooter>
                 <p className="text-sm text-muted-foreground">
-                  Bills reset daily at UTC midnight. After 24 hours votes will
-                  be tallied and the bill will either pass to the Oval Office
-                  for signature or be defeated.
+                  Bills reset daily at 8pm UTC. After 24 hours votes will be
+                  tallied and the bill will either pass to the Oval Office for
+                  signature or be defeated.
                 </p>
               </CardFooter>
             </Card>
@@ -346,6 +360,45 @@ function SenateBills() {
           title="Senate Chamber"
         />
       )}
+      <MessageDialog
+        open={showVoteDialog}
+        onOpenChange={(open) => {
+          setShowVoteDialog(open);
+          if (!open) setPendingVote(null);
+        }}
+        title="Confirm your vote"
+        description={
+          <span className="text-left leading-relaxed">
+            <span className="block">
+              Are you sure you want to vote{" "}
+              <span className="font-semibold">
+                {pendingVote?.vote ? "FOR" : "AGAINST"}
+              </span>{" "}
+              bill <span className="font-semibold">#{pendingVote?.billId}</span>
+              {pendingVote?.title ? (
+                <>
+                  : <span className="font-semibold">{pendingVote.title}</span>
+                </>
+              ) : null}
+              ?
+            </span>
+            <span className="block mt-2 text-sm text-muted-foreground">
+              This action is final and visible to others.
+            </span>
+          </span>
+        }
+        confirmText={pendingVote?.vote ? "Vote FOR" : "Vote AGAINST"}
+        cancelText="Cancel"
+        confirmAriaLabel="Confirm vote"
+        cancelAriaLabel="Cancel vote"
+        variant={pendingVote?.vote ? "default" : "destructive"}
+        onConfirm={async () => {
+          if (pendingVote) {
+            await voteOnBill(pendingVote.billId, pendingVote.vote);
+          }
+          setShowVoteDialog(false);
+        }}
+      />
     </div>
   );
 }
