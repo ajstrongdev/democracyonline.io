@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.0.3",
+    "date": "2025-11-04",
+    "title": "Hotfix Release",
+    "description": "This hotfix release includes small improvements and bug fixes to enhance user experience.",
+    "features": [],
+    "bugfixes": [],
+    "improvements": [
+      "The game step now runs at 8pm UTC daily, instead of midnight UTC."
+    ],
+    "technical": []
+  },
+  {
     "version": "1.0.2",
     "date": "2025-11-03",
     "title": "Hotfix Release",
