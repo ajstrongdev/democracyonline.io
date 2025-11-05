@@ -412,11 +412,11 @@ resource "google_cloud_run_v2_service_iam_member" "scheduler_invoker" {
   member   = "serviceAccount:${google_service_account.scheduler_sa.email}"
 }
 
-# Cloud Scheduler job to hit game-advance endpoint once per day at midnight UTC
+# Cloud Scheduler job to hit game-advance endpoint once per day at 8pm UTC
 resource "google_cloud_scheduler_job" "game_advance" {
   name             = "${var.app_name}-game-advance"
-  description      = "Trigger game advancement daily at midnight UTC"
-  schedule         = "0 0 * * *"
+  description      = "Trigger game advancement daily at 8pm UTC"
+  schedule         = "0 20 * * *"
   time_zone        = "UTC"
   attempt_deadline = "320s"
   region           = var.region
