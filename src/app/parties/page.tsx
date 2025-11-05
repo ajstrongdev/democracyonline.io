@@ -14,6 +14,7 @@ import { Handshake } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Party } from "@/app/utils/partyHelper";
 import Link from "next/link";
+import PartyLogo from "@/components/PartyLogo";
 
 function Home() {
   const [user] = useAuthState(auth);
@@ -86,10 +87,7 @@ function Home() {
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-full flex-shrink-0 shadow-sm"
-                      style={{ backgroundColor: party.color }}
-                    ></div>
+                    <PartyLogo party_id={party.id} size={42} />
                     <div>
                       <Label className="text-xl font-semibold text-foreground">
                         {party.name}
