@@ -21,6 +21,7 @@ import {
   Smile,
 } from "lucide-react";
 
+// @eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const icons: { name: string; Icon: any }[] = [
   { name: "Star", Icon: Star },
   { name: "Flag", Icon: Flag },

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React from "react";
@@ -48,7 +49,6 @@ export default function PartyLogo({
       .map((p) => (p ? p[0].toUpperCase() + p.slice(1) : ""))
       .join("");
 
-  // @eslint-disable-next-line @typescript-eslint/no-explicit-any
   let IconComponent: React.ComponentType<any> | null = null;
   if (logo && typeof logo === "string") {
     const direct = (LucideIcons as any)[logo];
