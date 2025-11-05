@@ -240,6 +240,42 @@ export async function GET(request: NextRequest) {
               `has been elected as a Senator!`,
             ]);
           }
+
+          // If we still have fewer senators than seats, fill remaining seats
+          const remaining = Math.max(0, seats - winnerIds.length);
+          if (remaining > 0) {
+            // Select random eligible users to fill remaining seats
+            // Eligibility rules:
+            // - Not banned user
+            // - Not currently President or Senator
+            // - Not already among winners
+            const fillerRes = await query(
+              `
+              SELECT id AS user_id
+              FROM users
+              WHERE username NOT LIKE 'Banned User%'
+                AND role NOT IN ('President', 'Senator')
+                AND id <> ALL($1::int[])
+              ORDER BY RANDOM()
+              LIMIT $2
+              `,
+              [winnerIds.length ? winnerIds : [0], remaining]
+            );
+            const fillers = fillerRes.rows || [];
+            if (fillers.length > 0) {
+              const fillerIds = fillers.map((f) => f.user_id);
+              await query(
+                `UPDATE users SET role = 'Senator' WHERE id = ANY($1::int[])`,
+                [fillerIds]
+              );
+              for (const filler of fillers) {
+                await query(
+                  "INSERT INTO feed (user_id, content) VALUES ($1, $2)",
+                  [filler.user_id, `has been appointed as a Senator!`]
+                );
+              }
+            }
+          }
         }
         // Move to "Concluded" status regardless of whether there were candidates
         await query(
