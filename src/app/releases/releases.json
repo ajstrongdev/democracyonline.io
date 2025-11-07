@@ -4,10 +4,12 @@
     "date": "",
     "title": "",
     "description": "",
-    "features": [],
+    "features": [
+      "You can now create a party logo within the game."
+    ],
     "bugfixes": [],
     "improvements": [],
-    "technical": [],
+    "technical": []
   },
   {
     "version": "1.0.3",
