@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import { Chat } from "@/components/Chat";
 import { MessageDialog } from "@/components/ui/MessageDialog";
 import { useState } from "react";
+import PartyLogo from "@/components/PartyLogo";
 
 type BillItemWithUsername = BillItem & {
   username: string;
@@ -32,7 +33,11 @@ function SenateBills() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [showVoteDialog, setShowVoteDialog] = useState(false);
-  const [pendingVote, setPendingVote] = useState<{ billId: number; vote: boolean; title: string } | null>(null);
+  const [pendingVote, setPendingVote] = useState<{
+    billId: number;
+    vote: boolean;
+    title: string;
+  } | null>(null);
 
   // Get user info
   const { data: thisUser } = useQuery({
@@ -55,6 +60,9 @@ function SenateBills() {
       const bills = res.data.bills || [];
       const billsWithUsernames = await Promise.all(
         bills.map(async (item: BillItem) => {
+          if (!item.creator_id) {
+            return { ...item, username: "Unknown" };
+          }
           const user = await getUserFullById(item.creator_id);
           return { ...item, username: user?.username || "Unknown" };
         })
@@ -192,8 +200,6 @@ function SenateBills() {
 
   const bills: BillItemWithUsername[] = data;
   const senators: any[] = repsData || [];
-  const votedRecord =
-    bills.length > 0 ? hasVotedData?.[bills[0].id] : undefined;
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -204,7 +210,9 @@ function SenateBills() {
         </p>
       </div>
 
-      <div className="lg:grid lg:grid-cols-2 lg:gap-4">
+      {/* Bills Grid - 1, 2, or 3 columns based on screen size */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold mb-4">Current Bills</h2>
         {isLoading ? (
           <GenericSkeleton />
         ) : error ? (
@@ -214,152 +222,180 @@ function SenateBills() {
             No bills currently in the Senate.
           </div>
         ) : (
-          bills.map((bill: BillItemWithUsername) => (
-            <Card key={bill.id} className="mb-4">
-              <CardHeader>
-                <h2 className="text-2xl font-bold">
-                  Bill #{bill.id}: {bill.title}
-                </h2>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Proposed By:{" "}
-                  <b className="text-black dark:text-white">{bill.username}</b>{" "}
-                  | Status: {bill.status} | Stage: {bill.stage} | Created at:{" "}
-                  {new Date(bill.created_at).toLocaleDateString()}
-                </p>
-              </CardHeader>
-              <CardContent>
-                <p className="text-foreground mb-4">{bill.content}</p>
-                {votesLoading ? (
-                  <GenericSkeleton />
-                ) : votesError ? (
-                  <div className="text-red-500">Error loading votes.</div>
-                ) : votesData && votesData[bill.id] ? (
-                  <div className="flex items-center gap-4">
-                    <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
-                      Votes For: {votesData[bill.id].for}
-                    </span>
-                    <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
-                      Votes Against: {votesData[bill.id].against}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground">
-                    No votes recorded yet.
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter>
-                {canVoteLoading && data ? (
-                  <div className="flex space-x-2">
-                    <div className="animate-pulse flex space-x-2">
-                      <div className="h-10 w-24 bg-muted rounded" />
-                      <div className="h-10 w-32 bg-muted rounded" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {bills.map((bill: BillItemWithUsername) => (
+              <Card key={bill.id} className="flex flex-col">
+                <CardHeader>
+                  <h2 className="text-xl font-bold">
+                    Bill #{bill.id}: {bill.title}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Proposed By:{" "}
+                    <b className="text-black dark:text-white">
+                      {bill.username}
+                    </b>{" "}
+                    | Status: {bill.status} | Stage: {bill.stage} | Created at:{" "}
+                    {new Date(bill.created_at).toLocaleDateString()}
+                  </p>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  <p className="text-foreground mb-4">{bill.content}</p>
+                  {votesLoading ? (
+                    <GenericSkeleton />
+                  ) : votesError ? (
+                    <div className="text-red-500">Error loading votes.</div>
+                  ) : votesData && votesData[bill.id] ? (
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
+                        Votes For: {votesData[bill.id].for}
+                      </span>
+                      <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
+                        Votes Against: {votesData[bill.id].against}
+                      </span>
                     </div>
-                  </div>
-                ) : canVoteError ? (
-                  <div className="text-red-500">
-                    You are not a member of the Senate, you cannot vote on this
-                    bill.
-                  </div>
-                ) : canVoteData &&
-                  hasVotedData &&
-                  hasVotedData[bill.id] === false ? (
-                  <div className="flex space-x-2">
-                    <Button
-                      onClick={() => {
-                        setPendingVote({ billId: bill.id, vote: true, title: bill.title });
-                        setShowVoteDialog(true);
-                      }}
-                    >
-                      Vote For
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setPendingVote({ billId: bill.id, vote: false, title: bill.title });
-                        setShowVoteDialog(true);
-                      }}
-                    >
-                      Vote Against
-                    </Button>
-                  </div>
-                ) : canVoteData &&
-                  hasVotedData &&
-                  hasVotedData[bill.id] === true ? (
-                  <div className="text-green-600 font-semibold">
-                    You have already voted on this bill.
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground">
-                    You do not have permission to vote on this bill.
-                  </div>
-                )}
-              </CardFooter>
-              <CardFooter>
-                <p className="text-sm text-muted-foreground">
-                  Bills reset daily at 8pm UTC. After 24 hours votes will be
-                  tallied and the bill will either pass to the Oval Office for
-                  signature or be defeated.
-                </p>
-              </CardFooter>
-            </Card>
-          ))
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      No votes recorded yet.
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="flex-col items-start gap-3">
+                  {canVoteLoading && data ? (
+                    <div className="flex space-x-2">
+                      <div className="animate-pulse flex space-x-2">
+                        <div className="h-10 w-24 bg-muted rounded" />
+                        <div className="h-10 w-32 bg-muted rounded" />
+                      </div>
+                    </div>
+                  ) : canVoteError ? (
+                    <div className="text-red-500 text-sm">
+                      You are not a member of the Senate, you cannot vote on
+                      this bill.
+                    </div>
+                  ) : canVoteData &&
+                    hasVotedData &&
+                    hasVotedData[bill.id] === false ? (
+                    <div className="flex space-x-2 w-full">
+                      <Button
+                        className="flex-1"
+                        onClick={() => {
+                          setPendingVote({
+                            billId: bill.id,
+                            vote: true,
+                            title: bill.title,
+                          });
+                          setShowVoteDialog(true);
+                        }}
+                      >
+                        Vote For
+                      </Button>
+                      <Button
+                        className="flex-1"
+                        variant="destructive"
+                        onClick={() => {
+                          setPendingVote({
+                            billId: bill.id,
+                            vote: false,
+                            title: bill.title,
+                          });
+                          setShowVoteDialog(true);
+                        }}
+                      >
+                        Vote Against
+                      </Button>
+                    </div>
+                  ) : canVoteData &&
+                    hasVotedData &&
+                    hasVotedData[bill.id] === true ? (
+                    <div className="text-green-600 font-semibold text-sm">
+                      You have already voted on this bill.
+                    </div>
+                  ) : (
+                    <div className="text-muted-foreground text-sm">
+                      You do not have permission to vote on this bill.
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Bills advance three times daily at 4am, 12pm, and 8pm UTC.
+                    After 8 hours, votes will be tallied and the bill will
+                    either pass to the Oval Office for signature or be defeated.
+                  </p>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
         )}
-        <Card className="mb-4 max-h-[500px] overflow-y-auto">
-          <CardHeader>
-            <h2 className="text-2xl font-bold">Senators</h2>
-          </CardHeader>
-          <CardContent>
-            {repsLoading ? (
-              <GenericSkeleton />
-            ) : repsError ? (
-              <div className="text-red-500">Error loading senators.</div>
-            ) : senators.length === 0 ? (
-              <div className="text-muted-foreground">
-                No senators have been elected.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {senators.map((sen: any) => (
-                  <Card key={sen.id} className="shadow-none border">
-                    <CardHeader className="flex flex-row items-center justify-between p-4">
-                      <div>
-                        <h3 className="text-lg font-semibold">
-                          {sen.username}
-                        </h3>
-                        <p
-                          className="text-sm text-muted-foreground"
+      </div>
+
+      {/* Senate Chamber Chat */}
+      {canVoteData && thisUser && (
+        <div className="mb-8">
+          <Chat
+            room="senate"
+            userId={thisUser.id}
+            username={thisUser.username}
+            title="Senate Chamber"
+          />
+        </div>
+      )}
+
+      {/* Senators List - Full Width */}
+      <Card className="mb-4">
+        <CardHeader>
+          <h2 className="text-2xl font-bold">Senators</h2>
+        </CardHeader>
+        <CardContent>
+          {repsLoading ? (
+            <GenericSkeleton />
+          ) : repsError ? (
+            <div className="text-red-500">Error loading senators.</div>
+          ) : senators.length === 0 ? (
+            <div className="text-muted-foreground">
+              No senators have been elected.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {senators.map((sen: any) => (
+                <Card key={sen.id} className="shadow-none border">
+                  <CardHeader className="p-4">
+                    <div className="flex flex-col gap-2">
+                      <h3 className="text-lg font-semibold mb-2">
+                        {sen.username}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        {sen.party_id ? (
+                          <PartyLogo party_id={sen.party_id} size={40} />
+                        ) : (
+                          <div className="w-[40px] h-[40px] mr-2 rounded-full bg-gray-400" />
+                        )}
+                        <h3
+                          className="text-lg font-medium"
                           style={{ color: sen.partyColor }}
                         >
                           {sen.partyName}
-                        </p>
+                        </h3>
                       </div>
                       <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => router.push(`/profile/${sen.id}`)}
+                        className="w-full mt-4"
                       >
                         View Profile
                       </Button>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-          <CardFooter>
-            <p className="text-sm text-muted-foreground">
-              Members of the Senate review and vote on legislation.
-            </p>
-          </CardFooter>
-        </Card>
-      </div>
-      {canVoteData && thisUser && (
-        <Chat
-          room="senate"
-          userId={thisUser.id}
-          username={thisUser.username}
-          title="Senate Chamber"
-        />
-      )}
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+        <CardFooter>
+          <p className="text-sm text-muted-foreground">
+            Members of the Senate review and vote on legislation.
+          </p>
+        </CardFooter>
+      </Card>
       <MessageDialog
         open={showVoteDialog}
         onOpenChange={(open) => {
