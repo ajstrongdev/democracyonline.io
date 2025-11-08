@@ -335,9 +335,9 @@ function HouseOfRepresentatives() {
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Bills advance three times daily at 4am, 12pm, and 8pm UTC.
-                    After 8 hours, votes will be tallied and the bill will
-                    either pass to the Senate or be defeated.
+                    A new bill will become available every 8 hours in the House
+                    of Representatives. You will have 24 hours to vote on each
+                    bill.
                   </p>
                 </CardFooter>
               </Card>

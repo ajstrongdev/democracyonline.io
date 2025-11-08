@@ -315,9 +315,8 @@ function OvalOfficeBills() {
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Bills advance three times daily at 4am, 12pm, and 8pm UTC.
-                    If a bill has no votes after 8 hours, it is automatically
-                    vetoed.
+                    A new bill will become available every 8 hours. You will
+                    have 24 hours to vote on each bill.
                   </p>
                 </CardFooter>
               </Card>
