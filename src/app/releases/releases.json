@@ -8,6 +8,7 @@
       "A new bill will become available every 8 hours, and then enter a 24-hour voting period.",
       "You can now create a party logo within the game.",
       "Added a party leaderboard page. Parties are ranked by total number of members.",
+      "You can now merge parties. Party leaders can send merge requests to other parties, which can then be accepted or rejected by the target party.",
       "You can now drop out of an election before voting begins."
     ],
     "bugfixes": [
