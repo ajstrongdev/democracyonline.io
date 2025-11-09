@@ -238,7 +238,7 @@ function OvalOfficeBills() {
                     {new Date(bill.created_at).toLocaleDateString()}
                   </p>
                 </CardHeader>
-                <CardContent className="flex-grow">
+                <CardContent className="grow">
                   <p className="text-foreground mb-4">{bill.content}</p>
                   {votesLoading ? (
                     <GenericSkeleton />
