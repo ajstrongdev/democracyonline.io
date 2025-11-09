@@ -320,7 +320,7 @@ export default function PartiesLeaderboard() {
             Detailed Rankings
           </CardTitle>
           <CardDescription className="text-xs md:text-sm">
-            Full party leaderboard with statistics
+            List of parties ranked by membership.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-2 md:px-6">
