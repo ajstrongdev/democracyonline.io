@@ -26,6 +26,7 @@ erDiagram
 
     elections ||--o{ candidates : "has"
     elections ||--o{ votes : "receives"
+    candidates ||--o{ votes : "voted for"
 
     bills ||--o{ bill_votes_house : "receives"
     bills ||--o{ bill_votes_senate : "receives"
@@ -88,6 +89,7 @@ erDiagram
         int id PK
         int user_id FK
         string election FK
+        int candidate_id FK
     }
 
     bills {
@@ -275,22 +277,29 @@ Users who are running in elections.
 
 #### votes
 
-Records of users' votes in elections.
+Records of users' votes in elections. For Senate elections, users can cast multiple votes (up to the number of available seats), one for each candidate they support.
 
-| Column   | Type        | Constraints                       | Description                       |
-| -------- | ----------- | --------------------------------- | --------------------------------- |
-| id       | SERIAL      | PRIMARY KEY                       | Auto-incrementing vote identifier |
-| user_id  | INT         | FOREIGN KEY → users(id)           | User who voted                    |
-| election | VARCHAR(50) | FOREIGN KEY → elections(election) | Election they voted in            |
+| Column       | Type        | Constraints                       | Description                        |
+| ------------ | ----------- | --------------------------------- | ---------------------------------- |
+| id           | SERIAL      | PRIMARY KEY                       | Auto-incrementing vote identifier  |
+| user_id      | INT         | FOREIGN KEY → users(id)           | User who voted                     |
+| election     | VARCHAR(50) | FOREIGN KEY → elections(election) | Election they voted in             |
+| candidate_id | INT         | FOREIGN KEY → candidates(id)      | Specific candidate being voted for |
 
 **Foreign Keys:**
 
 - `user_id` → `users(id)`
 - `election` → `elections(election)`
+- `candidate_id` → `candidates(id)` ON DELETE CASCADE
 
 **Constraints:**
 
-- UNIQUE(user_id, election) - Users can only vote once per election
+- UNIQUE(user_id, election, candidate_id) - Users can only vote once per candidate per election
+
+**Voting Rules:**
+
+- For Presidential elections: Users can cast 1 vote total
+- For Senate elections: Users can cast multiple votes (up to the number of `seats` available in the election), but only 1 vote per candidate
 
 ### Legislative System
 
@@ -471,6 +480,8 @@ Singleton table tracking game state.
 - A user can **create** many bills (one-to-many)
 - A user can **run as** many candidates (one-to-many)
 - A user can **cast** many votes (one-to-many)
+  - For Senate elections: up to N votes (where N = number of seats)
+  - For Presidential elections: 1 vote only
 
 ### Party Relationships
 
@@ -523,18 +534,21 @@ Singleton table tracking game state.
 ## Data Integrity Rules
 
 1. **Users cannot belong to non-existent parties** - Enforced by FOREIGN KEY constraint
-2. **Each user can only vote once per election** - Enforced by UNIQUE constraint
-3. **Each user can only run once per election** - Enforced by UNIQUE constraint
-4. **Party names must be unique** - Enforced by UNIQUE constraint
-5. **Email addresses must be unique** - Enforced by UNIQUE constraint
-6. **Usernames must be unique** - Enforced by UNIQUE constraint
-7. **A party cannot send multiple merge requests to the same party** - Enforced by composite PRIMARY KEY
+2. **Each user can only vote once per candidate per election** - Enforced by UNIQUE constraint on (user_id, election, candidate_id)
+3. **Users cannot exceed the vote limit for an election** - Enforced by application logic (limit = number of seats)
+4. **Each user can only run once per election** - Enforced by UNIQUE constraint
+5. **Party names must be unique** - Enforced by UNIQUE constraint
+6. **Email addresses must be unique** - Enforced by UNIQUE constraint
+7. **Usernames must be unique** - Enforced by UNIQUE constraint
+8. **A party cannot send multiple merge requests to the same party** - Enforced by composite PRIMARY KEY
 
 ## Migration History
 
 ### Migration 1
 
-Added party merger system:
+Added party merger system and updated Senate election voting system:
+
+**Party Merger System:**
 
 - `parties.logo` column for Lucide icon names
 - `game_tracker` table for game state
@@ -542,3 +556,12 @@ Added party merger system:
 - `merge_request` table for proposed merged parties
 - `party_notifications` table for merge request notifications
 - `merge_request_stances` table for merged party stances
+
+**Senate Voting System:**
+
+- Added `votes.candidate_id` column (FOREIGN KEY → candidates(id) ON DELETE CASCADE)
+- Removed UNIQUE constraint on (user_id, election)
+- Added UNIQUE constraint on (user_id, election, candidate_id)
+- Users can now cast multiple votes in Senate elections (up to the number of available seats)
+- Each vote must be for a different candidate
+- Ensured `elections.seats` column exists for tracking vote limits
