@@ -9,13 +9,24 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import type { BillItem } from "@/app/utils/billHelper";
-import { getUserById } from "@/app/utils/userHelper";
-import { Filter, ChevronDown, X, Check } from "lucide-react";
+import { getUserById, fetchUserInfo } from "@/app/utils/userHelper";
+import { Filter, X, Check, Pencil, User } from "lucide-react";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "@/lib/firebase";
 
 function Bills() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [stageFilter, setStageFilter] = useState<string>("all");
-  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [creatorFilter, setCreatorFilter] = useState<string>("all"); // "all" or "mine"
+  const [user] = useAuthState(auth);
+
+  // Get current user info
+  const { data: currentUser } = useQuery({
+    queryKey: ["user", user?.email],
+    queryFn: () =>
+      fetchUserInfo(user?.email || "").then((data) => data || null),
+    enabled: !!user?.email,
+  });
+
   const {
     data = [],
     isLoading,
@@ -42,10 +53,12 @@ function Bills() {
     return data.filter((bill) => {
       const matchesStatus =
         statusFilter === "all" || bill.status === statusFilter;
-      const matchesStage = stageFilter === "all" || bill.stage === stageFilter;
-      return matchesStatus && matchesStage;
+      const matchesCreator =
+        creatorFilter === "all" ||
+        (creatorFilter === "mine" && currentUser?.id === bill.creator_id);
+      return matchesStatus && matchesCreator;
     });
-  }, [data, statusFilter, stageFilter]);
+  }, [data, statusFilter, creatorFilter, currentUser]);
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -59,159 +72,83 @@ function Bills() {
         </Button>
       </div>
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="flex items-center gap-2 px-4 py-2 bg-card border rounded-lg hover:bg-accent transition-colors"
-            >
-              <Filter size={20} />
-              <span className="font-medium">
-                Filter Bills
-                {(statusFilter !== "all" || stageFilter !== "all") && (
-                  <span className="ml-2 px-2 py-0.5 bg-primary text-primary-foreground rounded-full text-xs">
-                    {[
-                      statusFilter !== "all" ? 1 : 0,
-                      stageFilter !== "all" ? 1 : 0,
-                    ].reduce((a, b) => a + b, 0)}
-                  </span>
-                )}
-              </span>
-              <ChevronDown
-                size={16}
-                className={`transition-transform ${
-                  isFilterOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => {
+              if (statusFilter === "Passed") {
+                setStatusFilter("all");
+              } else {
+                setStatusFilter("Passed");
+                setCreatorFilter("all");
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              statusFilter === "Passed"
+                ? "bg-green-100 dark:bg-green-900/40 border-green-500 text-green-700 dark:text-green-300"
+                : "bg-card hover:bg-accent"
+            }`}
+          >
+            <Check size={20} />
+            <span className="font-medium">Passed</span>
+          </button>
 
-            <button
-              onClick={() => {
-                if (statusFilter === "Passed") {
-                  setStatusFilter("all");
-                } else {
-                  setStatusFilter("Passed");
-                  setStageFilter("all");
-                }
-                setIsFilterOpen(false);
-              }}
-              className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
-                statusFilter === "Passed"
-                  ? "bg-green-100 dark:bg-green-900/40 border-green-500 text-green-700 dark:text-green-300"
-                  : "bg-card hover:bg-accent"
-              }`}
-            >
-              <Check size={20} />
-              <span className="font-medium">Passed Bills</span>
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              if (statusFilter === "Defeated") {
+                setStatusFilter("all");
+              } else {
+                setStatusFilter("Defeated");
+                setCreatorFilter("all");
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              statusFilter === "Defeated"
+                ? "bg-red-100 dark:bg-red-900/40 border-red-500 text-red-700 dark:text-red-300"
+                : "bg-card hover:bg-accent"
+            }`}
+          >
+            <X size={20} />
+            <span className="font-medium">Defeated</span>
+          </button>
 
-          {/* Active Filters Display - Compact */}
-          {(statusFilter !== "all" || stageFilter !== "all") &&
-            !isFilterOpen && (
-              <div className="flex flex-wrap gap-2 items-center">
-                {statusFilter !== "all" && (
-                  <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-1">
-                    {statusFilter}
-                    <button
-                      onClick={() => setStatusFilter("all")}
-                      className="hover:bg-primary/20 rounded-full p-0.5"
-                    >
-                      <X size={14} />
-                    </button>
-                  </span>
-                )}
-                {stageFilter !== "all" && (
-                  <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-1">
-                    {stageFilter}
-                    <button
-                      onClick={() => setStageFilter("all")}
-                      className="hover:bg-primary/20 rounded-full p-0.5"
-                    >
-                      <X size={14} />
-                    </button>
-                  </span>
-                )}
-              </div>
-            )}
+          <button
+            onClick={() => {
+              if (statusFilter === "Voting") {
+                setStatusFilter("all");
+              } else {
+                setStatusFilter("Voting");
+                setCreatorFilter("all");
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              statusFilter === "Voting"
+                ? "bg-yellow-100 dark:bg-yellow-900/40 border-yellow-500 text-yellow-700 dark:text-yellow-300"
+                : "bg-card hover:bg-accent"
+            }`}
+          >
+            <Filter size={20} />
+            <span className="font-medium">Voting</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (creatorFilter === "mine") {
+                setCreatorFilter("all");
+              } else {
+                setCreatorFilter("mine");
+                setStatusFilter("all");
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              creatorFilter === "mine"
+                ? "bg-blue-100 dark:bg-blue-900/40 border-blue-500 text-blue-700 dark:text-blue-300"
+                : "bg-card hover:bg-accent"
+            }`}
+          >
+            <User size={20} />
+            <span className="font-medium">My Bills</span>
+          </button>
         </div>
-        {isFilterOpen && (
-          <div className="p-4 bg-card border rounded-lg shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              {/* Status Filter */}
-              <div>
-                <label
-                  htmlFor="status-filter"
-                  className="block text-sm font-medium mb-2"
-                >
-                  Status
-                </label>
-                <select
-                  id="status-filter"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-background border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="Queued">Queued</option>
-                  <option value="Voting">Voting</option>
-                  <option value="Passed">Passed</option>
-                  <option value="Defeated">Defeated</option>
-                </select>
-              </div>
-
-              {/* Stage Filter */}
-              <div>
-                <label
-                  htmlFor="stage-filter"
-                  className="block text-sm font-medium mb-2"
-                >
-                  Stage
-                </label>
-                <select
-                  id="stage-filter"
-                  value={stageFilter}
-                  onChange={(e) => setStageFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-background border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="all">All Stages</option>
-                  <option value="House">House</option>
-                  <option value="Senate">Senate</option>
-                  <option value="Presidential">Presidential</option>
-                </select>
-              </div>
-            </div>
-
-            {(statusFilter !== "all" || stageFilter !== "all") && (
-              <div className="flex justify-between items-center pt-3 border-t">
-                <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-sm text-muted-foreground">Active:</span>
-                  {statusFilter !== "all" && (
-                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
-                      Status: {statusFilter}
-                    </span>
-                  )}
-                  {stageFilter !== "all" && (
-                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
-                      Stage: {stageFilter}
-                    </span>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setStatusFilter("all");
-                    setStageFilter("all");
-                  }}
-                  className="text-sm"
-                >
-                  Clear all
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="space-y-4">
@@ -240,9 +177,24 @@ function Bills() {
               <CardContent>
                 {/* Bill details */}
                 <div>
-                  <h2 className="text-xl font-semibold">
-                    Bill #{bill.id}: {bill.title}
-                  </h2>
+                  <div className="flex justify-between items-start mb-2">
+                    <h2 className="text-xl font-semibold">
+                      Bill #{bill.id}: {bill.title}
+                    </h2>
+                    {currentUser?.id === bill.creator_id &&
+                      bill.status === "Queued" && (
+                        <Link href={`/bills/edit/${bill.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-2"
+                          >
+                            <Pencil size={16} />
+                            Edit
+                          </Button>
+                        </Link>
+                      )}
+                  </div>
                   <p className="text-sm text-muted-foreground mb-2">
                     Proposed By:{" "}
                     <b className="text-black dark:text-white">
@@ -308,7 +260,7 @@ function Bills() {
             <CardContent>
               <p>
                 No bills found
-                {statusFilter !== "all" || stageFilter !== "all"
+                {statusFilter !== "all" || creatorFilter !== "all"
                   ? " matching the selected filters."
                   : "."}
               </p>
