@@ -2,7 +2,7 @@
 "use client";
 
 import withAuth from "@/lib/withAuth";
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { useRouter, useParams } from "next/navigation";
@@ -17,6 +17,7 @@ import { Chat } from "@/components/Chat";
 import { toast } from "sonner";
 import { MessageDialog } from "@/components/ui/MessageDialog";
 import { useState } from "react";
+import PartyLogo from "@/components/PartyLogo";
 
 function Home() {
   const [user] = useAuthState(auth);
@@ -25,7 +26,10 @@ function Home() {
   const id = params.id;
   const queryClient = useQueryClient();
   const [showKickDialog, setShowKickDialog] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<{ id: number; username: string } | null>(null);
+  const [selectedMember, setSelectedMember] = useState<{
+    id: number;
+    username: string;
+  } | null>(null);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   // Get user info
@@ -152,7 +156,7 @@ function Home() {
       toast.error("Failed to kick member.");
     }
   };
-  
+
   const kickMember = (member: { id: number; username: string }) => {
     setSelectedMember({ id: member.id, username: member.username });
     setShowKickDialog(true);
@@ -170,14 +174,7 @@ function Home() {
           <Card className="border-l-4" style={{ borderLeftColor: party.color }}>
             <CardHeader className="pb-6">
               <div className="md:flex items-center gap-4">
-                <div
-                  className="flex aspect-square size-16 items-center justify-center rounded-lg shadow-md"
-                  style={{ backgroundColor: party.color }}
-                >
-                  <span className="text-3xl font-bold text-white">
-                    {party.name.charAt(0)}
-                  </span>
-                </div>
+                <PartyLogo party_id={Number(params.id)} size={80} />
                 <div className="flex-1">
                   <h1 className="text-2xl mt-8 md:mt-0 md:text-4xl font-bold text-foreground text-wrap break-words">
                     {party.name}
@@ -392,7 +389,12 @@ function Home() {
                                 variant="destructive"
                                 size="sm"
                                 className="text-sm mr-2"
-                                onClick={() => kickMember({ id: member.id, username: member.username })}
+                                onClick={() =>
+                                  kickMember({
+                                    id: member.id,
+                                    username: member.username,
+                                  })
+                                }
                               >
                                 Kick Member
                               </Button>
@@ -438,8 +440,8 @@ function Home() {
         onOpenChange={setShowKickDialog}
         title="Kick party member?"
         description={
-         <span className="text-left leading-relaxed">
-           <span className="block">
+          <span className="text-left leading-relaxed">
+            <span className="block">
               Are you sure you want to remove{" "}
               <span className="font-semibold">
                 {selectedMember?.username ?? "this member"}
