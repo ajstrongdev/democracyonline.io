@@ -4,20 +4,19 @@ import { OAuth2Client } from "google-auth-library";
 
 const oAuth2Client = new OAuth2Client();
 
-function calculate(x: number) {
-  return Math.ceil(x * 0.15);
-}
-
 async function updateSenateSeats() {
-  // Determine number of seats based on total player count (excluding banned users)
-  const usersRes = await query(
-    "SELECT COUNT(*) FROM users WHERE username NOT LIKE 'Banned User%'"
+  // Get count of declared candidates for Senate election
+  const candidatesRes = await query(
+    "SELECT COUNT(*) FROM candidates WHERE election = 'Senate'"
   );
-  const population = usersRes.rows[0]?.count || 0;
-  const senators = Math.max(1, calculate(population));
+  const candidateCount = Number(candidatesRes.rows[0]?.count || 0);
+
+  // Calculate seats: minimum 3 or 50% of candidates, whichever is higher
+  const halfCandidates = Math.ceil(candidateCount * 0.5);
+  const seats = Math.max(3, halfCandidates);
 
   await query("UPDATE elections SET seats = $1 WHERE election = 'Senate'", [
-    senators,
+    seats,
   ]);
 }
 

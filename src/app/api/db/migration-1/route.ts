@@ -82,6 +82,92 @@ export async function GET(request: NextRequest) {
       FOREIGN KEY (stance_id) REFERENCES political_stances(id) ON DELETE CASCADE
       )`);
 
+    // Migration for Senate election voting system changes
+    // Add candidate_id column to votes table if it doesn't exist
+    await query(`
+      ALTER TABLE votes ADD COLUMN IF NOT EXISTS candidate_id INTEGER REFERENCES candidates(id) ON DELETE CASCADE
+    `);
+
+    // Drop old unique constraint if it exists and add new one
+    // First check and drop the old constraint
+    await query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'votes_user_id_election_key'
+        ) THEN
+          ALTER TABLE votes DROP CONSTRAINT votes_user_id_election_key;
+        END IF;
+      END $$;
+    `);
+
+    // Add new unique constraint that includes candidate_id
+    await query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'votes_user_id_election_candidate_id_key'
+        ) THEN
+          ALTER TABLE votes ADD CONSTRAINT votes_user_id_election_candidate_id_key UNIQUE (user_id, election, candidate_id);
+        END IF;
+      END $$;
+    `);
+
+    // Ensure elections table has seats column
+    await query(`
+      ALTER TABLE elections ADD COLUMN IF NOT EXISTS seats INTEGER
+    `);
+
+    // Set default seats for existing elections
+    await query(`
+      UPDATE elections SET seats = 1 WHERE election = 'President' AND seats IS NULL
+    `);
+
+    await query(`
+      UPDATE elections SET seats = 3 WHERE election = 'Senate' AND seats IS NULL
+    `);
+
+    // Merged party table
+    await query(`
+      CREATE TABLE IF NOT EXISTS merge_request (
+      id SERIAL PRIMARY KEY,
+      leader_id INT,
+      name VARCHAR(255) NOT NULL,
+      color VARCHAR(7) NOT NULL,
+      bio TEXT,
+      political_leaning VARCHAR(50) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      leaning VARCHAR(25) NOT NULL,
+      logo VARCHAR(100) DEFAULT NULL
+      )`);
+
+    // PartyNotifications table for merge requests
+    await query(`
+      CREATE TABLE IF NOT EXISTS party_notifications (
+      sender_party_id INTEGER NOT NULL,
+      receiver_party_id INTEGER NOT NULL,
+      merge_request_id INTEGER NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+      PRIMARY KEY (sender_party_id, receiver_party_id, merge_request_id),
+      FOREIGN KEY (sender_party_id) REFERENCES parties(id) ON DELETE CASCADE,
+      FOREIGN KEY (receiver_party_id) REFERENCES parties(id) ON DELETE CASCADE,
+      FOREIGN KEY (merge_request_id) REFERENCES merge_request(id) ON DELETE CASCADE
+      )`);
+
+    // Merge request stances table
+    await query(`
+      CREATE TABLE IF NOT EXISTS merge_request_stances (
+      id SERIAL PRIMARY KEY,
+      merge_request_id INTEGER NOT NULL,
+      stance_id INTEGER NOT NULL,
+      value TEXT,
+      FOREIGN KEY (merge_request_id) REFERENCES merge_request(id) ON DELETE CASCADE,
+      FOREIGN KEY (stance_id) REFERENCES political_stances(id) ON DELETE CASCADE
+      )`);
+
     return NextResponse.json(
       { success: true, message: "Migration 1 applied successfully" },
       { status: 200 }
