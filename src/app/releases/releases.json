@@ -18,7 +18,8 @@
       "Formatting is now preserved in bill content. This includes line breaks and spacing. Formatting has also been retroactively fixed to existing bills where applicable."
     ],
     "improvements": [
-      "Bill filtering has been streamlined."
+      "Bill filtering has been streamlined.",
+      "Modified how we allocate the number of senate seats per election."
     ],
     "technical": [
       "~4200 lines of code added.",
