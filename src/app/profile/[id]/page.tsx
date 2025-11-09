@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Handshake, Crown } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
+import PartyLogo from "@/components/PartyLogo";
 
 function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -120,10 +121,13 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
         >
           <CardHeader>
             <div className="md:flex items-center gap-4">
-              <div
-                className="flex aspect-square size-16 items-center justify-center rounded-full shadow-md"
-                style={{ backgroundColor: partyData?.color || "#808080" }}
-              ></div>
+              {partyData ? (
+                <PartyLogo party_id={partyData.id} size={80} />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-gray-400 flex items-center justify-center text-white text-3xl font-bold">
+                  I
+                </div>
+              )}
               <div className="flex-1">
                 <h1 className="text-2xl mt-8 md:mt-0 md:text-3xl font-bold text-foreground text-wrap break-words">
                   {userData?.username}&apos;s Profile
@@ -235,8 +239,11 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
         <CardContent>
           {votesData && votesData.length > 0 ? (
             <div className="space-y-3">
-              {[...votesData].reverse().map((vote: any) => (
-                <div key={vote.id} className="border p-4 rounded-md bg-sidebar">
+              {[...votesData].reverse().map((vote: any, index: number) => (
+                <div
+                  key={`${vote.id}-${vote.bill_id}-${vote.stage}-${index}`}
+                  className="border p-4 rounded-md bg-sidebar"
+                >
                   <div className="flex justify-between">
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">

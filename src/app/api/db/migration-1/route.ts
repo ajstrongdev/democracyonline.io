@@ -25,6 +25,23 @@ export async function GET(request: NextRequest) {
     await query(
       `ALTER TABLE parties ADD COLUMN IF NOT EXISTS logo VARCHAR(100) DEFAULT NULL`
     );
+    // Add game tracker table
+    await query(`
+      CREATE TABLE IF NOT EXISTS game_tracker (
+      id SERIAL PRIMARY KEY,
+      bill_pool INTEGER NOT NULL DEFAULT 1
+      )`);
+    await query(`INSERT INTO game_tracker (bill_pool) VALUES (1)`);
+
+    // Alter bills table to add pool column
+    await query(`
+      ALTER TABLE bills ADD COLUMN IF NOT EXISTS pool INTEGER DEFAULT NULL
+    `);
+
+    // Give bills at vote a pool value
+    await query(`
+      UPDATE bills SET pool = 1 WHERE status = 'Voting'
+    `);
 
     return NextResponse.json(
       { success: true, message: "Migration 1 applied successfully" },

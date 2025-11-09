@@ -441,6 +441,36 @@ resource "google_cloud_scheduler_job" "game_advance" {
   ]
 }
 
+# bill-advance runs 4am/12pm/8pm UTC daily.
+resource "google_cloud_scheduler_job" "bill_advance" {
+  name             = "${var.app_name}-bill-advance"
+  description      = "Trigger bill advancement at 4am, 12pm, and 8pm UTC"
+  schedule         = "0 4,12,20 * * *"
+  time_zone        = "UTC"
+  attempt_deadline = "320s"
+  region           = var.region
+
+  retry_config {
+    retry_count = 3
+  }
+
+  http_target {
+    http_method = "GET"
+    uri         = "https://${var.custom_domain}/api/bill-advance"
+
+    oidc_token {
+      service_account_email = google_service_account.scheduler_sa.email
+      audience              = "https://${var.custom_domain}"
+    }
+  }
+
+  depends_on = [
+    google_project_service.required_apis,
+    google_cloud_run_v2_service.app,
+  ]
+}
+
+
 # ============================================
 # LOAD BALANCER & CUSTOM DOMAIN
 # ============================================
@@ -597,6 +627,11 @@ output "service_account_email" {
 output "scheduler_job_name" {
   description = "The name of the Cloud Scheduler job for game advancement"
   value       = google_cloud_scheduler_job.game_advance.name
+}
+
+output "bill_scheduler_job_name" {
+  description = "The name of the Cloud Scheduler job for bill advancement"
+  value       = google_cloud_scheduler_job.bill_advance.name
 }
 
 output "load_balancer_ip" {
