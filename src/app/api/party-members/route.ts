@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   }
   try {
     const result = await query(
-      "SELECT * FROM users WHERE party_id = $1 AND username NOT LIKE 'Banned User%'",
+      "SELECT id, username, bio, political_leaning, role, party_id, created_at FROM users WHERE party_id = $1 AND username NOT LIKE 'Banned User%'",
       [partyId]
     );
     return NextResponse.json(result.rows);

@@ -63,7 +63,7 @@ function SenateBills() {
           if (!item.creator_id) {
             return { ...item, username: "Unknown" };
           }
-          const user = await getUserFullById(item.creator_id);
+          const user = await getUserFullById(item.creator_id, true);
           return { ...item, username: user?.username || "Unknown" };
         })
       );

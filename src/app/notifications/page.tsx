@@ -33,9 +33,11 @@ function Home() {
 
   const getUserById = async (userId: number) => {
     try {
-      const response = await axios.post(`/api/get-user-by-id`, { userId });
+      const response = await axios.post(`/api/get-user-without-email`, {
+        userId,
+      });
       return response.data.username;
-    } catch (error) {
+    } catch {
       return "Unknown User";
     }
   };
