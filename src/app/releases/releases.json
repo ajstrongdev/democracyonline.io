@@ -20,7 +20,10 @@
     "improvements": [
       "Bill filtering has been streamlined."
     ],
-    "technical": []
+    "technical": [
+      "~4200 lines of code added.",
+      "~1300 lines of code removed."
+    ]
   },
   {
     "version": "1.0.3",
