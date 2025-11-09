@@ -4,10 +4,12 @@
     "date": "",
     "title": "",
     "description": "",
-    "features": [],
+    "features": [
+      "You can now drop out of an election before voting begins."
+    ],
     "bugfixes": [],
     "improvements": [],
-    "technical": [],
+    "technical": []
   },
   {
     "version": "1.0.3",
