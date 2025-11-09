@@ -11,7 +11,8 @@
       "You can now drop out of an election before voting begins.",
       "You can now edit your queued bills.",
       "You can now merge parties. Party leaders can send merge requests to other parties, which can then be accepted or rejected by the target party.",
-      "You can now drop out of an election before voting begins."
+      "You can now drop out of an election before voting begins.",
+      "You can now vote for multiple candidates in Senate elections, up to the number of available seats."
     ],
     "bugfixes": [
       "Formatting is now preserved in bill content. This includes line breaks and spacing. Formatting has also been retroactively fixed to existing bills where applicable."
