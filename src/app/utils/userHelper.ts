@@ -21,9 +21,14 @@ export const fetchUserInfo = async (email: string) => {
   }
 };
 
-export const getUserById = async (userId: number) => {
+export const getUserById = async (userId: number, omitSensitive = false) => {
   try {
-    const response = await axios.post(`/api/get-user-by-id`, { userId });
+    let response;
+    if (omitSensitive) {
+      response = await axios.post(`/api/get-user-without-email`, { userId });
+    } else {
+      response = await axios.post(`/api/get-user-by-id`, { userId });
+    }
     return response.data.username;
   } catch (error: unknown) {
     console.error("Error fetching user by id:", error);
@@ -32,10 +37,17 @@ export const getUserById = async (userId: number) => {
 };
 
 export const getUserFullById = async (
-  userId: number
+  userId: number,
+  omitSensitive = false
 ): Promise<UserInfo | null> => {
   try {
-    const response = await axios.post(`/api/get-user-by-id`, { userId });
+    let response;
+    if (omitSensitive) {
+      response = await axios.post(`/api/get-user-without-email`, { userId });
+    } else {
+      response = await axios.post(`/api/get-user-by-id`, { userId });
+    }
+
     return response.data;
   } catch (error) {
     console.error("Error fetching user by id:", error);

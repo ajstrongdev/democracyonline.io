@@ -1,5 +1,32 @@
 [
   {
+    "version": "1.1.0",
+    "date": "2025-11-09",
+    "title": "The Enhancements Update",
+    "description": "Welcome to our first major update! This release brings a lot of exciting new features and improvements, aimed towards enhancing the overall user experience and engagement within the game.",
+    "features": [
+      "A new bill will become available every 8 hours, and then enter a 24-hour voting period.",
+      "You can now create a party logo within the game.",
+      "Added a party leaderboard page. Parties are ranked by total number of members.",
+      "You can now drop out of an election before voting begins.",
+      "You can now edit your queued bills.",
+      "You can now merge parties. Party leaders can send merge requests to other parties, which can then be accepted or rejected by the target party.",
+      "You can now drop out of an election before voting begins.",
+      "You can now vote for multiple candidates in Senate elections, up to the number of available seats."
+    ],
+    "bugfixes": [
+      "Formatting is now preserved in bill content. This includes line breaks and spacing. Formatting has also been retroactively fixed to existing bills where applicable."
+    ],
+    "improvements": [
+      "Bill filtering has been streamlined.",
+      "Modified how we allocate the number of senate seats per election."
+    ],
+    "technical": [
+      "~4200 lines of code added.",
+      "~1300 lines of code removed."
+    ]
+  },
+  {
     "version": "1.0.3",
     "date": "2025-11-04",
     "title": "Hotfix Release",

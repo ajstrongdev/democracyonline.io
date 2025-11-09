@@ -4,20 +4,19 @@ import { OAuth2Client } from "google-auth-library";
 
 const oAuth2Client = new OAuth2Client();
 
-function calculate(x: number) {
-  return Math.ceil(x * 0.15);
-}
-
 async function updateSenateSeats() {
-  // Determine number of seats based on total player count (excluding banned users)
-  const usersRes = await query(
-    "SELECT COUNT(*) FROM users WHERE username NOT LIKE 'Banned User%'"
+  // Get count of declared candidates for Senate election
+  const candidatesRes = await query(
+    "SELECT COUNT(*) FROM candidates WHERE election = 'Senate'"
   );
-  const population = usersRes.rows[0]?.count || 0;
-  const senators = Math.max(1, calculate(population));
+  const candidateCount = Number(candidatesRes.rows[0]?.count || 0);
+
+  // Calculate seats: minimum 3 or 50% of candidates, whichever is higher
+  const halfCandidates = Math.ceil(candidateCount * 0.5);
+  const seats = Math.max(3, halfCandidates);
 
   await query("UPDATE elections SET seats = $1 WHERE election = 'Senate'", [
-    senators,
+    seats,
   ]);
 }
 
@@ -299,154 +298,6 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error("Error handling senate election status:", error);
-    return NextResponse.json(
-      { success: false, error: "Internal Server Error" },
-      { status: 500 }
-    );
-  }
-  // Legislative process
-  try {
-    const res = await query(
-      "SELECT * FROM bills WHERE stage = 'Presidential' AND status = 'Voting'"
-    );
-    // Count votes
-    if (res.rows.length !== 0) {
-      const bill = res.rows[0];
-      const votesRes = await query(
-        "SELECT vote_yes, COUNT(*) as count FROM bill_votes_presidential WHERE bill_id = $1 GROUP BY vote_yes",
-        [bill.id]
-      );
-      const yesVotes = Number(
-        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0
-      );
-      const noVotes = Number(
-        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0
-      );
-      if (yesVotes > noVotes) {
-        // Bill passes
-        await query("UPDATE bills SET status = 'Passed' WHERE id = $1", [
-          bill.id,
-        ]);
-      } else {
-        // Bill fails (ties count as defeat)
-        await query("UPDATE bills SET status = 'Defeated' WHERE id = $1", [
-          bill.id,
-        ]);
-      }
-    }
-  } catch (error) {
-    console.error("Error fetching presidential bill:", error);
-    return NextResponse.json(
-      { success: false, error: "Internal Server Error" },
-      { status: 500 }
-    );
-  }
-  try {
-    // Check if the senate has a current bill in progress
-    const res = await query(
-      "SELECT * FROM bills WHERE stage = 'Senate' AND status = 'Voting'"
-    );
-    if (res.rows.length !== 0) {
-      // Count votes
-      const bill = res.rows[0];
-      const votesRes = await query(
-        "SELECT vote_yes, COUNT(*) as count FROM bill_votes_senate WHERE bill_id = $1 GROUP BY vote_yes",
-        [bill.id]
-      );
-      const yesVotes = Number(
-        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0
-      );
-      const noVotes = Number(
-        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0
-      );
-      if (yesVotes > noVotes) {
-        // Bill passes
-        await query(
-          "UPDATE bills SET stage = 'Presidential', status = 'Voting' WHERE id = $1",
-          [bill.id]
-        );
-      } else {
-        // Bill fails (ties count as defeat)
-        await query("UPDATE bills SET status = 'Defeated' WHERE id = $1", [
-          bill.id,
-        ]);
-      }
-    }
-  } catch (error) {
-    console.error("Error in the senate:", error);
-    return NextResponse.json(
-      { success: false, error: "Internal Server Error" },
-      { status: 500 }
-    );
-  }
-  // Check if the house has a current bill in progress
-  try {
-    const res = await query(
-      "SELECT * FROM bills WHERE stage = 'House' AND status = 'Voting'"
-    );
-    if (res.rows.length !== 0) {
-      // Count votes
-      const bill = res.rows[0];
-      const votesRes = await query(
-        "SELECT vote_yes, COUNT(*) as count FROM bill_votes_house WHERE bill_id = $1 GROUP BY vote_yes",
-        [bill.id]
-      );
-      const yesVotes = Number(
-        votesRes.rows.find((row) => row.vote_yes === true)?.count || 0
-      );
-      const noVotes = Number(
-        votesRes.rows.find((row) => row.vote_yes === false)?.count || 0
-      );
-      if (yesVotes > noVotes) {
-        // Bill passes to Senate
-        await query(
-          "UPDATE bills SET stage = 'Senate', status = 'Voting' WHERE id = $1",
-          [bill.id]
-        );
-      } else {
-        // Bill fails (ties count as defeat)
-        await query("UPDATE bills SET status = 'Defeated' WHERE id = $1", [
-          bill.id,
-        ]);
-      }
-    }
-    // Get the next bill in the queue (if any)
-    const nextBillRes = await query(
-      "SELECT * FROM bills WHERE stage = 'House' AND status = 'Queued' ORDER BY created_at ASC LIMIT 1"
-    );
-    if (nextBillRes.rows.length > 0) {
-      const nextBill = nextBillRes.rows[0];
-      await query("UPDATE bills SET status = 'Voting' WHERE id = $1", [
-        nextBill.id,
-      ]);
-    }
-
-    // Cleanup: delete all parties with zero members
-    try {
-      // First, get parties with zero members
-      const emptyPartiesRes = await query(`
-        SELECT p.id FROM parties p
-        WHERE NOT EXISTS (
-          SELECT 1 FROM users u WHERE u.party_id = p.id
-        )
-      `);
-
-      // Delete each empty party along with its stances
-      for (const party of emptyPartiesRes.rows) {
-        await query("DELETE FROM party_stances WHERE party_id = $1", [
-          party.id,
-        ]);
-        await query("DELETE FROM parties WHERE id = $1", [party.id]);
-        console.log(`Deleted empty party with ID: ${party.id}`);
-      }
-    } catch (error) {
-      console.error("Error deleting zero-member parties:", error);
-      // Do not fail the entire job for cleanup errors
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error advancing bill:", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error" },
       { status: 500 }

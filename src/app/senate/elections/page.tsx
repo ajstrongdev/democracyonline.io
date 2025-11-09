@@ -92,7 +92,9 @@ function SenateElections() {
     retry: false,
   });
 
-  const hasVoted = hasVotedData?.hasVoted || false;
+  const maxVotes = hasVotedData?.maxVotes || 0;
+  const votesRemaining = hasVotedData?.votesRemaining || 0;
+  const votedCandidateIds = hasVotedData?.votedCandidateIds || [];
 
   const CandidateItem = ({
     userId,
@@ -103,7 +105,7 @@ function SenateElections() {
   }) => {
     const { data: candidateUser, isLoading: userLoading } = useQuery({
       queryKey: ["candidateUser", userId],
-      queryFn: () => getUserFullById(Number(userId)),
+      queryFn: () => getUserFullById(Number(userId), true),
       enabled: !!userId,
     });
 
@@ -166,11 +168,16 @@ function SenateElections() {
             {electionInfo.status === "Voting" && (
               <Button
                 onClick={() => voteForCandidate(candidateId)}
-                disabled={hasVoted}
+                disabled={
+                  votesRemaining === 0 ||
+                  votedCandidateIds.includes(candidateId)
+                }
                 className="ml-4"
               >
-                {hasVoted
-                  ? "Already Voted"
+                {votedCandidateIds.includes(candidateId)
+                  ? "✓ Voted"
+                  : votesRemaining === 0
+                  ? "No Votes Left"
                   : `Vote for ${candidateUser.username}`}
               </Button>
             )}
@@ -189,7 +196,7 @@ function SenateElections() {
   }) => {
     const { data: candidateUser, isLoading: userLoading } = useQuery({
       queryKey: ["candidateUser", userId],
-      queryFn: () => getUserFullById(Number(userId)),
+      queryFn: () => getUserFullById(Number(userId), true),
       enabled: !!userId,
     });
 
@@ -247,6 +254,26 @@ function SenateElections() {
       queryClient.invalidateQueries({ queryKey: ["candidates", "Senate"] });
     } catch (error) {
       console.error("Error standing as candidate:", error);
+    }
+  };
+
+  const revokeCandidacy = async () => {
+    if (!thisUser) return;
+    try {
+      await axios.post("/api/election-remove-candidate", {
+        userId: thisUser.id,
+        election: "Senate",
+      });
+      await refetch();
+      await refetchCandidates();
+      await axios.post("/api/feed-add", {
+        userId: thisUser.id,
+        content: `Is no longer running as a candidate for the Senate.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["candidates", "Senate"] });
+      queryClient.invalidateQueries({ queryKey: ["isCandidate", thisUser.id] });
+    } catch (error) {
+      console.error("Error revoking candidacy:", error);
     }
   };
 
@@ -332,9 +359,14 @@ function SenateElections() {
             <Alert className="mb-6">
               <AlertTitle className="font-bold">Elections are live!</AlertTitle>
               <AlertDescription>
-                The Senate elections are now in the voting phase. Cast your vote
-                for your preferred candidate before the elections close. There
-                are {electionInfo.seats} seats available.
+                The Senate elections are now in the voting phase. Cast your
+                votes for your preferred candidates before the elections close.
+                There are {electionInfo.seats} seats available.
+                {hasVotedData && (
+                  <span className="block mt-2 font-semibold">
+                    You have {votesRemaining} of {maxVotes} votes remaining.
+                  </span>
+                )}
               </AlertDescription>
             </Alert>
           )}
@@ -351,7 +383,7 @@ function SenateElections() {
                   </AlertTitle>
                   <AlertDescription
                     className={
-                      !isAlreadyCandidate && !isACandidate
+                      isAlreadyCandidate || !isACandidate
                         ? "md:flex md:items-center md:justify-between"
                         : ""
                     }
@@ -367,10 +399,12 @@ function SenateElections() {
                           Declare Candidacy!
                         </Button>
                       ) : isAlreadyCandidate ? (
-                        <h2 className="mt-2 text-green-500 font-semibold">
-                          You are currently a candidate in the upcoming Senate
-                          elections. Good luck!
-                        </h2>
+                        <Button
+                          className="mt-4 md:mt-0"
+                          onClick={revokeCandidacy}
+                        >
+                          Drop out
+                        </Button>
                       ) : isACandidate && !isAlreadyCandidate ? (
                         <h2 className="mt-2 text-yellow-500 font-semibold">
                           You are a candidate in another election.
@@ -463,15 +497,15 @@ function SenateElections() {
         description={
           <span className="text-left leading-relaxed">
             <span className="block">
-              <span className="font-semibold">Warning:</span> If you declare your
-              candidacy for the senate election, you{" "}
-              <span className="font-semibold">cannot</span> be a candidate for any
-              other elections during this cycle.
+              <span className="font-semibold">Warning:</span> If you declare
+              your candidacy for the senate election, you{" "}
+              <span className="font-semibold">cannot</span> be a candidate for
+              any other elections during this cycle.
             </span>
             <span className="mt-2 block">
-              This is a binding decision that prevents running for multiple positions
-              simultaneously. You can declare candidacy for other offices again after
-              this election has concluded.
+              This is a binding decision that prevents running for multiple
+              positions simultaneously. You can declare candidacy for other
+              offices again after this election has concluded.
             </span>
           </span>
         }
