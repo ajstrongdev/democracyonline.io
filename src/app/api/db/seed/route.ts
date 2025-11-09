@@ -205,12 +205,12 @@ async function seedDataProd() {
   );
   // Setup election timers
   const election_president = await query(
-    "INSERT INTO elections (election, status, days_left) VALUES ($1, $2, $3) RETURNING *",
-    ["President", "Candidate", 5]
+    "INSERT INTO elections (election, status, days_left, seats) VALUES ($1, $2, $3, $4) RETURNING *",
+    ["President", "Candidate", 5, 1]
   );
   const election_senate = await query(
-    "INSERT INTO elections (election, status, days_left) VALUES ($1, $2, $3) RETURNING *",
-    ["Senate", "Candidate", 2]
+    "INSERT INTO elections (election, status, days_left, seats) VALUES ($1, $2, $3, $4) RETURNING *",
+    ["Senate", "Candidate", 2, 3]
   );
   // Create user accounts
   const users = await query(`
@@ -256,7 +256,7 @@ async function seed() {
         id SERIAL PRIMARY KEY,
         issue VARCHAR(100) NOT NULL,
         description VARCHAR(255) NOT NULL
-      )  
+      )
     `);
 
     await query(`
@@ -264,7 +264,7 @@ async function seed() {
         party_id INT REFERENCES parties(id),
         stance_id INT REFERENCES political_stances(id),
         value VARCHAR(1024) NOT NULL
-      )  
+      )
     `);
 
     await query(`
@@ -309,7 +309,8 @@ async function seed() {
         id SERIAL PRIMARY KEY,
         user_id INT REFERENCES users(id),
         election VARCHAR(50) REFERENCES elections(election),
-        UNIQUE(user_id, election)
+        candidate_id INT REFERENCES candidates(id) ON DELETE CASCADE,
+        UNIQUE(user_id, election, candidate_id)
       );
     `);
 

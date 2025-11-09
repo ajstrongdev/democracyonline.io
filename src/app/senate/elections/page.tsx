@@ -92,7 +92,9 @@ function SenateElections() {
     retry: false,
   });
 
-  const hasVoted = hasVotedData?.hasVoted || false;
+  const maxVotes = hasVotedData?.maxVotes || 0;
+  const votesRemaining = hasVotedData?.votesRemaining || 0;
+  const votedCandidateIds = hasVotedData?.votedCandidateIds || [];
 
   const CandidateItem = ({
     userId,
@@ -166,11 +168,16 @@ function SenateElections() {
             {electionInfo.status === "Voting" && (
               <Button
                 onClick={() => voteForCandidate(candidateId)}
-                disabled={hasVoted}
+                disabled={
+                  votesRemaining === 0 ||
+                  votedCandidateIds.includes(candidateId)
+                }
                 className="ml-4"
               >
-                {hasVoted
-                  ? "Already Voted"
+                {votedCandidateIds.includes(candidateId)
+                  ? "✓ Voted"
+                  : votesRemaining === 0
+                  ? "No Votes Left"
                   : `Vote for ${candidateUser.username}`}
               </Button>
             )}
@@ -269,7 +276,7 @@ function SenateElections() {
       console.error("Error revoking candidacy:", error);
     }
   };
-    
+
   const standAsCandidate = () => {
     setShowCandidacyDialog(true);
   };
@@ -352,9 +359,14 @@ function SenateElections() {
             <Alert className="mb-6">
               <AlertTitle className="font-bold">Elections are live!</AlertTitle>
               <AlertDescription>
-                The Senate elections are now in the voting phase. Cast your vote
-                for your preferred candidate before the elections close. There
-                are {electionInfo.seats} seats available.
+                The Senate elections are now in the voting phase. Cast your
+                votes for your preferred candidates before the elections close.
+                There are {electionInfo.seats} seats available.
+                {hasVotedData && (
+                  <span className="block mt-2 font-semibold">
+                    You have {votesRemaining} of {maxVotes} votes remaining.
+                  </span>
+                )}
               </AlertDescription>
             </Alert>
           )}
