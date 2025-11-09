@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     if (res.rows.length === 0) {
       return NextResponse.json(
         { canVote: false, error: "User not found or invalid role" },
-        { status: 404 }
+        { status: 200 }
       );
     } else {
       return NextResponse.json({ canVote: true }, { status: 200 });

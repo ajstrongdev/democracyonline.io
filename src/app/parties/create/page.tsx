@@ -15,6 +15,8 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
+import { useState } from "react";
+import { icons } from "@/app/utils/logoHelper";
 
 export const leanings = [
   "Far Left",
@@ -84,6 +86,7 @@ function Home() {
         bio,
         stanceValues,
         leaningValue,
+        logo: selectedLogo || null,
       });
       router.push(`/parties/${response.data.id}`);
     } catch (error) {
@@ -98,6 +101,8 @@ function Home() {
       throw new Error("Error creating feed item:" + error);
     }
   };
+
+  const [selectedLogo, setSelectedLogo] = useState<string | null>(null);
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -174,6 +179,46 @@ function Home() {
               placeholder="Brief description of your party"
               className="min-h-[80px]"
             />
+          </div>
+          <div className="space-y-6">
+            <Label className="text-lg font-medium text-foreground">
+              Party Logo
+            </Label>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedLogo(null)}
+                className={`flex items-center justify-center w-14 h-14 rounded-md border p-2 text-sm hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${
+                  selectedLogo === null
+                    ? "ring-2 ring-offset-2 ring-primary"
+                    : ""
+                }`}
+                aria-pressed={selectedLogo === null}
+                title="None"
+              >
+                None
+              </button>
+
+              {icons.map((ic) => {
+                const IconComp = ic.Icon;
+                return (
+                  <button
+                    key={ic.name}
+                    type="button"
+                    onClick={() => setSelectedLogo(ic.name)}
+                    className={`flex items-center justify-center w-14 h-14 rounded-md border p-2 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${
+                      selectedLogo === ic.name
+                        ? "ring-2 ring-offset-2 ring-primary"
+                        : ""
+                    }`}
+                    aria-pressed={selectedLogo === ic.name}
+                    title={ic.name}
+                  >
+                    <IconComp className="w-6 h-6" />
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div>
             <Label className="block text-center mb-8">

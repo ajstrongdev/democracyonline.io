@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
+import { icons } from "@/app/utils/logoHelper";
 
 export const leanings = [
   "Far Left",
@@ -54,6 +55,15 @@ function ManageParty() {
     },
     enabled: !!id,
   });
+
+  const [selectedLogo, setSelectedLogo] = useState<string | null>(null);
+  const [colorState, setColorState] = useState<string>("#ff0000");
+
+  // initialize selected logo and color when party loads
+  useEffect(() => {
+    if (party?.logo) setSelectedLogo(party.logo);
+    if (party?.color) setColorState(party.color);
+  }, [party]);
 
   // Get stance types
   const { data: stances } = useQuery({
@@ -106,6 +116,7 @@ function ManageParty() {
         bio,
         stanceValues,
         leaningValue,
+        logo: selectedLogo || null,
       });
       toast.success("Party updated successfully!");
       router.push(`/parties/${id}`);
@@ -201,6 +212,46 @@ function ManageParty() {
                 className="min-h-[80px]"
                 defaultValue={party?.bio || ""}
               />
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <Label className="text-lg font-medium text-foreground">
+                Party Logo
+              </Label>
+              <div className="flex flex-wrap justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedLogo(null)}
+                  className={`flex items-center justify-center w-14 h-14 rounded-md border p-2 text-sm hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${
+                    selectedLogo === null
+                      ? "ring-2 ring-offset-2 ring-primary"
+                      : ""
+                  }`}
+                  aria-pressed={selectedLogo === null}
+                  title="None"
+                >
+                  None
+                </button>
+
+                {icons.map((ic) => {
+                  const IconComp = ic.Icon;
+                  return (
+                    <button
+                      key={ic.name}
+                      type="button"
+                      onClick={() => setSelectedLogo(ic.name)}
+                      className={`flex items-center justify-center w-14 h-14 rounded-md border p-2 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${
+                        selectedLogo === ic.name
+                          ? "ring-2 ring-offset-2 ring-primary"
+                          : ""
+                      }`}
+                      aria-pressed={selectedLogo === ic.name}
+                      title={ic.name}
+                    >
+                      <IconComp className="w-6 h-6" />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div>
               <Label className="block text-center mb-8">
