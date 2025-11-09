@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
@@ -151,7 +153,6 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
-    // @eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error("Error accepting merge request:", error);
 
