@@ -10,7 +10,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
-import { DoorOpen, Handshake, Crown, Pencil } from "lucide-react";
+import {
+  DoorOpen,
+  Handshake,
+  Crown,
+  Pencil,
+  ArrowLeftRight,
+} from "lucide-react";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Key } from "react";
 import { Chat } from "@/components/Chat";
@@ -76,6 +82,19 @@ function Home() {
     },
     enabled: !!thisUser?.id && !!id,
     initialData: false,
+  });
+
+  // Get merge request count for this party
+  const { data: mergeRequestCount = 0 } = useQuery({
+    queryKey: ["mergeRequestCount", id],
+    queryFn: async () => {
+      if (!id) return 0;
+      const response = await axios.get("/api/party-merge-requests-get", {
+        params: { partyId: id },
+      });
+      return response.data?.length || 0;
+    },
+    enabled: !!id && party?.leader_id === thisUser?.id,
   });
 
   const joinParty = useMutation({
@@ -280,13 +299,27 @@ function Home() {
                       )
                     )}
                     {membershipStatus && party.leader_id === thisUser?.id && (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => router.push(`/parties/manage/${id}`)}
-                      >
-                        <Pencil /> Edit Party Info
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                          onClick={() => router.push(`/parties/manage/${id}`)}
+                        >
+                          <Pencil /> Edit Party Info
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                          onClick={() => router.push(`/parties/merge/${id}`)}
+                        >
+                          <ArrowLeftRight /> Merge Party
+                          {mergeRequestCount > 0 && (
+                            <span className="ml-auto bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs font-semibold">
+                              {mergeRequestCount}
+                            </span>
+                          )}
+                        </Button>
+                      </>
                     )}
                     {membershipStatus &&
                       party.leader_id === null &&
