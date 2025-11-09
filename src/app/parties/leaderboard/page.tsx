@@ -145,7 +145,7 @@ export default function PartiesLeaderboard() {
           <p className="text-muted-foreground">Loading party statistics...</p>
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
+          {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-48" />
           ))}
         </div>
