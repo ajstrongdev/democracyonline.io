@@ -7,7 +7,8 @@
     "features": [
       "A new bill will become available every 8 hours, and then enter a 24-hour voting period.",
       "You can now create a party logo within the game.",
-      "Added a party leaderboard page. Parties are ranked by total number of members."
+      "Added a party leaderboard page. Parties are ranked by total number of members.",
+      "You can now drop out of an election before voting begins."
     ],
     "bugfixes": [
       "Formatting is now preserved in bill content. This includes line breaks and spacing. Formatting has also been retroactively fixed to existing bills where applicable."
