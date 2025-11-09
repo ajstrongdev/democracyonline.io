@@ -258,7 +258,9 @@ function HouseOfRepresentatives() {
                   </p>
                 </CardHeader>
                 <CardContent className="grow">
-                  <p className="text-foreground mb-4">{bill.content}</p>
+                  <p className="text-foreground mb-4 whitespace-pre-wrap">
+                    {bill.content}
+                  </p>
                   {votesLoading ? (
                     <GenericSkeleton />
                   ) : votesError ? (

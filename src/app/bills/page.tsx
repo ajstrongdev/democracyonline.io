@@ -251,7 +251,9 @@ function Bills() {
                     | Status: {bill.status} | Stage: {bill.stage} | Created at:{" "}
                     {new Date(bill.created_at).toLocaleDateString()}
                   </p>
-                  <p className="text-foreground mt-5 sm:mt-3">{bill.content}</p>
+                  <p className="text-foreground mt-5 sm:mt-3 whitespace-pre-wrap">
+                    {bill.content}
+                  </p>
                 </div>
 
                 {/* Bill voting */}

@@ -1,13 +1,17 @@
 [
   {
     "version": "1.1.0",
-    "date": "",
-    "title": "",
-    "description": "",
+    "date": "2025-01-01",
+    "title": "The Enhancements Update",
+    "description": "Welcome to our first major update! This release brings a lot of exciting new features and improvements, aimed towards enhancing the overall user experience and engagement within the game.",
     "features": [
-      "You can now create a party logo within the game."
+      "A new bill will become available every 8 hours, and then enter a 24-hour voting period.",
+      "You can now create a party logo within the game.",
+      "Added a party leaderboard page. Parties are ranked by total number of members."
     ],
-    "bugfixes": [],
+    "bugfixes": [
+      "Formatting is now preserved in bill content. This includes line breaks and spacing. Formatting has also been retroactively fixed to existing bills where applicable."
+    ],
     "improvements": [],
     "technical": []
   },
