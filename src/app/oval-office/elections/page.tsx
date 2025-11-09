@@ -104,7 +104,7 @@ function PresidentElections() {
   }) => {
     const { data: candidateUser, isLoading: userLoading } = useQuery({
       queryKey: ["candidateUser", userId],
-      queryFn: () => getUserFullById(Number(userId)),
+      queryFn: () => getUserFullById(Number(userId), true),
       enabled: !!userId,
     });
 
@@ -190,7 +190,7 @@ function PresidentElections() {
   }) => {
     const { data: candidateUser, isLoading: userLoading } = useQuery({
       queryKey: ["candidateUser", userId],
-      queryFn: () => getUserFullById(Number(userId)),
+      queryFn: () => getUserFullById(Number(userId), true),
       enabled: !!userId,
     });
 
@@ -464,15 +464,15 @@ function PresidentElections() {
         description={
           <span className="text-left leading-relaxed">
             <span className="block">
-              <span className="font-semibold">Warning:</span> If you declare your
-              candidacy for the presidential election, you{" "}
-              <span className="font-semibold">cannot</span> be a candidate for any
-              other elections during this cycle.
+              <span className="font-semibold">Warning:</span> If you declare
+              your candidacy for the presidential election, you{" "}
+              <span className="font-semibold">cannot</span> be a candidate for
+              any other elections during this cycle.
             </span>
             <span className="mt-2 block">
-              This is a binding decision that prevents running for multiple positions
-              simultaneously. You can declare candidacy for other offices again after
-              this election has concluded.
+              This is a binding decision that prevents running for multiple
+              positions simultaneously. You can declare candidacy for other
+              offices again after this election has concluded.
             </span>
           </span>
         }

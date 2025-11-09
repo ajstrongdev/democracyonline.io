@@ -27,7 +27,7 @@ function Bills() {
       const bills = res.data.bills || [];
       const billsWithUsernames = await Promise.all(
         bills.map(async (item: BillItem) => {
-          const username = await getUserById(item.creator_id);
+          const username = await getUserById(item.creator_id, true);
           return { ...item, username };
         })
       );

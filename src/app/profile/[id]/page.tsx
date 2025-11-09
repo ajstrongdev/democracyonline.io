@@ -25,7 +25,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   } = useQuery({
     queryKey: ["userInfo", id],
     queryFn: async () => {
-      return getUserFullById(Number(id)).then((data) => data || null);
+      return getUserFullById(Number(id), true).then((data) => data || null);
     },
     enabled: !!id,
     retry: false,
