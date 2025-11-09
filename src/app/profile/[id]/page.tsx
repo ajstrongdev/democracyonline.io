@@ -4,7 +4,7 @@
 import withAuth from "@/lib/withAuth";
 import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getUserFullById } from "@/app/utils/userHelper";
+import { fetchUserInfo, getUserFullById } from "@/app/utils/userHelper";
 import GenericSkeleton from "@/components/genericskeleton";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import Link from "next/link";
@@ -13,10 +13,19 @@ import { Handshake, Crown } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import PartyLogo from "@/components/PartyLogo";
+import React from "react";
 
 function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [user] = useAuthState(auth);
+
+  const { data: thisUser, isLoading: isThisUserLoading } = useQuery({
+    queryKey: ["fetchUserInfo", user?.email],
+    queryFn: async () => {
+      return fetchUserInfo(user?.email || "").then((data) => data || null);
+    },
+    enabled: !!user?.email,
+  });
 
   const {
     data: userData,
@@ -62,7 +71,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
     enabled: !!id,
   });
 
-  if (isLoading || partyLoading || votesLoading) {
+  if (isLoading || partyLoading || votesLoading || isThisUserLoading) {
     return <GenericSkeleton />;
   }
 
@@ -142,7 +151,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                   </div>
                 )}
               </div>
-              {userData?.email === user?.email && (
+              {userData?.id === thisUser.id && (
                 <div className="mt-4 md:mt-0">
                   <Button asChild>
                     <Link href="/user-settings">Edit Profile</Link>
