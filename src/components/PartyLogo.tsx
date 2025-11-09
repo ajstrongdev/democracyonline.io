@@ -64,11 +64,14 @@ export default function PartyLogo({
     backgroundColor: color || "#888888",
     width: size,
     height: size,
+    minWidth: size,
+    minHeight: size,
     borderRadius: "50%",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     color: "white",
+    flexShrink: 0,
   };
 
   // Fallback: use initials from party name
