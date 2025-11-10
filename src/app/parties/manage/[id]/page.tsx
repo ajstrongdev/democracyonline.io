@@ -92,6 +92,9 @@ function ManageParty() {
     const name = (form.elements.namedItem("name") as HTMLInputElement)?.value;
     const color = (form.elements.namedItem("color") as HTMLInputElement)?.value;
     const bio = (form.elements.namedItem("bio") as HTMLInputElement)?.value;
+    const discord = (
+      form.elements.namedItem("discord_link") as HTMLInputElement
+    )?.value;
     const leaningValue = leanings[leaning[0]];
 
     if (bio === "" || name === "" || color === "") {
@@ -117,6 +120,7 @@ function ManageParty() {
         stanceValues,
         leaningValue,
         logo: selectedLogo || null,
+        discord: discord || null,
       });
       toast.success("Party updated successfully!");
       router.push(`/parties/${id}`);
@@ -211,6 +215,20 @@ function ManageParty() {
                 placeholder="Brief description of your party"
                 className="min-h-[80px]"
                 defaultValue={party?.bio || ""}
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <Label
+                htmlFor="discord_link"
+                className="text-lg font-medium text-foreground"
+              >
+                Discord Invite Link
+              </Label>
+              <Input
+                type="url"
+                id="discord_link"
+                placeholder="https://discord.gg/..."
+                defaultValue={party?.discord || ""}
               />
             </div>
             <div className="grid grid-cols-1 gap-2">
