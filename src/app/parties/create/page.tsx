@@ -63,6 +63,9 @@ function Home() {
     const name = (form.elements.namedItem("name") as HTMLInputElement)?.value;
     const color = (form.elements.namedItem("color") as HTMLInputElement)?.value;
     const bio = (form.elements.namedItem("bio") as HTMLInputElement)?.value;
+    const discord = (
+      form.elements.namedItem("discord_link") as HTMLInputElement
+    )?.value;
     const leaningValue = leanings[leaning[0]];
 
     if (bio === "" || name === "" || color === "") {
@@ -87,6 +90,7 @@ function Home() {
         stanceValues,
         leaningValue,
         logo: selectedLogo || null,
+        discord: discord || null,
       });
       router.push(`/parties/${response.data.id}`);
     } catch (error) {
@@ -178,6 +182,19 @@ function Home() {
               id="bio"
               placeholder="Brief description of your party"
               className="min-h-[80px]"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            <Label
+              htmlFor="discord_link"
+              className="text-lg font-medium text-foreground"
+            >
+              Discord Invite Link
+            </Label>
+            <Input
+              type="url"
+              id="discord_link"
+              placeholder="https://discord.gg/..."
             />
           </div>
           <div className="space-y-6">

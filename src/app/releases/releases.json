@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.1.1",
+    "date": "2025-11-10",
+    "title": "Minor Update",
+    "description": "This minor update includes small improvements and bug fixes to improve user experience.",
+    "features": [],
+    "bugfixes": [
+      "Fixed an issue with party initials grabbing special characters.",
+      "Fixed a critical bug where the game would trigger multiple advance steps in a single day. We have retroactively corrected the game state and apologize for any inconvenience caused."
+    ],
+    "improvements": [
+      "Consolidated the parties and party leaderboard page into a single parties page.",
+      "You can now add a discord invite to your party page."
+    ],
+    "technical": []
+  },
+  {
     "version": "1.1.0",
     "date": "2025-11-09",
     "title": "The Enhancements Update",

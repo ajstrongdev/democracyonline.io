@@ -11,11 +11,12 @@ export async function POST(request: NextRequest) {
     stanceValues,
     leaningValue,
     logo,
+    discord,
   } = await request.json();
   try {
     const updateParty = await query(
-      "UPDATE parties SET name = $1, color = $2, bio = $3, political_leaning = $4, logo = $5 WHERE id = $6 AND leader_id = $7 RETURNING *",
-      [name, color, bio, leaningValue, logo, partyId, userId]
+      "UPDATE parties SET name = $1, color = $2, bio = $3, political_leaning = $4, logo = $5, discord = $6 WHERE id = $7 AND leader_id = $8 RETURNING *",
+      [name, color, bio, leaningValue, logo, discord, partyId, userId]
     );
 
     /* eslint-disable @typescript-eslint/no-explicit-any */

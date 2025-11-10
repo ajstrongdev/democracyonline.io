@@ -57,18 +57,6 @@ const data = {
     {
       title: "Political Parties",
       icon: Handshake,
-      dropdown: [
-        {
-          title: "Parties",
-          url: "/parties",
-          icon: Handshake,
-        },
-        {
-          title: "Leaderboard",
-          url: "/parties/leaderboard",
-          icon: ChartNoAxesCombined,
-        },
-      ],
       url: "/parties",
     },
     {
