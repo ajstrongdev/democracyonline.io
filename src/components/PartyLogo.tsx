@@ -75,12 +75,27 @@ export default function PartyLogo({
   };
 
   // Fallback: use initials from party name
+  const joinWords = new Set([
+    "and",
+    "the",
+    "of",
+    "for",
+    "in",
+    "on",
+    "at",
+    "to",
+    "a",
+    "an",
+  ]);
+
   const initials = name
     ? name
-        .split(" ")
-        .map((s) => s[0])
-        .slice(0, 2)
-        .join("")
+        .split(/\s+/) // Split by whitespace
+        .map((word) => word.replace(/[^a-zA-Z]/g, "")) // Remove special characters
+        .filter((word) => word.length > 0) // Remove empty strings
+        .filter((word) => !joinWords.has(word.toLowerCase())) // Exclude joining words
+        .join("") // Join all words together
+        .slice(0, 2) // Take first two letters
         .toUpperCase()
     : "P";
 
