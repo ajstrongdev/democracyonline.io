@@ -16,6 +16,7 @@ import {
   Crown,
   Pencil,
   ArrowLeftRight,
+  MessageSquare,
 } from "lucide-react";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Key } from "react";
@@ -339,6 +340,17 @@ function Home() {
                         onClick={() => joinParty.mutate()}
                       >
                         <Handshake /> Join Party
+                      </Button>
+                    )}
+                    {party.discord && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() =>
+                          window.open(party.discord, "_blank", "noopener")
+                        }
+                      >
+                        <MessageSquare /> Join Party Discord
                       </Button>
                     )}
                     <Button

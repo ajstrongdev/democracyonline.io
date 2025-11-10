@@ -2,12 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
-  const { userId, name, color, bio, stanceValues, leaningValue, logo } =
-    await request.json();
+  const {
+    userId,
+    name,
+    color,
+    bio,
+    stanceValues,
+    leaningValue,
+    logo,
+    discord,
+  } = await request.json();
   try {
     const createParty = await query(
-      "INSERT INTO parties (leader_id, name, color, bio, leaning, logo) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-      [userId, name, color, bio, leaningValue, logo]
+      "INSERT INTO parties (leader_id, name, color, bio, leaning, logo, discord) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+      [userId, name, color, bio, leaningValue, logo, discord]
     );
     const partyId = createParty.rows[0].id;
     // Update user partyid
