@@ -296,6 +296,8 @@ export async function GET(request: NextRequest) {
         );
       }
     }
+
+    return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error("Error handling senate election status:", error);
     return NextResponse.json(
