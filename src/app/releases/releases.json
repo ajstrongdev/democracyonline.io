@@ -6,7 +6,8 @@
     "description": "This minor update includes small improvements and bug fixes to improve user experience.",
     "features": [],
     "bugfixes": [
-      "Fixed an issue with party initials grabbing special characters."
+      "Fixed an issue with party initials grabbing special characters.",
+      "Fixed a critical bug where the game would trigger multiple advance steps in a single day. We have retroactively corrected the game state and apologize for any inconvenience caused."
     ],
     "improvements": [
       "Consolidated the parties and party leaderboard page into a single parties page.",
