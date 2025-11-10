@@ -2,30 +2,103 @@
 
 import withAuth from "@/lib/withAuth";
 import React from "react";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import axios from "axios";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { fetchUserInfo } from "@/app/utils/userHelper";
-import { Handshake } from "lucide-react";
+import { Handshake, Users, Crown, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Party } from "@/app/utils/partyHelper";
 import Link from "next/link";
 import PartyLogo from "@/components/PartyLogo";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Pie,
+  PieChart,
+  Cell,
+  Label,
+} from "recharts";
+import GenericSkeleton from "@/components/genericskeleton";
+
+interface PartyMember {
+  id: number;
+  username: string;
+  party_id: number;
+}
+
+interface PartyStats {
+  party: Party;
+  memberCount: number;
+  members: PartyMember[];
+}
 
 function Home() {
   const [user] = useAuthState(auth);
 
-  const { data: parties = [] as Party[], isLoading: loading } = useQuery({
-    queryKey: ["parties"],
-    queryFn: async () => {
-      const response = await axios.get("/api/party-list");
-      return response.data;
-    },
-  });
+  const { data: parties = [] as Party[], isLoading: partiesLoading } = useQuery(
+    {
+      queryKey: ["parties"],
+      queryFn: async () => {
+        const response = await axios.get("/api/party-list");
+        return response.data;
+      },
+    }
+  );
+
+  const { data: partyStats = [] as PartyStats[], isLoading: statsLoading } =
+    useQuery({
+      queryKey: ["party-stats", parties],
+      queryFn: async () => {
+        if (!parties || parties.length === 0) return [];
+
+        const statsPromises = parties.map(async (party: Party) => {
+          try {
+            const membersResponse = await axios.get(
+              `/api/party-members?partyId=${party.id}`
+            );
+            const members = membersResponse.data;
+            return {
+              party,
+              memberCount: members.length,
+              members,
+            };
+          } catch (error) {
+            console.error(
+              `Error fetching members for party ${party.id}:`,
+              error
+            );
+            return {
+              party,
+              memberCount: 0,
+              members: [],
+            };
+          }
+        });
+
+        return Promise.all(statsPromises);
+      },
+      enabled: parties.length > 0,
+    });
 
   const { data: thisUser } = useQuery({
     queryKey: ["user", user?.email],
@@ -39,112 +112,339 @@ function Home() {
     enabled: !!user?.email,
   });
 
+  const isLoading = partiesLoading || statsLoading;
+
+  // Sort parties by member count
+  const sortedParties = [...partyStats].sort(
+    (a, b) => b.memberCount - a.memberCount
+  );
+
+  // Chart configuration
+  const barChartConfig: ChartConfig = {
+    members: {
+      label: "Members",
+      color: "hsl(var(--chart-1))",
+    },
+  };
+
+  const pieChartConfig: ChartConfig = sortedParties.reduce(
+    (config, stats, index) => {
+      config[stats.party.id.toString()] = {
+        label: stats.party.name,
+        color: stats.party.color || `hsl(var(--chart-${(index % 5) + 1}))`,
+      };
+      return config;
+    },
+    {} as ChartConfig
+  );
+
+  // Prepare data for charts
+  const barChartData = sortedParties.map((stats) => ({
+    name: stats.party.name,
+    members: stats.memberCount,
+    fill: stats.party.color || "hsl(var(--chart-1))",
+  }));
+
+  const pieChartData = sortedParties
+    .filter((stats) => stats.memberCount > 0)
+    .map((stats) => ({
+      name: stats.party.name,
+      value: stats.memberCount,
+      fill: stats.party.color || "hsl(var(--chart-1))",
+    }));
+
+  const totalMembers = sortedParties.reduce(
+    (sum, stats) => sum + stats.memberCount,
+    0
+  );
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Political Parties</h1>
+          <p className="text-muted-foreground">Loading party statistics...</p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-48" />
+          ))}
+        </div>
+        <GenericSkeleton />
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-foreground mb-2">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold mb-2">
           Political Parties
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-sm md:text-base text-muted-foreground">
           Discover the parties and their platforms
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading
-          ? // Loading skeleton
-            Array.from({ length: 6 }).map((_, index) => (
-              <Card key={index} className="border-l-4">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="w-10 h-10 rounded-full" />
-                    <div className="flex-1">
-                      <Skeleton className="h-6 w-32 mb-2" />
-                      <Skeleton className="h-4 w-20" />
-                    </div>
-                  </div>
-                </CardHeader>
+      {/* Summary Statistics */}
+      <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Parties</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{parties.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Active political parties
+            </p>
+          </CardContent>
+        </Card>
 
-                <CardContent className="pt-0">
-                  <div className="space-y-2 mb-4">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
-                  </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalMembers}</div>
+            <p className="text-xs text-muted-foreground">Across all parties</p>
+          </CardContent>
+        </Card>
 
-                  <div className="flex gap-2">
-                    <Skeleton className="h-8 w-24" />
-                    <Skeleton className="h-8 w-32" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          : parties.map((party: Party) => (
-              <Card
-                key={party.id}
-                className="hover:shadow-lg transition-shadow duration-200 border-l-4"
-                style={{ borderLeftColor: party.color }}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <PartyLogo party_id={party.id} size={42} />
-                    <div>
-                      <Label className="text-xl font-semibold text-foreground">
-                        {party.name}
-                      </Label>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="pt-0">
-                  <p className="text-card-foreground mb-4 line-clamp-3">
-                    {party.bio}
-                  </p>
-
-                  <div className="flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center">
-                    <div className="flex gap-2">
-                      <Button
-                        asChild
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 sm:flex-none"
-                      >
-                        <a href={`/parties/${party.id}`}>View Details</a>
-                      </Button>
-                      {party.manifesto_url && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary hover:text-primary/80 p-0 h-auto font-normal"
-                          onClick={() =>
-                            window.open(party.manifesto_url, "_blank")
-                          }
-                        >
-                          View Manifesto →
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Largest Party</CardTitle>
+            <Crown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl md:text-xl font-bold truncate">
+              {sortedParties[0]?.party.name || "N/A"}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {sortedParties[0]?.memberCount || 0} members
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {thisUser?.party_id === null && !loading && (
-        <div className="text-center mt-12 border-t">
-          <p className="mt-8 my-4 text-lg text-foreground">
-            Not a fan of any of these choices? Create your party!
-          </p>
-          <Button asChild variant="default" size="lg">
-            <Link href="/parties/create">
-              <Handshake className="mr-2" />
-              Create a Party
-            </Link>
-          </Button>
-        </div>
-      )}
+      {/* Charts Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base md:text-lg">
+            Party Membership Distribution
+          </CardTitle>
+          <CardDescription className="text-xs md:text-sm">
+            Compare party sizes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-2 md:px-6">
+          <Tabs defaultValue="bar" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="bar">Bar Chart</TabsTrigger>
+              <TabsTrigger value="pie">Pie Chart</TabsTrigger>
+            </TabsList>
 
-      {parties.length === 0 && (
+            <TabsContent value="bar">
+              <ChartContainer
+                config={barChartConfig}
+                className="h-[300px] md:h-[500px] w-full"
+              >
+                <BarChart
+                  data={barChartData}
+                  margin={{ top: 10, right: 10, bottom: 10, left: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-muted"
+                  />
+                  <YAxis
+                    tick={{ fill: "hsl(var(--foreground))" }}
+                    className="text-[10px] md:text-xs"
+                    width={30}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        labelFormatter={(value, payload) => {
+                          return payload?.[0]?.payload?.name || value;
+                        }}
+                      />
+                    }
+                  />
+                  <Bar dataKey="members" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            </TabsContent>
+
+            <TabsContent value="pie">
+              <div className="flex items-center justify-center">
+                <ChartContainer
+                  config={pieChartConfig}
+                  className="h-[300px] md:h-[500px] w-full"
+                >
+                  <PieChart>
+                    <Pie
+                      data={pieChartData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius="40%"
+                      outerRadius="70%"
+                      paddingAngle={2}
+                    >
+                      {pieChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                      <Label
+                        content={({ viewBox }) => {
+                          if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                            return (
+                              <text
+                                x={viewBox.cx}
+                                y={viewBox.cy}
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                              >
+                                <tspan
+                                  x={viewBox.cx}
+                                  y={viewBox.cy}
+                                  className="fill-foreground text-2xl md:text-3xl font-bold"
+                                >
+                                  {totalMembers}
+                                </tspan>
+                                <tspan
+                                  x={viewBox.cx}
+                                  y={(viewBox.cy || 0) + 20}
+                                  className="fill-muted-foreground text-xs md:text-sm"
+                                >
+                                  Total Members
+                                </tspan>
+                              </text>
+                            );
+                          }
+                        }}
+                      />
+                    </Pie>
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                  </PieChart>
+                </ChartContainer>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* Detailed Leaderboard */}
+      <Card>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div>
+            <CardTitle className="text-base md:text-lg">All Parties</CardTitle>
+            <CardDescription className="text-xs md:text-sm">
+              Parties ranked by membership size.
+            </CardDescription>
+          </div>
+          {thisUser?.party_id === null && !isLoading && (
+            <Button asChild variant="default" size="sm" className="shrink-0">
+              <Link href="/parties/create">
+                <Handshake className="mr-2 h-4 w-4" />
+                Create Party
+              </Link>
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="px-2 md:px-6">
+          <div className="space-y-3 md:space-y-4">
+            {sortedParties.map((stats, index) => (
+              <div
+                key={stats.party.id}
+                className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border bg-card transition-colors"
+                style={{
+                  borderLeftWidth: "4px",
+                  borderLeftColor: stats.party.color,
+                }}
+              >
+                {/* Rank and Logo - Always together on mobile */}
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full bg-muted font-bold text-base md:text-lg shrink-0">
+                    #{index + 1}
+                  </div>
+
+                  <div className="shrink-0 sm:hidden md:block">
+                    <PartyLogo party_id={stats.party.id} size={40} />
+                  </div>
+                  <div className="hidden sm:block md:hidden">
+                    <PartyLogo party_id={stats.party.id} size={48} />
+                  </div>
+
+                  {/* Party info - shows next to rank on mobile */}
+                  <div className="flex-1 min-w-0 sm:hidden">
+                    <h3 className="font-semibold text-base truncate">
+                      {stats.party.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                      {stats.party.bio}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Party info - separate on desktop */}
+                <div className="hidden sm:block sm:flex-1 min-w-0">
+                  <h3 className="font-semibold text-base md:text-lg truncate">
+                    {stats.party.name}
+                  </h3>
+                  <p className="text-xs md:text-sm text-muted-foreground line-clamp-1">
+                    {stats.party.bio}
+                  </p>
+                </div>
+
+                {/* Stats and Button - Full width on mobile */}
+                <div className="flex items-center justify-between w-full sm:w-auto gap-3 sm:gap-4">
+                  <div className="flex flex-col items-start sm:items-end gap-1">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+                      <span className="text-xl md:text-2xl font-bold">
+                        {stats.memberCount}
+                      </span>
+                    </div>
+                    <span className="text-[10px] md:text-xs text-muted-foreground">
+                      {totalMembers > 0
+                        ? `${((stats.memberCount / totalMembers) * 100).toFixed(
+                            1
+                          )}% of total`
+                        : "0% of total"}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      asChild
+                      variant="default"
+                      size="sm"
+                      className="whitespace-nowrap"
+                    >
+                      <a href={`/parties/${stats.party.id}`}>View Details</a>
+                    </Button>
+                    {stats.party.manifesto_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="whitespace-nowrap text-xs"
+                        onClick={() =>
+                          window.open(stats.party.manifesto_url, "_blank")
+                        }
+                      >
+                        Manifesto
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {parties.length === 0 && !isLoading && (
         <div className="text-center py-12">
           <p className="text-muted-foreground text-lg">
             No parties found. Check back later!
