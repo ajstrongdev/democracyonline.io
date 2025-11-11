@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
 import { auth } from "@/lib/firebase";
 import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
@@ -20,7 +22,6 @@ import { Slider } from "@/components/ui/slider";
 import { leanings } from "../parties/create/page";
 import { LaunchCountdown } from "@/components/LaunchCountdown";
 import { Info, AlertTriangle } from "lucide-react";
-import { Alert } from "@/components/ui/alert";
 
 export default function Home() {
   const [createUserWithEmailAndPassword] =
