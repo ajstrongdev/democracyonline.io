@@ -359,6 +359,11 @@ resource "google_cloud_run_v2_service" "app" {
         name  = "NEXT_PUBLIC_SITE_URL"
         value = "https://${var.custom_domain}"
       }
+
+      env {
+        name  = "ADMIN_EMAILS"
+        value = var.admin_emails
+      }
     }
 
     # Cloud SQL Proxy connection

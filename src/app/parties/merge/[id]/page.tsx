@@ -8,8 +8,7 @@ import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
-import { fetchUserInfo } from "@/app/utils/userHelper";
-import axios from "axios";
+import { trpc } from "@/lib/trpc";
 import GenericSkeleton from "@/components/genericskeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,8 +35,8 @@ function MergePartyPage() {
   const [user] = useAuthState(auth);
   const router = useRouter();
   const params = useParams();
+  const utils = trpc.useUtils();
   const id = params.id; // This is the current party ID
-  const queryClient = useQueryClient();
   const [leaning, setLeaning] = useState([3]);
   const [selectedLogo, setSelectedLogo] = useState<string | null>(null);
   const [selectedTargetPartyId, setSelectedTargetPartyId] = useState<
@@ -46,69 +45,59 @@ function MergePartyPage() {
   const [activeTab, setActiveTab] = useState("view");
 
   // Get current user info
-  const { data: thisUser } = useQuery({
-    queryKey: ["user", user?.email],
-    queryFn: async () => {
-      if (user && user.email) {
-        const userDetails = await fetchUserInfo(user.email);
-        return userDetails || null;
-      }
-      return null;
-    },
-    enabled: !!user?.email,
-  });
+  const { data: thisUser } = trpc.user.getByEmail.useQuery(
+    { email: user?.email || "" },
+    { enabled: !!user?.email }
+  );
 
-  // Get current party info
-  const { data: currentParty, isLoading: partyLoading } = useQuery({
-    queryKey: ["party", id],
-    queryFn: async () => {
-      const response = await axios.get("/api/get-party-by-id", {
-        params: { partyId: id },
-      });
-      return response.data;
-    },
-    enabled: !!id,
-  });
+  const {
+    data: currentParty,
+    isLoading: partyLoading
+  } = trpc.party.getById.useQuery({ partyId: Number(id) });
 
-  const { data: allParties = [] } = useQuery({
-    queryKey: ["allParties"],
-    queryFn: async () => {
-      const response = await axios.get("/api/party-list");
-      return response.data;
-    },
-  });
+  const { data: allParties = [] } = trpc.party.list.useQuery();
 
-  const { data: stances } = useQuery({
-    queryKey: ["stances"],
-    queryFn: async () => {
-      const res = await axios.get("/api/get-stance-types");
-      return res.data?.types || [];
-    },
-  });
+  const { data: stances = [] } = trpc.party.stanceTypes.useQuery();
 
   const { data: mergeRequests = [], isLoading: mergeRequestsLoading } =
-    useQuery({
-      queryKey: ["mergeRequests", id],
-      queryFn: async () => {
-        const response = await axios.get("/api/party-merge-requests-get", {
-          params: { partyId: id },
-        });
-        return response.data;
-      },
-      enabled: !!id,
-    });
+    trpc.party.mergeListIncoming.useQuery(
+      { partyId: Number(id) },
+      { enabled: !!id }
+    );
 
   // Get sent merge requests from this party (as sender)
-  const { data: sentMergeRequests = [] } = useQuery({
-    queryKey: ["sentMergeRequests", id],
-    queryFn: async () => {
-      const response = await axios.get("/api/party-merge-requests-sent", {
-        params: { partyId: id },
-      });
-      return response.data;
+  const { data: sentMergeRequests = [] } = trpc.party.mergeListSent.useQuery(
+    { partyId: Number(id) },
+    { enabled: !!id }
+  );
+
+  const mergeCreate = trpc.party.mergeCreate.useMutation();
+
+  const mergeAccept = trpc.party.mergeAccept.useMutation({
+    onSuccess: async (data) => {
+      toast.success("Merge request accepted! Parties have been merged.");
+      const newPartyId = (data as any)?.newPartyId;
+
+      // Cancel old party queries to stop 403/404 spam
+      await utils.party.mergeListIncoming.cancel({ partyId: Number(id) });
+      await utils.party.mergeListSent.cancel({ partyId: Number(id) });
+      await utils.party.getById.cancel({ partyId: Number(id) });
+
+      // Refresh list and pre-invalidate target detail (optional)
+      await utils.party.list.invalidate();
+      if (newPartyId) {
+        await utils.party.getById.invalidate({ partyId: newPartyId });
+        router.push(`/parties/${newPartyId}`);
+      } else {
+        router.push(`/parties`);
+      }
     },
-    enabled: !!id,
+    onError: (error: any) => {
+      toast.error(error?.message || "Error accepting merge request");
+    },
   });
+
+  const mergeReject = trpc.party.mergeReject.useMutation();
 
   const handleCreateMergeRequest = async (
     e: React.FormEvent<HTMLFormElement>
@@ -154,9 +143,9 @@ function MergePartyPage() {
     });
 
     try {
-      await axios.post("/api/party-merge-request-create", {
+      await mergeCreate.mutateAsync({
         senderPartyId: currentParty.id,
-        receiverPartyId: selectedTargetPartyId,
+        receiverPartyId: selectedTargetPartyId!,
         mergedPartyData: {
           name,
           color,
@@ -167,9 +156,8 @@ function MergePartyPage() {
         },
       });
       toast.success("Merge request sent successfully!");
-      queryClient.invalidateQueries({ queryKey: ["mergeRequests", id] });
-      queryClient.invalidateQueries({ queryKey: ["sentMergeRequests", id] });
-      queryClient.invalidateQueries({ queryKey: ["mergeRequestCount", id] });
+      await utils.party.mergeListIncoming.invalidate({ partyId: Number(id) });
+      await utils.party.mergeListSent.invalidate({ partyId: Number(id) });
       form.reset();
       setLeaning([3]);
       setSelectedLogo(null);
@@ -183,38 +171,19 @@ function MergePartyPage() {
     }
   };
 
-  const handleAcceptMergeRequest = async (mergeRequestId: number) => {
-    try {
-      const response = await axios.post("/api/party-merge-request-accept", {
-        mergeRequestId,
-        partyId: id,
-      });
-      toast.success("Merge request accepted! Parties have been merged.");
-      queryClient.invalidateQueries({ queryKey: ["mergeRequests", id] });
-      queryClient.invalidateQueries({ queryKey: ["party", id] });
-      queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
-      queryClient.invalidateQueries({ queryKey: ["allParties"] });
-      if (response.data.newPartyId) {
-        router.push(`/parties/${response.data.newPartyId}`);
-      }
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.error || "Error accepting merge request"
-      );
-    }
+  const handleAcceptMergeRequest = (mergeRequestId: number) => {
+    mergeAccept.mutate({ mergeRequestId, partyId: Number(id) });
   };
 
   const handleRejectMergeRequest = async (mergeRequestId: number) => {
     try {
-      await axios.post("/api/party-merge-request-reject", {
+      await mergeReject.mutateAsync({
         mergeRequestId,
-        partyId: id,
+        partyId: Number(id),
       });
       toast.success("Merge request rejected");
-      queryClient.invalidateQueries({ queryKey: ["mergeRequests", id] });
-      queryClient.invalidateQueries({ queryKey: ["mergeRequestCount", id] });
-      // Redirect back to party page
-      router.push(`/parties/${id}`);
+      await utils.party.mergeListIncoming.invalidate({ partyId: Number(id) });
+      await utils.party.mergeListSent.invalidate({ partyId: Number(id) });
     } catch (error: any) {
       toast.error(
         error.response?.data?.error || "Error rejecting merge request"

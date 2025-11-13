@@ -4,12 +4,11 @@ import withAuth from "@/lib/withAuth";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import axios from "axios";
+import { trpc } from "@/lib/trpc";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
-import { fetchUserInfo, getUserFullById } from "@/app/utils/userHelper";
 import { Party } from "@/app/utils/partyHelper";
 import { Chat } from "@/components/Chat";
 import { CandidatesChart } from "@/components/CandidateChart";
@@ -19,78 +18,51 @@ import { useState } from "react";
 
 function SenateElections() {
   const [user] = useAuthState(auth);
-  const queryClient = useQueryClient();
+  const utils = trpc.useUtils();
   const [showCandidacyDialog, setShowCandidacyDialog] = useState(false);
 
   // Get user info
-  const { data: thisUser } = useQuery({
-    queryKey: ["user", user?.email],
-    queryFn: () =>
-      fetchUserInfo(user?.email || "").then((data) => data || null),
-    enabled: !!user?.email,
-  });
+  const { data: thisUser } = trpc.user.getByEmail.useQuery(
+    { email: user?.email || "" },
+    { enabled: !!user?.email }
+  );
+
   // Get election info
-  const {
-    data: electionInfo,
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
-    queryKey: ["electionInfo", "Senate"],
-    queryFn: () =>
-      axios
-        .get("/api/election-info", { params: { election: "Senate" } })
-        .then((res) => res.data),
-    enabled: !!thisUser,
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
+  const { data: electionInfo, isLoading, isError } = trpc.election.info.useQuery(
+    { election: "Senate" },
+    { enabled: !!thisUser, refetchOnWindowFocus: false, retry: false }
+  );
+
   // Get candidates - always fetch when we have election info
   const {
     data: candidates,
     refetch: refetchCandidates,
     isLoading: candidatesLoading,
-  } = useQuery({
-    queryKey: ["candidates", "Senate"],
-    queryFn: () =>
-      axios
-        .get("/api/election-get-candidates", {
-          params: { election: "Senate" },
-        })
-        .then((res) => res.data),
-    enabled: !!electionInfo,
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
+  } = trpc.election.getCandidates.useQuery(
+    { election: "Senate" },
+    { enabled: !!electionInfo, refetchOnWindowFocus: false, retry: false }
+  );
 
   // Check if user is a candidate in any election
-  const { data: isCandidateData } = useQuery({
-    queryKey: ["isCandidate", thisUser?.id],
-    queryFn: () =>
-      axios
-        .post("/api/election-is-candidate", {
-          candidate: thisUser?.id,
-        })
-        .then((res) => res.data),
-    enabled: !!thisUser,
-  });
+  const { data: isCandidateData } = trpc.election.isCandidate.useQuery(
+    { userId: thisUser?.id },
+    { enabled: !!thisUser }
+  );
 
   const isACandidate = isCandidateData?.isCandidate || false;
 
   // Check if user has voted
-  const { data: hasVotedData, refetch: refetchHasVoted } = useQuery({
-    queryKey: ["hasVoted", "Senate", thisUser?.id],
-    queryFn: () =>
-      axios
-        .post("/api/elections-has-voted", {
-          userId: thisUser?.id,
-          election: "Senate",
-        })
-        .then((res) => res.data),
-    enabled: !!thisUser && !!electionInfo && electionInfo.status === "Voting",
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
+  const {
+    data: hasVotedData,
+    refetch: refetchHasVoted,
+  } = trpc.election.hasVoted.useQuery(
+    { userId: thisUser?.id, election: "Senate" },
+    {
+      enabled: !!thisUser && !!electionInfo && electionInfo.status === "Voting",
+      refetchOnWindowFocus: false,
+      retry: false,
+    }
+  );
 
   const maxVotes = hasVotedData?.maxVotes || 0;
   const votesRemaining = hasVotedData?.votesRemaining || 0;
@@ -103,22 +75,19 @@ function SenateElections() {
     userId: number;
     candidateId: number;
   }) => {
-    const { data: candidateUser, isLoading: userLoading } = useQuery({
-      queryKey: ["candidateUser", userId],
-      queryFn: () => getUserFullById(Number(userId), true),
-      enabled: !!userId,
-    });
+    const { data: candidateUser, isLoading: userLoading } =
+      trpc.user.getById.useQuery(
+        { userId: Number(userId), omitEmail: true },
+        { enabled: !!userId }
+      );
 
-    const { data: party, isLoading: partyLoading } = useQuery<Party>({
-      queryKey: ["party", candidateUser?.party_id],
-      queryFn: () =>
-        axios
-          .get("/api/get-party-by-id", {
-            params: { partyId: candidateUser?.party_id },
-          })
-          .then((res) => res.data),
-      enabled: !!candidateUser?.party_id,
-    });
+    const {
+      data: party,
+      isLoading: partyLoading
+    } = trpc.party.getById.useQuery(
+      { partyId: candidateUser?.party_id },
+      { enabled: !!candidateUser?.party_id }
+    );
 
     if (userLoading) {
       return <GenericSkeleton />;
@@ -194,22 +163,13 @@ function SenateElections() {
     userId: number;
     votes: number;
   }) => {
-    const { data: candidateUser, isLoading: userLoading } = useQuery({
-      queryKey: ["candidateUser", userId],
-      queryFn: () => getUserFullById(Number(userId), true),
-      enabled: !!userId,
-    });
+    const { data: candidateUser, isLoading: userLoading } =
+      trpc.user.getById.useQuery(
+        { userId: Number(userId), omitEmail: true },
+        { enabled: !!userId }
+      );
 
-    const { data: party } = useQuery<Party>({
-      queryKey: ["party", candidateUser?.party_id],
-      queryFn: () =>
-        axios
-          .get("/api/get-party-by-id", {
-            params: { partyId: candidateUser?.party_id },
-          })
-          .then((res) => res.data),
-      enabled: !!candidateUser?.party_id,
-    });
+    const { data: party } = trpc.party.getById.useQuery({ partyId: Number(id) });
 
     if (userLoading) {
       return <GenericSkeleton />;
@@ -238,67 +198,48 @@ function SenateElections() {
     );
   };
 
+  const addFeed = trpc.feed.add.useMutation();
+
+  const stand = trpc.election.stand.useMutation({
+    onSuccess: async () => {
+      await utils.election.getCandidates.invalidate({ election: "Senate" });
+      await addFeed.mutateAsync({ content: `Is running as a candidate for the Senate.` });
+    },
+  });
+
   const handleCandidacyConfirm = async () => {
     if (!thisUser) return;
-    try {
-      await axios.post("/api/election-stand-candidate", {
-        userId: thisUser.id,
-        election: "Senate",
-      });
-      await refetch();
-      await refetchCandidates();
-      await axios.post("/api/feed-add", {
-        userId: thisUser.id,
-        content: `Is running as a candidate for the Senate.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["candidates", "Senate"] });
-    } catch (error) {
-      console.error("Error standing as candidate:", error);
-    }
+    await stand.mutateAsync({ election: "Senate" });
   };
+
+  const withdraw = trpc.election.withdraw.useMutation({
+    onSuccess: async () => {
+      await utils.election.getCandidates.invalidate({ election: "Senate" });
+      await utils.election.isCandidate.invalidate({ userId: thisUser?.id });
+      await addFeed.mutateAsync({ content: `Is no longer running as a candidate for the Senate.` });
+    },
+  });
+
 
   const revokeCandidacy = async () => {
     if (!thisUser) return;
-    try {
-      await axios.post("/api/election-remove-candidate", {
-        userId: thisUser.id,
-        election: "Senate",
-      });
-      await refetch();
-      await refetchCandidates();
-      await axios.post("/api/feed-add", {
-        userId: thisUser.id,
-        content: `Is no longer running as a candidate for the Senate.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["candidates", "Senate"] });
-      queryClient.invalidateQueries({ queryKey: ["isCandidate", thisUser.id] });
-    } catch (error) {
-      console.error("Error revoking candidacy:", error);
-    }
+    await withdraw.mutateAsync({ election: "Senate" });
   };
 
   const standAsCandidate = () => {
     setShowCandidacyDialog(true);
   };
 
+  const voteMutation = trpc.election.vote.useMutation({
+    onSuccess: async () => {
+      await utils.election.getCandidates.invalidate({ election: "Senate" });
+      await utils.election.hasVoted.invalidate({ userId: thisUser?.id, election: "Senate" });
+    },
+  });
+
   const voteForCandidate = async (candidateId: number) => {
     if (!thisUser) return;
-    try {
-      await axios.post("/api/elections-vote", {
-        userId: thisUser.id,
-        candidateId,
-        election: "Senate",
-      });
-      await refetch();
-      await refetchCandidates();
-      await refetchHasVoted();
-      queryClient.invalidateQueries({ queryKey: ["candidates", "Senate"] });
-      queryClient.invalidateQueries({
-        queryKey: ["hasVoted", "Senate", thisUser.id],
-      });
-    } catch (error) {
-      console.error("Error voting for candidate:", error);
-    }
+    await voteMutation.mutateAsync({ candidateId, election: "Senate" });
   };
 
   const isAlreadyCandidate =

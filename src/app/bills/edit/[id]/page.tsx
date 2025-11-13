@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import withAuth from "@/lib/withAuth";
-import axios from "axios";
+import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,63 +11,53 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
-import { fetchUserInfo } from "@/app/utils/userHelper";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import GenericSkeleton from "@/components/genericskeleton";
 
 function EditBill() {
+  const [user] = useAuthState(auth);
   const router = useRouter();
   const params = useParams();
+  const utils = trpc.useUtils();
   const billId = params.id as string;
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetchingBill, setFetchingBill] = useState(true);
-  const [user] = useAuthState(auth);
   const [error, setError] = useState<string | null>(null);
 
+  const { data: bill, isLoading: billLoading } = trpc.bill.get.useQuery(
+    { id: Number(billId) },
+    { enabled: !!billId }
+  );
+
   useEffect(() => {
-    const loadBill = async () => {
-      if (!billId) {
-        setError("Bill ID is missing");
-        setFetchingBill(false);
-        return;
-      }
-
-      try {
-        const res = await axios.get(`/api/bills-get?id=${billId}`);
-        const bill = res.data.bill;
-
-        // Check if user is the creator
-        const userInfo = await fetchUserInfo(user?.email || "");
-        if (bill.creator_id !== userInfo?.id) {
-          toast.error("You can only edit bills you created");
-          router.push("/bills");
-          return;
-        }
-
-        // Check if bill is still in Queued status
-        if (bill.status !== "Queued") {
-          toast.error("Only bills in 'Queued' status can be edited");
-          router.push("/bills");
-          return;
-        }
-
-        setTitle(bill.title);
-        setContent(bill.content);
-        setFetchingBill(false);
-      } catch (err) {
-        console.error("Error fetching bill:", err);
-        toast.error("Failed to load bill");
-        router.push("/bills");
-      }
-    };
-
-    if (user) {
-      loadBill();
+    if (!billId) {
+      setError("Bill ID is missing");
+      setFetchingBill(false);
+      return;
     }
-  }, [billId, user]);
+    if (!billLoading && bill) {
+      setTitle(bill.title);
+      setContent(bill.content);
+      setFetchingBill(false);
+    }
+  }, [billId, billLoading, bill]);
+
+  const addFeed = trpc.feed.add.useMutation();
+
+  const updateBill = trpc.bill.update.useMutation({
+    onSuccess: async (b) => {
+      toast.success("Bill updated successfully!");
+      await utils.bill.get.invalidate({ id: Number(billId) });
+      await utils.bill.listAll.invalidate();
+      addFeed.mutate({ content: `Updated bill #${b.id}: "${title}"` });
+      router.push("/bills");
+    },
+    onError: (err) =>
+      toast.error((err as any)?.message || "Failed to update bill."),
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,49 +65,14 @@ function EditBill() {
       toast.error("Title and content are required.");
       return;
     }
+
     setLoading(true);
-    try {
-      const userInfo = await fetchUserInfo(user?.email || "");
-      if (!userInfo?.id) {
-        toast.error("Could not determine user ID.");
-        setLoading(false);
-        return;
-      }
-
-      // Re-verify bill ownership and status before submitting
-      const billCheck = await axios.get(`/api/bills-get?id=${billId}`);
-      const bill = billCheck.data.bill;
-
-      if (bill.creator_id !== userInfo.id) {
-        toast.error("Unauthorized: You can only edit bills you created");
-        router.push("/bills");
-        return;
-      }
-
-      if (bill.status !== "Queued") {
-        toast.error("Cannot edit: Only bills in 'Queued' status can be edited");
-        router.push("/bills");
-        return;
-      }
-
-      const res = await axios.post("/api/bills-update", {
-        id: parseInt(billId),
-        title,
-        content,
-        creator_id: userInfo.id,
-      });
-      await axios.post("/api/feed-add", {
-        userId: userInfo.id,
-        content: `Updated bill #${res.data.id}: "${title}"`,
-      });
-      toast.success("Bill updated successfully!");
-      router.push("/bills");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Failed to update bill.");
-    } finally {
-      setLoading(false);
-    }
+    await updateBill.mutateAsync({
+      id: Number(billId),
+      title,
+      content,
+    });
+    setLoading(false);
   };
 
   if (fetchingBill) {

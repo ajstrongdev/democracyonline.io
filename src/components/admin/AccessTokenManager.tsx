@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
-import axios from "axios";
+import { trpc } from "@/lib/trpc";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { RefreshCw, Trash2, Copy, Plus } from "lucide-react";
@@ -38,92 +38,42 @@ interface AccessTokenManagerProps {
 export default function AccessTokenManager({
   onRefresh,
 }: AccessTokenManagerProps) {
-  const [user] = useAuthState(auth);
-  const [tokens, setTokens] = useState<AccessToken[]>([]);
-  const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tokenToDelete, setTokenToDelete] = useState<AccessToken | null>(null);
 
-  const fetchTokens = async () => {
-    if (!user) return;
+  const {
+    data: tokens = [],
+    isLoading: loading,
+    refetch,
+  } = trpc.admin.accessTokensList.useQuery();
 
-    try {
-      setLoading(true);
-      const idToken = await user.getIdToken();
+  const createToken = trpc.admin.accessTokenCreate.useMutation({
+    onSuccess: async () => {
+      toast.success('Access token created successfully');
+      await refetch();
+      if (onRefresh) await onRefresh();
+    },
+    onError: () => toast.error('Failed to create access token'),
+  });
 
-      const response = await axios.post(
-        "/api/admin/access-tokens/list",
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
-        }
-      );
-
-      setTokens(response.data.tokens);
-    } catch (error) {
-      console.error("Error fetching tokens:", error);
-      toast.error("Failed to load access tokens");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTokens();
-  }, [user]);
+  const deleteToken = trpc.admin.accessTokenDelete.useMutation({
+    onSuccess: async () => {
+      toast.success('Access token deleted successfully');
+      setDeleteDialogOpen(false);
+      setTokenToDelete(null);
+      await refetch();
+      if (onRefresh) await onRefresh();
+    },
+    onError: () => toast.error('Failed to delete access token'),
+  });
 
   const handleCreateToken = async () => {
-    if (!user) return;
-
-    try {
-      const idToken = await user.getIdToken();
-
-      const response = await axios.post(
-        "/api/admin/access-tokens/create",
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
-        }
-      );
-
-      toast.success("Access token created successfully");
-      fetchTokens();
-      if (onRefresh) await onRefresh();
-    } catch (error) {
-      console.error("Error creating token:", error);
-      toast.error("Failed to create access token");
-    }
+    createToken.mutate();
   };
 
   const handleDeleteToken = async () => {
-    if (!user || !tokenToDelete) return;
-
-    try {
-      const idToken = await user.getIdToken();
-
-      await axios.post(
-        "/api/admin/access-tokens/delete",
-        { tokenId: tokenToDelete.id },
-        {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
-        }
-      );
-
-      toast.success("Access token deleted successfully");
-      setDeleteDialogOpen(false);
-      setTokenToDelete(null);
-      fetchTokens();
-      if (onRefresh) await onRefresh();
-    } catch (error) {
-      console.error("Error deleting token:", error);
-      toast.error("Failed to delete access token");
-    }
+    if (!tokenToDelete) return;
+    deleteToken.mutate({ tokenId: tokenToDelete.id });
   };
 
   const copyToClipboard = (token: string) => {
@@ -152,12 +102,7 @@ export default function AccessTokenManager({
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchTokens}
-                disabled={loading}
-              >
+              <Button variant="outline" size="sm" onClick={() => refetch()} disabled={loading}>
                 <RefreshCw
                   className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
                 />

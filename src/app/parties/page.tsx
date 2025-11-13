@@ -12,10 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import axios from "axios";
+import { trpc } from "@/lib/trpc";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Handshake, Users, Crown, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Party } from "@/app/utils/partyHelper";
@@ -55,62 +54,16 @@ interface PartyStats {
 function Home() {
   const [user] = useAuthState(auth);
 
-  const { data: parties = [] as Party[], isLoading: partiesLoading } = useQuery(
-    {
-      queryKey: ["parties"],
-      queryFn: async () => {
-        const response = await axios.get("/api/party-list");
-        return response.data;
-      },
-    }
+  const { data: parties = [], isLoading: partiesLoading } =
+    trpc.party.list.useQuery();
+
+  const { data: partyStats = [], isLoading: statsLoading } =
+    trpc.party.leaderboard.useQuery();
+
+  const { data: thisUser } = trpc.user.getByEmail.useQuery(
+    { email: user?.email || "" },
+    { enabled: !!user?.email }
   );
-
-  const { data: partyStats = [] as PartyStats[], isLoading: statsLoading } =
-    useQuery({
-      queryKey: ["party-stats", parties],
-      queryFn: async () => {
-        if (!parties || parties.length === 0) return [];
-
-        const statsPromises = parties.map(async (party: Party) => {
-          try {
-            const membersResponse = await axios.get(
-              `/api/party-members?partyId=${party.id}`
-            );
-            const members = membersResponse.data;
-            return {
-              party,
-              memberCount: members.length,
-              members,
-            };
-          } catch (error) {
-            console.error(
-              `Error fetching members for party ${party.id}:`,
-              error
-            );
-            return {
-              party,
-              memberCount: 0,
-              members: [],
-            };
-          }
-        });
-
-        return Promise.all(statsPromises);
-      },
-      enabled: parties.length > 0,
-    });
-
-  const { data: thisUser } = useQuery({
-    queryKey: ["user", user?.email],
-    queryFn: async () => {
-      if (user && user.email) {
-        const userDetails = await fetchUserInfo(user.email);
-        return userDetails || null;
-      }
-      return null;
-    },
-    enabled: !!user?.email,
-  });
 
   const isLoading = partiesLoading || statsLoading;
 

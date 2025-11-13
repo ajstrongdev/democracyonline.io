@@ -4,7 +4,6 @@ import withAuth from "@/lib/withAuth";
 import React, { useState, useEffect } from "react";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { fetchUserInfo } from "@/app/utils/userHelper";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
@@ -19,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import axios from "axios";
+import { trpc } from "@/lib/trpc";
 import {
   updatePassword,
   EmailAuthProvider,
@@ -48,12 +47,10 @@ function UserSettings() {
   const [bio, setBio] = useState("");
   const [leaning, setLeaning] = useState([3]);
 
-  const { data: thisUser } = useQuery({
-    queryKey: ["user", user?.email],
-    queryFn: () =>
-      fetchUserInfo(user?.email || "").then((data) => data || null),
-    enabled: !!user?.email,
-  });
+  const { data: thisUser } = trpc.user.getByEmail.useQuery(
+    { email: user?.email || ''},
+    { enabled: !!user?.email }
+  );
 
   useEffect(() => {
     if (thisUser) {
@@ -70,27 +67,14 @@ function UserSettings() {
     }
   }, [thisUser]);
 
-  const updateProfileMutation = useMutation({
-    mutationFn: async (data: {
-      username: string;
-      bio: string;
-      political_leaning: string;
-    }) => {
-      const response = await axios.post("/api/user-update", {
-        userId: thisUser?.id,
-        username: data.username,
-        bio: data.bio,
-        political_leaning: data.political_leaning,
-      });
-      return response.data;
-    },
-    onSuccess: () => {
-      toast.success("Profile updated successfully!");
-      queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
+  const updateProfileMutation = trpc.user.updateProfile.useMutation({
+    onSuccess: async () => {
+      toast.success('Profile updated successfully!');
+      trpcUtils.user.getByEmail.invalidate({ email: user?.email || '' });
       setIsEditingProfile(false);
     },
     onError: () => {
-      toast.error("Failed to update profile");
+      toast.error('Failed to update profile');
     },
   });
 
@@ -150,7 +134,8 @@ function UserSettings() {
       return;
     }
 
-    updateProfileMutation.mutate({
+    updateProfile.mutate({
+      userId: thisUser!.id,
       username: username.trim(),
       bio: bio.trim(),
       political_leaning: leanings[leaning[0]],

@@ -5,7 +5,6 @@ import { auth } from "@/lib/firebase";
 import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import axios from "axios";
 import {
   Card,
   CardContent,
@@ -22,6 +21,7 @@ import { Slider } from "@/components/ui/slider";
 import { leanings } from "../parties/create/page";
 import { LaunchCountdown } from "@/components/LaunchCountdown";
 import { Info, AlertTriangle } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 
 export default function Home() {
   const [createUserWithEmailAndPassword] =
@@ -41,61 +41,59 @@ export default function Home() {
     setIsLaunched(new Date() >= launchTime);
   }, [launchTime]);
 
+  const validateToken = trpc.accessToken.validate.useQuery(
+    { token: accessToken },
+    {
+      enabled: accessToken.trim().length > 0, // only validate when token present
+      retry: false,
+    }
+  );
+
+  const consumeToken = trpc.accessToken.consume.useMutation();
+  const createDbUser = trpc.user.create.useMutation();
+  const addFeed = trpc.feed.add.useMutation();
+
   const signUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
 
+    // Ensure token has been validated
+    // If you prefer to validate on submit instead of live, call a utils.fetch here instead.
+    if (!validateToken.data || !validateToken.data.valid) {
+      setError(validateToken.data?.error || "Invalid access token");
+      return;
+    }
+
     try {
-      // Validate access token first
-      const tokenValidation = await axios.post("/api/access-token/validate", {
-        token: accessToken,
-      });
-
-      if (!tokenValidation.data.valid) {
-        setError(tokenValidation.data.error || "Invalid access token");
-        return;
-      }
-
       // Create Firebase user
       const res = await createUserWithEmailAndPassword(email, password);
-      if (res?.user) {
-        console.log("User created:", res.user);
-        const leaningItem = leanings[leaning[0]];
-        await insertUserToDatabase(email, username, bio, leaningItem);
+      if (!res?.user) return;
 
-        // Consume the access token after successful signup
-        await axios.post("/api/access-token/consume", {
-          token: accessToken,
-        });
-
-        router.push("/profile");
-      }
-    } catch (err: any) {
-      console.error("Error creating user:", err);
-      setError(err.response?.data?.error || "An error occurred during signup");
-    }
-  };
-
-  const insertUserToDatabase = async (
-    email: string,
-    username: string,
-    bio: string,
-    leaning: string
-  ) => {
-    try {
-      const response = await axios.post("/api/create-user", {
+      // Create DB user via tRPC
+      const leaningItem = leanings[leaning[0]];
+      await createDbUser.mutateAsync({
         email,
         username,
         bio,
-        leaning,
+        leaning: leaningItem,
       });
-      console.log("User inserted into database:", response.data);
-      await axios.post("/api/feed-add", {
-        userId: response.data.id,
-        content: "Just spawned into existence!",
-      });
-    } catch (error) {
-      console.error("Error inserting user into database:", error);
+
+      // Add a feed item (optional)
+      try {
+        await addFeed.mutateAsync({
+          content: "Just spawned into existence!",
+        });
+      } catch {
+        // Non-blocking
+      }
+
+      // Consume the access token after successful signup
+      await consumeToken.mutateAsync({ token: accessToken });
+
+      router.push("/profile");
+    } catch (err: any) {
+      console.error("Error creating user:", err);
+      setError(err?.message || "An error occurred during signup");
     }
   };
 

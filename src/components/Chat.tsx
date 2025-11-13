@@ -3,8 +3,7 @@
 
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import { trpc } from "@/lib/trpc";
 
 interface Chat {
   id: number;
@@ -21,32 +20,16 @@ interface ChatProps {
 }
 
 export function Chat({ room, userId, username, title = "Chat" }: ChatProps) {
-  const queryClient = useQueryClient();
+  const utils = trpc.useUtils();
 
-  const getChats = useQuery({
-    queryKey: ["chats", room],
-    queryFn: async () => {
-      const response = await axios.post("/api/get-chats", {
-        room,
-      });
-      return response.data.chats;
-    },
-    enabled: !!room,
-    refetchInterval: 10000, // Refresh every 10 secs
-  });
+  const getChats = trpc.chat.listByRoom.useQuery(
+    { room },
+    { enabled: !!room, refetchInterval: 10000 }
+  );
 
-  const addChat = useMutation({
-    mutationFn: async (message: string) => {
-      const res = await axios.post("/api/chats-add", {
-        user_id: userId,
-        room,
-        username,
-        message,
-      });
-      return res.data;
-    },
+  const addChat = trpc.chat.add.useMutation({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats", room] });
+      utils.chat.listByRoom.invalidate({ room });
     },
   });
 
@@ -88,7 +71,7 @@ export function Chat({ room, userId, username, title = "Chat" }: ChatProps) {
               "message"
             ) as HTMLInputElement;
             if (input.value.trim() === "") return;
-            addChat.mutate(input.value);
+            addChat.mutate({ room, username, message: input.value });
             input.value = "";
           }}
         >

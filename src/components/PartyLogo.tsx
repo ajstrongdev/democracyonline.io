@@ -5,6 +5,7 @@ import React from "react";
 import * as LucideIcons from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
+import { trpc } from "@/lib/trpc";
 
 type PartyData = {
   id: string;
@@ -21,17 +22,10 @@ export default function PartyLogo({
   size?: number;
 }) {
   // Get party info including logo
-  const { data: partyData, isLoading } = useQuery({
-    queryKey: ["partyInfo", party_id],
-    queryFn: async (): Promise<PartyData | null> => {
-      const response = await fetch(`/api/get-party-by-id?partyId=${party_id}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch party info");
-      }
-      return response.json();
-    },
-    enabled: !!party_id,
-  });
+  const { data: partyData, isLoading } = trpc.party.getById.useQuery(
+    { partyId: party_id },
+    { enabled: !!party_id }
+  );
 
   if (isLoading) {
     return <Spinner />;

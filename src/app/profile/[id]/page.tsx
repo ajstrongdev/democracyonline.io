@@ -4,7 +4,7 @@
 import withAuth from "@/lib/withAuth";
 import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchUserInfo, getUserFullById } from "@/app/utils/userHelper";
+import { trpc } from "@/lib/trpc";
 import GenericSkeleton from "@/components/genericskeleton";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import Link from "next/link";
@@ -19,57 +19,26 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [user] = useAuthState(auth);
 
-  const { data: thisUser, isLoading: isThisUserLoading } = useQuery({
-    queryKey: ["fetchUserInfo", user?.email],
-    queryFn: async () => {
-      return fetchUserInfo(user?.email || "").then((data) => data || null);
-    },
-    enabled: !!user?.email,
-  });
+  const { data: thisUser, isLoading: isThisUserLoading } =
+    trpc.user.getByEmail.useQuery(
+      { email: user?.email || "" },
+      { enabled: !!user?.email }
+    );
 
-  const {
-    data: userData,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["userInfo", id],
-    queryFn: async () => {
-      return getUserFullById(Number(id), true).then((data) => data || null);
-    },
-    enabled: !!id,
-    retry: false,
-  });
+  const { data: userData, isLoading, error } = trpc.user.getById.useQuery(
+    { userId: Number(id), omitEmail: true },
+    { enabled: !!id, retry: false }
+  );
 
-  const { data: partyData, isLoading: partyLoading } = useQuery({
-    queryKey: ["partyInfo", userData?.party_id],
-    queryFn: async () => {
-      if (!userData?.party_id) return null;
-      return fetch(`/api/get-party-by-id?partyId=${userData.party_id}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => data || null);
-    },
-    enabled: !!userData?.party_id,
-  });
+  const { data: partyData, isLoading: partyLoading } = trpc.party.getById.useQuery(
+    { partyId: Number(userData?.party_id) },
+    { enabled: !!userData?.party_id }
+  );
 
-  const { data: votesData, isLoading: votesLoading } = useQuery({
-    queryKey: ["userVotes", id],
-    queryFn: async () => {
-      return fetch(`/api/bill-get-user-votes?userId=${id}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => data.votes || []);
-    },
-    enabled: !!id,
-  });
+  const { data: votesData, isLoading: votesLoading } = trpc.bill.getUserVotes.useQuery(
+    { userId: Number(id) },
+    { enabled: !!id }
+  );
 
   if (isLoading || partyLoading || votesLoading || isThisUserLoading) {
     return <GenericSkeleton />;

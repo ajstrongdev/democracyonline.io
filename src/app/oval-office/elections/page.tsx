@@ -4,13 +4,11 @@ import withAuth from "@/lib/withAuth";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import axios from "axios";
+import { trpc } from "@/lib/trpc";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
-import { fetchUserInfo } from "@/app/utils/userHelper";
-import { getUserFullById } from "@/app/utils/userHelper";
 import { Party } from "@/app/utils/partyHelper";
 import { Chat } from "@/components/Chat";
 import { CandidatesChart } from "@/components/CandidateChart";
@@ -20,78 +18,43 @@ import { useState } from "react";
 
 function PresidentElections() {
   const [user] = useAuthState(auth);
-  const queryClient = useQueryClient();
+  const utils = trpc.useUtils();
   const [showCandidacyDialog, setShowCandidacyDialog] = useState(false);
 
   // Get user info
-  const { data: thisUser } = useQuery({
-    queryKey: ["user", user?.email],
-    queryFn: () =>
-      fetchUserInfo(user?.email || "").then((data) => data || null),
-    enabled: !!user?.email,
-  });
-  // Get election info
-  const {
-    data: electionInfo,
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
-    queryKey: ["electionInfo", "President"],
-    queryFn: () =>
-      axios
-        .get("/api/election-info", { params: { election: "President" } })
-        .then((res) => res.data),
-    enabled: !!thisUser,
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
+  const { data: thisUser } = trpc.user.getByEmail.useQuery(
+    { email: user?.email || "" },
+    { enabled: !!user?.email }
+  );
+
+  const { data: electionInfo, isLoading, isError } = trpc.election.info.useQuery(
+    { election: "President" },
+    { enabled: !!thisUser, refetchOnWindowFocus: false, retry: false }
+  );
+
   // Get candidates - always fetch when we have election info
   const {
     data: candidates,
     refetch: refetchCandidates,
     isLoading: candidatesLoading,
-  } = useQuery({
-    queryKey: ["candidates", "President"],
-    queryFn: () =>
-      axios
-        .get("/api/election-get-candidates", {
-          params: { election: "President" },
-        })
-        .then((res) => res.data),
-    enabled: !!electionInfo,
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
+  } = trpc.election.getCandidates.useQuery(
+    { election: "President" },
+    { enabled: !!electionInfo, refetchOnWindowFocus: false, retry: false }
+  );
 
   // Check if user is a candidate in any election
-  const { data: isCandidateData } = useQuery({
-    queryKey: ["isCandidate", thisUser?.id],
-    queryFn: () =>
-      axios
-        .post("/api/election-is-candidate", {
-          candidate: thisUser?.id,
-        })
-        .then((res) => res.data),
-    enabled: !!thisUser,
-  });
+  const { data: isCandidateData } = trpc.election.isCandidate.useQuery(
+    { userId: thisUser?.id },
+    { enabled: !!thisUser }
+  );
 
   const isACandidate = isCandidateData?.isCandidate || false;
 
   // Check if user has voted
-  const { data: hasVotedData, refetch: refetchHasVoted } = useQuery({
-    queryKey: ["hasVoted", "President", thisUser?.id],
-    queryFn: () =>
-      axios
-        .post("/api/elections-has-voted", {
-          userId: thisUser?.id,
-          election: "President",
-        })
-        .then((res) => res.data),
-    enabled: !!thisUser && !!electionInfo && electionInfo.status === "Voting",
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
+  const { data: hasVotedData } = trpc.election.hasVoted.useQuery(
+    { userId: thisUser?.id, election: "President" },
+    { enabled: !!thisUser && !!electionInfo && electionInfo.status === "Voting", refetchOnWindowFocus: false, retry: false }
+  );
 
   const hasVoted = hasVotedData?.hasVoted || false;
 
@@ -102,22 +65,18 @@ function PresidentElections() {
     userId: number;
     candidateId: number;
   }) => {
-    const { data: candidateUser, isLoading: userLoading } = useQuery({
-      queryKey: ["candidateUser", userId],
-      queryFn: () => getUserFullById(Number(userId), true),
-      enabled: !!userId,
-    });
+    const { data: candidateUser, isLoading: userLoading } = trpc.user.getById.useQuery(
+      { userId: userId, omitEmail: true },
+      { enabled: !!userId, retry: false }
+    );
 
-    const { data: party, isLoading: partyLoading } = useQuery<Party>({
-      queryKey: ["party", candidateUser?.party_id],
-      queryFn: () =>
-        axios
-          .get("/api/get-party-by-id", {
-            params: { partyId: candidateUser?.party_id },
-          })
-          .then((res) => res.data),
-      enabled: !!candidateUser?.party_id,
-    });
+    const {
+      data: party,
+      isLoading: partyLoading
+    } = trpc.party.getById.useQuery(
+      { partyId: Number(candidateUser?.party_id) },
+      { enabled: !!candidateUser?.party_id }
+    );
 
     if (userLoading) {
       return <GenericSkeleton />;
@@ -188,22 +147,15 @@ function PresidentElections() {
     userId: number;
     votes: number;
   }) => {
-    const { data: candidateUser, isLoading: userLoading } = useQuery({
-      queryKey: ["candidateUser", userId],
-      queryFn: () => getUserFullById(Number(userId), true),
-      enabled: !!userId,
-    });
+    const { data: candidateUser, isLoading: userLoading } = trpc.user.getById.useQuery(
+      { userId: userId, omitEmail: true },
+      { enabled: !!userId, retry: false }
+    );
 
-    const { data: party } = useQuery<Party>({
-      queryKey: ["party", candidateUser?.party_id],
-      queryFn: () =>
-        axios
-          .get("/api/get-party-by-id", {
-            params: { partyId: candidateUser?.party_id },
-          })
-          .then((res) => res.data),
-      enabled: !!candidateUser?.party_id,
-    });
+    const { data: party } = trpc.party.getById.useQuery(
+      { partyId: Number(candidateUser?.party_id) },
+      { enabled: !!candidateUser?.party_id }
+    );
 
     if (userLoading) {
       return <GenericSkeleton />;
@@ -232,68 +184,47 @@ function PresidentElections() {
     );
   };
 
-  const handleCandidacyConfirm = async () => {
+  const addFeed = trpc.feed.add.useMutation();
+
+  const stand = trpc.election.stand.useMutation({
+    onSuccess: async () => {
+      await utils.election.getCandidates.invalidate({ election: "President" });
+      await addFeed.mutateAsync({ content: `Declared their candidacy for President.` });
+    },
+  });
+
+  const declareCandidacy = async () => {
     if (!thisUser) return;
-    try {
-      await axios.post("/api/election-stand-candidate", {
-        userId: thisUser.id,
-        election: "President",
-      });
-      await axios.post("/api/feed-add", {
-        userId: thisUser.id,
-        content: `Declared their candidacy for President.`,
-      });
-      await refetch();
-      await refetchCandidates();
-      queryClient.invalidateQueries({ queryKey: ["candidates", "President"] });
-    } catch (error) {
-      console.error("Error standing as candidate:", error);
-    }
+    await standMutation.mutateAsync({ election: "President" });
   };
 
+  const withdraw = trpc.election.withdraw.useMutation({
+    onSuccess: async () => {
+      await utils.election.getCandidates.invalidate({ election: "President" });
+      await utils.election.isCandidate.invalidate({ userId: thisUser?.id });
+      await addFeed.mutateAsync({ content: `Is no longer running as a candidate for President.` });
+    },
+  });
 
   const revokeCandidacy = async () => {
     if (!thisUser) return;
-    try {
-      await axios.post("/api/election-remove-candidate", {
-        userId: thisUser.id,
-        election: "President",
-      });
-      await refetch();
-      await refetchCandidates();
-      await axios.post("/api/feed-add", {
-        userId: thisUser.id,
-        content: `Is no longer running as a candidate for President.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["candidates", "President"] });
-      queryClient.invalidateQueries({ queryKey: ["isCandidate", thisUser.id] });
-    } catch (error) {
-      console.error("Error revoking candidacy:", error);
-    }
+    await remove.mutateAsync({ election: "President" });
   };
     
   const standAsCandidate = () => {
     setShowCandidacyDialog(true);
   };
 
+  const vote = trpc.election.vote.useMutation({
+    onSuccess: async () => {
+      await utils.election.getCandidates.invalidate({ election: "President" });
+      await utils.election.hasVoted.invalidate({ userId: thisUser?.id, election: "President" });
+    },
+  });
+
   const voteForCandidate = async (candidateId: number) => {
     if (!thisUser) return;
-    try {
-      await axios.post("/api/elections-vote", {
-        userId: thisUser.id,
-        candidateId,
-        election: "President",
-      });
-      await refetch();
-      await refetchCandidates();
-      await refetchHasVoted();
-      queryClient.invalidateQueries({ queryKey: ["candidates", "President"] });
-      queryClient.invalidateQueries({
-        queryKey: ["hasVoted", "President", thisUser.id],
-      });
-    } catch (error) {
-      console.error("Error voting for candidate:", error);
-    }
+    await vote.mutateAsync({ candidateId, election: "President" });
   };
 
   const isAlreadyCandidate =
@@ -504,7 +435,7 @@ function PresidentElections() {
         confirmAriaLabel="Confirm and declare candidacy"
         cancelAriaLabel="Cancel declaration"
         variant="destructive"
-        onConfirm={handleCandidacyConfirm}
+        onConfirm={declareCandidacy}
       />
     </div>
   );

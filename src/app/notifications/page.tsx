@@ -4,7 +4,7 @@ import React from "react";
 import withAuth from "@/lib/withAuth";
 import { useQuery } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
-import axios from "axios";
+import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 
 type FeedItem = {
@@ -16,31 +16,10 @@ type FeedItem = {
 };
 
 function Home() {
-  const { data: feed = [], isLoading: loading } = useQuery({
-    queryKey: ["feed"],
-    queryFn: async () => {
-      const response = await axios.get("/api/feed-list");
-      const feedWithUsernames = await Promise.all(
-        response.data.map(async (item: FeedItem) => {
-          const username = await getUserById(item.user_id);
-          return { ...item, username };
-        })
-      );
-      return feedWithUsernames;
-    },
-    staleTime: 0,
-  });
+  const { data: feed = [], isLoading: loading } = trpc.feed.list.useQuery();
 
-  const getUserById = async (userId: number) => {
-    try {
-      const response = await axios.post(`/api/get-user-without-email`, {
-        userId,
-      });
-      return response.data.username;
-    } catch {
-      return "Unknown User";
-    }
-  };
+  // TODO: Optimize by returning username in feed.list via a JOIN, or
+  // use trpc.user.getById per-feed item (beware N+1).
 
   return (
     <div className="container mx-auto py-8 px-4">

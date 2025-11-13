@@ -24,6 +24,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
+import { trpc } from "@/lib/trpc";
 
 import {
   Sidebar,
@@ -120,18 +121,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const ALLOWED_ADMIN_EMAILS = [
-    "jenewland1999@gmail.com",
-    "ajstrongdev@pm.me",
-    "robertjenner5@outlook.com",
-    "spam@hpsaucii.dev",
-  ];
-
-  const isAdmin = user?.email && ALLOWED_ADMIN_EMAILS.includes(user.email);
-
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  const {
+    data: verify,
+    error: verifyError,
+    isLoading: verifyLoading,
+  } = trpc.admin.verify.useQuery(
+    {},
+    {
+      enabled: !!user,
+      retry: false,
+    }
+  );
+
+  const isAdmin = verify?.isAdmin && verifyError?.data?.code !== "FORBIDDEN";
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
@@ -235,9 +241,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
       <SidebarFooter>
         <SidebarSeparator />
-
         <SidebarMenu>
           {isAdmin && (
             <SidebarMenuItem>

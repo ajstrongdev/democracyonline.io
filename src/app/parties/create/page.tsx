@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import withAuth from "@/lib/withAuth";
 import { fetchUserInfo } from "@/app/utils/userHelper";
-import axios from "axios";
+import { trpc } from "@/lib/trpc";
 import React from "react";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -33,25 +33,26 @@ function Home() {
   const router = useRouter();
   const [leaning, setLeaning] = React.useState([3]);
 
-  const { data: thisUser } = useQuery({
-    queryKey: ["user", user?.email],
-    queryFn: async () => {
-      if (user && user.email) {
-        const userDetails = await fetchUserInfo(user.email);
-        return userDetails || null;
-      }
-      return null;
+  const {
+    data: thisUser,
+    isLoading,
+  } = trpc.user.getByEmail.useQuery(
+    { email: user?.email || "" },
+    { enabled: !!user?.email }
+  );
+
+  const { data: stances = [] } = trpc.party.stanceTypes.useQuery();
+
+  const createParty = trpc.party.create.useMutation({
+    onError: (err) => {
+      toast.error(err?.message || "Failed to create party");
     },
-    enabled: !!user?.email,
   });
 
-  const { data: stances } = useQuery({
-    queryKey: ["stances"],
-    queryFn: async () => {
-      const res = await axios.get("/api/get-stance-types");
-      const stances = res.data || [];
-      console.log(stances.types);
-      return stances.types;
+  const addFeed = trpc.feed.add.useMutation({
+    onError: () => {
+      // Non-blocking: do not toast as error here to avoid interrupting flow
+      // You can add a warning if desired
     },
   });
 
@@ -68,7 +69,7 @@ function Home() {
     )?.value;
     const leaningValue = leanings[leaning[0]];
 
-    if (bio === "" || name === "" || color === "") {
+    if (!name || !bio || !color) {
       toast.error("Please fill in all required fields.");
       return;
     }
@@ -82,27 +83,20 @@ function Home() {
     });
 
     try {
-      const response = await axios.post("/api/party-create", {
-        userId: thisUser.id,
+      const result = await createParty.mutateAsync({
         name,
         color,
         bio,
         stanceValues,
-        leaningValue,
+        leaning: leanings[leaning[0]],
         logo: selectedLogo || null,
         discord: discord || null,
       });
-      router.push(`/parties/${response.data.id}`);
+
+      await addFeed.mutateAsync({ content: `has created a new party: ${name}` });
+      router.push(`/parties/${result.id}`);
     } catch (error) {
       throw new Error("Error creating party:" + error);
-    }
-    try {
-      await axios.post("/api/feed-add", {
-        userId: thisUser.id,
-        content: `has created a new party: ${name}`,
-      });
-    } catch (error) {
-      throw new Error("Error creating feed item:" + error);
     }
   };
 
