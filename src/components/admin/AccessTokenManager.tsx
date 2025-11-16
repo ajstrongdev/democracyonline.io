@@ -1,19 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Copy, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { trpc } from "@/lib/trpc";
-import { auth } from "@/lib/firebase";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { RefreshCw, Trash2, Copy, Plus } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,11 +13,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
 
 interface AccessToken {
   id: number;
   token: string;
-  created_at: string;
+  createdAt: string;
 }
 
 interface AccessTokenManagerProps {
@@ -49,22 +47,22 @@ export default function AccessTokenManager({
 
   const createToken = trpc.admin.accessTokenCreate.useMutation({
     onSuccess: async () => {
-      toast.success('Access token created successfully');
+      toast.success("Access token created successfully");
       await refetch();
       if (onRefresh) await onRefresh();
     },
-    onError: () => toast.error('Failed to create access token'),
+    onError: () => toast.error("Failed to create access token"),
   });
 
   const deleteToken = trpc.admin.accessTokenDelete.useMutation({
     onSuccess: async () => {
-      toast.success('Access token deleted successfully');
+      toast.success("Access token deleted successfully");
       setDeleteDialogOpen(false);
       setTokenToDelete(null);
       await refetch();
       if (onRefresh) await onRefresh();
     },
-    onError: () => toast.error('Failed to delete access token'),
+    onError: () => toast.error("Failed to delete access token"),
   });
 
   const handleCreateToken = async () => {
@@ -102,7 +100,12 @@ export default function AccessTokenManager({
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => refetch()} disabled={loading}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={loading}
+              >
                 <RefreshCw
                   className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
                 />
@@ -145,7 +148,7 @@ export default function AccessTokenManager({
                       </Button>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Created: {formatDate(token.created_at)}
+                      Created: {formatDate(token.createdAt)}
                     </p>
                   </div>
                   <Button

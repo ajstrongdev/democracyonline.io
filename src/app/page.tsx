@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Handshake, ChartLine, BookOpen, ArrowRight } from "lucide-react";
+import { ArrowRight, BookOpen, ChartLine, Handshake } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const features = [
@@ -85,7 +85,7 @@ export default function HomePage() {
         </div>
 
         <div className="mt-4 md:mt-32 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-6xl w-full">
-          {features.map((feature, i) => (
+          {features.map((feature) => (
             <motion.div
               key={feature.title}
               initial={{ opacity: 0 }}

@@ -1,15 +1,16 @@
-import 'server-only';
+import "server-only";
 
-import { initTRPC, TRPCError } from '@trpc/server';
-import superjson from 'superjson';
-import { query } from '@/lib/db';
+import { initTRPC, TRPCError } from "@trpc/server";
+import superjson from "superjson";
+import { query } from "@/lib/db";
+import { type User, UserSchema } from "@/lib/trpc/types";
 
 export type AuthUser = { uid: string; email: string | null } | null;
 
 export type TRPCContext = {
   authUser: AuthUser;
   dbUserId: number | null;
-  dbUser: any | null;
+  dbUser: User | null;
   query: typeof query;
 };
 
@@ -17,20 +18,20 @@ export const createTRPCContext = async (opts: {
   req: Request;
   authUser: AuthUser;
 }): Promise<TRPCContext> => {
-  let dbUser: any | null = null;
+  let dbUser: User | null = null;
   let dbUserId: number | null = null;
 
   if (opts.authUser?.email) {
     try {
       const res = await query(
-        'SELECT * FROM users WHERE LOWER(email) = LOWER($1)',
+        "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
         [opts.authUser.email],
       );
       if (res.rows.length > 0) {
-        dbUser = res.rows[0];
+        dbUser = UserSchema.parse(res.rows[0]);
         dbUserId = Number(dbUser.id);
       }
-    } catch (e) {
+    } catch {
       // Ignore; unauthenticated context is fine for public procedures
     }
   }
@@ -52,7 +53,7 @@ export const publicProcedure = t.procedure;
 
 export const authedProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!ctx.authUser?.uid || !ctx.dbUserId) {
-    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not signed in' });
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Not signed in" });
   }
   return next();
 });

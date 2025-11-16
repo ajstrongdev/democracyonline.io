@@ -64,7 +64,9 @@ export function MessageDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent
-        className={["sm:max-w-[520px]", contentClassName].filter(Boolean).join(" ")}
+        className={["sm:max-w-[520px]", contentClassName]
+          .filter(Boolean)
+          .join(" ")}
       >
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">

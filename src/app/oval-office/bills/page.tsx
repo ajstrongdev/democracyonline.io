@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import withAuth from '@/lib/withAuth';
-import { BillsStageView } from '@/components/BillsStageView';
+import { BillsStageView } from "@/components/BillsStageView";
+import withAuth from "@/lib/withAuth";
 
 function OvalBillsPage() {
   return (

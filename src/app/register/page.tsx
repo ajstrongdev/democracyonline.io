@@ -1,27 +1,26 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 "use client";
-import { auth } from "@/lib/firebase";
-import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
-import React, { useState, useEffect } from "react";
+
+import { AlertTriangle, Info } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
+import { LaunchCountdown } from "@/components/LaunchCountdown";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-import { useRouter } from "next/navigation";
 import { Slider } from "@/components/ui/slider";
-import { leanings } from "../parties/create/page";
-import { LaunchCountdown } from "@/components/LaunchCountdown";
-import { Info, AlertTriangle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { auth } from "@/lib/firebase";
 import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
+import { leanings } from "../parties/create/page";
 
 export default function Home() {
   const [createUserWithEmailAndPassword] =
@@ -46,7 +45,7 @@ export default function Home() {
     {
       enabled: accessToken.trim().length > 0, // only validate when token present
       retry: false,
-    }
+    },
   );
 
   const consumeToken = trpc.accessToken.consume.useMutation();
@@ -91,7 +90,7 @@ export default function Home() {
       await consumeToken.mutateAsync({ token: accessToken });
 
       router.push("/profile");
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error creating user:", err);
       setError(err?.message || "An error occurred during signup");
     }
@@ -218,19 +217,19 @@ export default function Home() {
                 />
 
                 <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                  {leanings.map((label, i) => (
+                  {leanings.map((label) => (
                     <span
-                      key={i}
+                      key={label}
                       className="text-center flex-shrink-0"
                       style={{ width: "14.28%" }}
                     >
-                      {i === 0
+                      {label === "Far Left"
                         ? "Far Left"
-                        : i === 6
-                        ? "Far Right"
-                        : i - 3 === 0
-                        ? "Center"
-                        : ""}
+                        : label === "Far Right"
+                          ? "Far Right"
+                          : label === "Center"
+                            ? "Center"
+                            : ""}
                     </span>
                   ))}
                 </div>
@@ -260,7 +259,7 @@ export default function Home() {
               href="/"
               className={cn(
                 buttonVariants({ variant: "link" }),
-                "p-0 h-auto align-baseline"
+                "p-0 h-auto align-baseline",
               )}
             >
               Log in

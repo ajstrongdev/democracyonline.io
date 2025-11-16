@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useMemo } from "react";
-import { trpc } from "@/lib/trpc";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,15 +12,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
 
 interface DatabaseUser {
   id: number | string;
   email: string;
   username: string;
   role: string;
-  party_id: number | string | null;
-  created_at: string;
+  partyId: number | string | null;
+  createdAt: string;
 }
 
 export default function DBUserList() {
@@ -43,13 +42,29 @@ export default function DBUserList() {
       await refetch();
     },
     onError: (err) => {
-      if ((err as any)?.data?.code === "FORBIDDEN") {
+      if (err?.data?.code === "FORBIDDEN") {
         toast.error("Access denied. Admin privileges required.");
         return;
       }
       toast.error(err?.message || "Failed to purge user");
     },
   });
+
+  const users = dbUsers as DatabaseUser[];
+
+  // Move useMemo BEFORE early returns
+  const filteredUsers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) => {
+      return (
+        (u.username || "").toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q) ||
+        String(u.id).toLowerCase().includes(q) ||
+        (u.role || "").toLowerCase().includes(q)
+      );
+    });
+  }, [users, searchQuery]);
 
   const handleKick = async (userId: number | string, username: string) => {
     if (confirm(`Are you sure you want to purge ${username}?`)) {
@@ -66,10 +81,12 @@ export default function DBUserList() {
   }
 
   if (isError) {
-    if ((error as any)?.data?.code === "FORBIDDEN") {
+    if (error?.data?.code === "FORBIDDEN") {
       return (
         <div className="p-6">
-          <p className="text-destructive">Access denied. Admin privileges required.</p>
+          <p className="text-destructive">
+            Access denied. Admin privileges required.
+          </p>
         </div>
       );
     }
@@ -79,21 +96,6 @@ export default function DBUserList() {
       </div>
     );
   }
-
-  const users = dbUsers as DatabaseUser[];
-
-  const filteredUsers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter((u) => {
-      return (
-        (u.username || "").toLowerCase().includes(q) ||
-        (u.email || "").toLowerCase().includes(q) ||
-        String(u.id).toLowerCase().includes(q) ||
-        (u.role || "").toLowerCase().includes(q)
-      );
-    });
-  }, [users, searchQuery]);
 
   return (
     <div className="p-6 space-y-4">
@@ -133,11 +135,11 @@ export default function DBUserList() {
                 </div>
                 <div>
                   <span className="font-semibold">Party ID:</span>{" "}
-                  {dbUser.party_id ?? "None"}
+                  {dbUser.partyId ?? "None"}
                 </div>
                 <div>
                   <span className="font-semibold">Created:</span>{" "}
-                  {new Date(dbUser.created_at).toLocaleDateString()}
+                  {new Date(dbUser.createdAt).toLocaleDateString()}
                 </div>
               </div>
             </CardContent>

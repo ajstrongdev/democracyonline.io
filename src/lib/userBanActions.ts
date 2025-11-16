@@ -5,7 +5,7 @@ import { query } from "./db";
  * @param uid - Firebase user ID
  * @param userEmail - User's email address
  */
-export async function handleUserBan(uid: string, userEmail: string) {
+export async function handleUserBan(_uid: string, userEmail: string) {
   try {
     // Get the user from database
     const userResult = await query("SELECT * FROM users WHERE email = $1", [
@@ -29,14 +29,14 @@ export async function handleUserBan(uid: string, userEmail: string) {
           .toString("base64")
           .slice(0, 8)}`,
         userId,
-      ]
+      ],
     );
 
     // 2. Delete all bill votes and bills created by this user
     // First, get all bills created by this user
     const billsResult = await query(
       "SELECT id FROM bills WHERE creator_id = $1",
-      [userId]
+      [userId],
     );
     const billIds = billsResult.rows.map((row) => row.id);
 
@@ -50,7 +50,7 @@ export async function handleUserBan(uid: string, userEmail: string) {
       ]);
       await query(
         "DELETE FROM bill_votes_presidential WHERE bill_id = ANY($1)",
-        [billIds]
+        [billIds],
       );
     }
 
@@ -60,7 +60,7 @@ export async function handleUserBan(uid: string, userEmail: string) {
     // 3. Update all chat messages from this user to "Deleted message." and username to "Banned User"
     await query(
       "UPDATE chats SET message = $1, username = $2 WHERE user_id = $3",
-      ["Deleted message.", "Banned User", userId]
+      ["Deleted message.", "Banned User", userId],
     );
 
     // 4. Delete all feed entries created by this user or mentioning them
@@ -71,7 +71,7 @@ export async function handleUserBan(uid: string, userEmail: string) {
     if (partyId) {
       const partyResult = await query(
         "SELECT * FROM parties WHERE id = $1 AND leader_id = $2",
-        [partyId, userId]
+        [partyId, userId],
       );
 
       if (partyResult.rows.length > 0) {
@@ -101,10 +101,10 @@ export async function checkAndDeleteParty(partyId: number) {
     // Count members in the party
     const membersResult = await query(
       "SELECT COUNT(*) as count FROM users WHERE party_id = $1",
-      [partyId]
+      [partyId],
     );
 
-    const memberCount = parseInt(membersResult.rows[0]?.count || "0");
+    const memberCount = parseInt(membersResult.rows[0]?.count || "0", 10);
 
     if (memberCount === 0) {
       // No members left, delete the party

@@ -1,13 +1,13 @@
-import 'server-only';
-import { router } from '@/server/trpc';
-import { userRouter } from './user';
-import { billRouter } from './bill';
-import { partyRouter } from './party';
-import { electionRouter } from './election';
-import { feedRouter } from './feed';
-import { chatRouter } from './chat';
-import { adminRouter } from './admin';
-import { accessTokenRouter } from './accessToken';
+import "server-only";
+import { router } from "@/server/trpc";
+import { accessTokenRouter } from "./accessToken";
+import { adminRouter } from "./admin";
+import { billRouter } from "./bill";
+import { chatRouter } from "./chat";
+import { electionRouter } from "./election";
+import { feedRouter } from "./feed";
+import { partyRouter } from "./party";
+import { userRouter } from "./user";
 
 export const appRouter = router({
   user: userRouter,

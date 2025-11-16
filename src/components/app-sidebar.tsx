@@ -1,31 +1,29 @@
 "use client";
 
-import * as React from "react";
+import { signOut } from "firebase/auth";
 import {
-  User,
   Bell,
   Building2,
-  Landmark,
-  Crown,
-  LogOut,
-  Sun,
-  Moon,
-  Handshake,
-  Newspaper,
-  ChevronDown,
   ChartNoAxesCombined,
+  ChevronDown,
+  Crown,
+  Handshake,
+  Landmark,
+  LogOut,
   MessageSquare,
+  Moon,
+  Newspaper,
   Notebook,
   Shield,
+  Sun,
+  User,
 } from "lucide-react";
-import { Logo } from "@/components/logo";
-import { signOut } from "firebase/auth";
-import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { auth } from "@/lib/firebase";
+import * as React from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { trpc } from "@/lib/trpc";
-
+import { Logo } from "@/components/logo";
 import {
   Sidebar,
   SidebarContent,
@@ -37,11 +35,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
-  SidebarMenuSubItem,
   SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import Link from "next/link";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
 
 const data = {
   navMain: [
@@ -125,16 +124,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     setMounted(true);
   }, []);
 
-  const {
-    data: verify,
-    error: verifyError,
-    isLoading: verifyLoading,
-  } = trpc.admin.verify.useQuery(
+  const { data: verify, error: verifyError } = trpc.admin.verify.useQuery(
     {},
     {
       enabled: !!user,
       retry: false,
-    }
+    },
   );
 
   const isAdmin = verify?.isAdmin && verifyError?.data?.code !== "FORBIDDEN";
@@ -190,7 +185,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 if (item.dropdown) {
                   const isDropdownOpen = item.dropdown.some(
                     (sub) =>
-                      pathname === sub.url || pathname.startsWith(sub.url)
+                      pathname === sub.url || pathname.startsWith(sub.url),
                   );
                   return (
                     <SidebarMenuItem key={item.title}>

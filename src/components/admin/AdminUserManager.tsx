@@ -1,39 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { trpc } from "@/lib/trpc";
-import UserList from "./UserList";
-import PartyList from "./PartyList";
-import DBUserList from "./DBUserList";
-import AccessTokenManager from "./AccessTokenManager";
 import GenericSkeleton from "@/components/genericskeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-interface FirebaseUser {
-  uid: string;
-  email?: string;
-  displayName?: string;
-  photoURL?: string;
-  disabled: boolean;
-  emailVerified: boolean;
-  creationTime?: string;
-  lastSignInTime?: string;
-  username?: string;
-}
-
-interface Party {
-  id: number;
-  name: string;
-  description: string;
-  economic_position: number;
-  social_position: number;
-  leader_id: number | null;
-  leader_username: string | null;
-  member_count: number;
-  created_at: string;
-}
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import AccessTokenManager from "./AccessTokenManager";
+import DBUserList from "./DBUserList";
+import PartyList from "./PartyList";
+import UserList from "./UserList";
 
 export default function AdminUserManager() {
   const [user, loadingAuth] = useAuthState(auth);
@@ -52,7 +27,6 @@ export default function AdminUserManager() {
   const {
     data: parties = [],
     isLoading: loadingParties,
-    refetch: refetchParties,
     error: partiesError,
   } = trpc.admin.listParties.useQuery(undefined, {
     enabled: !!user && !loadingAuth,
@@ -99,7 +73,7 @@ export default function AdminUserManager() {
           <UserList initialUsers={users} onRefresh={refetchUsers} />
         </TabsContent>
         <TabsContent value="parties" className="mt-6">
-          <PartyList/>
+          <PartyList />
         </TabsContent>
         <TabsContent value="tokens" className="mt-6">
           <AccessTokenManager />

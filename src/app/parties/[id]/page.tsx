@@ -1,29 +1,26 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import withAuth from "@/lib/withAuth";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { trpc } from "@/lib/trpc";
-import { useRouter, useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import GenericSkeleton from "@/components/genericskeleton";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/lib/firebase";
 import {
+  ArrowLeftRight,
+  Crown,
   DoorOpen,
   Handshake,
-  Crown,
-  Pencil,
-  ArrowLeftRight,
   MessageSquare,
+  Pencil,
 } from "lucide-react";
-import { Key } from "react";
-import { Chat } from "@/components/Chat";
+import { useParams, useRouter } from "next/navigation";
+import { type Key, useState } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
 import { toast } from "sonner";
-import { MessageDialog } from "@/components/ui/MessageDialog";
-import { useState } from "react";
+import { Chat } from "@/components/Chat";
+import GenericSkeleton from "@/components/genericskeleton";
 import PartyLogo from "@/components/PartyLogo";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { MessageDialog } from "@/components/ui/MessageDialog";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import withAuth from "@/lib/withAuth";
 
 function Home() {
   const [user] = useAuthState(auth);
@@ -41,31 +38,32 @@ function Home() {
   // Get user info
   const { data: thisUser } = trpc.user.getByEmail.useQuery(
     { email: user?.email || "" },
-    { enabled: !!user?.email }
+    { enabled: !!user?.email },
   );
 
-  const {
-    data: party,
-    isLoading: partyLoading
-  } = trpc.party.getById.useQuery({ partyId: Number(id) });
+  const { data: party, isLoading: partyLoading } = trpc.party.getById.useQuery({
+    partyId: Number(id),
+  });
 
   // Party members
-  const { data: partyMembers = [] } = trpc.party.members.useQuery({ partyId: id });
+  const { data: partyMembers = [] } = trpc.party.members.useQuery({
+    partyId: id,
+  });
 
   const { data: membershipStatus, isLoading: membershipLoading } =
     trpc.party.checkMembership.useQuery(
       { userId: thisUser?.id ?? 0, partyId: id },
-      { enabled: !!thisUser?.id && Number.isFinite(id) }
+      { enabled: !!thisUser?.id && Number.isFinite(id) },
     );
 
-  const isLeader = party?.leader_id === thisUser?.id;
+  const isLeader = party?.leaderId === thisUser?.id;
 
   // Get merge request count for this party
   const { data: mergeRequests = [] } = trpc.party.mergeListIncoming.useQuery(
     { partyId: id },
-    { enabled: isLeader && Number.isFinite(id) }
+    { enabled: isLeader && Number.isFinite(id) },
   );
-  const mergeRequestCount = isLeader ? mergeRequests?.length ?? 0 : 0;
+  const mergeRequestCount = isLeader ? (mergeRequests?.length ?? 0) : 0;
 
   // Join
   const joinParty = trpc.party.join.useMutation({
@@ -80,7 +78,7 @@ function Home() {
     onSuccess: () => {
       utils.party.members.invalidate({ partyId: id });
       utils.party.getById.invalidate({ partyId: id });
-      router.push('/parties');
+      router.push("/parties");
     },
   });
 
@@ -95,7 +93,7 @@ function Home() {
   // Kick member
   const kickMemberMutation = trpc.party.kick.useMutation({
     onSuccess: () => {
-      toast.success('Member kicked successfully.');
+      toast.success("Member kicked successfully.");
       utils.party.members.invalidate({ partyId: id });
     },
   });
@@ -174,7 +172,7 @@ function Home() {
                         </span>
                       </div>
                     </div>
-                    {party.leader_id ? (
+                    {party.leaderId ? (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Leader:</span>
                         <span className="font-medium">
@@ -182,12 +180,12 @@ function Home() {
                             variant="link"
                             className="p-0 h-auto text-base font-medium"
                             onClick={() =>
-                              router.push(`/profile/${party.leader_id}`)
+                              router.push(`/profile/${party.leaderId}`)
                             }
                           >
                             {partyMembers.find(
-                              (member: any) => member.id === party.leader_id
-                            )?.username || `User ID ${party.leader_id}`}
+                              (member) => member.id === party.leaderId,
+                            )?.username || `User ID ${party.leaderId}`}
                           </Button>
                         </span>
                       </div>
@@ -246,8 +244,8 @@ function Home() {
                       </>
                     )}
                     {membershipStatus &&
-                      party.leader_id === null &&
-                      thisUser?.id !== party.leader_id && (
+                      party.leaderId === null &&
+                      thisUser?.id !== party.leaderId && (
                         <Button
                           variant="outline"
                           className="w-full justify-start"
@@ -288,7 +286,7 @@ function Home() {
               </div>
             </CardContent>
           </Card>
-          {party && party.stances && party.stances.length > 0 && (
+          {party?.stances && party.stances.length > 0 && (
             <Card>
               <CardHeader>
                 <h2 className="text-2xl font-semibold text-foreground">
@@ -306,7 +304,7 @@ function Home() {
                         {stance.value || "No stance provided."}
                       </p>
                     </div>
-                  )
+                  ),
                 )}
               </CardContent>
             </Card>
@@ -331,7 +329,7 @@ function Home() {
             <CardContent>
               {partyMembers.length > 0 ? (
                 <div className="space-y-4">
-                  {partyMembers.map((member: any) => (
+                  {partyMembers.map((member) => (
                     <div
                       key={member.id}
                       className="p-4 border rounded-lg hover:shadow transition"
@@ -343,7 +341,7 @@ function Home() {
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {member.role}{" "}
-                            {member.id === party.leader_id && (
+                            {member.id === party.leaderId && (
                               <span className={`font-medium text-green-500`}>
                                 - Party Leader
                               </span>
@@ -351,8 +349,8 @@ function Home() {
                           </p>
                         </div>
                         <div>
-                          {party.leader_id === thisUser?.id &&
-                            member.id !== party.leader_id && (
+                          {party.leaderId === thisUser?.id &&
+                            member.id !== party.leaderId && (
                               <Button
                                 variant="destructive"
                                 size="sm"

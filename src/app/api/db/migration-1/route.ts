@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
@@ -9,14 +9,14 @@ export async function GET(request: NextRequest) {
     console.error("CRON_SECRET environment variable is not set");
     return NextResponse.json(
       { success: false, error: "Server configuration error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
   if (authHeader !== `Bearer ${expectedToken}`) {
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -170,18 +170,18 @@ export async function GET(request: NextRequest) {
 
     // Add discord link to parties table
     await query(
-      `ALTER TABLE parties ADD COLUMN IF NOT EXISTS discord VARCHAR(255) DEFAULT NULL`
+      `ALTER TABLE parties ADD COLUMN IF NOT EXISTS discord VARCHAR(255) DEFAULT NULL`,
     );
 
     return NextResponse.json(
       { success: true, message: "Migration 1 applied successfully" },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error applying migration 1:", error);
     return NextResponse.json(
       { success: false, error: "Failed to apply migration 1" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

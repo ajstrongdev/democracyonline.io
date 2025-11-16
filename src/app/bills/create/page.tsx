@@ -1,21 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
-import withAuth from "@/lib/withAuth";
-import { trpc } from "@/lib/trpc";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/lib/firebase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { trpc } from "@/lib/trpc";
+import withAuth from "@/lib/withAuth";
 
 function Bills() {
-  const [user] = useAuthState(auth);
   const router = useRouter();
   const utils = trpc.useUtils();
   const [title, setTitle] = useState("");
@@ -28,7 +26,9 @@ function Bills() {
     onSuccess: (bill) => {
       toast.success("Bill created successfully!");
       utils.bill.listAll.invalidate();
-      addFeed.mutate({ content: `Created a new bill: "Bill #${bill.id}: ${title}"` });
+      addFeed.mutate({
+        content: `Created a new bill: "Bill #${bill.id}: ${title}"`,
+      });
       router.push("/bills");
     },
     onError: (err) => {

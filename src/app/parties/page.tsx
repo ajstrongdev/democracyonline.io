@@ -1,7 +1,21 @@
 "use client";
 
-import withAuth from "@/lib/withAuth";
-import React from "react";
+import { Crown, Handshake, TrendingUp, Users } from "lucide-react";
+import Link from "next/link";
+import { useAuthState } from "react-firebase-hooks/auth";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Label,
+  Pie,
+  PieChart,
+  YAxis,
+} from "recharts";
+import GenericSkeleton from "@/components/genericskeleton";
+import PartyLogo from "@/components/PartyLogo";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,47 +23,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { trpc } from "@/lib/trpc";
-import { auth } from "@/lib/firebase";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { Handshake, Users, Crown, TrendingUp } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { Party } from "@/app/utils/partyHelper";
-import Link from "next/link";
-import PartyLogo from "@/components/PartyLogo";
 import {
+  type ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  type ChartConfig,
 } from "@/components/ui/chart";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Pie,
-  PieChart,
-  Cell,
-  Label,
-} from "recharts";
-import GenericSkeleton from "@/components/genericskeleton";
-
-interface PartyMember {
-  id: number;
-  username: string;
-  party_id: number;
-}
-
-interface PartyStats {
-  party: Party;
-  memberCount: number;
-  members: PartyMember[];
-}
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import withAuth from "@/lib/withAuth";
 
 function Home() {
   const [user] = useAuthState(auth);
@@ -62,14 +46,14 @@ function Home() {
 
   const { data: thisUser } = trpc.user.getByEmail.useQuery(
     { email: user?.email || "" },
-    { enabled: !!user?.email }
+    { enabled: !!user?.email },
   );
 
   const isLoading = partiesLoading || statsLoading;
 
   // Sort parties by member count
   const sortedParties = [...partyStats].sort(
-    (a, b) => b.memberCount - a.memberCount
+    (a, b) => b.memberCount - a.memberCount,
   );
 
   // Chart configuration
@@ -88,7 +72,7 @@ function Home() {
       };
       return config;
     },
-    {} as ChartConfig
+    {} as ChartConfig,
   );
 
   // Prepare data for charts
@@ -108,7 +92,7 @@ function Home() {
 
   const totalMembers = sortedParties.reduce(
     (sum, stats) => sum + stats.memberCount,
-    0
+    0,
   );
 
   if (isLoading) {
@@ -245,8 +229,8 @@ function Home() {
                       outerRadius="70%"
                       paddingAngle={2}
                     >
-                      {pieChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      {pieChartData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.fill} />
                       ))}
                       <Label
                         content={({ viewBox }) => {
@@ -296,7 +280,7 @@ function Home() {
               Parties ranked by membership size.
             </CardDescription>
           </div>
-          {thisUser?.party_id === null && !isLoading && (
+          {thisUser?.partyId === null && !isLoading && (
             <Button asChild variant="default" size="sm" className="shrink-0">
               <Link href="/parties/create">
                 <Handshake className="mr-2 h-4 w-4" />
@@ -362,7 +346,7 @@ function Home() {
                     <span className="text-[10px] md:text-xs text-muted-foreground">
                       {totalMembers > 0
                         ? `${((stats.memberCount / totalMembers) * 100).toFixed(
-                            1
+                            1,
                           )}% of total`
                         : "0% of total"}
                     </span>
@@ -377,13 +361,13 @@ function Home() {
                     >
                       <a href={`/parties/${stats.party.id}`}>View Details</a>
                     </Button>
-                    {stats.party.manifesto_url && (
+                    {stats.party.manifestoUrl && (
                       <Button
                         variant="outline"
                         size="sm"
                         className="whitespace-nowrap text-xs"
                         onClick={() =>
-                          window.open(stats.party.manifesto_url, "_blank")
+                          window.open(stats.party.manifestoUrl, "_blank")
                         }
                       >
                         Manifesto

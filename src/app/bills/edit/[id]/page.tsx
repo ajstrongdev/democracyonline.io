@@ -1,22 +1,21 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import withAuth from "@/lib/withAuth";
-import { trpc } from "@/lib/trpc";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/lib/firebase";
+import type { TRPCClientError } from "@trpc/client";
 import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import GenericSkeleton from "@/components/genericskeleton";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { trpc } from "@/lib/trpc";
+import type { AppRouter } from "@/server/routers";
 
 function EditBill() {
-  const [user] = useAuthState(auth);
   const router = useRouter();
   const params = useParams();
   const utils = trpc.useUtils();
@@ -29,7 +28,7 @@ function EditBill() {
 
   const { data: bill, isLoading: billLoading } = trpc.bill.get.useQuery(
     { id: Number(billId) },
-    { enabled: !!billId }
+    { enabled: !!billId },
   );
 
   useEffect(() => {
@@ -55,8 +54,8 @@ function EditBill() {
       addFeed.mutate({ content: `Updated bill #${b.id}: "${title}"` });
       router.push("/bills");
     },
-    onError: (err) =>
-      toast.error((err as any)?.message || "Failed to update bill."),
+    onError: (err: TRPCClientError<AppRouter>) =>
+      toast.error(err.message || "Failed to update bill."),
   });
 
   const handleSubmit = async (e: React.FormEvent) => {

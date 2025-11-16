@@ -1,20 +1,18 @@
 "use client";
 
-import withAuth from "@/lib/withAuth";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { trpc } from "@/lib/trpc";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import GenericSkeleton from "@/components/genericskeleton";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/lib/firebase";
-import { Party } from "@/app/utils/partyHelper";
-import { Chat } from "@/components/Chat";
-import { CandidatesChart } from "@/components/CandidateChart";
 import Link from "next/link";
-import { MessageDialog } from "@/components/ui/MessageDialog";
 import { useState } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { CandidatesChart } from "@/components/CandidateChart";
+import { Chat } from "@/components/Chat";
+import GenericSkeleton from "@/components/genericskeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { MessageDialog } from "@/components/ui/MessageDialog";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import withAuth from "@/lib/withAuth";
 
 function PresidentElections() {
   const [user] = useAuthState(auth);
@@ -24,28 +22,29 @@ function PresidentElections() {
   // Get user info
   const { data: thisUser } = trpc.user.getByEmail.useQuery(
     { email: user?.email || "" },
-    { enabled: !!user?.email }
+    { enabled: !!user?.email },
   );
 
-  const { data: electionInfo, isLoading, isError } = trpc.election.info.useQuery(
+  const {
+    data: electionInfo,
+    isLoading,
+    isError,
+  } = trpc.election.info.useQuery(
     { election: "President" },
-    { enabled: !!thisUser, refetchOnWindowFocus: false, retry: false }
+    { enabled: !!thisUser, refetchOnWindowFocus: false, retry: false },
   );
 
   // Get candidates - always fetch when we have election info
-  const {
-    data: candidates,
-    refetch: refetchCandidates,
-    isLoading: candidatesLoading,
-  } = trpc.election.getCandidates.useQuery(
-    { election: "President" },
-    { enabled: !!electionInfo, refetchOnWindowFocus: false, retry: false }
-  );
+  const { data: candidates, isLoading: candidatesLoading } =
+    trpc.election.getCandidates.useQuery(
+      { election: "President" },
+      { enabled: !!electionInfo, refetchOnWindowFocus: false, retry: false },
+    );
 
   // Check if user is a candidate in any election
   const { data: isCandidateData } = trpc.election.isCandidate.useQuery(
     { userId: thisUser?.id },
-    { enabled: !!thisUser }
+    { enabled: !!thisUser },
   );
 
   const isACandidate = isCandidateData?.isCandidate || false;
@@ -53,7 +52,11 @@ function PresidentElections() {
   // Check if user has voted
   const { data: hasVotedData } = trpc.election.hasVoted.useQuery(
     { userId: thisUser?.id, election: "President" },
-    { enabled: !!thisUser && !!electionInfo && electionInfo.status === "Voting", refetchOnWindowFocus: false, retry: false }
+    {
+      enabled: !!thisUser && !!electionInfo && electionInfo.status === "Voting",
+      refetchOnWindowFocus: false,
+      retry: false,
+    },
   );
 
   const hasVoted = hasVotedData?.hasVoted || false;
@@ -65,18 +68,17 @@ function PresidentElections() {
     userId: number;
     candidateId: number;
   }) => {
-    const { data: candidateUser, isLoading: userLoading } = trpc.user.getById.useQuery(
-      { userId: userId, omitEmail: true },
-      { enabled: !!userId, retry: false }
-    );
+    const { data: candidateUser, isLoading: userLoading } =
+      trpc.user.getById.useQuery(
+        { userId: userId, omitEmail: true },
+        { enabled: !!userId, retry: false },
+      );
 
-    const {
-      data: party,
-      isLoading: partyLoading
-    } = trpc.party.getById.useQuery(
-      { partyId: Number(candidateUser?.party_id) },
-      { enabled: !!candidateUser?.party_id }
-    );
+    const { data: party, isLoading: partyLoading } =
+      trpc.party.getById.useQuery(
+        { partyId: candidateUser?.partyId },
+        { enabled: !!candidateUser?.partyId },
+      );
 
     if (userLoading) {
       return <GenericSkeleton />;
@@ -92,23 +94,21 @@ function PresidentElections() {
           {partyLoading ? (
             <p className="text-sm text-muted-foreground">Loading party...</p>
           ) : party ? (
-            <>
-              <div>
-                <h1 className="text-xl font-semibold">
-                  {candidateUser.username}
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Current role: {candidateUser.role}
-                </p>
-                <p
-                  className="text-sm text-muted-foreground mt-1"
-                  style={party ? { color: party.color } : {}}
-                >
-                  <span className="text-muted-foreground">Party:</span>{" "}
-                  {party ? party.name : "Independent"}
-                </p>
-              </div>
-            </>
+            <div>
+              <h1 className="text-xl font-semibold">
+                {candidateUser.username}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Current role: {candidateUser.role}
+              </p>
+              <p
+                className="text-sm text-muted-foreground mt-1"
+                style={party ? { color: party.color } : {}}
+              >
+                <span className="text-muted-foreground">Party:</span>{" "}
+                {party ? party.name : "Independent"}
+              </p>
+            </div>
           ) : (
             <div>
               <h1 className="text-xl font-semibold">
@@ -147,14 +147,15 @@ function PresidentElections() {
     userId: number;
     votes: number;
   }) => {
-    const { data: candidateUser, isLoading: userLoading } = trpc.user.getById.useQuery(
-      { userId: userId, omitEmail: true },
-      { enabled: !!userId, retry: false }
-    );
+    const { data: candidateUser, isLoading: userLoading } =
+      trpc.user.getById.useQuery(
+        { userId: userId, omitEmail: true },
+        { enabled: !!userId, retry: false },
+      );
 
     const { data: party } = trpc.party.getById.useQuery(
-      { partyId: Number(candidateUser?.party_id) },
-      { enabled: !!candidateUser?.party_id }
+      { partyId: candidateUser?.partyId },
+      { enabled: !!candidateUser?.partyId },
     );
 
     if (userLoading) {
@@ -189,28 +190,32 @@ function PresidentElections() {
   const stand = trpc.election.stand.useMutation({
     onSuccess: async () => {
       await utils.election.getCandidates.invalidate({ election: "President" });
-      await addFeed.mutateAsync({ content: `Declared their candidacy for President.` });
+      await addFeed.mutateAsync({
+        content: `Declared their candidacy for President.`,
+      });
     },
   });
 
   const declareCandidacy = async () => {
     if (!thisUser) return;
-    await standMutation.mutateAsync({ election: "President" });
+    await stand.mutateAsync({ election: "President" });
   };
 
   const withdraw = trpc.election.withdraw.useMutation({
     onSuccess: async () => {
       await utils.election.getCandidates.invalidate({ election: "President" });
       await utils.election.isCandidate.invalidate({ userId: thisUser?.id });
-      await addFeed.mutateAsync({ content: `Is no longer running as a candidate for President.` });
+      await addFeed.mutateAsync({
+        content: `Is no longer running as a candidate for President.`,
+      });
     },
   });
 
   const revokeCandidacy = async () => {
     if (!thisUser) return;
-    await remove.mutateAsync({ election: "President" });
+    await withdraw.mutateAsync({ election: "President" });
   };
-    
+
   const standAsCandidate = () => {
     setShowCandidacyDialog(true);
   };
@@ -218,7 +223,10 @@ function PresidentElections() {
   const vote = trpc.election.vote.useMutation({
     onSuccess: async () => {
       await utils.election.getCandidates.invalidate({ election: "President" });
-      await utils.election.hasVoted.invalidate({ userId: thisUser?.id, election: "President" });
+      await utils.election.hasVoted.invalidate({
+        userId: thisUser?.id,
+        election: "President",
+      });
     },
   });
 
@@ -230,11 +238,7 @@ function PresidentElections() {
   const isAlreadyCandidate =
     candidates &&
     Array.isArray(candidates) &&
-    candidates.some(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (candidate: any) =>
-        candidate.userId === thisUser?.id || candidate.user_id === thisUser?.id
-    );
+    candidates.some((candidate) => candidate.userId === thisUser?.id);
 
   return (
     <div className="container mx-auto p-4">
@@ -251,16 +255,16 @@ function PresidentElections() {
             <CardContent>
               {electionInfo.status === "Candidate" ? (
                 <p className="text-muted-foreground text-sm">
-                  Polls open in <b>{electionInfo.days_left} days</b>.
+                  Polls open in <b>{electionInfo.daysLeft} days</b>.
                 </p>
               ) : electionInfo.status === "Voting" ? (
                 <p className="text-muted-foreground text-sm">
-                  Election ends in <b>{electionInfo.days_left} days</b>.
+                  Election ends in <b>{electionInfo.daysLeft} days</b>.
                 </p>
               ) : electionInfo.status === "Concluded" ? (
                 <p className="text-muted-foreground text-sm">
                   You can stand as a candidate for the next election in{" "}
-                  <b>{electionInfo.days_left} days</b>.
+                  <b>{electionInfo.daysLeft} days</b>.
                 </p>
               ) : null}
             </CardContent>
@@ -281,7 +285,7 @@ function PresidentElections() {
         </Alert>
       ) : (
         <>
-          {electionInfo && electionInfo.status == "Voting" && (
+          {electionInfo && electionInfo.status === "Voting" && (
             <Alert className="mb-6">
               <AlertTitle className="font-bold">Elections are live!</AlertTitle>
               <AlertDescription>
@@ -291,53 +295,42 @@ function PresidentElections() {
               </AlertDescription>
             </Alert>
           )}
-          {electionInfo && electionInfo.status === "Candidate" && (
-            <>
-              {candidatesLoading ? (
-                <GenericSkeleton />
-              ) : (
-                <Alert className="mb-6">
-                  <AlertTitle className="font-bold">
-                    {isAlreadyCandidate
-                      ? "You are standing in this election"
-                      : "Stand as a candidate!"}
-                  </AlertTitle>
-                  <AlertDescription
-                    className={
-                      !isACandidate
-                        ? "md:flex md:items-center md:justify-between"
-                        : ""
-                    }
-                  >
-                    <>
-                      Stand as a candidate in the upcoming presidential
-                      elections. Rally support amongst players and become the
-                      next President!
-                      {!isAlreadyCandidate && !isACandidate && thisUser ? (
-                        <Button
-                          className="mt-4 md:mt-0"
-                          onClick={standAsCandidate}
-                        >
-                          Declare Candidacy!
-                        </Button>
-                      ) : isAlreadyCandidate ? (
-                        <Button
-                          className="mt-4 md:mt-0"
-                          onClick={revokeCandidacy}
-                        >
-                          Drop out
-                        </Button>
-                      ) : isACandidate && !isAlreadyCandidate ? (
-                        <h2 className="mt-2 text-yellow-500 font-semibold">
-                          You are a candidate in another election.
-                        </h2>
-                      ) : null}
-                    </>
-                  </AlertDescription>
-                </Alert>
-              )}
-            </>
-          )}
+          {electionInfo &&
+            electionInfo.status === "Candidate" &&
+            (candidatesLoading ? (
+              <GenericSkeleton />
+            ) : (
+              <Alert className="mb-6">
+                <AlertTitle className="font-bold">
+                  {isAlreadyCandidate
+                    ? "You are standing in this election"
+                    : "Stand as a candidate!"}
+                </AlertTitle>
+                <AlertDescription
+                  className={
+                    !isACandidate
+                      ? "md:flex md:items-center md:justify-between"
+                      : ""
+                  }
+                >
+                  Stand as a candidate in the upcoming presidential elections.
+                  Rally support amongst players and become the next President!
+                  {!isAlreadyCandidate && !isACandidate && thisUser ? (
+                    <Button className="mt-4 md:mt-0" onClick={standAsCandidate}>
+                      Declare Candidacy!
+                    </Button>
+                  ) : isAlreadyCandidate ? (
+                    <Button className="mt-4 md:mt-0" onClick={revokeCandidacy}>
+                      Drop out
+                    </Button>
+                  ) : isACandidate && !isAlreadyCandidate ? (
+                    <h2 className="mt-2 text-yellow-500 font-semibold">
+                      You are a candidate in another election.
+                    </h2>
+                  ) : null}
+                </AlertDescription>
+              </Alert>
+            ))}
           {electionInfo && electionInfo.status === "Concluded" && (
             <Alert className="mb-6">
               <AlertTitle className="font-bold">Elections concluded</AlertTitle>
@@ -361,17 +354,13 @@ function PresidentElections() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
                     <CandidatesChart candidates={candidates} />
                     {[...candidates]
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      .sort((a: any, b: any) => (b.votes || 0) - (a.votes || 0))
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      .map((candidate: any) => {
-                        const userId = candidate.userId || candidate.user_id;
-                        const votes = candidate.votes || 0;
+                      .sort((a, b) => (b.votes || 0) - (a.votes || 0))
+                      .map((candidate) => {
                         return (
                           <ResultsItem
                             key={candidate.id}
-                            userId={userId}
-                            votes={votes}
+                            userId={candidate.userId}
+                            votes={candidate.votes}
                           />
                         );
                       })}
@@ -394,9 +383,8 @@ function PresidentElections() {
               <h2 className="text-2xl font-bold mb-4">Candidates</h2>
               {candidates && candidates.length > 0 ? (
                 <div className="space-y-2">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {candidates.map((candidate: any) => {
-                    const userId = candidate.userId || candidate.user_id;
+                  {candidates.map((candidate) => {
+                    const userId = candidate.userId;
                     return (
                       <CandidateItem
                         key={candidate.id}

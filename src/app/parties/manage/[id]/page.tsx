@@ -1,22 +1,19 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 "use client";
 
-import withAuth from "@/lib/withAuth";
-import { useRouter, useParams } from "next/navigation";
-import React, { useState, useEffect, FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
+import { type FormEvent, useEffect, useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/lib/firebase";
-import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
+import { icons } from "@/app/utils/logoHelper";
 import GenericSkeleton from "@/components/genericskeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { toast } from "sonner";
-import { icons } from "@/app/utils/logoHelper";
+import { Textarea } from "@/components/ui/textarea";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import withAuth from "@/lib/withAuth";
 
 export const leanings = [
   "Far Left",
@@ -39,17 +36,17 @@ function ManageParty() {
   // Get user info
   const { data: thisUser } = trpc.user.getByEmail.useQuery(
     { email: user?.email || "" },
-    { enabled: !!user?.email }
+    { enabled: !!user?.email },
   );
 
   // Party info
   const { data: party, isLoading: partyLoading } = trpc.party.getById.useQuery(
     { partyId: id },
-    { enabled: !!id }
+    { enabled: !!id },
   );
 
   const [selectedLogo, setSelectedLogo] = useState<string | null>(null);
-  const [colorState, setColorState] = useState<string>("#ff0000");
+  const [_colorState, setColorState] = useState<string>("#ff0000");
 
   // initialize selected logo and color when party loads
   useEffect(() => {
@@ -100,8 +97,9 @@ function ManageParty() {
     const name = (form.elements.namedItem("name") as HTMLInputElement)?.value;
     const color = (form.elements.namedItem("color") as HTMLInputElement)?.value;
     const bio = (form.elements.namedItem("bio") as HTMLInputElement)?.value;
-    const discord = (form.elements.namedItem("discord_link") as HTMLInputElement)
-      ?.value;
+    const discord = (
+      form.elements.namedItem("discord_link") as HTMLInputElement
+    )?.value;
     const leaningValue = leanings[leaning[0]];
 
     if (!name || !color || !bio) {
@@ -110,7 +108,7 @@ function ManageParty() {
     }
 
     const stanceValues: { id: number; value: string }[] = [];
-    stances.forEach((stance: any) => {
+    stances.forEach((stance) => {
       stanceValues.push({
         id: stance.id,
         value: (form.elements.namedItem(stance.id) as HTMLInputElement)?.value,
@@ -179,7 +177,7 @@ function ManageParty() {
                   className="w-full"
                   onChange={(e) => {
                     const colorPicker = document.getElementById(
-                      "color-picker"
+                      "color-picker",
                     ) as HTMLInputElement;
                     if (
                       colorPicker &&
@@ -196,7 +194,7 @@ function ManageParty() {
                   className="w-10 p-0 border-0"
                   onChange={(e) => {
                     const hexInput = document.getElementById(
-                      "color"
+                      "color",
                     ) as HTMLInputElement;
                     if (hexInput) hexInput.value = e.target.value;
                   }}
@@ -288,14 +286,14 @@ function ManageParty() {
 
                 <div className="flex justify-between mt-2 text-xs text-muted-foreground">
                   {leanings.map((label, i) => (
-                    <span key={i} className="text-center w-12 ">
+                    <span key={label} className="text-center w-12 ">
                       {i === 0
                         ? "Far Left"
                         : i === 6
-                        ? "Far Right"
-                        : i - 3 === 0
-                        ? "Center"
-                        : ""}
+                          ? "Far Right"
+                          : i - 3 === 0
+                            ? "Center"
+                            : ""}
                     </span>
                   ))}
                 </div>
@@ -303,10 +301,10 @@ function ManageParty() {
             </div>
             {stances &&
               stances.length > 0 &&
-              stances.map((stance: any) => {
+              stances.map((stance) => {
                 // Find the matching stance value from party data
                 const partyStance = party?.stances?.find(
-                  (s: any) => s.id === stance.id
+                  (s) => s.id === stance.id,
                 );
                 return (
                   <div className="grid grid-cols-1 gap-2" key={stance.id}>

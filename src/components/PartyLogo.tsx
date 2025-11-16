@@ -1,18 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React from "react";
-import * as LucideIcons from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import type { LucideIcon } from "lucide-react";
+import type React from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { trpc } from "@/lib/trpc";
-
-type PartyData = {
-  id: string;
-  name?: string;
-  color?: string | null;
-  logo?: string | null;
-};
 
 export default function PartyLogo({
   party_id,
@@ -24,7 +15,7 @@ export default function PartyLogo({
   // Get party info including logo
   const { data: partyData, isLoading } = trpc.party.getById.useQuery(
     { partyId: party_id },
-    { enabled: !!party_id }
+    { enabled: !!party_id },
   );
 
   if (isLoading) {
@@ -43,14 +34,14 @@ export default function PartyLogo({
       .map((p) => (p ? p[0].toUpperCase() + p.slice(1) : ""))
       .join("");
 
-  let IconComponent: React.ComponentType<any> | null = null;
+  let IconComponent: React.ComponentType<LucideIcon> | null = null;
   if (logo && typeof logo === "string") {
-    const direct = (LucideIcons as any)[logo];
+    const direct = LucideIcon[logo];
     if (direct) {
       IconComponent = direct;
     } else {
       const pascal = toPascal(logo);
-      IconComponent = (LucideIcons as any)[pascal] || null;
+      IconComponent = LucideIcon[pascal] || null;
     }
   }
 
@@ -95,6 +86,7 @@ export default function PartyLogo({
 
   return (
     <div
+      role="img"
       style={circleStyle}
       aria-label={name || "Party logo"}
       title={name || "Party"}

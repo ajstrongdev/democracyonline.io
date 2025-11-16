@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import { trpc } from '@/lib/trpc';
-import { Button } from '@/components/ui/button';
+import { RefreshCw, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { RefreshCw, Search } from 'lucide-react';
-import { toast } from 'sonner';
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { trpc } from "@/lib/trpc";
 
 interface FirebaseUser {
   uid: string;
@@ -34,11 +34,10 @@ export default function UserList() {
     data: users = [],
     isLoading,
     isError,
-    error,
     refetch,
   } = trpc.admin.listUsers.useQuery();
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [loadingUid, setLoadingUid] = useState<string | null>(null);
 
@@ -48,7 +47,7 @@ export default function UserList() {
       (users || [])
         .map((u) => u.email?.toLowerCase())
         .filter((e): e is string => !!e),
-    [users]
+    [users],
   );
 
   const { data: adminMap, isLoading: adminMapLoading } =
@@ -57,27 +56,29 @@ export default function UserList() {
       {
         enabled: visibleEmails.length > 0,
         staleTime: 60_000,
-      }
+      },
     );
 
   const toggleStatus = trpc.admin.toggleUserStatus.useMutation({
     onSuccess: async (_data, vars) => {
-      toast.success(`User ${vars.disabled ? 'disabled' : 'enabled'} successfully`);
+      toast.success(
+        `User ${vars.disabled ? "disabled" : "enabled"} successfully`,
+      );
       // Optimistically update the correct cache key
       utils.admin.listUsers.setData(undefined, (prev) =>
         prev
           ? prev.map((u) =>
-              u.uid === vars.uid ? { ...u, disabled: vars.disabled } : u
+              u.uid === vars.uid ? { ...u, disabled: vars.disabled } : u,
             )
-          : prev
+          : prev,
       );
     },
     onError: (err) => {
-      const code = (err as any)?.data?.code;
+      const code = err?.data?.code;
       const msg =
-        code === 'FORBIDDEN'
-          ? 'Access denied'
-          : (err as any)?.message || 'Failed to update user status';
+        code === "FORBIDDEN"
+          ? "Access denied"
+          : err?.message || "Failed to update user status";
       toast.error(msg);
     },
   });
@@ -93,12 +94,12 @@ export default function UserList() {
 
   const handleToggleUserStatus = async (u: FirebaseUser) => {
     if (!u.uid) {
-      toast.error('Missing uid for this user entry');
+      toast.error("Missing uid for this user entry");
       return;
     }
     const isAdmin = !!u.email && !!adminMap?.[u.email.toLowerCase()];
     if (isAdmin) {
-      toast.error('Cannot disable admin accounts');
+      toast.error("Cannot disable admin accounts");
       return;
     }
 
@@ -119,10 +120,10 @@ export default function UserList() {
     const q = searchQuery.toLowerCase();
     return users.filter((u) => {
       return (
-        (u.email || '').toLowerCase().includes(q) ||
-        (u.displayName || '').toLowerCase().includes(q) ||
-        (u.username || '').toLowerCase().includes(q) ||
-        (u.uid || '').toLowerCase().includes(q)
+        (u.email || "").toLowerCase().includes(q) ||
+        (u.displayName || "").toLowerCase().includes(q) ||
+        (u.username || "").toLowerCase().includes(q) ||
+        (u.uid || "").toLowerCase().includes(q)
       );
     });
   }, [users, searchQuery]);
@@ -139,10 +140,12 @@ export default function UserList() {
   }
 
   if (isError) {
-    if ((error as any)?.data?.code === 'FORBIDDEN') {
+    if (err.data?.code === "FORBIDDEN") {
       return (
         <div className="p-6">
-          <p className="text-destructive">Access denied. Admin privileges required.</p>
+          <p className="text-destructive">
+            Access denied. Admin privileges required.
+          </p>
         </div>
       );
     }
@@ -177,7 +180,9 @@ export default function UserList() {
             disabled={refreshing}
             title="Refresh user list"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
           </Button>
         </div>
       </div>
@@ -185,7 +190,7 @@ export default function UserList() {
       {searchQuery && (
         <p className="text-sm text-muted-foreground">
           Found {filteredUsers.length} user
-          {filteredUsers.length !== 1 ? 's' : ''}
+          {filteredUsers.length !== 1 ? "s" : ""}
         </p>
       )}
 
@@ -193,7 +198,7 @@ export default function UserList() {
         {filteredUsers.map((u, idx) => {
           const key = u.uid ?? u.email ?? `row-${idx}`;
           const isAdmin = !!u.email && !!adminMap?.[u.email.toLowerCase()];
-          const disabledLabel = u.disabled ? 'Disabled' : '';
+          const disabledLabel = u.disabled ? "Disabled" : "";
 
           return (
             <Card key={key} className="hover:bg-accent/50 transition-colors">
@@ -201,11 +206,17 @@ export default function UserList() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <CardTitle className="text-base leading-tight">
-                      {u.username || u.displayName || u.email || 'Unknown User'}
+                      {u.username || u.displayName || u.email || "Unknown User"}
                     </CardTitle>
                     <CardDescription className="mt-1 space-y-0.5">
-                      {u.email && <span className="block text-xs truncate">{u.email}</span>}
-                      <span className="block text-xs text-muted-foreground truncate">{u.uid}</span>
+                      {u.email && (
+                        <span className="block text-xs truncate">
+                          {u.email}
+                        </span>
+                      )}
+                      <span className="block text-xs text-muted-foreground truncate">
+                        {u.uid}
+                      </span>
                     </CardDescription>
                   </div>
                   <div className="flex flex-wrap items-center gap-1 justify-end">
@@ -226,28 +237,33 @@ export default function UserList() {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="text-xs text-muted-foreground space-x-3">
                     {u.creationTime && (
-                      <span>Created: {new Date(u.creationTime).toLocaleDateString()}</span>
+                      <span>
+                        Created: {new Date(u.creationTime).toLocaleDateString()}
+                      </span>
                     )}
                     {u.lastSignInTime && (
-                      <span>Last login: {new Date(u.lastSignInTime).toLocaleDateString()}</span>
+                      <span>
+                        Last login:{" "}
+                        {new Date(u.lastSignInTime).toLocaleDateString()}
+                      </span>
                     )}
                   </div>
                   <Button
-                    variant={u.disabled ? 'default' : 'destructive'}
+                    variant={u.disabled ? "default" : "destructive"}
                     size="sm"
                     onClick={() => handleToggleUserStatus(u)}
                     disabled={busy || loadingUid === u.uid || isAdmin}
                     className="w-full sm:w-auto"
                   >
                     {busy
-                      ? '...'
+                      ? "..."
                       : isAdmin
-                      ? 'Protected'
-                      : loadingUid === u.uid
-                      ? '...'
-                      : u.disabled
-                      ? 'Enable'
-                      : 'Disable'}
+                        ? "Protected"
+                        : loadingUid === u.uid
+                          ? "..."
+                          : u.disabled
+                            ? "Enable"
+                            : "Disable"}
                   </Button>
                 </div>
               </CardContent>
@@ -259,8 +275,8 @@ export default function UserList() {
           <div className="text-center py-12">
             <p className="text-muted-foreground">
               {searchQuery
-                ? 'No users found matching your search.'
-                : 'No users to display.'}
+                ? "No users found matching your search."
+                : "No users to display."}
             </p>
           </div>
         )}

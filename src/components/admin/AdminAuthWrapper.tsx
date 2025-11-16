@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
-import { auth } from "@/lib/firebase";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
-import { trpc } from "@/lib/trpc";
+import { useEffect } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
 import GenericSkeleton from "@/components/genericskeleton";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
 
 interface AdminAuthWrapperProps {
   children: React.ReactNode;
@@ -15,17 +15,14 @@ export default function AdminAuthWrapper({ children }: AdminAuthWrapperProps) {
   const [user, loading] = useAuthState(auth);
   const router = useRouter();
 
-  const {
-    data: verify,
-    isLoading: verifyLoading,
-    error: verifyError,
-  } = trpc.admin.verify.useQuery(
-    {},
-    {
-      enabled: !!user && !loading,
-      retry: false,
-    }
-  );
+  const { isLoading: verifyLoading, error: verifyError } =
+    trpc.admin.verify.useQuery(
+      {},
+      {
+        enabled: !!user && !loading,
+        retry: false,
+      },
+    );
 
   useEffect(() => {
     if (!loading && !user) {

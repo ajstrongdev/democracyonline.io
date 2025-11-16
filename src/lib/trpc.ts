@@ -1,9 +1,9 @@
-import { createTRPCReact } from '@trpc/react-query';
-import { createTRPCClient, httpBatchLink, loggerLink } from '@trpc/client';
-import { QueryClient } from '@tanstack/react-query';
-import type { AppRouter } from '@/server/routers/app';
-import { auth } from '@/lib/firebase';
-import superjson from 'superjson';
+import { QueryClient } from "@tanstack/react-query";
+import { createTRPCClient, httpBatchLink, loggerLink } from "@trpc/client";
+import { createTRPCReact } from "@trpc/react-query";
+import superjson from "superjson";
+import { auth } from "@/lib/firebase";
+import type { AppRouter } from "@/server/routers/app";
 
 /**
  * React hooks powered by tRPC
@@ -26,12 +26,10 @@ export function getTRPCClient() {
           ),
       }),
       httpBatchLink({
-        url: `${process.env.NEXT_PUBLIC_API_URL || ''}/api/trpc`,
+        url: `${process.env.NEXT_PUBLIC_API_URL || ""}/api/trpc`,
         headers: async () => {
           const idToken = await auth.currentUser?.getIdToken();
-          return idToken
-            ? { authorization: `Bearer ${idToken}` }
-            : {};
+          return idToken ? { authorization: `Bearer ${idToken}` } : {};
         },
         transformer: superjson,
       }),

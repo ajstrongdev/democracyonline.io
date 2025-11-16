@@ -1,11 +1,11 @@
-import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
-import { appRouter } from '@/server/routers/app';
-import { createTRPCContext } from '@/server/trpc';
-import { getAuthUserFromRequest } from '@/server/auth';
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { getAuthUserFromRequest } from "@/server/auth";
+import { appRouter } from "@/server/routers/app";
+import { createTRPCContext } from "@/server/trpc";
 
 function handler(req: Request) {
   return fetchRequestHandler({
-    endpoint: '/api/trpc',
+    endpoint: "/api/trpc",
     req,
     router: appRouter,
     createContext: async () => {
@@ -13,9 +13,9 @@ function handler(req: Request) {
       return createTRPCContext({ req, authUser });
     },
     onError({ error, path }) {
-      console.error('tRPC error', { path, error });
+      console.error("tRPC error", { path, error });
     },
   });
 }
 
-export { handler as GET, handler as POST }
+export { handler as GET, handler as POST };

@@ -1,23 +1,35 @@
-'use client';
+"use client";
 
-import React, { useMemo, useState } from 'react';
-import withAuth from '@/lib/withAuth';
+import {
+  Building2,
+  Check,
+  Crown,
+  Filter,
+  Landmark,
+  Pencil,
+  User,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import type React from "react";
+import { useMemo, useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
+import GenericSkeleton from "@/components/genericskeleton";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { auth } from "@/lib/firebase";
-import { trpc } from '@/lib/trpc';
-import GenericSkeleton from '@/components/genericskeleton';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { Filter, X, Check, User, Landmark, Building2, Crown, Pencil } from 'lucide-react';
+import { trpc } from "@/lib/trpc";
+import type { Bill, Stage } from "@/lib/trpc/types";
+import withAuth from "@/lib/withAuth";
 
-type Stage = 'House' | 'Senate' | 'Presidential';
+type BillStatus = "all" | "Queued" | "Voting" | "Passed" | "Defeated";
+type CreatorFilter = "all" | "mine";
 
 function BillsPage() {
   const [user] = useAuthState(auth);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'Queued' | 'Voting' | 'Passed' | 'Defeated'>('all');
-  const [stageFilter, setStageFilter] = useState<'all' | Stage>('all');
-  const [creatorFilter, setCreatorFilter] = useState<'all' | 'mine'>('all');
+  const [statusFilter, setStatusFilter] = useState<BillStatus>("all");
+  const [stageFilter, setStageFilter] = useState<"all" | Stage>("all");
+  const [creatorFilter, setCreatorFilter] = useState<CreatorFilter>("all");
 
   // Current user (to support "My Bills" filter)
   const { data: thisUser } = trpc.user.getByEmail.useQuery(
@@ -29,45 +41,75 @@ function BillsPage() {
   const { data: bills = [], isLoading, error } = trpc.bill.listAll.useQuery();
 
   // Client-side filtering
-  const filtered = useMemo(() => {
+  const filtered = useMemo((): Bill[] => {
     if (!bills) return [];
-    return bills.filter((b: any) => {
-      const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
-      const matchesStage = stageFilter === 'all' || b.stage === stageFilter;
-      const matchesCreator = creatorFilter === 'all' || (creatorFilter === 'mine' && thisUser?.id === b.creator_id);
+    return bills.filter((b) => {
+      const matchesStatus = statusFilter === "all" || b.status === statusFilter;
+      const matchesStage = stageFilter === "all" || b.stage === stageFilter;
+      const matchesCreator =
+        creatorFilter === "all" ||
+        (creatorFilter === "mine" && thisUser?.id === b.creatorId);
       return matchesStatus && matchesStage && matchesCreator;
     });
   }, [bills, statusFilter, stageFilter, creatorFilter, thisUser]);
 
   // Prepare bill IDs for each stage totals fetch
-  const houseIds = useMemo(() => filtered.map((b: any) => b.id), [filtered]);
-  const senateIds = useMemo(() => filtered.filter((b: any) => b.stage !== 'House').map((b: any) => b.id), [filtered]);
+  const houseIds = useMemo(() => filtered.map((b) => b.id), [filtered]);
+  const senateIds = useMemo(
+    () => filtered.filter((b) => b.stage !== "House").map((b) => b.id),
+    [filtered],
+  );
   const presidentialIds = useMemo(
-    () => filtered.filter((b: any) => b.stage === 'Presidential').map((b: any) => b.id),
+    () => filtered.filter((b) => b.stage === "Presidential").map((b) => b.id),
     [filtered],
   );
 
-  // Fetch totals with the same batched method used in BillsStageView
+  // House
   const { data: houseVotes } = trpc.bill.getVotesForBills.useQuery(
-    { stage: 'House', billIds: houseIds },
-    { enabled: houseIds.length > 0 },
+    { stage: "House", billIds: houseIds },
+    {
+      enabled: houseIds.length > 0,
+      select: (entries: VoteTotalsEntry[]) => {
+        const m = new Map<number, { for: number; against: number }>();
+        for (const e of entries) m.set(e.billId, e.totals);
+        return m;
+      },
+    },
   );
 
+  // Senate
   const { data: senateVotes } = trpc.bill.getVotesForBills.useQuery(
-    { stage: 'Senate', billIds: senateIds },
-    { enabled: senateIds.length > 0 },
+    { stage: "Senate", billIds: senateIds },
+    {
+      enabled: senateIds.length > 0,
+      select: (entries: VoteTotalsEntry[]) => {
+        const m = new Map<number, { for: number; against: number }>();
+        for (const e of entries) m.set(e.billId, e.totals);
+        return m;
+      },
+    },
   );
 
+  // Presidential
   const { data: presidentialVotes } = trpc.bill.getVotesForBills.useQuery(
-    { stage: 'Presidential', billIds: presidentialIds },
-    { enabled: presidentialIds.length > 0 },
+    { stage: "Presidential", billIds: presidentialIds },
+    {
+      enabled: presidentialIds.length > 0,
+      select: (entries: VoteTotalsEntry[]) => {
+        const m = new Map<number, { for: number; against: number }>();
+        for (const e of entries) m.set(e.billId, e.totals);
+        return m;
+      },
+    },
   );
 
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-foreground mb-2">Bills</h1>
-        <p className="text-muted-foreground">View and track the status of bills.</p>
+        <p className="text-muted-foreground">
+          View and track the status of bills.
+        </p>
         <Button asChild className="mt-4 hover:cursor-pointer">
           <Link href="/bills/create">Create New Bill</Link>
         </Button>
@@ -78,29 +120,37 @@ function BillsPage() {
         <div className="flex items-center gap-2 flex-wrap">
           {/* Status */}
           <FilterPill
-            active={statusFilter === 'Passed'}
-            onClick={() => setStatusFilter(statusFilter === 'Passed' ? 'all' : 'Passed')}
+            active={statusFilter === "Passed"}
+            onClick={() =>
+              setStatusFilter(statusFilter === "Passed" ? "all" : "Passed")
+            }
             icon={<Check size={18} />}
             activeClass="bg-green-100 dark:bg-green-900/40 border-green-500 text-green-700 dark:text-green-300"
             label="Passed"
           />
           <FilterPill
-            active={statusFilter === 'Defeated'}
-            onClick={() => setStatusFilter(statusFilter === 'Defeated' ? 'all' : 'Defeated')}
+            active={statusFilter === "Defeated"}
+            onClick={() =>
+              setStatusFilter(statusFilter === "Defeated" ? "all" : "Defeated")
+            }
             icon={<X size={18} />}
             activeClass="bg-red-100 dark:bg-red-900/40 border-red-500 text-red-700 dark:text-red-300"
             label="Defeated"
           />
           <FilterPill
-            active={statusFilter === 'Voting'}
-            onClick={() => setStatusFilter(statusFilter === 'Voting' ? 'all' : 'Voting')}
+            active={statusFilter === "Voting"}
+            onClick={() =>
+              setStatusFilter(statusFilter === "Voting" ? "all" : "Voting")
+            }
             icon={<Filter size={18} />}
             activeClass="bg-yellow-100 dark:bg-yellow-900/40 border-yellow-500 text-yellow-700 dark:text-yellow-300"
             label="Voting"
           />
           <FilterPill
-            active={statusFilter === 'Queued'}
-            onClick={() => setStatusFilter(statusFilter === 'Queued' ? 'all' : 'Queued')}
+            active={statusFilter === "Queued"}
+            onClick={() =>
+              setStatusFilter(statusFilter === "Queued" ? "all" : "Queued")
+            }
             icon={<Filter size={18} />}
             activeClass="bg-slate-100 dark:bg-slate-800 border-slate-400 text-slate-700 dark:text-slate-200"
             label="Queued"
@@ -108,23 +158,29 @@ function BillsPage() {
 
           {/* Stage */}
           <FilterPill
-            active={stageFilter === 'House'}
-            onClick={() => setStageFilter(stageFilter === 'House' ? 'all' : 'House')}
+            active={stageFilter === "House"}
+            onClick={() =>
+              setStageFilter(stageFilter === "House" ? "all" : "House")
+            }
             icon={<Building2 size={18} />}
             activeClass="bg-blue-100 dark:bg-blue-900/40 border-blue-500 text-blue-700 dark:text-blue-300"
             label="House"
           />
           <FilterPill
-            active={stageFilter === 'Senate'}
-            onClick={() => setStageFilter(stageFilter === 'Senate' ? 'all' : 'Senate')}
+            active={stageFilter === "Senate"}
+            onClick={() =>
+              setStageFilter(stageFilter === "Senate" ? "all" : "Senate")
+            }
             icon={<Landmark size={18} />}
             activeClass="bg-purple-100 dark:bg-purple-900/40 border-purple-500 text-purple-700 dark:text-purple-300"
             label="Senate"
           />
           <FilterPill
-            active={stageFilter === 'Presidential'}
+            active={stageFilter === "Presidential"}
             onClick={() =>
-              setStageFilter(stageFilter === 'Presidential' ? 'all' : 'Presidential')
+              setStageFilter(
+                stageFilter === "Presidential" ? "all" : "Presidential",
+              )
             }
             icon={<Crown size={18} />}
             activeClass="bg-amber-100 dark:bg-amber-900/40 border-amber-500 text-amber-700 dark:text-amber-300"
@@ -133,8 +189,10 @@ function BillsPage() {
 
           {/* Creator */}
           <FilterPill
-            active={creatorFilter === 'mine'}
-            onClick={() => setCreatorFilter(creatorFilter === 'mine' ? 'all' : 'mine')}
+            active={creatorFilter === "mine"}
+            onClick={() =>
+              setCreatorFilter(creatorFilter === "mine" ? "all" : "mine")
+            }
             icon={<User size={18} />}
             activeClass="bg-blue-100 dark:bg-blue-900/40 border-blue-500 text-blue-700 dark:text-blue-300"
             label="My Bills"
@@ -147,7 +205,7 @@ function BillsPage() {
         <h1 className="text-3xl font-bold text-foreground mb-4 border-b pb-2">
           All Bills
           <span className="text-lg font-normal text-muted-foreground ml-2">
-            ({filtered.length} {filtered.length === 1 ? 'bill' : 'bills'})
+            ({filtered.length} {filtered.length === 1 ? "bill" : "bills"})
           </span>
         </h1>
 
@@ -164,11 +222,11 @@ function BillsPage() {
             </CardContent>
           </Card>
         ) : filtered.length > 0 ? (
-          filtered.map((bill: any) => {
+          filtered.map((bill) => {
             // Map totals from our batched results
-            const house = houseVotes?.[bill.id];
-            const senate = senateVotes?.[bill.id];
-            const presidential = presidentialVotes?.[bill.id];
+            const house = houseVotes?.get(bill.id);
+            const senate = senateVotes?.get(bill.id);
+            const presidential = presidentialVotes?.get(bill.id);
 
             return (
               <Card key={bill.id} id={bill.id} className="mb-4 last:mb-0">
@@ -178,21 +236,31 @@ function BillsPage() {
                       <h2 className="text-xl font-semibold">
                         Bill #{bill.id}: {bill.title}
                       </h2>
-                      {thisUser.id === bill.creator_id && bill.status === 'Queued' && (
-                        <Link href={`/bills/edit/${bill.id}`}>
-                          <Button variant="outline" size="sm" className="flex items-center gap-2">
-                            <Pencil size={16} />
-                            Edit
-                          </Button>
-                        </Link>
-                      )}
+                      {thisUser.id === bill.creatorId &&
+                        bill.status === "Queued" && (
+                          <Link href={`/bills/edit/${bill.id}`}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center gap-2"
+                            >
+                              <Pencil size={16} />
+                              Edit
+                            </Button>
+                          </Link>
+                        )}
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">
-                      Proposed By: <b className="text-black dark:text-white">{bill.username}</b> | Status:{' '}
-                      {bill.status} | Stage: {bill.stage} | Created at:{' '}
-                      {new Date(bill.created_at).toLocaleDateString()}
+                      Proposed By:{" "}
+                      <b className="text-black dark:text-white">
+                        {bill.username}
+                      </b>{" "}
+                      | Status: {bill.status} | Stage: {bill.stage} | Created
+                      at: {new Date(bill.createdAt).toLocaleDateString()}
                     </p>
-                    <p className="text-foreground mt-5 sm:mt-3 whitespace-pre-wrap">{bill.content}</p>
+                    <p className="text-foreground mt-5 sm:mt-3 whitespace-pre-wrap">
+                      {bill.content}
+                    </p>
 
                     <div className="grid lg:grid-cols-3 grid-cols-1 mt-3">
                       <BillTotals
@@ -200,14 +268,14 @@ function BillsPage() {
                         yes={house?.for ?? 0}
                         no={house?.against ?? 0}
                       />
-                      {bill.stage !== 'House' && (
+                      {bill.stage !== "House" && (
                         <BillTotals
                           label="Senate"
                           yes={senate?.for ?? 0}
                           no={senate?.against ?? 0}
                         />
                       )}
-                      {bill.stage === 'Presidential' && (
+                      {bill.stage === "Presidential" && (
                         <BillTotals
                           label="Presidential"
                           yes={presidential?.for ?? 0}
@@ -225,9 +293,11 @@ function BillsPage() {
             <CardContent>
               <p>
                 No bills found
-                {statusFilter !== 'all' || stageFilter !== 'all' || creatorFilter !== 'all'
-                  ? ' matching the selected filters.'
-                  : '.'}
+                {statusFilter !== "all" ||
+                stageFilter !== "all" ||
+                creatorFilter !== "all"
+                  ? " matching the selected filters."
+                  : "."}
               </p>
             </CardContent>
           </Card>
@@ -237,20 +307,36 @@ function BillsPage() {
   );
 }
 
-function BillTotals({ label, yes, no }: { label: string; yes?: number; no?: number }) {
+function BillTotals({
+  label,
+  yes,
+  no,
+}: {
+  label: string;
+  yes?: number;
+  no?: number;
+}) {
   return (
     <div>
       <h2 className="text-xl font-semibold mb-2">{label}</h2>
       <div className="flex items-center gap-4">
         <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
-          Votes For: {yes ?? 0}
+          Votes For: {yes}
         </span>
         <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
-          Votes Against: {no ?? 0}
+          Votes Against: {no}
         </span>
       </div>
     </div>
   );
+}
+
+interface FilterPillProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  activeClass: string;
 }
 
 function FilterPill({
@@ -259,18 +345,13 @@ function FilterPill({
   icon,
   label,
   activeClass,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  activeClass: string;
-}) {
+}: FilterPillProps) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
-        active ? activeClass : 'bg-card hover:bg-accent'
+        active ? activeClass : "bg-card hover:bg-accent"
       }`}
     >
       {icon}

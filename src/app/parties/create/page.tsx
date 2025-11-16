@@ -1,22 +1,17 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 "use client";
+import { useRouter } from "next/navigation";
+import React, { useState } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { toast } from "sonner";
+import { icons } from "@/app/utils/logoHelper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import withAuth from "@/lib/withAuth";
-import { fetchUserInfo } from "@/app/utils/userHelper";
-import { trpc } from "@/lib/trpc";
-import React from "react";
-import { auth } from "@/lib/firebase";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
-import { useState } from "react";
-import { icons } from "@/app/utils/logoHelper";
+import { Textarea } from "@/components/ui/textarea";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import withAuth from "@/lib/withAuth";
 
 export const leanings = [
   "Far Left",
@@ -33,12 +28,9 @@ function Home() {
   const router = useRouter();
   const [leaning, setLeaning] = React.useState([3]);
 
-  const {
-    data: thisUser,
-    isLoading,
-  } = trpc.user.getByEmail.useQuery(
+  const { data: thisUser } = trpc.user.getByEmail.useQuery(
     { email: user?.email || "" },
-    { enabled: !!user?.email }
+    { enabled: !!user?.email },
   );
 
   const { data: stances = [] } = trpc.party.stanceTypes.useQuery();
@@ -67,7 +59,6 @@ function Home() {
     const discord = (
       form.elements.namedItem("discord_link") as HTMLInputElement
     )?.value;
-    const leaningValue = leanings[leaning[0]];
 
     if (!name || !bio || !color) {
       toast.error("Please fill in all required fields.");
@@ -75,7 +66,7 @@ function Home() {
     }
 
     const stanceValues: { id: number; value: string }[] = [];
-    stances.forEach((stance: any) => {
+    stances.forEach((stance) => {
       stanceValues.push({
         id: stance.id,
         value: (form.elements.namedItem(stance.id) as HTMLInputElement)?.value,
@@ -93,10 +84,12 @@ function Home() {
         discord: discord || null,
       });
 
-      await addFeed.mutateAsync({ content: `has created a new party: ${name}` });
+      await addFeed.mutateAsync({
+        content: `has created a new party: ${name}`,
+      });
       router.push(`/parties/${result.id}`);
     } catch (error) {
-      throw new Error("Error creating party:" + error);
+      throw new Error(`Error creating party:${error}`);
     }
   };
 
@@ -141,7 +134,7 @@ function Home() {
                 className="w-full"
                 onChange={(e) => {
                   const colorPicker = document.getElementById(
-                    "color-picker"
+                    "color-picker",
                   ) as HTMLInputElement;
                   if (
                     colorPicker &&
@@ -158,7 +151,7 @@ function Home() {
                 className="w-10 p-0 border-0"
                 onChange={(e) => {
                   const hexInput = document.getElementById(
-                    "color"
+                    "color",
                   ) as HTMLInputElement;
                   if (hexInput) hexInput.value = e.target.value;
                 }}
@@ -248,14 +241,14 @@ function Home() {
 
               <div className="flex justify-between mt-2 text-xs text-muted-foreground">
                 {leanings.map((label, i) => (
-                  <span key={i} className="text-center w-12 ">
+                  <span key={label} className="text-center w-12 ">
                     {i === 0
                       ? "Far Left"
                       : i === 6
-                      ? "Far Right"
-                      : i - 3 === 0
-                      ? "Center"
-                      : ""}
+                        ? "Far Right"
+                        : i - 3 === 0
+                          ? "Center"
+                          : ""}
                   </span>
                 ))}
               </div>
@@ -264,7 +257,7 @@ function Home() {
           {stances &&
             stances &&
             stances.length > 0 &&
-            stances.map((stance: any) => (
+            stances.map((stance) => (
               <div className="grid grid-cols-1 gap-2" key={stance.id}>
                 <Label
                   htmlFor="bio"

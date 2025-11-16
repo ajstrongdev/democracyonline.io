@@ -1,25 +1,23 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 "use client";
 
-import withAuth from "@/lib/withAuth";
-import { useRouter, useParams } from "next/navigation";
-import React, { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/lib/firebase";
-import { trpc } from "@/lib/trpc";
-import GenericSkeleton from "@/components/genericskeleton";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { icons } from "@/app/utils/logoHelper";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import GenericSkeleton from "@/components/genericskeleton";
 import PartyLogo from "@/components/PartyLogo";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import withAuth from "@/lib/withAuth";
 
 export const leanings = [
   "Far Left",
@@ -47,13 +45,11 @@ function MergePartyPage() {
   // Get current user info
   const { data: thisUser } = trpc.user.getByEmail.useQuery(
     { email: user?.email || "" },
-    { enabled: !!user?.email }
+    { enabled: !!user?.email },
   );
 
-  const {
-    data: currentParty,
-    isLoading: partyLoading
-  } = trpc.party.getById.useQuery({ partyId: Number(id) });
+  const { data: currentParty, isLoading: partyLoading } =
+    trpc.party.getById.useQuery({ partyId: Number(id) });
 
   const { data: allParties = [] } = trpc.party.list.useQuery();
 
@@ -62,13 +58,13 @@ function MergePartyPage() {
   const { data: mergeRequests = [], isLoading: mergeRequestsLoading } =
     trpc.party.mergeListIncoming.useQuery(
       { partyId: Number(id) },
-      { enabled: !!id }
+      { enabled: !!id },
     );
 
   // Get sent merge requests from this party (as sender)
   const { data: sentMergeRequests = [] } = trpc.party.mergeListSent.useQuery(
     { partyId: Number(id) },
-    { enabled: !!id }
+    { enabled: !!id },
   );
 
   const mergeCreate = trpc.party.mergeCreate.useMutation();
@@ -76,7 +72,7 @@ function MergePartyPage() {
   const mergeAccept = trpc.party.mergeAccept.useMutation({
     onSuccess: async (data) => {
       toast.success("Merge request accepted! Parties have been merged.");
-      const newPartyId = (data as any)?.newPartyId;
+      const newPartyId = data?.newPartyId;
 
       // Cancel old party queries to stop 403/404 spam
       await utils.party.mergeListIncoming.cancel({ partyId: Number(id) });
@@ -92,7 +88,7 @@ function MergePartyPage() {
         router.push(`/parties`);
       }
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast.error(error?.message || "Error accepting merge request");
     },
   });
@@ -100,7 +96,7 @@ function MergePartyPage() {
   const mergeReject = trpc.party.mergeReject.useMutation();
 
   const handleCreateMergeRequest = async (
-    e: React.FormEvent<HTMLFormElement>
+    e: React.FormEvent<HTMLFormElement>,
   ) => {
     e.preventDefault();
     if (!thisUser?.id || !currentParty?.id) {
@@ -114,7 +110,7 @@ function MergePartyPage() {
     }
 
     const existingRequest = sentMergeRequests.find(
-      (req: any) => req.receiverParty?.id === selectedTargetPartyId
+      (req) => req.receiverParty?.id === selectedtargetPartyId,
     );
 
     if (existingRequest) {
@@ -134,7 +130,7 @@ function MergePartyPage() {
     }
 
     const stanceValues: { id: number; value: string }[] = [];
-    stances?.forEach((stance: any) => {
+    stances?.forEach((stance) => {
       stanceValues.push({
         id: stance.id,
         value:
@@ -145,7 +141,7 @@ function MergePartyPage() {
     try {
       await mergeCreate.mutateAsync({
         senderPartyId: currentParty.id,
-        receiverPartyId: selectedTargetPartyId!,
+        receiverPartyId: selectedTargetPartyId,
         mergedPartyData: {
           name,
           color,
@@ -164,9 +160,9 @@ function MergePartyPage() {
       setSelectedTargetPartyId(null);
       // Switch back to view tab
       setActiveTab("view");
-    } catch (error: any) {
+    } catch (error) {
       toast.error(
-        error.response?.data?.error || "Error creating merge request"
+        error.response?.data?.error || "Error creating merge request",
       );
     }
   };
@@ -184,14 +180,14 @@ function MergePartyPage() {
       toast.success("Merge request rejected");
       await utils.party.mergeListIncoming.invalidate({ partyId: Number(id) });
       await utils.party.mergeListSent.invalidate({ partyId: Number(id) });
-    } catch (error: any) {
+    } catch (error) {
       toast.error(
-        error.response?.data?.error || "Error rejecting merge request"
+        error.response?.data?.error || "Error rejecting merge request",
       );
     }
   };
 
-  const isLeader = currentParty?.leader_id === thisUser?.id;
+  const isLeader = currentParty?.leaderId === thisUser?.id;
 
   if (partyLoading || !thisUser) {
     return <GenericSkeleton />;
@@ -218,12 +214,12 @@ function MergePartyPage() {
   }
 
   const partiesWithPendingRequests = sentMergeRequests.map(
-    (req: any) => req.receiverParty?.id
+    (req) => req.receiverParty?.id,
   );
 
   const availableParties = allParties.filter(
-    (party: any) =>
-      party.id !== Number(id) && !partiesWithPendingRequests.includes(party.id)
+    (party) =>
+      party.id !== Number(id) && !partiesWithPendingRequests.includes(party.id),
   );
 
   return (
@@ -258,7 +254,7 @@ function MergePartyPage() {
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {mergeRequests.map((request: any) => (
+                    {mergeRequests.map((request) => (
                       <Card
                         key={request.id}
                         className="border-l-4"
@@ -319,18 +315,16 @@ function MergePartyPage() {
                                   Party Platform
                                 </h4>
                                 <div className="space-y-2">
-                                  {request.mergeData.stances.map(
-                                    (stance: any, idx: number) => (
-                                      <div key={idx} className="text-sm">
-                                        <span className="font-medium">
-                                          {stance.issue}:
-                                        </span>{" "}
-                                        <span className="text-muted-foreground">
-                                          {stance.value}
-                                        </span>
-                                      </div>
-                                    )
-                                  )}
+                                  {request.mergeData.stances.map((stance) => (
+                                    <div key={stance.issue} className="text-sm">
+                                      <span className="font-medium">
+                                        {stance.issue}:
+                                      </span>{" "}
+                                      <span className="text-muted-foreground">
+                                        {stance.value}
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
                             )}
@@ -372,7 +366,7 @@ function MergePartyPage() {
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {sentMergeRequests.map((request: any) => (
+                    {sentMergeRequests.map((request) => (
                       <Card
                         key={request.id}
                         className="border-l-4"
@@ -433,18 +427,19 @@ function MergePartyPage() {
                                   Party Platform
                                 </h4>
                                 <div className="space-y-2">
-                                  {request.mergeData.stances.map(
-                                    (stance: any, idx: number) => (
-                                      <div key={idx} className="text-sm">
-                                        <span className="font-medium">
-                                          {stance.issue}:
-                                        </span>{" "}
-                                        <span className="text-muted-foreground">
-                                          {stance.value}
-                                        </span>
-                                      </div>
-                                    )
-                                  )}
+                                  {request.mergeData.stances.map((stance) => (
+                                    <div
+                                      key={stance.isssue}
+                                      className="text-sm"
+                                    >
+                                      <span className="font-medium">
+                                        {stance.issue}:
+                                      </span>{" "}
+                                      <span className="text-muted-foreground">
+                                        {stance.value}
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
                             )}
@@ -479,7 +474,7 @@ function MergePartyPage() {
                     required
                   >
                     <option value="">-- Select a party to merge with --</option>
-                    {availableParties.map((party: any) => (
+                    {availableParties.map((party) => (
                       <option key={party.id} value={party.id}>
                         {party.name}
                       </option>
@@ -527,7 +522,7 @@ function MergePartyPage() {
                           required
                           onChange={(e) => {
                             const colorPicker = document.getElementById(
-                              "color-picker"
+                              "color-picker",
                             ) as HTMLInputElement;
                             if (
                               colorPicker &&
@@ -544,7 +539,7 @@ function MergePartyPage() {
                           className="w-10 p-0 border-0"
                           onChange={(e) => {
                             const hexInput = document.getElementById(
-                              "color"
+                              "color",
                             ) as HTMLInputElement;
                             if (hexInput) hexInput.value = e.target.value;
                           }}
@@ -623,15 +618,9 @@ function MergePartyPage() {
                         />
 
                         <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                          {leanings.map((label, i) => (
-                            <span key={i} className="text-center w-12">
-                              {i === 0
-                                ? "Far Left"
-                                : i === 6
-                                ? "Far Right"
-                                : i - 3 === 0
-                                ? "Center"
-                                : ""}
+                          {leanings.map((label) => (
+                            <span key={label} className="text-center w-12">
+                              {label}
                             </span>
                           ))}
                         </div>
@@ -640,7 +629,7 @@ function MergePartyPage() {
 
                     {stances &&
                       stances.length > 0 &&
-                      stances.map((stance: any) => (
+                      stances.map((stance) => (
                         <div className="space-y-2" key={stance.id}>
                           <Label
                             htmlFor={String(stance.id)}
