@@ -1,75 +1,44 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import withAuth from "@/lib/withAuth";
-import { use } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchUserInfo, getUserFullById } from "@/app/utils/userHelper";
-import GenericSkeleton from "@/components/genericskeleton";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Crown, Handshake } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Handshake, Crown } from "lucide-react";
-import { auth } from "@/lib/firebase";
+import { use } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
+import GenericSkeleton from "@/components/genericskeleton";
 import PartyLogo from "@/components/PartyLogo";
-import React from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import withAuth from "@/lib/withAuth";
 
 function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [user] = useAuthState(auth);
 
-  const { data: thisUser, isLoading: isThisUserLoading } = useQuery({
-    queryKey: ["fetchUserInfo", user?.email],
-    queryFn: async () => {
-      return fetchUserInfo(user?.email || "").then((data) => data || null);
-    },
-    enabled: !!user?.email,
-  });
+  const { data: thisUser, isLoading: isThisUserLoading } =
+    trpc.user.getByEmail.useQuery(
+      { email: user?.email || "" },
+      { enabled: !!user?.email },
+    );
 
   const {
     data: userData,
     isLoading,
     error,
-  } = useQuery({
-    queryKey: ["userInfo", id],
-    queryFn: async () => {
-      return getUserFullById(Number(id), true).then((data) => data || null);
-    },
-    enabled: !!id,
-    retry: false,
-  });
+  } = trpc.user.getById.useQuery(
+    { userId: Number(id), omitEmail: true },
+    { enabled: !!id, retry: false },
+  );
 
-  const { data: partyData, isLoading: partyLoading } = useQuery({
-    queryKey: ["partyInfo", userData?.party_id],
-    queryFn: async () => {
-      if (!userData?.party_id) return null;
-      return fetch(`/api/get-party-by-id?partyId=${userData.party_id}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => data || null);
-    },
-    enabled: !!userData?.party_id,
-  });
+  const { data: partyData, isLoading: partyLoading } =
+    trpc.party.getById.useQuery(
+      { partyId: userData?.partyId },
+      { enabled: !!userData?.partyId },
+    );
 
-  const { data: votesData, isLoading: votesLoading } = useQuery({
-    queryKey: ["userVotes", id],
-    queryFn: async () => {
-      return fetch(`/api/bill-get-user-votes?userId=${id}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => data.votes || []);
-    },
-    enabled: !!id,
-  });
+  const { data: votesData, isLoading: votesLoading } =
+    trpc.bill.getUserVotes.useQuery({ userId: Number(id) }, { enabled: !!id });
 
   if (isLoading || partyLoading || votesLoading || isThisUserLoading) {
     return <GenericSkeleton />;
@@ -144,7 +113,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                 <p className="mt-1 flex items-center gap-2">
                   <Handshake className="w-4 h-4" /> {userData?.role}
                 </p>
-                {userData?.id == partyData?.leader_id && (
+                {userData?.id === partyData?.leaderId && (
                   <div className="mt-1 flex items-center gap-2 text-sm font-medium text-yellow-500">
                     <Crown className="w-4 h-4" />
                     Party Leader
@@ -175,7 +144,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                 Political Leaning:
               </p>
               <p className="text-card-foreground leading-relaxed">
-                {userData?.political_leaning || "Not specified"}
+                {userData?.politicalLeaning || "Not specified"}
               </p>
             </div>
             <div className="flex justify-between">
@@ -197,7 +166,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                 {partyData?.name || "Independent"}
               </p>
             </div>
-            {userData?.party_id != null && (
+            {userData?.partyId != null && (
               <>
                 <div className="flex justify-between">
                   <p className="text-muted-foreground leading-relaxed">
@@ -248,32 +217,32 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
         <CardContent>
           {votesData && votesData.length > 0 ? (
             <div className="space-y-3">
-              {[...votesData].reverse().map((vote: any, index: number) => (
+              {[...votesData].reverse().map((vote, index: number) => (
                 <div
-                  key={`${vote.id}-${vote.bill_id}-${vote.stage}-${index}`}
+                  key={`${vote.id}-${vote.billId}-${vote.stage}-${index}`}
                   className="border p-4 rounded-md bg-sidebar"
                 >
                   <div className="flex justify-between">
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">
-                        Bill #{vote.bill_id}: {vote.title}
+                        Bill #{vote.billId}: {vote.title}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-2">
                         Stage: {vote.stage} | Status: {vote.status || "N/A"}
                       </p>
                       <Button asChild>
-                        <Link href={`/bills#${vote.bill_id}`}>View Bill</Link>
+                        <Link href={`/bills#${vote.billId}`}>View Bill</Link>
                       </Button>
                     </div>
                     <div className="flex items-center gap-2">
                       <span
                         className={`px-3 py-1 rounded-full text-md text-xl ${
-                          vote.vote_yes
+                          vote.voteYes
                             ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
                             : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
                         }`}
                       >
-                        {vote.vote_yes ? "For" : "Against"}
+                        {vote.voteYes ? "For" : "Against"}
                       </span>
                     </div>
                   </div>

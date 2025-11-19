@@ -1,23 +1,19 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 "use client";
 
-import withAuth from "@/lib/withAuth";
-import { useRouter, useParams } from "next/navigation";
-import React, { useState, useEffect, FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
+import { type FormEvent, useEffect, useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/lib/firebase";
-import { fetchUserInfo } from "@/app/utils/userHelper";
-import axios from "axios";
+import { toast } from "sonner";
+import { icons } from "@/app/utils/logoHelper";
 import GenericSkeleton from "@/components/genericskeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { toast } from "sonner";
-import { icons } from "@/app/utils/logoHelper";
+import { Textarea } from "@/components/ui/textarea";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import withAuth from "@/lib/withAuth";
 
 export const leanings = [
   "Far Left",
@@ -33,31 +29,24 @@ function ManageParty() {
   const [user] = useAuthState(auth);
   const router = useRouter();
   const params = useParams();
-  const id = params.id;
+  const utils = trpc.useUtils();
+  const id = Number(params.id);
   const [leaning, setLeaning] = useState([3]);
 
   // Get user info
-  const { data: thisUser } = useQuery({
-    queryKey: ["user", user?.email],
-    queryFn: () =>
-      fetchUserInfo(user?.email || "").then((data) => data || null),
-    enabled: !!user?.email,
-  });
+  const { data: thisUser } = trpc.user.getByEmail.useQuery(
+    { email: user?.email || "" },
+    { enabled: !!user?.email },
+  );
 
   // Party info
-  const { data: party, isLoading: partyLoading } = useQuery({
-    queryKey: ["party", id],
-    queryFn: async () => {
-      const response = await axios.get("/api/get-party-by-id", {
-        params: { partyId: id },
-      });
-      return response.data;
-    },
-    enabled: !!id,
-  });
+  const { data: party, isLoading: partyLoading } = trpc.party.getById.useQuery(
+    { partyId: id },
+    { enabled: !!id },
+  );
 
   const [selectedLogo, setSelectedLogo] = useState<string | null>(null);
-  const [colorState, setColorState] = useState<string>("#ff0000");
+  const [_colorState, setColorState] = useState<string>("#ff0000");
 
   // initialize selected logo and color when party loads
   useEffect(() => {
@@ -66,14 +55,7 @@ function ManageParty() {
   }, [party]);
 
   // Get stance types
-  const { data: stances } = useQuery({
-    queryKey: ["stances"],
-    queryFn: async () => {
-      const res = await axios.get("/api/get-stance-types");
-      const stances = res.data || [];
-      return stances.types;
-    },
-  });
+  const { data: stances = [] } = trpc.party.stanceTypes.useQuery();
 
   useEffect(() => {
     if (party?.leaning) {
@@ -83,6 +65,29 @@ function ManageParty() {
       }
     }
   }, [party]);
+
+  const updateParty = trpc.party.update.useMutation({
+    onSuccess: async () => {
+      toast.success("Party updated successfully!");
+
+      // Cancel any in-flight queries for this party (avoid refetch race/errors)
+      await utils.party.getById.cancel({ partyId: id });
+      await utils.party.members.cancel({ partyId: id });
+
+      // Invalidate detail before navigation so the new page refetches fresh data
+      await utils.party.getById.invalidate({ partyId: id });
+
+      // Refresh listings if you show parties elsewhere
+      await utils.party.list.invalidate();
+
+      // Navigate back to the party page
+      router.push(`/parties/${id}`);
+    },
+    onError: (err) => {
+      toast.error(err?.message || "Error updating party");
+      console.error("Error updating party:", err);
+    },
+  });
 
   const submitHandler = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -97,37 +102,30 @@ function ManageParty() {
     )?.value;
     const leaningValue = leanings[leaning[0]];
 
-    if (bio === "" || name === "" || color === "") {
+    if (!name || !color || !bio) {
       toast.error("Please fill in all required fields.");
       return;
     }
 
     const stanceValues: { id: number; value: string }[] = [];
-    stances.forEach((stance: any) => {
+    stances.forEach((stance) => {
       stanceValues.push({
         id: stance.id,
         value: (form.elements.namedItem(stance.id) as HTMLInputElement)?.value,
       });
     });
 
-    try {
-      const response = await axios.post("/api/party-update", {
-        partyId: id,
-        userId: thisUser.id,
-        name,
-        color,
-        bio,
-        stanceValues,
-        leaningValue,
-        logo: selectedLogo || null,
-        discord: discord || null,
-      });
-      toast.success("Party updated successfully!");
-      router.push(`/parties/${id}`);
-    } catch (error) {
-      toast.error("Error updating party");
-      console.error("Error updating party:", error);
-    }
+    // Fire mutation; onSuccess handles toast, cache, and navigation
+    updateParty.mutate({
+      partyId: id,
+      name,
+      color,
+      bio,
+      stanceValues,
+      leaning: leaningValue,
+      logo: selectedLogo || null,
+      discord: discord || null,
+    });
   };
 
   const loading = partyLoading;
@@ -179,7 +177,7 @@ function ManageParty() {
                   className="w-full"
                   onChange={(e) => {
                     const colorPicker = document.getElementById(
-                      "color-picker"
+                      "color-picker",
                     ) as HTMLInputElement;
                     if (
                       colorPicker &&
@@ -196,7 +194,7 @@ function ManageParty() {
                   className="w-10 p-0 border-0"
                   onChange={(e) => {
                     const hexInput = document.getElementById(
-                      "color"
+                      "color",
                     ) as HTMLInputElement;
                     if (hexInput) hexInput.value = e.target.value;
                   }}
@@ -288,14 +286,14 @@ function ManageParty() {
 
                 <div className="flex justify-between mt-2 text-xs text-muted-foreground">
                   {leanings.map((label, i) => (
-                    <span key={i} className="text-center w-12 ">
+                    <span key={label} className="text-center w-12 ">
                       {i === 0
                         ? "Far Left"
                         : i === 6
-                        ? "Far Right"
-                        : i - 3 === 0
-                        ? "Center"
-                        : ""}
+                          ? "Far Right"
+                          : i - 3 === 0
+                            ? "Center"
+                            : ""}
                     </span>
                   ))}
                 </div>
@@ -303,10 +301,10 @@ function ManageParty() {
             </div>
             {stances &&
               stances.length > 0 &&
-              stances.map((stance: any) => {
+              stances.map((stance) => {
                 // Find the matching stance value from party data
                 const partyStance = party?.stances?.find(
-                  (s: any) => s.id === stance.id
+                  (s) => s.id === stance.id,
                 );
                 return (
                   <div className="grid grid-cols-1 gap-2" key={stance.id}>

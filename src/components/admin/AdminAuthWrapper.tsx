@@ -1,17 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
-import { auth } from "@/lib/firebase";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
 import GenericSkeleton from "@/components/genericskeleton";
-
-const ALLOWED_ADMIN_EMAILS = [
-  "jenewland1999@gmail.com",
-  "ajstrongdev@pm.me",
-  "robertjenner5@outlook.com",
-  "spam@hpsaucii.dev",
-];
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
 
 interface AdminAuthWrapperProps {
   children: React.ReactNode;
@@ -21,16 +15,27 @@ export default function AdminAuthWrapper({ children }: AdminAuthWrapperProps) {
   const [user, loading] = useAuthState(auth);
   const router = useRouter();
 
+  const { isLoading: verifyLoading, error: verifyError } =
+    trpc.admin.verify.useQuery(
+      {},
+      {
+        enabled: !!user && !loading,
+        retry: false,
+      },
+    );
+
   useEffect(() => {
     if (!loading && !user) {
       router.push("/sign-in");
     }
   }, [user, loading, router]);
 
-  if (loading) {
+  // Still loading
+  if (loading || verifyLoading) {
     return <GenericSkeleton />;
   }
 
+  // Not signed in
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -42,7 +47,8 @@ export default function AdminAuthWrapper({ children }: AdminAuthWrapperProps) {
     );
   }
 
-  if (!user.email || !ALLOWED_ADMIN_EMAILS.includes(user.email)) {
+  // Not an admin
+  if (verifyError?.data?.code === "FORBIDDEN") {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -53,5 +59,18 @@ export default function AdminAuthWrapper({ children }: AdminAuthWrapperProps) {
     );
   }
 
+  // Other errors
+  if (verifyError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Error</h1>
+          <p>An error occurred while verifying admin access.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin verified
   return <>{children}</>;
 }

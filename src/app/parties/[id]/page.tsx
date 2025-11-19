@@ -1,37 +1,33 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import withAuth from "@/lib/withAuth";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import axios from "axios";
-import { useRouter, useParams } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import GenericSkeleton from "@/components/genericskeleton";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/lib/firebase";
 import {
+  ArrowLeftRight,
+  Crown,
   DoorOpen,
   Handshake,
-  Crown,
-  Pencil,
-  ArrowLeftRight,
   MessageSquare,
+  Pencil,
 } from "lucide-react";
-import { fetchUserInfo } from "@/app/utils/userHelper";
-import { Key } from "react";
-import { Chat } from "@/components/Chat";
+import { useParams, useRouter } from "next/navigation";
+import { type Key, useState } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
 import { toast } from "sonner";
-import { MessageDialog } from "@/components/ui/MessageDialog";
-import { useState } from "react";
+import { Chat } from "@/components/Chat";
+import GenericSkeleton from "@/components/genericskeleton";
 import PartyLogo from "@/components/PartyLogo";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { MessageDialog } from "@/components/ui/MessageDialog";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import withAuth from "@/lib/withAuth";
 
 function Home() {
   const [user] = useAuthState(auth);
   const router = useRouter();
   const params = useParams();
-  const id = params.id;
-  const queryClient = useQueryClient();
+  const utils = trpc.useUtils();
+  const id = Number(params.id);
   const [showKickDialog, setShowKickDialog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{
     id: number;
@@ -40,145 +36,70 @@ function Home() {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   // Get user info
-  const { data: thisUser } = useQuery({
-    queryKey: ["user", user?.email],
-    queryFn: () =>
-      fetchUserInfo(user?.email || "").then((data) => data || null),
-    enabled: !!user?.email,
-  });
+  const { data: thisUser } = trpc.user.getByEmail.useQuery(
+    { email: user?.email || "" },
+    { enabled: !!user?.email },
+  );
 
-  // Party info
-  const { data: party, isLoading: partyLoading } = useQuery({
-    queryKey: ["party", id],
-    queryFn: async () => {
-      const response = await axios.get("/api/get-party-by-id", {
-        params: { partyId: id },
-      });
-      return response.data;
-    },
-    enabled: !!id,
+  const { data: party, isLoading: partyLoading } = trpc.party.getById.useQuery({
+    partyId: Number(id),
   });
 
   // Party members
-  const { data: partyMembers = [] } = useQuery({
-    queryKey: ["partyMembers", id],
-    queryFn: async () => {
-      const response = await axios.get("/api/party-members", {
-        params: { partyId: id },
-      });
-      return response.data;
-    },
-    enabled: !!id,
+  const { data: partyMembers = [] } = trpc.party.members.useQuery({
+    partyId: id,
   });
 
-  const { data: membershipStatus, isLoading: membershipLoading } = useQuery({
-    queryKey: ["membershipStatus", thisUser?.id, id],
-    queryFn: async () => {
-      if (!thisUser?.id || !id) return false;
-      const response = await axios.post("/api/party-check-membership", {
-        userId: thisUser.id,
-        partyId: id,
-      });
-      return typeof response.data === "boolean" ? response.data : false;
-    },
-    enabled: !!thisUser?.id && !!id,
-    initialData: false,
-  });
+  const { data: membershipStatus, isLoading: membershipLoading } =
+    trpc.party.checkMembership.useQuery(
+      { userId: thisUser?.id ?? 0, partyId: id },
+      { enabled: !!thisUser?.id && Number.isFinite(id) },
+    );
+
+  const isLeader = party?.leaderId === thisUser?.id;
 
   // Get merge request count for this party
-  const { data: mergeRequestCount = 0 } = useQuery({
-    queryKey: ["mergeRequestCount", id],
-    queryFn: async () => {
-      if (!id) return 0;
-      const response = await axios.get("/api/party-merge-requests-get", {
-        params: { partyId: id },
-      });
-      return response.data?.length || 0;
-    },
-    enabled: !!id && party?.leader_id === thisUser?.id,
-  });
+  const { data: mergeRequests = [] } = trpc.party.mergeListIncoming.useQuery(
+    { partyId: id },
+    { enabled: isLeader && Number.isFinite(id) },
+  );
+  const mergeRequestCount = isLeader ? (mergeRequests?.length ?? 0) : 0;
 
-  const joinParty = useMutation({
-    mutationFn: async () => {
-      const res = await axios.post("/api/party-join", {
-        userId: thisUser?.id,
-        partyId: id,
-      });
-      await axios.post("/api/feed-add", {
-        userId: thisUser?.id,
-        content: `has joined the "${party?.name}".`,
-      });
-      return res.data;
-    },
+  // Join
+  const joinParty = trpc.party.join.useMutation({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["partyMembers", id] });
-      queryClient.invalidateQueries({
-        queryKey: ["membershipStatus", thisUser?.id, id],
-      });
-      queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
-      queryClient.invalidateQueries({ queryKey: ["party", id] });
+      utils.party.members.invalidate({ partyId: id });
+      utils.party.getById.invalidate({ partyId: id });
     },
   });
 
-  const leaveParty = useMutation({
-    mutationFn: async () => {
-      const res = await axios.post("/api/party-leave", {
-        userId: thisUser?.id,
-        partyId: id,
-      });
-      await axios.post("/api/feed-add", {
-        userId: thisUser?.id,
-        content: `has left the party "${party?.name}".`,
-      });
-      return res.data;
-    },
+  // Leave
+  const leaveParty = trpc.party.leave.useMutation({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["partyMembers", id] });
-      queryClient.invalidateQueries({
-        queryKey: ["membershipStatus", thisUser?.id, id],
-      });
-      queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
-      queryClient.invalidateQueries({ queryKey: ["party", id] });
+      utils.party.members.invalidate({ partyId: id });
+      utils.party.getById.invalidate({ partyId: id });
       router.push("/parties");
     },
   });
 
-  const becomeLeader = useMutation({
-    mutationFn: async () => {
-      const res = await axios.post("/api/party-become-leader", {
-        userId: thisUser?.id,
-        partyId: id,
-      });
-      await axios.post("/api/feed-add", {
-        userId: thisUser?.id,
-        content: `has become the party leader for "${party?.name}".`,
-      });
-      return res.data;
-    },
+  // Become leader
+  const becomeLeader = trpc.party.becomeLeader.useMutation({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["party", id] });
-      queryClient.invalidateQueries({ queryKey: ["partyMembers", id] });
-      queryClient.invalidateQueries({
-        queryKey: ["membershipStatus", thisUser?.id, id],
-      });
-      queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
+      utils.party.getById.invalidate({ partyId: id });
+      utils.party.members.invalidate({ partyId: id });
     },
   });
 
-  const handlekickMember = async (userId: number) => {
-    try {
-      await axios.post("/api/party-kick", {
-        userId: userId,
-      });
+  // Kick member
+  const kickMemberMutation = trpc.party.kick.useMutation({
+    onSuccess: () => {
       toast.success("Member kicked successfully.");
-      queryClient.invalidateQueries({ queryKey: ["partyMembers", id] });
-    } catch (error) {
-      toast.error("Failed to kick member.");
-    }
-  };
+      utils.party.members.invalidate({ partyId: id });
+    },
+  });
 
   const kickMember = (member: { id: number; username: string }) => {
-    setSelectedMember({ id: member.id, username: member.username });
+    setSelectedMember(member);
     setShowKickDialog(true);
   };
 
@@ -251,7 +172,7 @@ function Home() {
                         </span>
                       </div>
                     </div>
-                    {party.leader_id ? (
+                    {party.leaderId ? (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Leader:</span>
                         <span className="font-medium">
@@ -259,12 +180,12 @@ function Home() {
                             variant="link"
                             className="p-0 h-auto text-base font-medium"
                             onClick={() =>
-                              router.push(`/profile/${party.leader_id}`)
+                              router.push(`/profile/${party.leaderId}`)
                             }
                           >
                             {partyMembers.find(
-                              (member: any) => member.id === party.leader_id
-                            )?.username || `User ID ${party.leader_id}`}
+                              (member) => member.id === party.leaderId,
+                            )?.username || `User ID ${party.leaderId}`}
                           </Button>
                         </span>
                       </div>
@@ -299,7 +220,7 @@ function Home() {
                         </Button>
                       )
                     )}
-                    {membershipStatus && party.leader_id === thisUser?.id && (
+                    {membershipStatus && isLeader && (
                       <>
                         <Button
                           variant="outline"
@@ -314,7 +235,7 @@ function Home() {
                           onClick={() => router.push(`/parties/merge/${id}`)}
                         >
                           <ArrowLeftRight /> Merge Party
-                          {mergeRequestCount > 0 && (
+                          {isLeader && mergeRequestCount > 0 && (
                             <span className="ml-auto bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs font-semibold">
                               {mergeRequestCount}
                             </span>
@@ -323,8 +244,8 @@ function Home() {
                       </>
                     )}
                     {membershipStatus &&
-                      party.leader_id === null &&
-                      thisUser?.id !== party.leader_id && (
+                      party.leaderId === null &&
+                      thisUser?.id !== party.leaderId && (
                         <Button
                           variant="outline"
                           className="w-full justify-start"
@@ -333,11 +254,11 @@ function Home() {
                           <Crown /> Become Party Leader
                         </Button>
                       )}
-                    {thisUser?.party_id === null && (
+                    {!membershipStatus && (
                       <Button
                         variant="outline"
                         className="w-full justify-start"
-                        onClick={() => joinParty.mutate()}
+                        onClick={() => joinParty.mutate({ partyId: id })}
                       >
                         <Handshake /> Join Party
                       </Button>
@@ -365,7 +286,7 @@ function Home() {
               </div>
             </CardContent>
           </Card>
-          {party && party.stances && party.stances.length > 0 && (
+          {party?.stances && party.stances.length > 0 && (
             <Card>
               <CardHeader>
                 <h2 className="text-2xl font-semibold text-foreground">
@@ -383,7 +304,7 @@ function Home() {
                         {stance.value || "No stance provided."}
                       </p>
                     </div>
-                  )
+                  ),
                 )}
               </CardContent>
             </Card>
@@ -408,7 +329,7 @@ function Home() {
             <CardContent>
               {partyMembers.length > 0 ? (
                 <div className="space-y-4">
-                  {partyMembers.map((member: any) => (
+                  {partyMembers.map((member) => (
                     <div
                       key={member.id}
                       className="p-4 border rounded-lg hover:shadow transition"
@@ -420,7 +341,7 @@ function Home() {
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {member.role}{" "}
-                            {member.id === party.leader_id && (
+                            {member.id === party.leaderId && (
                               <span className={`font-medium text-green-500`}>
                                 - Party Leader
                               </span>
@@ -428,8 +349,8 @@ function Home() {
                           </p>
                         </div>
                         <div>
-                          {party.leader_id === thisUser?.id &&
-                            member.id !== party.leader_id && (
+                          {party.leaderId === thisUser?.id &&
+                            member.id !== party.leaderId && (
                               <Button
                                 variant="destructive"
                                 size="sm"
@@ -502,7 +423,7 @@ function Home() {
         variant="destructive"
         onConfirm={() => {
           if (selectedMember?.id != null) {
-            handlekickMember(selectedMember.id);
+            kickMemberMutation.mutate({ userId: selectedMember.id });
           }
           setShowKickDialog(false);
         }}
@@ -528,7 +449,7 @@ function Home() {
         cancelAriaLabel="Cancel leave"
         variant="destructive"
         onConfirm={() => {
-          leaveParty.mutate();
+          leaveParty.mutate({});
           setShowLeaveDialog(false);
         }}
       />

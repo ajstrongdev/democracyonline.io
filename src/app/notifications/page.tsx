@@ -1,46 +1,21 @@
 "use client";
 
-import React from "react";
-import withAuth from "@/lib/withAuth";
-import { useQuery } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
-import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
+import type { FeedWithUsername } from "@/lib/trpc/types";
+import withAuth from "@/lib/withAuth";
 
-type FeedItem = {
-  id: number;
-  user_id: number;
-  username?: string;
-  content: string;
-  created_at: string;
-};
+const SKELETON_KEYS = Array.from(
+  { length: 5 },
+  (_, i) => `skeleton-${i}`,
+) as const;
 
 function Home() {
-  const { data: feed = [], isLoading: loading } = useQuery({
-    queryKey: ["feed"],
-    queryFn: async () => {
-      const response = await axios.get("/api/feed-list");
-      const feedWithUsernames = await Promise.all(
-        response.data.map(async (item: FeedItem) => {
-          const username = await getUserById(item.user_id);
-          return { ...item, username };
-        })
-      );
-      return feedWithUsernames;
-    },
-    staleTime: 0,
-  });
+  const { data: feed = [], isLoading: loading } = trpc.feed.list.useQuery();
 
-  const getUserById = async (userId: number) => {
-    try {
-      const response = await axios.post(`/api/get-user-without-email`, {
-        userId,
-      });
-      return response.data.username;
-    } catch {
-      return "Unknown User";
-    }
-  };
+  // TODO: Optimize by returning username in feed.list via a JOIN, or
+  // use trpc.user.getById per-feed item (beware N+1).
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -52,10 +27,8 @@ function Home() {
       </div>
       <div className="space-y-4">
         {loading
-          ? Array.from({ length: 5 }).map((_, index) => (
-              <GenericSkeleton key={index} />
-            ))
-          : feed.map((item: FeedItem) => (
+          ? SKELETON_KEYS.map((key) => <GenericSkeleton key={key} />)
+          : feed.map((item: FeedWithUsername) => (
               <Card key={item.id} className="p-4">
                 <CardContent className="p-0">
                   <div className="md:flex justify-between items-center w-full">
@@ -63,7 +36,7 @@ function Home() {
                       <b>{item.username || "Unknown User"}</b>: {item.content}
                     </p>
                     <span className="text-xs text-muted-foreground whitespace-nowrap md:ml-4">
-                      {new Date(item.created_at).toLocaleString()}
+                      {new Date(item.createdAt).toLocaleString()}
                     </span>
                   </div>
                 </CardContent>

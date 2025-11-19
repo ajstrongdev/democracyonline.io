@@ -1,116 +1,44 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
-import axios from "axios";
-import UserList from "./UserList";
-import PartyList from "./PartyList";
-import DBUserList from "./DBUserList";
-import AccessTokenManager from "./AccessTokenManager";
 import GenericSkeleton from "@/components/genericskeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-interface FirebaseUser {
-  uid: string;
-  email?: string;
-  displayName?: string;
-  photoURL?: string;
-  disabled: boolean;
-  emailVerified: boolean;
-  creationTime?: string;
-  lastSignInTime?: string;
-  username?: string;
-}
-
-interface Party {
-  id: number;
-  name: string;
-  description: string;
-  economic_position: number;
-  social_position: number;
-  leader_id: number | null;
-  leader_username: string | null;
-  member_count: number;
-  created_at: string;
-}
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import AccessTokenManager from "./AccessTokenManager";
+import DBUserList from "./DBUserList";
+import PartyList from "./PartyList";
+import UserList from "./UserList";
 
 export default function AdminUserManager() {
-  const [user, loading] = useAuthState(auth);
-  const [users, setUsers] = useState<FirebaseUser[]>([]);
-  const [parties, setParties] = useState<Party[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
-  const [loadingParties, setLoadingParties] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [user, loadingAuth] = useAuthState(auth);
 
-  const fetchUsers = useCallback(async () => {
-    if (!user) {
-      setLoadingUsers(false);
-      return;
-    }
+  // Load users via tRPC hook
+  const {
+    data: users = [],
+    isLoading: loadingUsers,
+    refetch: refetchUsers,
+    error: usersError,
+  } = trpc.admin.listUsers.useQuery(undefined, {
+    enabled: !!user && !loadingAuth,
+  });
 
-    try {
-      setLoadingUsers(true);
-      const idToken = await user.getIdToken();
+  // Load parties via tRPC hook
+  const {
+    data: parties = [],
+    isLoading: loadingParties,
+    error: partiesError,
+  } = trpc.admin.listParties.useQuery(undefined, {
+    enabled: !!user && !loadingAuth,
+  });
 
-      const response = await axios.post(
-        "/api/admin/list-users",
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
-        }
-      );
+  const isLoading = loadingAuth || loadingUsers || loadingParties;
+  const error =
+    (usersError && "Failed to load users") ||
+    (partiesError && "Failed to load parties") ||
+    null;
 
-      setUsers(response.data.users);
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching users:", err);
-      setError("Failed to load users");
-    } finally {
-      setLoadingUsers(false);
-    }
-  }, [user]);
-
-  const fetchParties = useCallback(async () => {
-    if (!user) {
-      setLoadingParties(false);
-      return;
-    }
-
-    try {
-      setLoadingParties(true);
-      const idToken = await user.getIdToken();
-
-      const response = await axios.post(
-        "/api/admin/list-parties",
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
-        }
-      );
-
-      setParties(response.data.parties);
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching parties:", err);
-      setError("Failed to load parties");
-    } finally {
-      setLoadingParties(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!loading) {
-      fetchUsers();
-      fetchParties();
-    }
-  }, [loading, fetchUsers, fetchParties]);
-
-  if (loading || (loadingUsers && loadingParties)) {
+  if (isLoading) {
     return <GenericSkeleton />;
   }
 
@@ -142,10 +70,10 @@ export default function AdminUserManager() {
           <TabsTrigger value="dbusers">Purge from DB</TabsTrigger>
         </TabsList>
         <TabsContent value="users" className="mt-6">
-          <UserList initialUsers={users} onRefresh={fetchUsers} />
+          <UserList initialUsers={users} onRefresh={refetchUsers} />
         </TabsContent>
         <TabsContent value="parties" className="mt-6">
-          <PartyList initialParties={parties} onRefresh={fetchParties} />
+          <PartyList />
         </TabsContent>
         <TabsContent value="tokens" className="mt-6">
           <AccessTokenManager />

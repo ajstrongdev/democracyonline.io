@@ -1,24 +1,20 @@
 "use client";
-import { auth } from "@/lib/firebase";
-import { useAuthState } from "react-firebase-hooks/auth";
-import React, { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/dist/client/components/navigation";
-import { fetchUserInfo } from "@/app/utils/userHelper";
-import withAuth from "@/lib/withAuth";
+import { useEffect } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
 import GenericSkeleton from "@/components/genericskeleton";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import withAuth from "@/lib/withAuth";
 
 function ProfileRedirect() {
   const [user] = useAuthState(auth);
   const router = useRouter();
 
-  const { data: thisUser, isLoading } = useQuery({
-    queryKey: ["fetchUserInfo", user?.email],
-    queryFn: async () => {
-      return fetchUserInfo(user?.email || "").then((data) => data || null);
-    },
-    enabled: !!user?.email,
-  });
+  const { data: thisUser, isLoading } = trpc.user.getByEmail.useQuery(
+    { email: user?.email || "" },
+    { enabled: !!user?.email },
+  );
 
   useEffect(() => {
     if (thisUser?.id) {

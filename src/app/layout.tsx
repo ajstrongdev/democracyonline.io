@@ -7,9 +7,8 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { ThemeProvider } from "next-themes";
-import { QueryProviderWrapper } from "@/lib/queryClientProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { Providers } from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,24 +38,17 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <Toaster position="top-center" richColors />
-        <QueryProviderWrapper>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <SidebarProvider suppressHydrationWarning>
-              <AppSidebar />
-              <SidebarInset suppressHydrationWarning>
-                <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-                  <SidebarTrigger className="-ml-1" />
-                </header>
-                <div className="flex flex-1 flex-col gap-4 p-4">{children}</div>
-              </SidebarInset>
-            </SidebarProvider>
-          </ThemeProvider>
-        </QueryProviderWrapper>
+        <Providers>
+          <SidebarProvider suppressHydrationWarning>
+            <AppSidebar />
+            <SidebarInset suppressHydrationWarning>
+              <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+                <SidebarTrigger className="-ml-1" />
+              </header>
+              <div className="flex flex-1 flex-col gap-4 p-4">{children}</div>
+            </SidebarInset>
+          </SidebarProvider>
+        </Providers>
       </body>
     </html>
   );

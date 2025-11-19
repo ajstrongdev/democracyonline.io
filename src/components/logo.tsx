@@ -17,7 +17,7 @@ export function Logo({
     <div
       className={cn(
         "flex aspect-square items-center justify-center rounded-lg bg-gradient-to-br from-[#44efa7] to-[#121510] text-primary-foreground",
-        sizes.container
+        sizes.container,
       )}
     >
       <Crown className={cn("text-white", sizes.icon)} />

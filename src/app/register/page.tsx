@@ -1,27 +1,26 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 "use client";
-import { auth } from "@/lib/firebase";
-import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
-import React, { useState, useEffect } from "react";
+
+import { AlertTriangle, Info } from "lucide-react";
 import Link from "next/link";
-import axios from "axios";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
+import { LaunchCountdown } from "@/components/LaunchCountdown";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-import { useRouter } from "next/navigation";
 import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
+import { auth } from "@/lib/firebase";
+import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
 import { leanings } from "../parties/create/page";
-import { LaunchCountdown } from "@/components/LaunchCountdown";
-import { Info, AlertTriangle } from "lucide-react";
 
 export default function Home() {
   const [createUserWithEmailAndPassword] =
@@ -41,61 +40,59 @@ export default function Home() {
     setIsLaunched(new Date() >= launchTime);
   }, [launchTime]);
 
+  const validateToken = trpc.accessToken.validate.useQuery(
+    { token: accessToken },
+    {
+      enabled: accessToken.trim().length > 0, // only validate when token present
+      retry: false,
+    },
+  );
+
+  const consumeToken = trpc.accessToken.consume.useMutation();
+  const createDbUser = trpc.user.create.useMutation();
+  const addFeed = trpc.feed.add.useMutation();
+
   const signUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
 
+    // Ensure token has been validated
+    // If you prefer to validate on submit instead of live, call a utils.fetch here instead.
+    if (!validateToken.data || !validateToken.data.valid) {
+      setError(validateToken.data?.error || "Invalid access token");
+      return;
+    }
+
     try {
-      // Validate access token first
-      const tokenValidation = await axios.post("/api/access-token/validate", {
-        token: accessToken,
-      });
-
-      if (!tokenValidation.data.valid) {
-        setError(tokenValidation.data.error || "Invalid access token");
-        return;
-      }
-
       // Create Firebase user
       const res = await createUserWithEmailAndPassword(email, password);
-      if (res?.user) {
-        console.log("User created:", res.user);
-        const leaningItem = leanings[leaning[0]];
-        await insertUserToDatabase(email, username, bio, leaningItem);
+      if (!res?.user) return;
 
-        // Consume the access token after successful signup
-        await axios.post("/api/access-token/consume", {
-          token: accessToken,
-        });
-
-        router.push("/profile");
-      }
-    } catch (err: any) {
-      console.error("Error creating user:", err);
-      setError(err.response?.data?.error || "An error occurred during signup");
-    }
-  };
-
-  const insertUserToDatabase = async (
-    email: string,
-    username: string,
-    bio: string,
-    leaning: string
-  ) => {
-    try {
-      const response = await axios.post("/api/create-user", {
+      // Create DB user via tRPC
+      const leaningItem = leanings[leaning[0]];
+      await createDbUser.mutateAsync({
         email,
         username,
         bio,
-        leaning,
+        leaning: leaningItem,
       });
-      console.log("User inserted into database:", response.data);
-      await axios.post("/api/feed-add", {
-        userId: response.data.id,
-        content: "Just spawned into existence!",
-      });
-    } catch (error) {
-      console.error("Error inserting user into database:", error);
+
+      // Add a feed item (optional)
+      try {
+        await addFeed.mutateAsync({
+          content: "Just spawned into existence!",
+        });
+      } catch {
+        // Non-blocking
+      }
+
+      // Consume the access token after successful signup
+      await consumeToken.mutateAsync({ token: accessToken });
+
+      router.push("/profile");
+    } catch (err) {
+      console.error("Error creating user:", err);
+      setError(err?.message || "An error occurred during signup");
     }
   };
 
@@ -220,19 +217,19 @@ export default function Home() {
                 />
 
                 <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                  {leanings.map((label, i) => (
+                  {leanings.map((label) => (
                     <span
-                      key={i}
+                      key={label}
                       className="text-center flex-shrink-0"
                       style={{ width: "14.28%" }}
                     >
-                      {i === 0
+                      {label === "Far Left"
                         ? "Far Left"
-                        : i === 6
-                        ? "Far Right"
-                        : i - 3 === 0
-                        ? "Center"
-                        : ""}
+                        : label === "Far Right"
+                          ? "Far Right"
+                          : label === "Center"
+                            ? "Center"
+                            : ""}
                     </span>
                   ))}
                 </div>
@@ -262,7 +259,7 @@ export default function Home() {
               href="/"
               className={cn(
                 buttonVariants({ variant: "link" }),
-                "p-0 h-auto align-baseline"
+                "p-0 h-auto align-baseline",
               )}
             >
               Log in
