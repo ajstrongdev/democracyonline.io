@@ -1,29 +1,30 @@
 "use client";
 
-import {
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  updatePassword,
-} from "firebase/auth";
-import type React from "react";
-import { useEffect, useState } from "react";
+import withAuth from "@/lib/withAuth";
+import React, { useState, useEffect } from "react";
+import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { fetchUserInfo } from "@/app/utils/userHelper";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { auth } from "@/lib/firebase";
-import { trpc } from "@/lib/trpc";
-import withAuth from "@/lib/withAuth";
+import { Slider } from "@/components/ui/slider";
+import { toast } from "sonner";
+import axios from "axios";
+import {
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from "firebase/auth";
 
 export const leanings = [
   "Far Left",
@@ -37,6 +38,7 @@ export const leanings = [
 
 function UserSettings() {
   const [user] = useAuthState(auth);
+  const queryClient = useQueryClient();
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -46,10 +48,12 @@ function UserSettings() {
   const [bio, setBio] = useState("");
   const [leaning, setLeaning] = useState([3]);
 
-  const { data: thisUser } = trpc.user.getByEmail.useQuery(
-    { email: user?.email || "" },
-    { enabled: !!user?.email },
-  );
+  const { data: thisUser } = useQuery({
+    queryKey: ["user", user?.email],
+    queryFn: () =>
+      fetchUserInfo(user?.email || "").then((data) => data || null),
+    enabled: !!user?.email,
+  });
 
   useEffect(() => {
     if (thisUser) {
@@ -57,17 +61,32 @@ function UserSettings() {
       setBio(thisUser.bio || "");
 
       // Find the index of the political leaning
-      const leaningIndex = leanings.indexOf(thisUser.political_leaning);
+      const leaningIndex = leanings.findIndex(
+        (l) => l === thisUser.political_leaning
+      );
       if (leaningIndex !== -1) {
         setLeaning([leaningIndex]);
       }
     }
   }, [thisUser]);
 
-  const updateProfileMutation = trpc.user.updateProfile.useMutation({
-    onSuccess: async () => {
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: {
+      username: string;
+      bio: string;
+      political_leaning: string;
+    }) => {
+      const response = await axios.post("/api/user-update", {
+        userId: thisUser?.id,
+        username: data.username,
+        bio: data.bio,
+        political_leaning: data.political_leaning,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
       toast.success("Profile updated successfully!");
-      trpcUtils.user.getByEmail.invalidate({ email: user?.email || "" });
+      queryClient.invalidateQueries({ queryKey: ["user", user?.email] });
       setIsEditingProfile(false);
     },
     onError: () => {
@@ -97,7 +116,7 @@ function UserSettings() {
       // Reauthenticate user
       const credential = EmailAuthProvider.credential(
         user.email,
-        currentPassword,
+        currentPassword
       );
       await reauthenticateWithCredential(user, credential);
 
@@ -107,7 +126,8 @@ function UserSettings() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       console.error("Password update error:", error);
       if (error.code === "auth/wrong-password") {
         toast.error("Current password is incorrect");
@@ -130,8 +150,7 @@ function UserSettings() {
       return;
     }
 
-    updateProfile.mutate({
-      userId: thisUser?.id,
+    updateProfileMutation.mutate({
       username: username.trim(),
       bio: bio.trim(),
       political_leaning: leanings[leaning[0]],
@@ -225,19 +244,19 @@ function UserSettings() {
                     />
 
                     <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                      {leanings.map((label) => (
+                      {leanings.map((label, i) => (
                         <span
-                          key={label}
+                          key={i}
                           className="text-center flex-shrink-0"
                           style={{ width: "14.28%" }}
                         >
-                          {label === "Far Left"
+                          {i === 0
                             ? "Far Left"
-                            : label === "Far Right"
-                              ? "Far Right"
-                              : label === "Center"
-                                ? "Center"
-                                : ""}
+                            : i === 6
+                            ? "Far Right"
+                            : i - 3 === 0
+                            ? "Center"
+                            : ""}
                         </span>
                       ))}
                     </div>
@@ -260,8 +279,8 @@ function UserSettings() {
                       // Reset to original values
                       setUsername(thisUser.username || "");
                       setBio(thisUser.bio || "");
-                      const leaningIndex = leanings.indexOf(
-                        thisUser.political_leaning,
+                      const leaningIndex = leanings.findIndex(
+                        (l) => l === thisUser.political_leaning
                       );
                       if (leaningIndex !== -1) {
                         setLeaning([leaningIndex]);

@@ -1,24 +1,23 @@
 "use client";
+import { auth } from "@/lib/firebase";
+import {
+  useSignInWithEmailAndPassword,
+  useAuthState,
+} from "react-firebase-hooks/auth";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type React from "react";
-import { useEffect, useState } from "react";
-import {
-  useAuthState,
-  useSignInWithEmailAndPassword,
-} from "react-firebase-hooks/auth";
-import { LaunchCountdown } from "@/components/LaunchCountdown";
-import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { auth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
+import { LaunchCountdown } from "@/components/LaunchCountdown";
 
 export default function Home() {
   const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
@@ -137,7 +136,7 @@ export default function Home() {
                 href="/register"
                 className={cn(
                   buttonVariants({ variant: "link" }),
-                  "p-0 h-auto align-baseline",
+                  "p-0 h-auto align-baseline"
                 )}
               >
                 Sign up

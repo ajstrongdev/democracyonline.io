@@ -1,8 +1,8 @@
 "use client";
 
-import { Rocket } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Rocket } from "lucide-react";
 
 interface TimeLeft {
   days: number;
@@ -25,7 +25,7 @@ export function LaunchCountdown() {
 
     const calculateTimeLeft = () => {
       const launchDate = new Date("2025-11-02T20:00:00Z").getTime();
-      const now = Date.now();
+      const now = new Date().getTime();
       const difference = launchDate - now;
 
       if (difference > 0) {

@@ -132,6 +132,7 @@
   --shadow-2xl: 0 8px 18px hsl(120 10% 3% / 0.25);
 }
 
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

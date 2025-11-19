@@ -1,9 +1,9 @@
 "use client";
 
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import releases from "./releases.json";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 interface Release {
   version: string;
@@ -23,10 +23,10 @@ interface VersionGroup {
 
 export default function ReleasesPage() {
   const [selectedVersion, setSelectedVersion] = useState<string>(
-    releases[0]?.version || "",
+    releases[0]?.version || ""
   );
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set([releases[0]?.version.split(".").slice(0, 2).join(".")]),
+    new Set([releases[0]?.version.split(".").slice(0, 2).join(".")])
   );
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [mounted, setMounted] = useState(false);
@@ -63,7 +63,7 @@ export default function ReleasesPage() {
   };
 
   const selectedRelease = releases.find(
-    (release) => release.version === selectedVersion,
+    (release) => release.version === selectedVersion
   ) as Release | undefined;
 
   if (!mounted) {
@@ -89,7 +89,6 @@ export default function ReleasesPage() {
         <div className="space-y-6">
           {/* Mobile toggle button */}
           <button
-            type="button"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="md:hidden flex items-center justify-between w-full px-4 py-3 rounded-md bg-accent hover:bg-accent/80 transition-colors"
           >
@@ -126,7 +125,6 @@ export default function ReleasesPage() {
                   {hasMultipleReleases ? (
                     <>
                       <button
-                        type="button"
                         onClick={() => toggleGroup(group.majorMinor)}
                         className="flex items-center gap-2 w-full px-4 py-3 rounded-md hover:bg-accent transition-colors text-left"
                       >
@@ -229,9 +227,9 @@ export default function ReleasesPage() {
                 <div className="space-y-5">
                   <h2 className="text-2xl font-semibold">✨ New Features</h2>
                   <ul className="space-y-4 pl-6">
-                    {selectedRelease.features.map((feature) => (
+                    {selectedRelease.features.map((feature, index) => (
                       <li
-                        key={feature}
+                        key={index}
                         className="list-disc text-base leading-relaxed"
                       >
                         {feature}
@@ -245,9 +243,9 @@ export default function ReleasesPage() {
                 <div className="space-y-5">
                   <h2 className="text-2xl font-semibold">🚀 Improvements</h2>
                   <ul className="space-y-4 pl-6">
-                    {selectedRelease.improvements.map((improvement) => (
+                    {selectedRelease.improvements.map((improvement, index) => (
                       <li
-                        key={improvement}
+                        key={index}
                         className="list-disc text-base leading-relaxed"
                       >
                         {improvement}
@@ -261,9 +259,9 @@ export default function ReleasesPage() {
                 <div className="space-y-5">
                   <h2 className="text-2xl font-semibold">🐛 Bug Fixes</h2>
                   <ul className="space-y-4 pl-6">
-                    {selectedRelease.bugfixes.map((bugfix) => (
+                    {selectedRelease.bugfixes.map((bugfix, index) => (
                       <li
-                        key={bugfix}
+                        key={index}
                         className="list-disc text-base leading-relaxed"
                       >
                         {bugfix}
@@ -279,9 +277,9 @@ export default function ReleasesPage() {
                     ⚙️ Technical Changes
                   </h2>
                   <ul className="space-y-4 pl-6">
-                    {selectedRelease.technical.map((techChange) => (
+                    {selectedRelease.technical.map((techChange, index) => (
                       <li
-                        key={techChange}
+                        key={index}
                         className="list-disc text-base leading-relaxed"
                       >
                         {techChange}

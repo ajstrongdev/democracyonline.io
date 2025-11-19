@@ -1,29 +1,30 @@
 "use client";
 
-import { signOut } from "firebase/auth";
+import * as React from "react";
 import {
+  User,
   Bell,
   Building2,
-  ChartNoAxesCombined,
-  ChevronDown,
-  Crown,
-  Handshake,
   Landmark,
+  Crown,
   LogOut,
-  MessageSquare,
+  Sun,
   Moon,
+  Handshake,
   Newspaper,
+  ChevronDown,
+  ChartNoAxesCombined,
+  MessageSquare,
   Notebook,
   Shield,
-  Sun,
-  User,
 } from "lucide-react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
-import * as React from "react";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { Logo } from "@/components/logo";
+import { signOut } from "firebase/auth";
+import { useRouter, usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+import { auth } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
+
 import {
   Sidebar,
   SidebarContent,
@@ -35,12 +36,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
-  SidebarMenuSubButton,
   SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { auth } from "@/lib/firebase";
-import { trpc } from "@/lib/trpc";
+import Link from "next/link";
 
 const data = {
   navMain: [
@@ -120,19 +120,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const ALLOWED_ADMIN_EMAILS = [
+    "jenewland1999@gmail.com",
+    "ajstrongdev@pm.me",
+    "robertjenner5@outlook.com",
+    "spam@hpsaucii.dev",
+  ];
+
+  const isAdmin = user?.email && ALLOWED_ADMIN_EMAILS.includes(user.email);
+
   React.useEffect(() => {
     setMounted(true);
   }, []);
-
-  const { data: verify, error: verifyError } = trpc.admin.verify.useQuery(
-    {},
-    {
-      enabled: !!user,
-      retry: false,
-    },
-  );
-
-  const isAdmin = verify?.isAdmin && verifyError?.data?.code !== "FORBIDDEN";
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
@@ -185,7 +184,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 if (item.dropdown) {
                   const isDropdownOpen = item.dropdown.some(
                     (sub) =>
-                      pathname === sub.url || pathname.startsWith(sub.url),
+                      pathname === sub.url || pathname.startsWith(sub.url)
                   );
                   return (
                     <SidebarMenuItem key={item.title}>
@@ -236,9 +235,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
       <SidebarFooter>
         <SidebarSeparator />
+
         <SidebarMenu>
           {isAdmin && (
             <SidebarMenuItem>
