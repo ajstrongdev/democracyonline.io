@@ -1,4 +1,4 @@
-import { trpc } from "@/lib/trpc";
+import axios from "axios";
 
 /**
  * Check if a Firebase Auth user account is disabled
@@ -10,5 +10,6 @@ export async function checkUserDisabled(uid: string): Promise<{
   email?: string;
   emailVerified?: boolean;
 }> {
-  return trpc.user.checkUserDisabled.fetch({ uid });
+  const response = await axios.post("/api/check-user-disabled", { uid });
+  return response.data;
 }

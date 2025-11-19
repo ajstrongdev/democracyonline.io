@@ -1,26 +1,52 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
-import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+
+interface Chat {
+  id: number;
+  username: string;
+  created_at: string;
+  message: string;
+}
 
 interface ChatProps {
   room: string;
+  userId: number;
   username: string;
   title?: string;
 }
 
-export function Chat({ room, username, title = "Chat" }: ChatProps) {
-  const utils = trpc.useUtils();
+export function Chat({ room, userId, username, title = "Chat" }: ChatProps) {
+  const queryClient = useQueryClient();
 
-  const getChats = trpc.chat.listByRoom.useQuery(
-    { room },
-    { enabled: !!room, refetchInterval: 10000 },
-  );
+  const getChats = useQuery({
+    queryKey: ["chats", room],
+    queryFn: async () => {
+      const response = await axios.post("/api/get-chats", {
+        room,
+      });
+      return response.data.chats;
+    },
+    enabled: !!room,
+    refetchInterval: 10000, // Refresh every 10 secs
+  });
 
-  const addChat = trpc.chat.add.useMutation({
+  const addChat = useMutation({
+    mutationFn: async (message: string) => {
+      const res = await axios.post("/api/chats-add", {
+        user_id: userId,
+        room,
+        username,
+        message,
+      });
+      return res.data;
+    },
     onSuccess: () => {
-      utils.chat.listByRoom.invalidate({ room });
+      queryClient.invalidateQueries({ queryKey: ["chats", room] });
     },
   });
 
@@ -33,14 +59,14 @@ export function Chat({ room, username, title = "Chat" }: ChatProps) {
             {getChats.isLoading ? (
               <p className="text-muted-foreground">Loading messages...</p>
             ) : getChats.data && getChats.data.length > 0 ? (
-              [...getChats.data].reverse().map((chat) => (
+              [...getChats.data].reverse().map((chat: any) => (
                 <div key={chat.id} className="p-2 border-b last:border-0">
                   <p className="text-sm">
                     <span className="font-medium text-foreground">
                       {chat.username}
                     </span>{" "}
                     <span className="text-muted-foreground">
-                      ({new Date(chat.createdAt).toLocaleString()}):
+                      ({new Date(chat.created_at).toLocaleString()}):
                     </span>
                   </p>
                   <p className="text-foreground">{chat.message}</p>
@@ -59,10 +85,10 @@ export function Chat({ room, username, title = "Chat" }: ChatProps) {
             e.preventDefault();
             const form = e.target as HTMLFormElement;
             const input = form.elements.namedItem(
-              "message",
+              "message"
             ) as HTMLInputElement;
             if (input.value.trim() === "") return;
-            addChat.mutate({ room, username, message: input.value });
+            addChat.mutate(input.value);
             input.value = "";
           }}
         >

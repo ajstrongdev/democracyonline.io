@@ -1,9 +1,17 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import type { LucideIcon } from "lucide-react";
-import type React from "react";
+import React from "react";
+import * as LucideIcons from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
-import { trpc } from "@/lib/trpc";
+
+type PartyData = {
+  id: string;
+  name?: string;
+  color?: string | null;
+  logo?: string | null;
+};
 
 export default function PartyLogo({
   party_id,
@@ -13,10 +21,17 @@ export default function PartyLogo({
   size?: number;
 }) {
   // Get party info including logo
-  const { data: partyData, isLoading } = trpc.party.getById.useQuery(
-    { partyId: party_id },
-    { enabled: !!party_id },
-  );
+  const { data: partyData, isLoading } = useQuery({
+    queryKey: ["partyInfo", party_id],
+    queryFn: async (): Promise<PartyData | null> => {
+      const response = await fetch(`/api/get-party-by-id?partyId=${party_id}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch party info");
+      }
+      return response.json();
+    },
+    enabled: !!party_id,
+  });
 
   if (isLoading) {
     return <Spinner />;
@@ -34,14 +49,14 @@ export default function PartyLogo({
       .map((p) => (p ? p[0].toUpperCase() + p.slice(1) : ""))
       .join("");
 
-  let IconComponent: React.ComponentType<LucideIcon> | null = null;
+  let IconComponent: React.ComponentType<any> | null = null;
   if (logo && typeof logo === "string") {
-    const direct = LucideIcon[logo];
+    const direct = (LucideIcons as any)[logo];
     if (direct) {
       IconComponent = direct;
     } else {
       const pascal = toPascal(logo);
-      IconComponent = LucideIcon[pascal] || null;
+      IconComponent = (LucideIcons as any)[pascal] || null;
     }
   }
 
@@ -86,7 +101,6 @@ export default function PartyLogo({
 
   return (
     <div
-      role="img"
       style={circleStyle}
       aria-label={name || "Party logo"}
       title={name || "Party"}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { auth } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
 import {
   Card,
   CardContent,
@@ -11,68 +11,106 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { trpc } from "@/lib/trpc";
+
+const ALLOWED_ADMIN_EMAILS = [
+  "jenewland1999@gmail.com",
+  "ajstrongdev@pm.me",
+  "robertjenner5@outlook.com",
+  "spam@hpsaucii.dev",
+];
 
 interface DatabaseUser {
-  id: number | string;
+  id: string;
   email: string;
   username: string;
   role: string;
-  partyId: number | string | null;
-  createdAt: string;
+  party_id: string | null;
+  created_at: string;
 }
 
 export default function DBUserList() {
+  const [user] = useAuthState(auth);
+  const [users, setUsers] = useState<DatabaseUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Load users via tRPC hook. Server enforces admin permissions.
-  const {
-    data: dbUsers = [],
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = trpc.admin.listUsers.useQuery();
+  const purgeUserData = async (id: string) => {
+    if (!user) {
+      alert("You must be logged in to purge users");
+      return;
+    }
 
-  // Purge mutation. Server enforces admin permissions.
-  const purgeUser = trpc.admin.purgeUser.useMutation({
-    onSuccess: async () => {
-      toast.success("User data purged successfully.");
-      await refetch();
-    },
-    onError: (err) => {
-      if (err?.data?.code === "FORBIDDEN") {
-        toast.error("Access denied. Admin privileges required.");
-        return;
+    try {
+      // Get the current user's ID token
+      const idToken = await user.getIdToken();
+
+      const response = await fetch(`/api/admin/purge?userId=${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to purge user data");
       }
-      toast.error(err?.message || "Failed to purge user");
-    },
-  });
 
-  const users = dbUsers as DatabaseUser[];
-
-  // Move useMemo BEFORE early returns
-  const filteredUsers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter((u) => {
-      return (
-        (u.username || "").toLowerCase().includes(q) ||
-        (u.email || "").toLowerCase().includes(q) ||
-        String(u.id).toLowerCase().includes(q) ||
-        (u.role || "").toLowerCase().includes(q)
-      );
-    });
-  }, [users, searchQuery]);
-
-  const handleKick = async (userId: number | string, username: string) => {
-    if (confirm(`Are you sure you want to purge ${username}?`)) {
-      purgeUser.mutate({ userId: Number(userId) });
+      const result = await response.json();
+      alert(`User data purged successfully. ${result.message}`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "An error occurred");
     }
   };
 
-  if (isLoading) {
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/admin/userlist");
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch users");
+        }
+
+        const data = await response.json();
+        setUsers(data.users || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user && ALLOWED_ADMIN_EMAILS.includes(user.email || "")) {
+      fetchUsers();
+    }
+  }, [user]);
+
+  const handleKick = async (userId: string, username: string) => {
+    if (confirm(`Are you sure you want to kick ${username}?`)) {
+      await purgeUserData(userId);
+      // Refresh the user list after purging
+      const response = await fetch("/api/admin/userlist");
+      const data = await response.json();
+      setUsers(data.users || []);
+    }
+  };
+
+  if (!user || !ALLOWED_ADMIN_EMAILS.includes(user.email || "")) {
+    return (
+      <div className="p-6">
+        <p className="text-destructive">
+          Access denied. Admin privileges required.
+        </p>
+      </div>
+    );
+  }
+
+  if (loading) {
     return (
       <div className="p-6">
         <p>Loading users...</p>
@@ -80,22 +118,24 @@ export default function DBUserList() {
     );
   }
 
-  if (isError) {
-    if (error?.data?.code === "FORBIDDEN") {
-      return (
-        <div className="p-6">
-          <p className="text-destructive">
-            Access denied. Admin privileges required.
-          </p>
-        </div>
-      );
-    }
+  if (error) {
     return (
       <div className="p-6">
-        <p className="text-destructive">Error loading users</p>
+        <p className="text-destructive">Error: {error}</p>
       </div>
     );
   }
+
+  // Filter users based on search query
+  const filteredUsers = users.filter((dbUser) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      dbUser.username.toLowerCase().includes(query) ||
+      dbUser.email.toLowerCase().includes(query) ||
+      dbUser.id.toString().toLowerCase().includes(query) ||
+      dbUser.role.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <div className="p-6 space-y-4">
@@ -120,7 +160,7 @@ export default function DBUserList() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredUsers.map((dbUser) => (
-          <Card key={`${dbUser.id}`}>
+          <Card key={dbUser.id}>
             <CardHeader>
               <CardTitle>{dbUser.username}</CardTitle>
               <CardDescription>{dbUser.email}</CardDescription>
@@ -135,11 +175,11 @@ export default function DBUserList() {
                 </div>
                 <div>
                   <span className="font-semibold">Party ID:</span>{" "}
-                  {dbUser.partyId ?? "None"}
+                  {dbUser.party_id || "None"}
                 </div>
                 <div>
                   <span className="font-semibold">Created:</span>{" "}
-                  {new Date(dbUser.createdAt).toLocaleDateString()}
+                  {new Date(dbUser.created_at).toLocaleDateString()}
                 </div>
               </div>
             </CardContent>
@@ -148,9 +188,8 @@ export default function DBUserList() {
                 variant="destructive"
                 onClick={() => handleKick(dbUser.id, dbUser.username)}
                 className="w-full"
-                disabled={purgeUser.isPending}
               >
-                {purgeUser.isPending ? "Purging..." : "Purge User"}
+                Kick User
               </Button>
             </CardFooter>
           </Card>

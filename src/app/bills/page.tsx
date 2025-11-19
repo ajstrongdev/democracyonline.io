@@ -1,214 +1,164 @@
 "use client";
 
-import {
-  Building2,
-  Check,
-  Crown,
-  Filter,
-  Landmark,
-  Pencil,
-  User,
-  X,
-} from "lucide-react";
-import Link from "next/link";
-import type React from "react";
-import { useMemo, useState } from "react";
-import { useAuthState } from "react-firebase-hooks/auth";
-import GenericSkeleton from "@/components/genericskeleton";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { auth } from "@/lib/firebase";
-import { trpc } from "@/lib/trpc";
-import type { Bill, Stage } from "@/lib/trpc/types";
+import React, { useState, useMemo } from "react";
 import withAuth from "@/lib/withAuth";
+import { useQuery } from "@tanstack/react-query";
+import GenericSkeleton from "@/components/genericskeleton";
+import axios from "axios";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import type { BillItem } from "@/app/utils/billHelper";
+import { getUserById, fetchUserInfo } from "@/app/utils/userHelper";
+import { Filter, X, Check, Pencil, User } from "lucide-react";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "@/lib/firebase";
 
-type BillStatus = "all" | "Queued" | "Voting" | "Passed" | "Defeated";
-type CreatorFilter = "all" | "mine";
-
-function BillsPage() {
+function Bills() {
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [creatorFilter, setCreatorFilter] = useState<string>("all"); // "all" or "mine"
   const [user] = useAuthState(auth);
-  const [statusFilter, setStatusFilter] = useState<BillStatus>("all");
-  const [stageFilter, setStageFilter] = useState<"all" | Stage>("all");
-  const [creatorFilter, setCreatorFilter] = useState<CreatorFilter>("all");
 
-  // Current user (to support "My Bills" filter)
-  const { data: thisUser } = trpc.user.getByEmail.useQuery(
-    { email: user?.email || "" },
-    { enabled: !!user?.email },
-  );
+  // Get current user info
+  const { data: currentUser } = useQuery({
+    queryKey: ["user", user?.email],
+    queryFn: () =>
+      fetchUserInfo(user?.email || "").then((data) => data || null),
+    enabled: !!user?.email,
+  });
 
-  // All bills
-  const { data: bills = [], isLoading, error } = trpc.bill.listAll.useQuery();
+  const {
+    data = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["bills"],
+    queryFn: async () => {
+      const res = await axios.get("/api/bills-list");
+      const bills = res.data.bills || [];
+      const billsWithUsernames = await Promise.all(
+        bills.map(async (item: BillItem) => {
+          const username = await getUserById(item.creator_id, true);
+          return { ...item, username };
+        })
+      );
+      console.log(billsWithUsernames);
+      return billsWithUsernames;
+    },
+  });
 
-  // Client-side filtering
-  const filtered = useMemo((): Bill[] => {
-    if (!bills) return [];
-    return bills.filter((b) => {
-      const matchesStatus = statusFilter === "all" || b.status === statusFilter;
-      const matchesStage = stageFilter === "all" || b.stage === stageFilter;
+  const filteredBills = useMemo(() => {
+    if (!data) return [];
+
+    return data.filter((bill) => {
+      const matchesStatus =
+        statusFilter === "all" || bill.status === statusFilter;
       const matchesCreator =
         creatorFilter === "all" ||
-        (creatorFilter === "mine" && thisUser?.id === b.creatorId);
-      return matchesStatus && matchesStage && matchesCreator;
+        (creatorFilter === "mine" && currentUser?.id === bill.creator_id);
+      return matchesStatus && matchesCreator;
     });
-  }, [bills, statusFilter, stageFilter, creatorFilter, thisUser]);
-
-  // Prepare bill IDs for each stage totals fetch
-  const houseIds = useMemo(() => filtered.map((b) => b.id), [filtered]);
-  const senateIds = useMemo(
-    () => filtered.filter((b) => b.stage !== "House").map((b) => b.id),
-    [filtered],
-  );
-  const presidentialIds = useMemo(
-    () => filtered.filter((b) => b.stage === "Presidential").map((b) => b.id),
-    [filtered],
-  );
-
-  // House
-  const { data: houseVotes } = trpc.bill.getVotesForBills.useQuery(
-    { stage: "House", billIds: houseIds },
-    {
-      enabled: houseIds.length > 0,
-      select: (entries: VoteTotalsEntry[]) => {
-        const m = new Map<number, { for: number; against: number }>();
-        for (const e of entries) m.set(e.billId, e.totals);
-        return m;
-      },
-    },
-  );
-
-  // Senate
-  const { data: senateVotes } = trpc.bill.getVotesForBills.useQuery(
-    { stage: "Senate", billIds: senateIds },
-    {
-      enabled: senateIds.length > 0,
-      select: (entries: VoteTotalsEntry[]) => {
-        const m = new Map<number, { for: number; against: number }>();
-        for (const e of entries) m.set(e.billId, e.totals);
-        return m;
-      },
-    },
-  );
-
-  // Presidential
-  const { data: presidentialVotes } = trpc.bill.getVotesForBills.useQuery(
-    { stage: "Presidential", billIds: presidentialIds },
-    {
-      enabled: presidentialIds.length > 0,
-      select: (entries: VoteTotalsEntry[]) => {
-        const m = new Map<number, { for: number; against: number }>();
-        for (const e of entries) m.set(e.billId, e.totals);
-        return m;
-      },
-    },
-  );
+  }, [data, statusFilter, creatorFilter, currentUser]);
 
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-foreground mb-2">Bills</h1>
         <p className="text-muted-foreground">
-          View and track the status of bills.
+          View and track the status of bills here.
         </p>
         <Button asChild className="mt-4 hover:cursor-pointer">
           <Link href="/bills/create">Create New Bill</Link>
         </Button>
       </div>
-
-      {/* Filters */}
-      <div className="mb-6 space-y-3">
+      <div className="mb-6">
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Status */}
-          <FilterPill
-            active={statusFilter === "Passed"}
-            onClick={() =>
-              setStatusFilter(statusFilter === "Passed" ? "all" : "Passed")
-            }
-            icon={<Check size={18} />}
-            activeClass="bg-green-100 dark:bg-green-900/40 border-green-500 text-green-700 dark:text-green-300"
-            label="Passed"
-          />
-          <FilterPill
-            active={statusFilter === "Defeated"}
-            onClick={() =>
-              setStatusFilter(statusFilter === "Defeated" ? "all" : "Defeated")
-            }
-            icon={<X size={18} />}
-            activeClass="bg-red-100 dark:bg-red-900/40 border-red-500 text-red-700 dark:text-red-300"
-            label="Defeated"
-          />
-          <FilterPill
-            active={statusFilter === "Voting"}
-            onClick={() =>
-              setStatusFilter(statusFilter === "Voting" ? "all" : "Voting")
-            }
-            icon={<Filter size={18} />}
-            activeClass="bg-yellow-100 dark:bg-yellow-900/40 border-yellow-500 text-yellow-700 dark:text-yellow-300"
-            label="Voting"
-          />
-          <FilterPill
-            active={statusFilter === "Queued"}
-            onClick={() =>
-              setStatusFilter(statusFilter === "Queued" ? "all" : "Queued")
-            }
-            icon={<Filter size={18} />}
-            activeClass="bg-slate-100 dark:bg-slate-800 border-slate-400 text-slate-700 dark:text-slate-200"
-            label="Queued"
-          />
+          <button
+            onClick={() => {
+              if (statusFilter === "Passed") {
+                setStatusFilter("all");
+              } else {
+                setStatusFilter("Passed");
+                setCreatorFilter("all");
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              statusFilter === "Passed"
+                ? "bg-green-100 dark:bg-green-900/40 border-green-500 text-green-700 dark:text-green-300"
+                : "bg-card hover:bg-accent"
+            }`}
+          >
+            <Check size={20} />
+            <span className="font-medium">Passed</span>
+          </button>
 
-          {/* Stage */}
-          <FilterPill
-            active={stageFilter === "House"}
-            onClick={() =>
-              setStageFilter(stageFilter === "House" ? "all" : "House")
-            }
-            icon={<Building2 size={18} />}
-            activeClass="bg-blue-100 dark:bg-blue-900/40 border-blue-500 text-blue-700 dark:text-blue-300"
-            label="House"
-          />
-          <FilterPill
-            active={stageFilter === "Senate"}
-            onClick={() =>
-              setStageFilter(stageFilter === "Senate" ? "all" : "Senate")
-            }
-            icon={<Landmark size={18} />}
-            activeClass="bg-purple-100 dark:bg-purple-900/40 border-purple-500 text-purple-700 dark:text-purple-300"
-            label="Senate"
-          />
-          <FilterPill
-            active={stageFilter === "Presidential"}
-            onClick={() =>
-              setStageFilter(
-                stageFilter === "Presidential" ? "all" : "Presidential",
-              )
-            }
-            icon={<Crown size={18} />}
-            activeClass="bg-amber-100 dark:bg-amber-900/40 border-amber-500 text-amber-700 dark:text-amber-300"
-            label="Presidential"
-          />
+          <button
+            onClick={() => {
+              if (statusFilter === "Defeated") {
+                setStatusFilter("all");
+              } else {
+                setStatusFilter("Defeated");
+                setCreatorFilter("all");
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              statusFilter === "Defeated"
+                ? "bg-red-100 dark:bg-red-900/40 border-red-500 text-red-700 dark:text-red-300"
+                : "bg-card hover:bg-accent"
+            }`}
+          >
+            <X size={20} />
+            <span className="font-medium">Defeated</span>
+          </button>
 
-          {/* Creator */}
-          <FilterPill
-            active={creatorFilter === "mine"}
-            onClick={() =>
-              setCreatorFilter(creatorFilter === "mine" ? "all" : "mine")
-            }
-            icon={<User size={18} />}
-            activeClass="bg-blue-100 dark:bg-blue-900/40 border-blue-500 text-blue-700 dark:text-blue-300"
-            label="My Bills"
-          />
+          <button
+            onClick={() => {
+              if (statusFilter === "Voting") {
+                setStatusFilter("all");
+              } else {
+                setStatusFilter("Voting");
+                setCreatorFilter("all");
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              statusFilter === "Voting"
+                ? "bg-yellow-100 dark:bg-yellow-900/40 border-yellow-500 text-yellow-700 dark:text-yellow-300"
+                : "bg-card hover:bg-accent"
+            }`}
+          >
+            <Filter size={20} />
+            <span className="font-medium">Voting</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (creatorFilter === "mine") {
+                setCreatorFilter("all");
+              } else {
+                setCreatorFilter("mine");
+                setStatusFilter("all");
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              creatorFilter === "mine"
+                ? "bg-blue-100 dark:bg-blue-900/40 border-blue-500 text-blue-700 dark:text-blue-300"
+                : "bg-card hover:bg-accent"
+            }`}
+          >
+            <User size={20} />
+            <span className="font-medium">My Bills</span>
+          </button>
         </div>
       </div>
 
-      {/* Results */}
       <div className="space-y-4">
         <h1 className="text-3xl font-bold text-foreground mb-4 border-b pb-2">
           All Bills
           <span className="text-lg font-normal text-muted-foreground ml-2">
-            ({filtered.length} {filtered.length === 1 ? "bill" : "bills"})
+            ({filteredBills.length}{" "}
+            {filteredBills.length === 1 ? "bill" : "bills"})
           </span>
         </h1>
-
         {isLoading ? (
           <Card>
             <CardContent>
@@ -221,81 +171,96 @@ function BillsPage() {
               <p className="text-red-500">Error loading bills.</p>
             </CardContent>
           </Card>
-        ) : filtered.length > 0 ? (
-          filtered.map((bill) => {
-            // Map totals from our batched results
-            const house = houseVotes?.get(bill.id);
-            const senate = senateVotes?.get(bill.id);
-            const presidential = presidentialVotes?.get(bill.id);
+        ) : filteredBills && filteredBills.length > 0 ? (
+          filteredBills.map((bill) => (
+            <Card key={bill.id} id={bill.id} className="mb-4 last:mb-0">
+              <CardContent>
+                {/* Bill details */}
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <h2 className="text-xl font-semibold">
+                      Bill #{bill.id}: {bill.title}
+                    </h2>
+                    {currentUser?.id === bill.creator_id &&
+                      bill.status === "Queued" && (
+                        <Link href={`/bills/edit/${bill.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-2"
+                          >
+                            <Pencil size={16} />
+                            Edit
+                          </Button>
+                        </Link>
+                      )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Proposed By:{" "}
+                    <b className="text-black dark:text-white">
+                      {bill.username}
+                    </b>{" "}
+                    | Status: {bill.status} | Stage: {bill.stage} | Created at:{" "}
+                    {new Date(bill.created_at).toLocaleDateString()}
+                  </p>
+                  <p className="text-foreground mt-5 sm:mt-3 whitespace-pre-wrap">
+                    {bill.content}
+                  </p>
+                </div>
 
-            return (
-              <Card key={bill.id} id={bill.id} className="mb-4 last:mb-0">
-                <CardContent>
+                {/* Bill voting */}
+                <div className="grid lg:grid-cols-3 grid-cols-1 mt-3">
                   <div>
-                    <div className="flex justify-between items-start mb-2">
-                      <h2 className="text-xl font-semibold">
-                        Bill #{bill.id}: {bill.title}
-                      </h2>
-                      {thisUser.id === bill.creatorId &&
-                        bill.status === "Queued" && (
-                          <Link href={`/bills/edit/${bill.id}`}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex items-center gap-2"
-                            >
-                              <Pencil size={16} />
-                              Edit
-                            </Button>
-                          </Link>
-                        )}
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Proposed By:{" "}
-                      <b className="text-black dark:text-white">
-                        {bill.username}
-                      </b>{" "}
-                      | Status: {bill.status} | Stage: {bill.stage} | Created
-                      at: {new Date(bill.createdAt).toLocaleDateString()}
-                    </p>
-                    <p className="text-foreground mt-5 sm:mt-3 whitespace-pre-wrap">
-                      {bill.content}
-                    </p>
-
-                    <div className="grid lg:grid-cols-3 grid-cols-1 mt-3">
-                      <BillTotals
-                        label="House"
-                        yes={house?.for ?? 0}
-                        no={house?.against ?? 0}
-                      />
-                      {bill.stage !== "House" && (
-                        <BillTotals
-                          label="Senate"
-                          yes={senate?.for ?? 0}
-                          no={senate?.against ?? 0}
-                        />
-                      )}
-                      {bill.stage === "Presidential" && (
-                        <BillTotals
-                          label="Presidential"
-                          yes={presidential?.for ?? 0}
-                          no={presidential?.against ?? 0}
-                        />
-                      )}
+                    <h2 className="text-xl font-semibold mb-2">House</h2>
+                    <div className="flex items-center gap-4">
+                      <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
+                        Votes For: {bill.house_total_yes}
+                      </span>
+                      <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
+                        Votes Against: {bill.house_total_no}
+                      </span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })
+                  {bill.stage !== "House" && (
+                    <div>
+                      <h2 className="text-xl font-semibold mb-2 sm:mt-0 mt-2">
+                        Senate
+                      </h2>
+                      <div className="flex items-center gap-4">
+                        <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
+                          Votes For: {bill.senate_total_yes}
+                        </span>
+                        <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
+                          Votes Against: {bill.senate_total_no}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {bill.stage === "Presidential" && (
+                    <div>
+                      <h2 className="text-xl font-semibold mb-2 sm:mt-0 mt-2">
+                        Presidential
+                      </h2>
+                      <div className="flex items-center gap-4">
+                        <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
+                          Votes For: {bill.presidential_total_yes}
+                        </span>
+                        <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
+                          Votes Against: {bill.presidential_total_no}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
         ) : (
           <Card>
             <CardContent>
               <p>
                 No bills found
-                {statusFilter !== "all" ||
-                stageFilter !== "all" ||
-                creatorFilter !== "all"
+                {statusFilter !== "all" || creatorFilter !== "all"
                   ? " matching the selected filters."
                   : "."}
               </p>
@@ -307,57 +272,4 @@ function BillsPage() {
   );
 }
 
-function BillTotals({
-  label,
-  yes,
-  no,
-}: {
-  label: string;
-  yes?: number;
-  no?: number;
-}) {
-  return (
-    <div>
-      <h2 className="text-xl font-semibold mb-2">{label}</h2>
-      <div className="flex items-center gap-4">
-        <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
-          Votes For: {yes}
-        </span>
-        <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
-          Votes Against: {no}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-interface FilterPillProps {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  activeClass: string;
-}
-
-function FilterPill({
-  active,
-  onClick,
-  icon,
-  label,
-  activeClass,
-}: FilterPillProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
-        active ? activeClass : "bg-card hover:bg-accent"
-      }`}
-    >
-      {icon}
-      <span className="font-medium">{label}</span>
-    </button>
-  );
-}
-
-export default withAuth(BillsPage);
+export default withAuth(Bills);

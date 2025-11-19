@@ -131,9 +131,3 @@ variable "custom_domain" {
   type        = string
   default     = "democracyonline.io"
 }
-
-variable "admin_emails" {
-  description = "Comma-seperated list of admin emails"
-  type        = string
-  default     = "jenewland1999@gmail.com,ajstrongdev@pm.me,robertjenner5@outlook.com,spam@hpsaucii.dev"
-}

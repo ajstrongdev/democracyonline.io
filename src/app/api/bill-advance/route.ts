@@ -1,6 +1,6 @@
-import { OAuth2Client } from "google-auth-library";
-import { type NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { OAuth2Client } from "google-auth-library";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     console.error("Missing or invalid Authorization header");
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
-      { status: 401 },
+      { status: 401 }
     );
   }
   const token = authHeader.substring(7); // Remove "Bearer " prefix
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       console.error("Invalid service account:", payload?.email);
       return NextResponse.json(
         { success: false, error: "Unauthorized - Invalid service account" },
-        { status: 401 },
+        { status: 401 }
       );
     }
     console.log("Authenticated request from:", payload.email);
@@ -36,16 +36,14 @@ export async function GET(request: NextRequest) {
     console.error("Token validation failed:", error);
     return NextResponse.json(
       { success: false, error: "Unauthorized - Invalid token" },
-      { status: 401 },
+      { status: 401 }
     );
   }
   try {
     // Get current bill_pool from game_tracker
     const poolResult = await query(`SELECT bill_pool FROM game_tracker`);
     const currentPool =
-      poolResult.rows.length > 0
-        ? parseInt(poolResult.rows[0].bill_pool, 10)
-        : 1;
+      poolResult.rows.length > 0 ? parseInt(poolResult.rows[0].bill_pool) : 1;
 
     // Calculate the next pool (wrap from 3 to 1)
     const nextPool = currentPool === 3 ? 1 : currentPool + 1;
@@ -54,19 +52,19 @@ export async function GET(request: NextRequest) {
     try {
       const res = await query(
         "SELECT * FROM bills WHERE stage = 'Presidential' AND status = 'Voting' AND pool = $1",
-        [currentPool],
+        [currentPool]
       );
 
       for (const bill of res.rows) {
         const votesRes = await query(
           "SELECT vote_yes, COUNT(*) as count FROM bill_votes_presidential WHERE bill_id = $1 GROUP BY vote_yes",
-          [bill.id],
+          [bill.id]
         );
         const yesVotes = Number(
-          votesRes.rows.find((row) => row.vote_yes === true)?.count || 0,
+          votesRes.rows.find((row) => row.vote_yes === true)?.count || 0
         );
         const noVotes = Number(
-          votesRes.rows.find((row) => row.vote_yes === false)?.count || 0,
+          votesRes.rows.find((row) => row.vote_yes === false)?.count || 0
         );
 
         if (yesVotes > noVotes) {
@@ -83,7 +81,7 @@ export async function GET(request: NextRequest) {
       console.error("Error processing presidential bills:", error);
       return NextResponse.json(
         { success: false, error: "Internal Server Error" },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -91,26 +89,26 @@ export async function GET(request: NextRequest) {
     try {
       const res = await query(
         "SELECT * FROM bills WHERE stage = 'Senate' AND status = 'Voting' AND pool = $1",
-        [currentPool],
+        [currentPool]
       );
 
       for (const bill of res.rows) {
         const votesRes = await query(
           "SELECT vote_yes, COUNT(*) as count FROM bill_votes_senate WHERE bill_id = $1 GROUP BY vote_yes",
-          [bill.id],
+          [bill.id]
         );
         const yesVotes = Number(
-          votesRes.rows.find((row) => row.vote_yes === true)?.count || 0,
+          votesRes.rows.find((row) => row.vote_yes === true)?.count || 0
         );
         const noVotes = Number(
-          votesRes.rows.find((row) => row.vote_yes === false)?.count || 0,
+          votesRes.rows.find((row) => row.vote_yes === false)?.count || 0
         );
 
         if (yesVotes > noVotes) {
           // Bill passes to Presidential, keep same pool
           await query(
             "UPDATE bills SET stage = 'Presidential', status = 'Voting' WHERE id = $1",
-            [bill.id],
+            [bill.id]
           );
         } else {
           await query("UPDATE bills SET status = 'Defeated' WHERE id = $1", [
@@ -122,7 +120,7 @@ export async function GET(request: NextRequest) {
       console.error("Error processing senate bills:", error);
       return NextResponse.json(
         { success: false, error: "Internal Server Error" },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -130,26 +128,26 @@ export async function GET(request: NextRequest) {
     try {
       const res = await query(
         "SELECT * FROM bills WHERE stage = 'House' AND status = 'Voting' AND pool = $1",
-        [currentPool],
+        [currentPool]
       );
 
       for (const bill of res.rows) {
         const votesRes = await query(
           "SELECT vote_yes, COUNT(*) as count FROM bill_votes_house WHERE bill_id = $1 GROUP BY vote_yes",
-          [bill.id],
+          [bill.id]
         );
         const yesVotes = Number(
-          votesRes.rows.find((row) => row.vote_yes === true)?.count || 0,
+          votesRes.rows.find((row) => row.vote_yes === true)?.count || 0
         );
         const noVotes = Number(
-          votesRes.rows.find((row) => row.vote_yes === false)?.count || 0,
+          votesRes.rows.find((row) => row.vote_yes === false)?.count || 0
         );
 
         if (yesVotes > noVotes) {
           // Bill passes to Senate, keep same pool
           await query(
             "UPDATE bills SET stage = 'Senate', status = 'Voting' WHERE id = $1",
-            [bill.id],
+            [bill.id]
           );
         } else {
           await query("UPDATE bills SET status = 'Defeated' WHERE id = $1", [
@@ -160,13 +158,13 @@ export async function GET(request: NextRequest) {
 
       // Always draw a new bill and assign it the CURRENT pool number (before incrementing)
       const nextBillRes = await query(
-        "SELECT * FROM bills WHERE stage = 'House' AND status = 'Queued' ORDER BY created_at ASC LIMIT 1",
+        "SELECT * FROM bills WHERE stage = 'House' AND status = 'Queued' ORDER BY created_at ASC LIMIT 1"
       );
       if (nextBillRes.rows.length > 0) {
         const nextBill = nextBillRes.rows[0];
         await query(
           "UPDATE bills SET status = 'Voting', pool = $1 WHERE id = $2",
-          [currentPool, nextBill.id],
+          [currentPool, nextBill.id]
         );
       }
 
@@ -201,7 +199,7 @@ export async function GET(request: NextRequest) {
       console.error("Error advancing bill:", error);
       return NextResponse.json(
         { success: false, error: "Internal Server Error" },
-        { status: 500 },
+        { status: 500 }
       );
     }
   } catch (error) {

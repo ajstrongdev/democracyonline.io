@@ -37,7 +37,10 @@
       "Bill filtering has been streamlined.",
       "Modified how we allocate the number of senate seats per election."
     ],
-    "technical": ["~4200 lines of code added.", "~1300 lines of code removed."]
+    "technical": [
+      "~4200 lines of code added.",
+      "~1300 lines of code removed."
+    ]
   },
   {
     "version": "1.0.3",
@@ -59,7 +62,9 @@
     "title": "Hotfix Release",
     "description": "This hotfix release focuses on resolving issues regarding user management, and improving the overall user experience.",
     "features": [],
-    "bugfixes": ["Resolved issues with banned user content still displaying."],
+    "bugfixes": [
+      "Resolved issues with banned user content still displaying."
+    ],
     "improvements": [
       "Parties are now disbanded when the last member leaves. Parties that are currently without members will be automatically disbanded on next game step."
     ],
@@ -99,5 +104,5 @@
     "bugfixes": [],
     "improvements": [],
     "technical": []
-  }
+    }
 ]

@@ -1,8 +1,20 @@
 "use client";
 
-import { RefreshCw, Search, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import axios from "axios";
+import { auth } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { RefreshCw, Search, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,63 +25,58 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { trpc } from "@/lib/trpc";
 
-type Party = {
+interface Party {
   id: number;
   name: string;
-  description: string | null;
-  leaderId: number | null;
-  leaderUsername: string | null;
-  memberCount: number;
-  createdAt: string;
-};
+  description: string;
+  economic_position: number;
+  social_position: number;
+  leader_id: number | null;
+  leader_username: string | null;
+  member_count: number;
+  created_at: string;
+}
 
-export default function PartyList() {
-  const utils = trpc.useUtils();
+interface PartyListProps {
+  initialParties: Party[];
+  onRefresh?: () => void | Promise<void>;
+}
 
-  // Fetch parties directly via tRPC
-  const {
-    data: parties = [],
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = trpc.admin.listParties.useQuery();
-
-  const [searchQuery, setSearchQuery] = useState("");
+export default function PartyList({
+  initialParties,
+  onRefresh,
+}: PartyListProps) {
+  const [user] = useAuthState(auth);
+  const [parties, setParties] = useState<Party[]>(initialParties);
+  const [loading, setLoading] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [partyToDelete, setPartyToDelete] = useState<Party | null>(null);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const deleteParty = trpc.admin.deleteParty.useMutation({
-    onSuccess: async () => {
-      toast.success("Party deleted successfully");
-      // Refresh list after delete
-      await refetch();
-      // Invalidate generic caches for safety
-      await utils.party.list.invalidate();
-    },
-    onError: (err) => {
-      toast.error(err?.message || "Failed to delete party");
-    },
-  });
+  // Update parties when initialParties changes
+  useEffect(() => {
+    setParties(initialParties);
+  }, [initialParties]);
+
+  // Filter parties based on search query
+  const filteredParties = useMemo(() => {
+    if (!searchQuery.trim()) return parties;
+
+    const query = searchQuery.toLowerCase();
+    return parties.filter(
+      (p) =>
+        p.name?.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query) ||
+        p.leader_username?.toLowerCase().includes(query)
+    );
+  }, [parties, searchQuery]);
 
   const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await refetch();
-    } finally {
+    if (onRefresh) {
+      setRefreshing(true);
+      await onRefresh();
       setRefreshing(false);
     }
   };
@@ -80,56 +87,41 @@ export default function PartyList() {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!partyToDelete) return;
-    setDeletingId(partyToDelete.id);
+    if (!user || !partyToDelete) return;
+
+    setLoading(partyToDelete.id);
     setDeleteDialogOpen(false);
+
     try {
-      await deleteParty.mutateAsync({ partyId: partyToDelete.id });
+      // Get the current user's ID token
+      const idToken = await user.getIdToken();
+
+      await axios.post(
+        "/api/admin/delete-party",
+        {
+          partyId: partyToDelete.id,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      );
+
+      // Update local state
+      setParties((prevParties) =>
+        prevParties.filter((p) => p.id !== partyToDelete.id)
+      );
+
+      toast.success(`Party "${partyToDelete.name}" deleted successfully`);
       setPartyToDelete(null);
+    } catch (error) {
+      toast.error("Failed to delete party");
+      console.error("Error deleting party:", error);
     } finally {
-      setDeletingId(null);
+      setLoading(null);
     }
   };
-
-  const filteredParties = useMemo(() => {
-    if (!searchQuery.trim()) return parties;
-    const q = searchQuery.toLowerCase();
-    return parties.filter((p) => {
-      return (
-        (p.name || "").toLowerCase().includes(q) ||
-        (p.description || "").toLowerCase().includes(q) ||
-        (p.leaderUsername || "").toLowerCase().includes(q)
-      );
-    });
-  }, [parties, searchQuery]);
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-semibold">Party Management</h2>
-        </div>
-        <div className="text-muted-foreground">Loading parties...</div>
-      </div>
-    );
-  }
-
-  if (isError) {
-    if (error?.data?.code === "FORBIDDEN") {
-      return (
-        <div className="p-6">
-          <p className="text-destructive">
-            Access denied. Admin privileges required.
-          </p>
-        </div>
-      );
-    }
-    return (
-      <div className="p-6">
-        <p className="text-destructive">Failed to load parties.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -137,7 +129,7 @@ export default function PartyList() {
         <h2 className="text-2xl font-semibold">Party Management</h2>
         <div className="flex gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Search by name, description..."
@@ -183,8 +175,8 @@ export default function PartyList() {
                       </span>
                     )}
                     <span className="block text-xs text-muted-foreground">
-                      Leader: {party.leaderUsername || "None"} • Members:{" "}
-                      {party.memberCount}
+                      Leader: {party.leader_username || "None"} • Members:{" "}
+                      {party.member_count}
                     </span>
                   </CardDescription>
                 </div>
@@ -193,13 +185,11 @@ export default function PartyList() {
                     variant="destructive"
                     size="sm"
                     onClick={() => handleDeleteClick(party)}
-                    disabled={deletingId === party.id || deleteParty.isPending}
+                    disabled={loading === party.id}
                     className="gap-1"
                   >
                     <Trash2 className="h-3 w-3" />
-                    {deletingId === party.id || deleteParty.isPending
-                      ? "..."
-                      : "Delete"}
+                    {loading === party.id ? "..." : "Delete"}
                   </Button>
                 </div>
               </div>
@@ -207,9 +197,9 @@ export default function PartyList() {
             <CardContent className="pt-0">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="text-xs text-muted-foreground">
-                  {party.createdAt && (
+                  {party.created_at && (
                     <span>
-                      Created: {new Date(party.createdAt).toLocaleDateString()}
+                      Created: {new Date(party.created_at).toLocaleDateString()}
                     </span>
                   )}
                 </div>
@@ -242,7 +232,7 @@ export default function PartyList() {
                 <p className="mt-4">This will:</p>
                 <ul className="list-disc list-inside mt-2 space-y-1">
                   <li>
-                    Remove all {partyToDelete?.memberCount} members from the
+                    Remove all {partyToDelete?.member_count} members from the
                     party
                   </li>
                   <li>Delete all party stances</li>

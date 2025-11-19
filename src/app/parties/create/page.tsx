@@ -1,17 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
-import { useRouter } from "next/navigation";
-import React, { useState } from "react";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { toast } from "sonner";
-import { icons } from "@/app/utils/logoHelper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { auth } from "@/lib/firebase";
-import { trpc } from "@/lib/trpc";
 import withAuth from "@/lib/withAuth";
+import { fetchUserInfo } from "@/app/utils/userHelper";
+import axios from "axios";
+import React from "react";
+import { auth } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Slider } from "@/components/ui/slider";
+import { useState } from "react";
+import { icons } from "@/app/utils/logoHelper";
 
 export const leanings = [
   "Far Left",
@@ -28,23 +33,25 @@ function Home() {
   const router = useRouter();
   const [leaning, setLeaning] = React.useState([3]);
 
-  const { data: thisUser } = trpc.user.getByEmail.useQuery(
-    { email: user?.email || "" },
-    { enabled: !!user?.email },
-  );
-
-  const { data: stances = [] } = trpc.party.stanceTypes.useQuery();
-
-  const createParty = trpc.party.create.useMutation({
-    onError: (err) => {
-      toast.error(err?.message || "Failed to create party");
+  const { data: thisUser } = useQuery({
+    queryKey: ["user", user?.email],
+    queryFn: async () => {
+      if (user && user.email) {
+        const userDetails = await fetchUserInfo(user.email);
+        return userDetails || null;
+      }
+      return null;
     },
+    enabled: !!user?.email,
   });
 
-  const addFeed = trpc.feed.add.useMutation({
-    onError: () => {
-      // Non-blocking: do not toast as error here to avoid interrupting flow
-      // You can add a warning if desired
+  const { data: stances } = useQuery({
+    queryKey: ["stances"],
+    queryFn: async () => {
+      const res = await axios.get("/api/get-stance-types");
+      const stances = res.data || [];
+      console.log(stances.types);
+      return stances.types;
     },
   });
 
@@ -59,14 +66,15 @@ function Home() {
     const discord = (
       form.elements.namedItem("discord_link") as HTMLInputElement
     )?.value;
+    const leaningValue = leanings[leaning[0]];
 
-    if (!name || !bio || !color) {
+    if (bio === "" || name === "" || color === "") {
       toast.error("Please fill in all required fields.");
       return;
     }
 
     const stanceValues: { id: number; value: string }[] = [];
-    stances.forEach((stance) => {
+    stances.forEach((stance: any) => {
       stanceValues.push({
         id: stance.id,
         value: (form.elements.namedItem(stance.id) as HTMLInputElement)?.value,
@@ -74,22 +82,27 @@ function Home() {
     });
 
     try {
-      const result = await createParty.mutateAsync({
+      const response = await axios.post("/api/party-create", {
+        userId: thisUser.id,
         name,
         color,
         bio,
         stanceValues,
-        leaning: leanings[leaning[0]],
+        leaningValue,
         logo: selectedLogo || null,
         discord: discord || null,
       });
-
-      await addFeed.mutateAsync({
+      router.push(`/parties/${response.data.id}`);
+    } catch (error) {
+      throw new Error("Error creating party:" + error);
+    }
+    try {
+      await axios.post("/api/feed-add", {
+        userId: thisUser.id,
         content: `has created a new party: ${name}`,
       });
-      router.push(`/parties/${result.id}`);
     } catch (error) {
-      throw new Error(`Error creating party:${error}`);
+      throw new Error("Error creating feed item:" + error);
     }
   };
 
@@ -134,7 +147,7 @@ function Home() {
                 className="w-full"
                 onChange={(e) => {
                   const colorPicker = document.getElementById(
-                    "color-picker",
+                    "color-picker"
                   ) as HTMLInputElement;
                   if (
                     colorPicker &&
@@ -151,7 +164,7 @@ function Home() {
                 className="w-10 p-0 border-0"
                 onChange={(e) => {
                   const hexInput = document.getElementById(
-                    "color",
+                    "color"
                   ) as HTMLInputElement;
                   if (hexInput) hexInput.value = e.target.value;
                 }}
@@ -241,14 +254,14 @@ function Home() {
 
               <div className="flex justify-between mt-2 text-xs text-muted-foreground">
                 {leanings.map((label, i) => (
-                  <span key={label} className="text-center w-12 ">
+                  <span key={i} className="text-center w-12 ">
                     {i === 0
                       ? "Far Left"
                       : i === 6
-                        ? "Far Right"
-                        : i - 3 === 0
-                          ? "Center"
-                          : ""}
+                      ? "Far Right"
+                      : i - 3 === 0
+                      ? "Center"
+                      : ""}
                   </span>
                 ))}
               </div>
@@ -257,7 +270,7 @@ function Home() {
           {stances &&
             stances &&
             stances.length > 0 &&
-            stances.map((stance) => (
+            stances.map((stance: any) => (
               <div className="grid grid-cols-1 gap-2" key={stance.id}>
                 <Label
                   htmlFor="bio"

@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
@@ -9,14 +9,14 @@ export async function GET(request: NextRequest) {
     console.error("CRON_SECRET environment variable is not set");
     return NextResponse.json(
       { success: false, error: "Server configuration error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 
   if (authHeader !== `Bearer ${expectedToken}`) {
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
-      { status: 401 },
+      { status: 401 }
     );
   }
 
@@ -32,13 +32,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { success: true, message: "Access tokens table created successfully" },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Error creating access_tokens table:", error);
     return NextResponse.json(
       { success: false, error: "Failed to create access_tokens table" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

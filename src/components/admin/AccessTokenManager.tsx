@@ -1,8 +1,19 @@
 "use client";
 
-import { Copy, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { toast } from "sonner";
+import axios from "axios";
+import { auth } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { RefreshCw, Trash2, Copy, Plus } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,20 +24,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { trpc } from "@/lib/trpc";
 
 interface AccessToken {
   id: number;
   token: string;
-  createdAt: string;
+  created_at: string;
 }
 
 interface AccessTokenManagerProps {
@@ -36,42 +38,92 @@ interface AccessTokenManagerProps {
 export default function AccessTokenManager({
   onRefresh,
 }: AccessTokenManagerProps) {
+  const [user] = useAuthState(auth);
+  const [tokens, setTokens] = useState<AccessToken[]>([]);
+  const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tokenToDelete, setTokenToDelete] = useState<AccessToken | null>(null);
 
-  const {
-    data: tokens = [],
-    isLoading: loading,
-    refetch,
-  } = trpc.admin.accessTokensList.useQuery();
+  const fetchTokens = async () => {
+    if (!user) return;
 
-  const createToken = trpc.admin.accessTokenCreate.useMutation({
-    onSuccess: async () => {
-      toast.success("Access token created successfully");
-      await refetch();
-      if (onRefresh) await onRefresh();
-    },
-    onError: () => toast.error("Failed to create access token"),
-  });
+    try {
+      setLoading(true);
+      const idToken = await user.getIdToken();
 
-  const deleteToken = trpc.admin.accessTokenDelete.useMutation({
-    onSuccess: async () => {
-      toast.success("Access token deleted successfully");
-      setDeleteDialogOpen(false);
-      setTokenToDelete(null);
-      await refetch();
-      if (onRefresh) await onRefresh();
-    },
-    onError: () => toast.error("Failed to delete access token"),
-  });
+      const response = await axios.post(
+        "/api/admin/access-tokens/list",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      );
+
+      setTokens(response.data.tokens);
+    } catch (error) {
+      console.error("Error fetching tokens:", error);
+      toast.error("Failed to load access tokens");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTokens();
+  }, [user]);
 
   const handleCreateToken = async () => {
-    createToken.mutate();
+    if (!user) return;
+
+    try {
+      const idToken = await user.getIdToken();
+
+      const response = await axios.post(
+        "/api/admin/access-tokens/create",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      );
+
+      toast.success("Access token created successfully");
+      fetchTokens();
+      if (onRefresh) await onRefresh();
+    } catch (error) {
+      console.error("Error creating token:", error);
+      toast.error("Failed to create access token");
+    }
   };
 
   const handleDeleteToken = async () => {
-    if (!tokenToDelete) return;
-    deleteToken.mutate({ tokenId: tokenToDelete.id });
+    if (!user || !tokenToDelete) return;
+
+    try {
+      const idToken = await user.getIdToken();
+
+      await axios.post(
+        "/api/admin/access-tokens/delete",
+        { tokenId: tokenToDelete.id },
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      );
+
+      toast.success("Access token deleted successfully");
+      setDeleteDialogOpen(false);
+      setTokenToDelete(null);
+      fetchTokens();
+      if (onRefresh) await onRefresh();
+    } catch (error) {
+      console.error("Error deleting token:", error);
+      toast.error("Failed to delete access token");
+    }
   };
 
   const copyToClipboard = (token: string) => {
@@ -103,7 +155,7 @@ export default function AccessTokenManager({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => refetch()}
+                onClick={fetchTokens}
                 disabled={loading}
               >
                 <RefreshCw
@@ -148,7 +200,7 @@ export default function AccessTokenManager({
                       </Button>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Created: {formatDate(token.createdAt)}
+                      Created: {formatDate(token.created_at)}
                     </p>
                   </div>
                   <Button
