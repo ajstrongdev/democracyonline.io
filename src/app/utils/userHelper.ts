@@ -9,6 +9,7 @@ export type UserInfo = {
   role: string;
   party_id: number | null;
   created_at: string;
+  last_activity: number;
 };
 
 export const fetchUserInfo = async (email: string) => {
