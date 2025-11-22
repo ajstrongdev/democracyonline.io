@@ -170,7 +170,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
             </h2>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex justify-between">
+            <div className="flex flex-col">
               <p className="text-muted-foreground leading-relaxed">
                 Political Leaning:
               </p>
@@ -178,7 +178,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                 {userData?.political_leaning || "Not specified"}
               </p>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col">
               <p className="text-muted-foreground leading-relaxed">Bio:</p>
               <p className="text-card-foreground leading-relaxed">
                 {userData?.bio}
@@ -222,7 +222,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                   </div>
                 </div>
                 <div>
-                  <p className="text-card-foreground font-semibold leading-relaxed my-2">
+                  <p className="text-muted-foreground leading-relaxed">
                     Party Description:
                   </p>
                   <p className="text-card-foreground leading-relaxed">

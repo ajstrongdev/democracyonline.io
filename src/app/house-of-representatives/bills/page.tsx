@@ -19,10 +19,12 @@ import type { BillItem } from "@/app/utils/billHelper";
 import { getUserFullById } from "@/app/utils/userHelper";
 import { UserInfo } from "@/app/utils/userHelper";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Chat } from "@/components/Chat";
 import { MessageDialog } from "@/components/ui/MessageDialog";
 import { useState } from "react";
 import PartyLogo from "@/components/PartyLogo";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 type BillItemWithUsername = BillItem & {
   username: string;
@@ -97,23 +99,6 @@ function HouseOfRepresentatives() {
       return votesMap;
     },
     enabled: data.length > 0,
-  });
-
-  // Get party data from party ids of representatives
-  const { data: partyData } = useQuery({
-    queryKey: ["parties", thisUser?.party_id],
-    queryFn: async () => {
-      if (!thisUser?.party_id) return null;
-      return fetch(`/api/get-party-by-id?partyId=${thisUser.party_id}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => data || null);
-    },
-    enabled: !!thisUser?.party_id,
   });
 
   const {
@@ -258,7 +243,7 @@ function HouseOfRepresentatives() {
                   </p>
                 </CardHeader>
                 <CardContent className="grow">
-                  <p className="text-foreground mb-4 whitespace-pre-wrap">
+                  <p className="text-foreground mb-2 whitespace-pre-wrap line-clamp-3">
                     {bill.content}
                   </p>
                   {votesLoading ? (
@@ -266,13 +251,41 @@ function HouseOfRepresentatives() {
                   ) : votesError ? (
                     <div className="text-red-500">Error loading votes.</div>
                   ) : votesData && votesData[bill.id] ? (
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
-                        Votes For: {votesData[bill.id].for}
-                      </span>
-                      <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
-                        Votes Against: {votesData[bill.id].against}
-                      </span>
+                    <div className="space-y-2 mt-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span>{votesData[bill.id].for} For</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                          <XCircle className="h-4 w-4" />
+                          <span>{votesData[bill.id].against} Against</span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden flex mt-2">
+                        <div
+                          className="h-full bg-green-500"
+                          style={{
+                            width: `${
+                              (votesData[bill.id].for /
+                                (votesData[bill.id].for +
+                                  votesData[bill.id].against || 1)) *
+                              100
+                            }%`,
+                          }}
+                        />
+                        <div
+                          className="h-full bg-red-500"
+                          style={{
+                            width: `${
+                              (votesData[bill.id].against /
+                                (votesData[bill.id].for +
+                                  votesData[bill.id].against || 1)) *
+                              100
+                            }%`,
+                          }}
+                        />
+                      </div>
                     </div>
                   ) : (
                     <div className="text-sm text-muted-foreground">
@@ -281,6 +294,9 @@ function HouseOfRepresentatives() {
                   )}
                 </CardContent>
                 <CardFooter className="flex-col items-start gap-3">
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link href={`/bills/${bill.id}`}>View Full Bill</Link>
+                  </Button>
                   {canVoteLoading && data ? (
                     <div className="flex space-x-2">
                       <div className="animate-pulse flex space-x-2">

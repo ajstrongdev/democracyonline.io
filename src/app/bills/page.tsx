@@ -5,12 +5,20 @@ import withAuth from "@/lib/withAuth";
 import { useQuery } from "@tanstack/react-query";
 import GenericSkeleton from "@/components/genericskeleton";
 import axios from "axios";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import type { BillItem } from "@/app/utils/billHelper";
 import { getUserById, fetchUserInfo } from "@/app/utils/userHelper";
-import { Filter, X, Check, Pencil, User } from "lucide-react";
+import {
+  Filter,
+  X,
+  Check,
+  Pencil,
+  User,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 
@@ -38,6 +46,9 @@ function Bills() {
       const bills = res.data.bills || [];
       const billsWithUsernames = await Promise.all(
         bills.map(async (item: BillItem) => {
+          if (!item.creator_id) {
+            return { ...item, username: "Unknown User" };
+          }
           const username = await getUserById(item.creator_id, true);
           return { ...item, username };
         })
@@ -159,114 +170,208 @@ function Bills() {
             {filteredBills.length === 1 ? "bill" : "bills"})
           </span>
         </h1>
-        {isLoading ? (
-          <Card>
-            <CardContent>
-              <GenericSkeleton />
-            </CardContent>
-          </Card>
-        ) : error ? (
-          <Card>
-            <CardContent>
-              <p className="text-red-500">Error loading bills.</p>
-            </CardContent>
-          </Card>
-        ) : filteredBills && filteredBills.length > 0 ? (
-          filteredBills.map((bill) => (
-            <Card key={bill.id} id={bill.id} className="mb-4 last:mb-0">
+        <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+          {isLoading ? (
+            <Card>
               <CardContent>
-                {/* Bill details */}
-                <div>
-                  <div className="flex justify-between items-start mb-2">
-                    <h2 className="text-xl font-semibold">
-                      Bill #{bill.id}: {bill.title}
-                    </h2>
-                    {currentUser?.id === bill.creator_id &&
-                      bill.status === "Queued" && (
-                        <Link href={`/bills/edit/${bill.id}`}>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-2"
-                          >
-                            <Pencil size={16} />
-                            Edit
-                          </Button>
-                        </Link>
-                      )}
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Proposed By:{" "}
-                    <b className="text-black dark:text-white">
-                      {bill.username}
-                    </b>{" "}
-                    | Status: {bill.status} | Stage: {bill.stage} | Created at:{" "}
-                    {new Date(bill.created_at).toLocaleDateString()}
-                  </p>
-                  <p className="text-foreground mt-5 sm:mt-3 whitespace-pre-wrap">
-                    {bill.content}
-                  </p>
-                </div>
-
-                {/* Bill voting */}
-                <div className="grid lg:grid-cols-3 grid-cols-1 mt-3">
-                  <div>
-                    <h2 className="text-xl font-semibold mb-2">House</h2>
-                    <div className="flex items-center gap-4">
-                      <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
-                        Votes For: {bill.house_total_yes}
-                      </span>
-                      <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
-                        Votes Against: {bill.house_total_no}
-                      </span>
-                    </div>
-                  </div>
-                  {bill.stage !== "House" && (
-                    <div>
-                      <h2 className="text-xl font-semibold mb-2 sm:mt-0 mt-2">
-                        Senate
-                      </h2>
-                      <div className="flex items-center gap-4">
-                        <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
-                          Votes For: {bill.senate_total_yes}
-                        </span>
-                        <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
-                          Votes Against: {bill.senate_total_no}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  {bill.stage === "Presidential" && (
-                    <div>
-                      <h2 className="text-xl font-semibold mb-2 sm:mt-0 mt-2">
-                        Presidential
-                      </h2>
-                      <div className="flex items-center gap-4">
-                        <span className="font-semibold text-green-600 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded">
-                          Votes For: {bill.presidential_total_yes}
-                        </span>
-                        <span className="font-semibold text-red-600 bg-red-100 dark:bg-red-900/40 px-3 py-1 rounded">
-                          Votes Against: {bill.presidential_total_no}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <GenericSkeleton />
               </CardContent>
             </Card>
-          ))
-        ) : (
-          <Card>
-            <CardContent>
-              <p>
-                No bills found
-                {statusFilter !== "all" || creatorFilter !== "all"
-                  ? " matching the selected filters."
-                  : "."}
-              </p>
-            </CardContent>
-          </Card>
-        )}
+          ) : error ? (
+            <Card>
+              <CardContent>
+                <p className="text-red-500">Error loading bills.</p>
+              </CardContent>
+            </Card>
+          ) : filteredBills && filteredBills.length > 0 ? (
+            filteredBills.map((bill) => (
+              <Card key={bill.id} id={bill.id} className="mb-4 last:mb-0">
+                <CardContent>
+                  {/* Bill details */}
+                  <div>
+                    <div className="flex justify-between items-start mb-4">
+                      <h2 className="text-xl font-semibold">
+                        Bill #{bill.id}: {bill.title}
+                      </h2>
+
+                      {currentUser?.id === bill.creator_id &&
+                        bill.status === "Queued" && (
+                          <Link href={`/bills/edit/${bill.id}`}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center gap-2"
+                            >
+                              <Pencil size={16} />
+                              Edit
+                            </Button>
+                          </Link>
+                        )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Proposed By:{" "}
+                      <b className="text-black dark:text-white">
+                        {bill.username}
+                      </b>{" "}
+                      | Status: {bill.status} | Stage: {bill.stage} | Created
+                      at: {new Date(bill.created_at).toLocaleDateString()}
+                    </p>
+                    <p className="line-clamp-3 text-foreground mt-5 sm:mt-3 whitespace-pre-wrap">
+                      {bill.content}
+                    </p>
+                  </div>
+
+                  {/* Bill voting */}
+                  <div className="flex flex-col gap-4 mt-3">
+                    <div>
+                      <h2 className="text-xl font-semibold mb-2">House</h2>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span>{bill.house_total_yes} For</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                            <XCircle className="h-4 w-4" />
+                            <span>{bill.house_total_no} Against</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden flex mt-2">
+                          <div
+                            className="h-full bg-green-500"
+                            style={{
+                              width: `${
+                                (Number(bill.house_total_yes) /
+                                  (Number(bill.house_total_yes) +
+                                    Number(bill.house_total_no) || 1)) *
+                                100
+                              }%`,
+                            }}
+                          />
+                          <div
+                            className="h-full bg-red-500"
+                            style={{
+                              width: `${
+                                (Number(bill.house_total_no) /
+                                  (Number(bill.house_total_yes) +
+                                    Number(bill.house_total_no) || 1)) *
+                                100
+                              }%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    {bill.stage !== "House" && (
+                      <div>
+                        <h2 className="text-xl font-semibold mb-2 sm:mt-0 mt-2">
+                          Senate
+                        </h2>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>{bill.senate_total_yes} For</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                              <XCircle className="h-4 w-4" />
+                              <span>{bill.senate_total_no} Against</span>
+                            </div>
+                          </div>
+                          <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden flex mt-2">
+                            <div
+                              className="h-full bg-green-500"
+                              style={{
+                                width: `${
+                                  (Number(bill.senate_total_yes) /
+                                    (Number(bill.senate_total_yes) +
+                                      Number(bill.senate_total_no) || 1)) *
+                                  100
+                                }%`,
+                              }}
+                            />
+                            <div
+                              className="h-full bg-red-500"
+                              style={{
+                                width: `${
+                                  (Number(bill.senate_total_no) /
+                                    (Number(bill.senate_total_yes) +
+                                      Number(bill.senate_total_no) || 1)) *
+                                  100
+                                }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {bill.stage === "Presidential" && (
+                      <div>
+                        <h2 className="text-xl font-semibold mb-2 sm:mt-0 mt-2">
+                          Presidential
+                        </h2>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>{bill.presidential_total_yes} For</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                              <XCircle className="h-4 w-4" />
+                              <span>{bill.presidential_total_no} Against</span>
+                            </div>
+                          </div>
+                          <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden flex mt-2">
+                            <div
+                              className="h-full bg-green-500"
+                              style={{
+                                width: `${
+                                  (Number(bill.presidential_total_yes) /
+                                    (Number(bill.presidential_total_yes) +
+                                      Number(bill.presidential_total_no) ||
+                                      1)) *
+                                  100
+                                }%`,
+                              }}
+                            />
+                            <div
+                              className="h-full bg-red-500"
+                              style={{
+                                width: `${
+                                  (Number(bill.presidential_total_no) /
+                                    (Number(bill.presidential_total_yes) +
+                                      Number(bill.presidential_total_no) ||
+                                      1)) *
+                                  100
+                                }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter className="mt-auto">
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href={`/bills/${bill.id}`}>View Bill</Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))
+          ) : (
+            <Card>
+              <CardContent>
+                <p>
+                  No bills found
+                  {statusFilter !== "all" || creatorFilter !== "all"
+                    ? " matching the selected filters."
+                    : "."}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );
