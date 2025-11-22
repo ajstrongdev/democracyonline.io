@@ -9,7 +9,7 @@ import GenericSkeleton from "@/components/genericskeleton";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Handshake, Crown } from "lucide-react";
+import { Handshake, Crown, Clock } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import PartyLogo from "@/components/PartyLogo";
@@ -18,6 +18,14 @@ import React from "react";
 function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [user] = useAuthState(auth);
+
+  const getLastSeenText = (lastActivity: number | string | undefined) => {
+    const days = Number(lastActivity);
+    if (isNaN(days) || days < 0) return "Unknown";
+    if (days === 0) return "Today.";
+    if (days === 1) return "1 day ago.";
+    return `${days} days ago.`;
+  };
 
   const { data: thisUser, isLoading: isThisUserLoading } = useQuery({
     queryKey: ["fetchUserInfo", user?.email],
@@ -150,6 +158,10 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                     Party Leader
                   </div>
                 )}
+                <p className="mt-1 text-muted-foreground leading-relaxed text-sm">
+                  Last Seen: &nbsp;
+                  {getLastSeenText(userData?.last_activity)}
+                </p>
               </div>
               {userData?.id === thisUser.id && (
                 <div className="mt-4 md:mt-0">
@@ -170,7 +182,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
             </h2>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex justify-between">
+            <div className="flex flex-col">
               <p className="text-muted-foreground leading-relaxed">
                 Political Leaning:
               </p>
@@ -178,7 +190,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                 {userData?.political_leaning || "Not specified"}
               </p>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col">
               <p className="text-muted-foreground leading-relaxed">Bio:</p>
               <p className="text-card-foreground leading-relaxed">
                 {userData?.bio}
@@ -222,7 +234,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                   </div>
                 </div>
                 <div>
-                  <p className="text-card-foreground font-semibold leading-relaxed my-2">
+                  <p className="text-muted-foreground leading-relaxed">
                     Party Description:
                   </p>
                   <p className="text-card-foreground leading-relaxed">
