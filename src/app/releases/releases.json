@@ -1,5 +1,20 @@
 [
   {
+    "version": "1.2.0",
+    "date": "2025-11-22",
+    "title": "Quality of Life Update",
+    "description": "This small update focuses on improving the user experience with nice quality of life features and enhancements.",
+    "features": [
+      "Accounts will be marked as inactive after 7 days of inactivity. Inactive accounts will be removed from their parties and will not be visible in user lists. Accounts can be reactivated by logging back in.",
+      "Bills are now truncated to improve readability. Users can click 'Read More' to view the full content of a bill."
+    ],
+    "bugfixes": [],
+    "improvements": [
+      "Improved vote indicator design."
+    ],
+    "technical": []
+  },
+  {
     "version": "1.1.1",
     "date": "2025-11-10",
     "title": "Minor Update",
