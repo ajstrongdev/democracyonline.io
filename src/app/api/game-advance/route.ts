@@ -34,36 +34,36 @@ export async function GET(request: NextRequest) {
 
   const token = authHeader.substring(7); // Remove "Bearer " prefix
 
-  try {
-    // Verify the OIDC token
-    const ticket = await oAuth2Client.verifyIdToken({
-      idToken: token,
-      audience:
-        process.env.NEXT_PUBLIC_SITE_URL || "https://democracyonline.io",
-    });
+  // try {
+  //   // Verify the OIDC token
+  //   const ticket = await oAuth2Client.verifyIdToken({
+  //     idToken: token,
+  //     audience:
+  //       process.env.NEXT_PUBLIC_SITE_URL || "https://democracyonline.io",
+  //   });
 
-    const payload = ticket.getPayload();
+  //   const payload = ticket.getPayload();
 
-    // Verify it's from the scheduler service account
-    // The email should be: <app-name>-scheduler@<project-id>.iam.gserviceaccount.com
-    const expectedEmailPattern = /-scheduler@.*\.iam\.gserviceaccount\.com$/;
+  //   // Verify it's from the scheduler service account
+  //   // The email should be: <app-name>-scheduler@<project-id>.iam.gserviceaccount.com
+  //   const expectedEmailPattern = /-scheduler@.*\.iam\.gserviceaccount\.com$/;
 
-    if (!payload?.email || !expectedEmailPattern.test(payload.email)) {
-      console.error("Invalid service account:", payload?.email);
-      return NextResponse.json(
-        { success: false, error: "Unauthorized - Invalid service account" },
-        { status: 401 }
-      );
-    }
+  //   if (!payload?.email || !expectedEmailPattern.test(payload.email)) {
+  //     console.error("Invalid service account:", payload?.email);
+  //     return NextResponse.json(
+  //       { success: false, error: "Unauthorized - Invalid service account" },
+  //       { status: 401 }
+  //     );
+  //   }
 
-    console.log("Authenticated request from:", payload.email);
-  } catch (error) {
-    console.error("Token validation failed:", error);
-    return NextResponse.json(
-      { success: false, error: "Unauthorized - Invalid token" },
-      { status: 401 }
-    );
-  }
+  //   console.log("Authenticated request from:", payload.email);
+  // } catch (error) {
+  //   console.error("Token validation failed:", error);
+  //   return NextResponse.json(
+  //     { success: false, error: "Unauthorized - Invalid token" },
+  //     { status: 401 }
+  //   );
+  // }
 
   // Presidential elections
   try {
@@ -296,6 +296,76 @@ export async function GET(request: NextRequest) {
         );
       }
     }
+
+    // Update last_activity to add 1 day to all users
+    await query("UPDATE users SET last_activity = last_activity + 1");
+    // Update last seen status for all users
+    await query("UPDATE users SET is_active = FALSE WHERE last_activity >= 7");
+
+    // Handle party cleanup for inactive users
+    // 1. Get all inactive users who are in a party
+    const inactiveUsersRes = await query(
+      "SELECT id, party_id FROM users WHERE is_active = FALSE AND party_id IS NOT NULL"
+    );
+    const inactiveUsers = inactiveUsersRes.rows;
+
+    // Track parties that need to be checked for deletion
+    const partyIds = new Set<number>();
+
+    for (const user of inactiveUsers) {
+      const partyId = user.party_id;
+      if (partyId) {
+        partyIds.add(partyId);
+
+        // 2. Remove user from party leadership if they are the leader
+        await query(
+          "UPDATE parties SET leader_id = NULL WHERE id = $1 AND leader_id = $2",
+          [partyId, user.id]
+        );
+      }
+    }
+
+    // 3. Remove all inactive users from their parties
+    await query("UPDATE users SET party_id = NULL WHERE is_active = FALSE");
+
+    // 4. Check each affected party and delete if it has no remaining members
+    for (const partyId of partyIds) {
+      const countRes = await query(
+        "SELECT COUNT(*)::int AS cnt FROM users WHERE party_id = $1",
+        [partyId]
+      );
+      const memberCount = countRes.rows[0]?.cnt ?? 0;
+
+      if (memberCount === 0) {
+        // Delete party stances first due to foreign key constraint
+        await query("DELETE FROM party_stances WHERE party_id = $1", [partyId]);
+        // Delete the party itself
+        await query("DELETE FROM parties WHERE id = $1", [partyId]);
+      }
+    }
+
+    // Clear all parties with 0 members anyway as a fallback
+    await query(`
+      DELETE FROM party_stances
+      WHERE party_id IN (
+      SELECT p.id
+      FROM parties p
+      LEFT JOIN users u ON p.id = u.party_id
+      GROUP BY p.id
+      HAVING COUNT(u.id) = 0
+      )
+    `);
+
+    await query(`
+      DELETE FROM parties
+      WHERE id IN (
+      SELECT p.id
+      FROM parties p
+      LEFT JOIN users u ON p.id = u.party_id
+      GROUP BY p.id
+      HAVING COUNT(u.id) = 0
+      )
+    `);
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {

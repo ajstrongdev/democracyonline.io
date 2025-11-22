@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const res = await query(
-      "SELECT id, username, bio, political_leaning, role, party_id, created_at FROM users WHERE role = $1 AND username NOT LIKE 'Banned User%'",
+      "SELECT id, username, bio, political_leaning, role, party_id, created_at FROM users WHERE role = $1 AND username NOT LIKE 'Banned User%' AND is_active = TRUE",
       [role]
     );
     return NextResponse.json({ representatives: res.rows }, { status: 200 });
