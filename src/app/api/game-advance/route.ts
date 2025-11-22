@@ -34,36 +34,36 @@ export async function GET(request: NextRequest) {
 
   const token = authHeader.substring(7); // Remove "Bearer " prefix
 
-  // try {
-  //   // Verify the OIDC token
-  //   const ticket = await oAuth2Client.verifyIdToken({
-  //     idToken: token,
-  //     audience:
-  //       process.env.NEXT_PUBLIC_SITE_URL || "https://democracyonline.io",
-  //   });
+  try {
+    // Verify the OIDC token
+    const ticket = await oAuth2Client.verifyIdToken({
+      idToken: token,
+      audience:
+        process.env.NEXT_PUBLIC_SITE_URL || "https://democracyonline.io",
+    });
 
-  //   const payload = ticket.getPayload();
+    const payload = ticket.getPayload();
 
-  //   // Verify it's from the scheduler service account
-  //   // The email should be: <app-name>-scheduler@<project-id>.iam.gserviceaccount.com
-  //   const expectedEmailPattern = /-scheduler@.*\.iam\.gserviceaccount\.com$/;
+    // Verify it's from the scheduler service account
+    // The email should be: <app-name>-scheduler@<project-id>.iam.gserviceaccount.com
+    const expectedEmailPattern = /-scheduler@.*\.iam\.gserviceaccount\.com$/;
 
-  //   if (!payload?.email || !expectedEmailPattern.test(payload.email)) {
-  //     console.error("Invalid service account:", payload?.email);
-  //     return NextResponse.json(
-  //       { success: false, error: "Unauthorized - Invalid service account" },
-  //       { status: 401 }
-  //     );
-  //   }
+    if (!payload?.email || !expectedEmailPattern.test(payload.email)) {
+      console.error("Invalid service account:", payload?.email);
+      return NextResponse.json(
+        { success: false, error: "Unauthorized - Invalid service account" },
+        { status: 401 }
+      );
+    }
 
-  //   console.log("Authenticated request from:", payload.email);
-  // } catch (error) {
-  //   console.error("Token validation failed:", error);
-  //   return NextResponse.json(
-  //     { success: false, error: "Unauthorized - Invalid token" },
-  //     { status: 401 }
-  //   );
-  // }
+    console.log("Authenticated request from:", payload.email);
+  } catch (error) {
+    console.error("Token validation failed:", error);
+    return NextResponse.json(
+      { success: false, error: "Unauthorized - Invalid token" },
+      { status: 401 }
+    );
+  }
 
   // Presidential elections
   try {
