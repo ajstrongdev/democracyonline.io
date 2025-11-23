@@ -1,7 +1,5 @@
 import { query } from "@/lib/db";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,8 +7,9 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import BillVotersList from "@/components/BillVotersList";
+import { BackButton } from "@/components/BackButton";
 
 async function getVotes(billId: string, stage: string) {
   try {
@@ -127,15 +126,7 @@ export default async function Page({
   return (
     <div className="container mx-auto py-8 px-4 max-w-5xl">
       <div className="mb-6">
-        <Link href="/bills">
-          <Button
-            variant="ghost"
-            className="gap-2 pl-0 hover:pl-2 transition-all"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Bills
-          </Button>
-        </Link>
+        <BackButton fallbackUrl="/bills" />
       </div>
 
       <div className="grid gap-6">
