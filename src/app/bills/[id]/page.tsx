@@ -10,6 +10,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
+import BillVotersList from "@/components/BillVotersList";
 
 async function getVotes(billId: string, stage: string) {
   try {
@@ -189,6 +190,8 @@ export default async function Page({
             </div>
           </CardContent>
         </Card>
+
+        <BillVotersList billId={id} />
       </div>
     </div>
   );
