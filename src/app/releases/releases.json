@@ -1,5 +1,25 @@
 [
   {
+    "version": "1.2.1",
+    "date": "2025-11-23",
+    "title": "Small enhancements and bug fixes",
+    "description": "",
+    "features": [
+      "You can now view player's votes on bills from the bill details page."
+    ],
+    "bugfixes": [
+      "Fixed mobile responsiveness issues on the bills page."
+    ],
+    "improvements": [
+      "The back button on the bill details page now navigates back to the previous page if possible.",
+      "Added more options for party logos."
+    ],
+    "technical": [
+      "~475 lines of code added.",
+      "~20 lines of code removed."
+    ]
+  },
+  {
     "version": "1.2.0",
     "date": "2025-11-22",
     "title": "Quality of Life Update",
@@ -12,7 +32,10 @@
     "improvements": [
       "Improved vote indicator design."
     ],
-    "technical": []
+    "technical": [
+      "~750 lines of code added.",
+      "~150 lines of code removed."
+    ]
   },
   {
     "version": "1.1.1",
