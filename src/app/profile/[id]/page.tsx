@@ -274,7 +274,7 @@ function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
                         Stage: {vote.stage} | Status: {vote.status || "N/A"}
                       </p>
                       <Button asChild>
-                        <Link href={`/bills#${vote.bill_id}`}>View Bill</Link>
+                        <Link href={`/bills/${vote.bill_id}`}>View Bill</Link>
                       </Button>
                     </div>
                     <div className="flex items-center gap-2">

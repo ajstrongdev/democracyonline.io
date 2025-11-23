@@ -72,7 +72,7 @@ function Bills() {
   }, [data, statusFilter, creatorFilter, currentUser]);
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-2 sm:px-4">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-foreground mb-2">Bills</h1>
         <p className="text-muted-foreground">
@@ -163,14 +163,14 @@ function Bills() {
       </div>
 
       <div className="space-y-4">
-        <h1 className="text-3xl font-bold text-foreground mb-4 border-b pb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-4 border-b pb-2">
           All Bills
-          <span className="text-lg font-normal text-muted-foreground ml-2">
+          <span className="text-base sm:text-lg font-normal text-muted-foreground ml-2">
             ({filteredBills.length}{" "}
             {filteredBills.length === 1 ? "bill" : "bills"})
           </span>
         </h1>
-        <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
           {isLoading ? (
             <Card>
               <CardContent>
@@ -189,8 +189,8 @@ function Bills() {
                 <CardContent>
                   {/* Bill details */}
                   <div>
-                    <div className="flex justify-between items-start mb-4">
-                      <h2 className="text-xl font-semibold">
+                    <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-2">
+                      <h2 className="text-lg sm:text-xl font-semibold break-words">
                         Bill #{bill.id}: {bill.title}
                       </h2>
 
@@ -208,15 +208,15 @@ function Bills() {
                           </Link>
                         )}
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <p className="text-sm text-muted-foreground mb-2 break-words">
                       Proposed By:{" "}
-                      <b className="text-black dark:text-white">
+                      <b className="text-black dark:text-white break-words">
                         {bill.username}
                       </b>{" "}
                       | Status: {bill.status} | Stage: {bill.stage} | Created
                       at: {new Date(bill.created_at).toLocaleDateString()}
                     </p>
-                    <p className="line-clamp-3 text-foreground mt-5 sm:mt-3 whitespace-pre-wrap">
+                    <p className="line-clamp-3 text-foreground mt-5 sm:mt-3 whitespace-pre-wrap break-words">
                       {bill.content}
                     </p>
                   </div>
