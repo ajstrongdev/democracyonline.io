@@ -1,15 +1,15 @@
 terraform {
-  required_version = "~> 1.13"
+  required_version = "~> 1.14"
 
   backend "gcs" {
-    bucket = "fir-test-cee1e-terraform-state"
-    prefix = "terraform/state"
+    bucket = "odr-terraform-state"
+    prefix = "prod"
   }
 
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 7.9.0"
+      version = "~> 7.12.0"
     }
     random = {
       source  = "hashicorp/random"
@@ -103,9 +103,10 @@ resource "random_password" "db_password" {
 }
 
 resource "google_sql_database_instance" "postgres" {
-  name             = "${var.app_name}-postgres-${var.environment}"
-  database_version = "POSTGRES_15"
-  region           = var.region
+  name                = "${var.app_name}-postgres-${var.environment}"
+  database_version    = "POSTGRES_15"
+  region              = var.region
+  deletion_protection = false
 
   settings {
     tier              = var.db_tier
@@ -137,8 +138,6 @@ resource "google_sql_database_instance" "postgres" {
       query_insights_enabled = false
     }
   }
-
-  deletion_protection = true
 
   depends_on = [google_project_service.required_apis]
 }
@@ -276,6 +275,7 @@ resource "google_cloud_run_v2_service" "app" {
   location             = var.region
   ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
   default_uri_disabled = true
+  deletion_protection  = false
 
   template {
     service_account = google_service_account.cloud_run_sa.email
