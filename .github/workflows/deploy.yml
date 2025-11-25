@@ -8,7 +8,7 @@ on:
   workflow_dispatch: # Allow manual trigger
 
 env:
-  GCP_PROJECT_ID: fir-test-cee1e
+  GCP_PROJECT_ID: onlinedemocraticrepublic
   GCP_REGION: europe-west2
   SERVICE_NAME: odr
   ARTIFACT_REPO: odr-docker
