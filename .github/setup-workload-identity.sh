@@ -13,7 +13,7 @@ echo -e "${GREEN}Setting up Workload Identity Federation for GitHub Actions${NC}
 echo ""
 
 # Configuration
-PROJECT_ID="${1:-fir-test-cee1e}"
+PROJECT_ID="onlinedemocraticrepublic"
 GITHUB_REPO="ajstrongdev/onlinedemocraticrepublic"
 SERVICE_ACCOUNT_NAME="github-actions-deployer"
 WORKLOAD_IDENTITY_POOL="github-pool"
