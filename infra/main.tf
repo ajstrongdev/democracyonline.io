@@ -98,8 +98,9 @@ resource "google_artifact_registry_repository" "docker_repo" {
 # ============================================
 
 resource "random_password" "db_password" {
-  length  = 32
-  special = true
+  length           = 32
+  special          = true
+  override_special = "._~-" # Only URL-safe special characters for connection strings
 }
 
 resource "google_sql_database_instance" "postgres" {
