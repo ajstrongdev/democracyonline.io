@@ -48,7 +48,7 @@ export default function withAuth<T extends object>(
         }
 
         try {
-          await fetch("/api/reset-user-activity", {
+          const response = await fetch("/api/reset-user-activity", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -56,10 +56,23 @@ export default function withAuth<T extends object>(
             body: JSON.stringify({ email: user.email }),
           });
 
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Failed to reset last activity:", {
+              status: response.status,
+              error: errorData,
+              email: user.email,
+            });
+            return;
+          }
+
           // Store the timestamp of this reset (expires in 6 hours)
           setCookie(cookieName, now.toString(), 360);
         } catch (error) {
-          console.error("Error resetting last activity:", error);
+          console.error("Error resetting last activity:", {
+            error,
+            email: user.email,
+          });
         }
       };
       if (user) {
