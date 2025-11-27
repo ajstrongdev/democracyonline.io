@@ -9,18 +9,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    // Reset user's last_activity to 0
+    // Reset user's last_activity to 0 (case-insensitive email matching)
     const result = await query(
-      "UPDATE users SET last_activity = 0 WHERE email = $1 RETURNING id, email, username",
+      "UPDATE users SET last_activity = 0 WHERE LOWER(email) = LOWER($1) RETURNING id, email, username",
       [email]
     );
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     } else {
-      await query("UPDATE users SET is_active = TRUE WHERE email = $1", [
-        email,
-      ]);
+      await query(
+        "UPDATE users SET is_active = TRUE WHERE LOWER(email) = LOWER($1)",
+        [email]
+      );
     }
     return NextResponse.json({
       success: true,
