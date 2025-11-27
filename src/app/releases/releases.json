@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.2.2",
+    "date": "2025-11-27",
+    "title": "Bug Fixes",
+    "description": "",
+    "features": [],
+    "bugfixes": [
+      "Resolved an issue where a user's last active time was not updating correctly."
+    ],
+    "improvements": [],
+    "technical": []
+  },
+  {
     "version": "1.2.1",
     "date": "2025-11-23",
     "title": "Small enhancements and bug fixes",
