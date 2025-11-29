@@ -5,7 +5,7 @@
     "title": "Bug fixes",
     "description": "",
     "features": [
-      "Added a user search page, making it easier to access user profiles."
+      "Introduced user search page, making it easier to access user profiles."
     ],
     "bugfixes": [
       "Fixed an issue causing a user's voting history to display bills out of order.",
