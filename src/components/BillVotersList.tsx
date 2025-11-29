@@ -34,9 +34,9 @@ function VoterCard({
   showParty?: boolean;
 }) {
   return (
-    <div className="p-4 border rounded-lg hover:shadow transition">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="p-3 sm:p-4 border rounded-lg hover:shadow transition">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <div
             className={`flex-shrink-0 ${
               voter.vote_yes
@@ -45,15 +45,17 @@ function VoterCard({
             }`}
           >
             {voter.vote_yes ? (
-              <CheckCircle2 className="h-5 w-5" />
+              <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
             ) : (
-              <XCircle className="h-5 w-5" />
+              <XCircle className="h-4 w-4 sm:h-5 sm:w-5" />
             )}
           </div>
-          <div>
-            <p className="font-medium text-foreground">{voter.username}</p>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-foreground text-sm sm:text-base break-words">
+              {voter.username}
+            </p>
             {showParty && voter.party_name && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground break-words">
                 <span
                   className="font-medium"
                   style={{ color: voter.party_color || undefined }}
@@ -66,7 +68,7 @@ function VoterCard({
         </div>
         <Button
           size="sm"
-          className="text-sm"
+          className="text-xs sm:text-sm w-full sm:w-auto whitespace-nowrap"
           onClick={() => (window.location.href = `/profile/${voter.id}`)}
         >
           View Profile
@@ -101,29 +103,29 @@ function VotersSection({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-2xl font-semibold text-foreground">
+      <CardHeader className="p-3 sm:p-4 md:p-6">
+        <CardTitle className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground break-words">
           {title}
         </CardTitle>
-        <CardDescription className="flex items-center gap-2">
+        <CardDescription className="flex items-center gap-2 text-xs sm:text-sm">
           <span className="flex items-center gap-1 text-foreground">
-            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+            <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 dark:text-green-400" />
             {forVotes.length}
           </span>
           <span className="flex items-center gap-1 text-foreground">
-            <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+            <XCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-600 dark:text-red-400" />
             {againstVotes.length}
           </span>
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
+      <CardContent className="p-3 sm:p-4 md:p-6">
+        <div className="space-y-4 sm:space-y-6">
           <div>
-            <h3 className="text-lg font-medium text-foreground mb-3 flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <h3 className="text-base sm:text-lg font-medium text-foreground mb-2 sm:mb-3 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400" />
               Votes For ({forVotes.length})
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {forVotes.length > 0 ? (
                 forVotes.map((voter) => (
                   <VoterCard key={voter.id} voter={voter} />
@@ -136,11 +138,11 @@ function VotersSection({
             </div>
           </div>
           <div>
-            <h3 className="text-lg font-medium text-foreground mb-3 flex items-center gap-2">
-              <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+            <h3 className="text-base sm:text-lg font-medium text-foreground mb-2 sm:mb-3 flex items-center gap-2">
+              <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 dark:text-red-400" />
               Votes Against ({againstVotes.length})
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {againstVotes.length > 0 ? (
                 againstVotes.map((voter) => (
                   <VoterCard key={voter.id} voter={voter} />
@@ -226,7 +228,7 @@ export default function BillVotersList({ billId }: { billId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full">
       {voters.house.length > 0 && (
         <VotersSection
           title="House of Representatives"
