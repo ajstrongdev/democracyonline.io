@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Notebook,
   Shield,
+  Search,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { signOut } from "firebase/auth";
@@ -53,6 +54,11 @@ const data = {
       title: "Feed",
       url: "/notifications",
       icon: Bell,
+    },
+    {
+      title: "Find Users",
+      url: "/search",
+      icon: Search,
     },
     {
       title: "Political Parties",

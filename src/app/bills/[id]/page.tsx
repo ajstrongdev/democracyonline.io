@@ -44,15 +44,15 @@ function VoteSummary({
 
   return (
     <div className="flex flex-col border rounded-lg bg-card text-card-foreground shadow-sm overflow-hidden">
-      <div className="p-4 pb-2 space-y-2">
-        <h3 className="font-semibold text-lg">{title}</h3>
-        <div className="flex items-center justify-between text-sm">
+      <div className="p-3 sm:p-4 pb-2 space-y-2">
+        <h3 className="font-semibold text-base sm:text-lg">{title}</h3>
+        <div className="flex items-center justify-between text-xs sm:text-sm">
           <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
-            <CheckCircle2 className="h-4 w-4" />
+            <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>{votes.yes} For</span>
           </div>
           <div className="flex items-center gap-1 text-red-600 dark:text-red-400">
-            <XCircle className="h-4 w-4" />
+            <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>{votes.no} Against</span>
           </div>
         </div>
@@ -124,22 +124,22 @@ export default async function Page({
   ]);
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-5xl">
-      <div className="mb-6">
+    <div className="w-full py-4 sm:py-8 px-3 sm:px-4 max-w-5xl mx-auto">
+      <div className="mb-4 sm:mb-6">
         <BackButton fallbackUrl="/bills" />
       </div>
 
-      <div className="grid gap-6">
+      <div className="flex flex-col gap-4 sm:gap-6">
         <Card>
-          <CardHeader>
-            <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-              <div className="space-y-1">
-                <CardTitle className="text-3xl font-bold">
+          <CardHeader className="p-3 sm:p-4 md:p-6">
+            <div className="flex flex-col gap-3">
+              <div className="space-y-2">
+                <CardTitle className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold break-words hyphens-auto">
                   Bill #{bill.id}: {bill.title}
                 </CardTitle>
-                <CardDescription className="text-base">
+                <CardDescription className="text-xs sm:text-sm break-words">
                   Proposed by{" "}
-                  <span className="font-semibold text-foreground">
+                  <span className="font-semibold text-foreground break-words">
                     {bill.creator_name || "Unknown User"}
                   </span>{" "}
                   on {new Date(bill.created_at).toLocaleDateString()}
@@ -147,16 +147,18 @@ export default async function Page({
               </div>
               <div className="flex flex-wrap gap-2">
                 <StatusBadge status={bill.status} />
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground border border-border">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground border border-border whitespace-nowrap">
                   {bill.stage} Stage
                 </span>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="prose dark:prose-invert max-w-none">
-              <h3 className="text-lg font-semibold mb-2">Bill Content</h3>
-              <div className="p-4 bg-muted/50 rounded-lg border whitespace-pre-wrap text-sm leading-relaxed">
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="w-full">
+              <h3 className="text-sm sm:text-base md:text-lg font-semibold mb-2">
+                Bill Content
+              </h3>
+              <div className="p-3 sm:p-4 bg-muted/50 rounded-lg border whitespace-pre-wrap text-xs sm:text-sm leading-relaxed break-words overflow-x-auto">
                 {bill.content || bill.description || "No content available."}
               </div>
             </div>
@@ -164,14 +166,14 @@ export default async function Page({
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Voting History</CardTitle>
-            <CardDescription>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-lg sm:text-xl">Voting History</CardTitle>
+            <CardDescription className="text-sm">
               Results from each legislative stage
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
+          <CardContent className="p-4 sm:p-6">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
               <VoteSummary
                 title="House of Representatives"
                 votes={houseVotes}
