@@ -97,12 +97,23 @@ export async function POST(request: NextRequest) {
 
     const newPartyId = newPartyResult.rows[0].id;
 
-    // Add stances to the new party
-    for (const stance of mergeStances.rows) {
+    // Get all available political stances
+    const allStances = await query(
+      `SELECT id FROM political_stances ORDER BY id ASC`
+    );
+
+    // Create a map of stance values from the merge request
+    const stanceMap = new Map(
+      mergeStances.rows.map((s: any) => [s.stance_id, s.value])
+    );
+
+    // Add all stances to the new party (with empty string for missing values)
+    for (const stance of allStances.rows) {
+      const stanceValue = stanceMap.get(stance.id) || "";
       await query(
         `INSERT INTO party_stances (party_id, stance_id, value) 
          VALUES ($1, $2, $3)`,
-        [newPartyId, stance.stance_id, stance.value]
+        [newPartyId, stance.id, stanceValue]
       );
     }
 

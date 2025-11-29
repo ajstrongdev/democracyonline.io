@@ -8,7 +8,7 @@ export async function GET() {
     );
 
     const activeResult = await query(
-      "SELECT COUNT(*) as count FROM users WHERE last_activity <= 7 AND username NOT LIKE 'Banned User%'"
+      "SELECT COUNT(*) as count FROM users WHERE is_active = TRUE AND username NOT LIKE 'Banned User%'"
     );
 
     return NextResponse.json({
