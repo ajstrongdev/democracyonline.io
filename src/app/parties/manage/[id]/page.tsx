@@ -10,7 +10,7 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import axios from "axios";
-import GenericSkeleton from "@/components/genericskeleton";
+import GenericSkeleton from "@/components/common/genericskeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

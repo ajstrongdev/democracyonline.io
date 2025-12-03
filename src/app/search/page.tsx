@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, User, Handshake, Users, UserCheck } from "lucide-react";
 import Link from "next/link";
-import PartyLogo from "@/components/PartyLogo";
+import PartyLogo from "@/components/parties/PartyLogo";
 import withAuth from "@/lib/withAuth";
-import GenericSkeleton from "@/components/genericskeleton";
+import GenericSkeleton from "@/components/common/genericskeleton";
 
 interface UserResult {
   id: number;

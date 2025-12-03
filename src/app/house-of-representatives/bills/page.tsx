@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import GenericSkeleton from "@/components/genericskeleton";
+import GenericSkeleton from "@/components/common/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { fetchUserInfo } from "@/app/utils/userHelper";
@@ -20,10 +20,10 @@ import { getUserFullById } from "@/app/utils/userHelper";
 import { UserInfo } from "@/app/utils/userHelper";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Chat } from "@/components/Chat";
+import { Chat } from "@/components/common/Chat";
 import { MessageDialog } from "@/components/ui/MessageDialog";
 import { useState } from "react";
-import PartyLogo from "@/components/PartyLogo";
+import PartyLogo from "@/components/parties/PartyLogo";
 import { CheckCircle2, XCircle } from "lucide-react";
 
 type BillItemWithUsername = BillItem & {

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
-import GenericSkeleton from "@/components/genericskeleton";
+import GenericSkeleton from "@/components/common/genericskeleton";
 
 const ALLOWED_ADMIN_EMAILS = [
   "jenewland1999@gmail.com",

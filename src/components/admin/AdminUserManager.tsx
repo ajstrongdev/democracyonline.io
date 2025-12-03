@@ -8,7 +8,7 @@ import UserList from "./UserList";
 import PartyList from "./PartyList";
 import DBUserList from "./DBUserList";
 import AccessTokenManager from "./AccessTokenManager";
-import GenericSkeleton from "@/components/genericskeleton";
+import GenericSkeleton from "@/components/common/genericskeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface FirebaseUser {

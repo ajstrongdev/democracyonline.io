@@ -3,7 +3,7 @@
 import React from "react";
 import withAuth from "@/lib/withAuth";
 import { useQuery } from "@tanstack/react-query";
-import GenericSkeleton from "@/components/genericskeleton";
+import GenericSkeleton from "@/components/common/genericskeleton";
 import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
 

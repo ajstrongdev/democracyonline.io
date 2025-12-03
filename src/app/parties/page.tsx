@@ -1,7 +1,3 @@
-"use client";
-
-import withAuth from "@/lib/withAuth";
-import React from "react";
 import {
   Card,
   CardContent,
@@ -10,170 +6,52 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import axios from "axios";
-import { auth } from "@/lib/firebase";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Handshake, Users, Crown, TrendingUp } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { Party } from "@/app/utils/partyHelper";
 import Link from "next/link";
-import PartyLogo from "@/components/PartyLogo";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Pie,
-  PieChart,
-  Cell,
-  Label,
-} from "recharts";
-import GenericSkeleton from "@/components/genericskeleton";
-
-interface PartyMember {
-  id: number;
-  username: string;
-  party_id: number;
-}
+import PartyLogo from "@/components/parties/PartyLogo";
+import { getServerSession } from "@/lib/serverAuth";
+import { redirect } from "next/navigation";
+import { PartyCharts } from "@/components/parties/PartyCharts";
+import { getPartyMembers, getParties, type Party } from "@/actions/parties";
+import { getCurrentUser } from "@/actions/users";
 
 interface PartyStats {
   party: Party;
   memberCount: number;
-  members: PartyMember[];
 }
 
-function Home() {
-  const [user] = useAuthState(auth);
+export default async function PartiesPage() {
+  const session = await getServerSession();
+  if (!session) {
+    redirect("/sign-in");
+  }
 
-  const { data: parties = [] as Party[], isLoading: partiesLoading } = useQuery(
-    {
-      queryKey: ["parties"],
-      queryFn: async () => {
-        const response = await axios.get("/api/party-list");
-        return response.data;
-      },
-    }
-  );
+  // Fetch all data in parallel
+  const [parties, thisUser] = await Promise.all([
+    getParties(),
+    getCurrentUser(session.email),
+  ]);
 
-  const { data: partyStats = [] as PartyStats[], isLoading: statsLoading } =
-    useQuery({
-      queryKey: ["party-stats", parties],
-      queryFn: async () => {
-        if (!parties || parties.length === 0) return [];
-
-        const statsPromises = parties.map(async (party: Party) => {
-          try {
-            const membersResponse = await axios.get(
-              `/api/party-members?partyId=${party.id}`
-            );
-            const members = membersResponse.data;
-            return {
-              party,
-              memberCount: members.length,
-              members,
-            };
-          } catch (error) {
-            console.error(
-              `Error fetching members for party ${party.id}:`,
-              error
-            );
-            return {
-              party,
-              memberCount: 0,
-              members: [],
-            };
-          }
-        });
-
-        return Promise.all(statsPromises);
-      },
-      enabled: parties.length > 0,
-    });
-
-  const { data: thisUser } = useQuery({
-    queryKey: ["user", user?.email],
-    queryFn: async () => {
-      if (user && user.email) {
-        const userDetails = await fetchUserInfo(user.email);
-        return userDetails || null;
-      }
-      return null;
-    },
-    enabled: !!user?.email,
+  // Fetch member counts for all parties in parallel
+  const partyStatsPromises = parties.map(async (party) => {
+    const members = await getPartyMembers(party.id);
+    return {
+      party,
+      memberCount: members.length,
+    };
   });
 
-  const isLoading = partiesLoading || statsLoading;
+  const partyStats: PartyStats[] = await Promise.all(partyStatsPromises);
 
   // Sort parties by member count
   const sortedParties = [...partyStats].sort(
     (a, b) => b.memberCount - a.memberCount
   );
 
-  // Chart configuration
-  const barChartConfig: ChartConfig = {
-    members: {
-      label: "Members",
-      color: "hsl(var(--chart-1))",
-    },
-  };
-
-  const pieChartConfig: ChartConfig = sortedParties.reduce(
-    (config, stats, index) => {
-      config[stats.party.id.toString()] = {
-        label: stats.party.name,
-        color: stats.party.color || `hsl(var(--chart-${(index % 5) + 1}))`,
-      };
-      return config;
-    },
-    {} as ChartConfig
-  );
-
-  // Prepare data for charts
-  const barChartData = sortedParties.map((stats) => ({
-    name: stats.party.name,
-    members: stats.memberCount,
-    fill: stats.party.color || "hsl(var(--chart-1))",
-  }));
-
-  const pieChartData = sortedParties
-    .filter((stats) => stats.memberCount > 0)
-    .map((stats) => ({
-      name: stats.party.name,
-      value: stats.memberCount,
-      fill: stats.party.color || "hsl(var(--chart-1))",
-    }));
-
   const totalMembers = sortedParties.reduce(
     (sum, stats) => sum + stats.memberCount,
     0
   );
-
-  if (isLoading) {
-    return (
-      <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Political Parties</h1>
-          <p className="text-muted-foreground">Loading party statistics...</p>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-48" />
-          ))}
-        </div>
-        <GenericSkeleton />
-      </div>
-    );
-  }
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
@@ -239,98 +117,7 @@ function Home() {
           </CardDescription>
         </CardHeader>
         <CardContent className="px-2 md:px-6">
-          <Tabs defaultValue="bar" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="bar">Bar Chart</TabsTrigger>
-              <TabsTrigger value="pie">Pie Chart</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="bar">
-              <ChartContainer
-                config={barChartConfig}
-                className="h-[300px] md:h-[500px] w-full"
-              >
-                <BarChart
-                  data={barChartData}
-                  margin={{ top: 10, right: 10, bottom: 10, left: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    className="stroke-muted"
-                  />
-                  <YAxis
-                    tick={{ fill: "hsl(var(--foreground))" }}
-                    className="text-[10px] md:text-xs"
-                    width={30}
-                  />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        labelFormatter={(value, payload) => {
-                          return payload?.[0]?.payload?.name || value;
-                        }}
-                      />
-                    }
-                  />
-                  <Bar dataKey="members" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
-            </TabsContent>
-
-            <TabsContent value="pie">
-              <div className="flex items-center justify-center">
-                <ChartContainer
-                  config={pieChartConfig}
-                  className="h-[300px] md:h-[500px] w-full"
-                >
-                  <PieChart>
-                    <Pie
-                      data={pieChartData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius="40%"
-                      outerRadius="70%"
-                      paddingAngle={2}
-                    >
-                      {pieChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                      <Label
-                        content={({ viewBox }) => {
-                          if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                            return (
-                              <text
-                                x={viewBox.cx}
-                                y={viewBox.cy}
-                                textAnchor="middle"
-                                dominantBaseline="middle"
-                              >
-                                <tspan
-                                  x={viewBox.cx}
-                                  y={viewBox.cy}
-                                  className="fill-foreground text-2xl md:text-3xl font-bold"
-                                >
-                                  {totalMembers}
-                                </tspan>
-                                <tspan
-                                  x={viewBox.cx}
-                                  y={(viewBox.cy || 0) + 20}
-                                  className="fill-muted-foreground text-xs md:text-sm"
-                                >
-                                  Total Members
-                                </tspan>
-                              </text>
-                            );
-                          }
-                        }}
-                      />
-                    </Pie>
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                  </PieChart>
-                </ChartContainer>
-              </div>
-            </TabsContent>
-          </Tabs>
+          <PartyCharts partyStats={partyStats} />
         </CardContent>
       </Card>
 
@@ -343,7 +130,7 @@ function Home() {
               Parties ranked by membership size.
             </CardDescription>
           </div>
-          {thisUser?.party_id === null && !isLoading && (
+          {thisUser?.party_id === null && (
             <Button asChild variant="default" size="sm" className="shrink-0">
               <Link href="/parties/create">
                 <Handshake className="mr-2 h-4 w-4" />
@@ -422,20 +209,10 @@ function Home() {
                       size="sm"
                       className="whitespace-nowrap"
                     >
-                      <a href={`/parties/${stats.party.id}`}>View Details</a>
+                      <Link href={`/parties/${stats.party.id}`}>
+                        View Details
+                      </Link>
                     </Button>
-                    {stats.party.manifesto_url && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="whitespace-nowrap text-xs"
-                        onClick={() =>
-                          window.open(stats.party.manifesto_url, "_blank")
-                        }
-                      >
-                        Manifesto
-                      </Button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -444,7 +221,7 @@ function Home() {
         </CardContent>
       </Card>
 
-      {parties.length === 0 && !isLoading && (
+      {parties.length === 0 && (
         <div className="text-center py-12">
           <p className="text-muted-foreground text-lg">
             No parties found. Check back later!
@@ -454,5 +231,3 @@ function Home() {
     </div>
   );
 }
-
-export default withAuth(Home);

@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/dist/client/components/navigation";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import withAuth from "@/lib/withAuth";
-import GenericSkeleton from "@/components/genericskeleton";
+import GenericSkeleton from "@/components/common/genericskeleton";
 
 function ProfileRedirect() {
   const [user] = useAuthState(auth);

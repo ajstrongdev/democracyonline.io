@@ -19,7 +19,7 @@ import {
   Shield,
   Search,
 } from "lucide-react";
-import { Logo } from "@/components/logo";
+import { Logo } from "@/components/common/logo";
 import { signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";

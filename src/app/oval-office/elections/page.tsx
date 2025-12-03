@@ -6,14 +6,14 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import GenericSkeleton from "@/components/genericskeleton";
+import GenericSkeleton from "@/components/common/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import { getUserFullById } from "@/app/utils/userHelper";
 import { Party } from "@/app/utils/partyHelper";
-import { Chat } from "@/components/Chat";
-import { CandidatesChart } from "@/components/CandidateChart";
+import { Chat } from "@/components/common/Chat";
+import { CandidatesChart } from "@/components/elections/CandidateChart";
 import Link from "next/link";
 import { MessageDialog } from "@/components/ui/MessageDialog";
 import { useState } from "react";
@@ -251,7 +251,6 @@ function PresidentElections() {
     }
   };
 
-
   const revokeCandidacy = async () => {
     if (!thisUser) return;
     try {
@@ -271,7 +270,7 @@ function PresidentElections() {
       console.error("Error revoking candidacy:", error);
     }
   };
-    
+
   const standAsCandidate = () => {
     setShowCandidacyDialog(true);
   };

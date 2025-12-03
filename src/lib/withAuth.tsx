@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { auth } from "./firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
-import GenericSkeleton from "@/components/genericskeleton";
+import GenericSkeleton from "@/components/common/genericskeleton";
 
 export default function withAuth<T extends object>(
   WrappedComponent: React.ComponentType<T>

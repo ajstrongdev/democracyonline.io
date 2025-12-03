@@ -8,8 +8,8 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { CheckCircle2, XCircle } from "lucide-react";
-import BillVotersList from "@/components/BillVotersList";
-import { BackButton } from "@/components/BackButton";
+import BillVotersList from "@/components/bills/BillVotersList";
+import { BackButton } from "@/components/common/BackButton";
 
 async function getVotes(billId: string, stage: string) {
   try {

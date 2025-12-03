@@ -17,7 +17,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { LaunchCountdown } from "@/components/LaunchCountdown";
+import { LaunchCountdown } from "@/components/common/LaunchCountdown";
 
 export default function Home() {
   const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
@@ -49,6 +49,17 @@ export default function Home() {
       const res = await signInWithEmailAndPassword(email, password);
       if (res?.user) {
         console.log("User signed in:", res.user);
+
+        // Get the ID token and create a session cookie
+        const idToken = await res.user.getIdToken();
+        await fetch("/api/auth/session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ idToken }),
+        });
+
         router.push("/profile");
       }
     } catch (err) {

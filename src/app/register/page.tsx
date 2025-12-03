@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Slider } from "@/components/ui/slider";
 import { leanings } from "../parties/create/page";
-import { LaunchCountdown } from "@/components/LaunchCountdown";
+import { LaunchCountdown } from "@/components/common/LaunchCountdown";
 import { Info, AlertTriangle } from "lucide-react";
 
 export default function Home() {

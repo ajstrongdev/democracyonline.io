@@ -14,7 +14,7 @@ import { auth } from "@/lib/firebase";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
-import GenericSkeleton from "@/components/genericskeleton";
+import GenericSkeleton from "@/components/common/genericskeleton";
 
 function EditBill() {
   const router = useRouter();

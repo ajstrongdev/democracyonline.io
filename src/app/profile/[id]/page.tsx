@@ -5,7 +5,7 @@ import withAuth from "@/lib/withAuth";
 import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUserInfo, getUserFullById } from "@/app/utils/userHelper";
-import GenericSkeleton from "@/components/genericskeleton";
+import GenericSkeleton from "@/components/common/genericskeleton";
 import {
   Card,
   CardHeader,
@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
-import PartyLogo from "@/components/PartyLogo";
+import PartyLogo from "@/components/parties/PartyLogo";
 import React from "react";
 
 function ProfilePage({ params }: { params: Promise<{ id: string }> }) {

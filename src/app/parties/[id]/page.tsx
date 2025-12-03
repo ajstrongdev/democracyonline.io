@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { useRouter, useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import GenericSkeleton from "@/components/genericskeleton";
+import GenericSkeleton from "@/components/common/genericskeleton";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import {
@@ -20,11 +20,11 @@ import {
 } from "lucide-react";
 import { fetchUserInfo } from "@/app/utils/userHelper";
 import { Key } from "react";
-import { Chat } from "@/components/Chat";
+import { Chat } from "@/components/common/Chat";
 import { toast } from "sonner";
 import { MessageDialog } from "@/components/ui/MessageDialog";
 import { useState } from "react";
-import PartyLogo from "@/components/PartyLogo";
+import PartyLogo from "@/components/parties/PartyLogo";
 
 function Home() {
   const [user] = useAuthState(auth);
