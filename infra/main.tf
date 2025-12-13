@@ -74,6 +74,7 @@ resource "google_project_service" "required_apis" {
     "compute.googleapis.com",
     "cloudscheduler.googleapis.com",
     "certificatemanager.googleapis.com",
+    "cloudtrace.googleapis.com",
   ])
 
   service            = each.value
@@ -268,6 +269,12 @@ resource "google_secret_manager_secret_iam_member" "cloud_run_secret_access" {
 resource "google_project_iam_member" "cloud_run_sql_client" {
   project = var.project_id
   role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+}
+
+resource "google_project_iam_member" "cloud_run_trace_agent" {
+  project = var.project_id
+  role    = "roles/cloudtrace.agent"
   member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
 }
 
