@@ -29,26 +29,47 @@ import {
 import GenericSkeleton from '@/components/generic-skeleton'
 import { Suspense } from 'react'
 import { Users, TrendingUp, Crown } from 'lucide-react'
+import { getPartyInfo } from '@/lib/server/party'
+import { auth } from '@/lib/firebase'
+import { useAuthState } from 'react-firebase-hooks/auth'
+import { useQuery } from '@tanstack/react-query'
+import { fetchUserInfoByEmail } from '@/lib/server/users'
+import { useNavigate } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/parties')({
+  beforeLoad: ({ context }) => {
+    if (context.auth.loading) {
+      return
+    }
+    if (!context.auth.user) {
+      const navigate = useNavigate()
+      navigate({ to: '/' })
+    }
+  },
   loader: async () => {
-    const rows = await db
-      .select({
-        ...getTableColumns(parties),
-        memberCount: sql<number>`count(${users.id})`.as('memberCount'),
-      })
-      .from(parties)
-      .leftJoin(users, eq(users.partyId, parties.id))
-      .groupBy(parties.id)
-      .orderBy(sql`count(${users.id}) desc`)
-    return rows
+    return getPartyInfo()
   },
   component: RouteComponent,
 })
 
 function RouteComponent() {
+  const [user] = useAuthState(auth)
   const data = Route.useLoaderData()
   const totalMembers = data.reduce((sum, stats) => sum + stats.memberCount, 0)
+
+  const { data: thisUser } = useQuery({
+    queryKey: ['user', user?.email],
+    queryFn: async () => {
+      if (user && user.email) {
+        const userDetails = await fetchUserInfoByEmail({
+          data: { email: user.email },
+        })
+        return userDetails || null
+      }
+      return null
+    },
+    enabled: !!user?.email,
+  })
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
