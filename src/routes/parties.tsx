@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { db } from '@/db'
 import { eq, sql, getTableColumns } from 'drizzle-orm'
 import { parties, users } from '@/db/schema'
@@ -30,8 +30,6 @@ import GenericSkeleton from '@/components/generic-skeleton'
 import { Suspense } from 'react'
 import { Users, TrendingUp, Crown } from 'lucide-react'
 import { getPartyInfo } from '@/lib/server/party'
-import { auth } from '@/lib/firebase'
-import { useAuthState } from 'react-firebase-hooks/auth'
 import { useQuery } from '@tanstack/react-query'
 import { fetchUserInfoByEmail } from '@/lib/server/users'
 import { useNavigate } from '@tanstack/react-router'
@@ -42,8 +40,7 @@ export const Route = createFileRoute('/parties')({
       return
     }
     if (!context.auth.user) {
-      const navigate = useNavigate()
-      navigate({ to: '/' })
+      throw redirect({ to: '/' })
     }
   },
   loader: async () => {
@@ -53,22 +50,22 @@ export const Route = createFileRoute('/parties')({
 })
 
 function RouteComponent() {
-  const [user] = useAuthState(auth)
+  const { auth } = useRouter().options.context
   const data = Route.useLoaderData()
   const totalMembers = data.reduce((sum, stats) => sum + stats.memberCount, 0)
 
   const { data: thisUser } = useQuery({
-    queryKey: ['user', user?.email],
+    queryKey: ['user', auth.user?.email],
     queryFn: async () => {
-      if (user && user.email) {
+      if (auth.user && auth.user.email) {
         const userDetails = await fetchUserInfoByEmail({
-          data: { email: user.email },
+          data: { email: auth.user.email },
         })
         return userDetails || null
       }
       return null
     },
-    enabled: !!user?.email,
+    enabled: !!auth.user?.email,
   })
 
   return (
