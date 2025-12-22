@@ -19,6 +19,7 @@ import { Logo } from '@/components/logo'
 import { logOut } from '@/lib/auth-utils'
 import { Link, useRouter, useRouterState } from '@tanstack/react-router'
 import { useAuth } from '@/lib/auth-context'
+import { ModeToggle } from './theme-toggle'
 
 import {
   Sidebar,
@@ -270,6 +271,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <span>Releases</span>
               </Link>
             </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <ModeToggle />
           </SidebarMenuItem>
           <SidebarMenuItem>
             {user ? (
