@@ -1,14 +1,5 @@
-import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { db } from '@/db'
-import { eq, sql, getTableColumns } from 'drizzle-orm'
-import { parties, users } from '@/db/schema'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   ChartContainer,
   ChartTooltip,
@@ -29,10 +20,12 @@ import {
 import GenericSkeleton from '@/components/generic-skeleton'
 import { Suspense } from 'react'
 import { Users, TrendingUp, Crown } from 'lucide-react'
-import { getPartyInfo } from '@/lib/server/party'
+import { getPartyInfo, partyPageData } from '@/lib/server/party'
 import { useQuery } from '@tanstack/react-query'
 import { fetchUserInfoByEmail } from '@/lib/server/users'
-import { useNavigate } from '@tanstack/react-router'
+import ProtectedRoute from '@/components/auth/protected-route'
+import { useAuth } from '@/lib/auth-context'
+import { User } from 'firebase/auth'
 
 export const Route = createFileRoute('/parties')({
   beforeLoad: ({ context }) => {
@@ -40,33 +33,35 @@ export const Route = createFileRoute('/parties')({
       return
     }
     if (!context.auth.user) {
-      throw redirect({ to: '/' })
+      throw redirect({ to: '/login' })
     }
   },
-  loader: async () => {
-    return getPartyInfo()
+  loader: async ({ context }) => {
+    return partyPageData({
+      data: { email: (context.auth.user as User).email! },
+    })
   },
-  component: RouteComponent,
+  component: PartyPage,
 })
 
-function RouteComponent() {
-  const { auth } = useRouter().options.context
-  const data = Route.useLoaderData()
-  const totalMembers = data.reduce((sum, stats) => sum + stats.memberCount, 0)
+function PartyPage() {
+  return (
+    <Suspense fallback={<GenericSkeleton />}>
+      <ProtectedRoute>
+        <PartyContent />
+      </ProtectedRoute>
+    </Suspense>
+  )
+}
 
-  const { data: thisUser } = useQuery({
-    queryKey: ['user', auth.user?.email],
-    queryFn: async () => {
-      if (auth.user && auth.user.email) {
-        const userDetails = await fetchUserInfoByEmail({
-          data: { email: auth.user.email },
-        })
-        return userDetails || null
-      }
-      return null
-    },
-    enabled: !!auth.user?.email,
-  })
+function PartyContent() {
+  const data = Route.useLoaderData()
+  const partyStats = data.partyInfo
+  const { user } = useAuth() // Get the authenticated user
+  const totalMembers = partyStats.reduce(
+    (sum, stats) => sum + stats.memberCount,
+    0,
+  )
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
@@ -85,7 +80,7 @@ function RouteComponent() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.length}</div>
+            <div className="text-2xl font-bold">{partyStats.length}</div>
             <p className="text-xs text-muted-foreground">
               Active political parties
             </p>
@@ -109,14 +104,19 @@ function RouteComponent() {
           </CardHeader>
           <CardContent>
             <div className="text-xl md:text-xl font-bold truncate">
-              {data[0]?.name || 'N/A'}
+              {partyStats[0]?.name || 'N/A'}
             </div>
             <p className="text-xs text-muted-foreground">
-              {data[0]?.memberCount || 0} members
+              {partyStats[0]?.memberCount || 0} members
             </p>
           </CardContent>
         </Card>
       </div>
+      {data.isInParty && (
+        <div className="p-4 border border-green-300 bg-green-50 text-green-800 rounded-md">
+          You are a member of a political party.
+        </div>
+      )}
     </div>
   )
 }

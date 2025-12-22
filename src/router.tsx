@@ -3,6 +3,7 @@ import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query
 import * as TanstackQuery from './integrations/tanstack-query/root-provider'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
+import { AuthProvider } from '@/lib/auth-context'
 import { routeTree } from './routeTree.gen'
 
 export const getRouter = () => {
@@ -19,7 +20,9 @@ export const getRouter = () => {
     },
     defaultPreload: 'intent',
     Wrap: ({ children }) => (
-      <TanstackQuery.Provider {...rqContext}>{children}</TanstackQuery.Provider>
+      <TanstackQuery.Provider {...rqContext}>
+        <AuthProvider>{children}</AuthProvider>
+      </TanstackQuery.Provider>
     ),
   })
 
