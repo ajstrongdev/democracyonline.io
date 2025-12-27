@@ -33,7 +33,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import PartyLogo from '@/components/party-logo'
 
-export const Route = createFileRoute('/parties')({
+export const Route = createFileRoute('/parties/')({
   beforeLoad: ({ context }) => {
     if (context.auth.loading) {
       return
@@ -63,7 +63,6 @@ function PartyPage() {
 function PartyContent() {
   const data = Route.useLoaderData()
   const partyStats = data.partyInfo
-  const { user } = useAuth() // Get the authenticated user
 
   // Debug logging
   console.log('Party Stats:', partyStats)

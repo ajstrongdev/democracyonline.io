@@ -11,9 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as PartiesRouteImport } from './routes/parties'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PartiesIndexRouteImport } from './routes/parties/index'
+import { Route as PartiesCreateRouteImport } from './routes/parties/create'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -23,11 +24,6 @@ const SignupRoute = SignupRouteImport.update({
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PartiesRoute = PartiesRouteImport.update({
-  id: '/parties',
-  path: '/parties',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -40,43 +36,70 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartiesIndexRoute = PartiesIndexRouteImport.update({
+  id: '/parties/',
+  path: '/parties/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartiesCreateRoute = PartiesCreateRouteImport.update({
+  id: '/parties/create',
+  path: '/parties/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/parties': typeof PartiesRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
+  '/parties/create': typeof PartiesCreateRoute
+  '/parties': typeof PartiesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/parties': typeof PartiesRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
+  '/parties/create': typeof PartiesCreateRoute
+  '/parties': typeof PartiesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/parties': typeof PartiesRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
+  '/parties/create': typeof PartiesCreateRoute
+  '/parties/': typeof PartiesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/parties' | '/profile' | '/signup'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/profile'
+    | '/signup'
+    | '/parties/create'
+    | '/parties'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/parties' | '/profile' | '/signup'
-  id: '__root__' | '/' | '/login' | '/parties' | '/profile' | '/signup'
+  to: '/' | '/login' | '/profile' | '/signup' | '/parties/create' | '/parties'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/profile'
+    | '/signup'
+    | '/parties/create'
+    | '/parties/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
-  PartiesRoute: typeof PartiesRoute
   ProfileRoute: typeof ProfileRoute
   SignupRoute: typeof SignupRoute
+  PartiesCreateRoute: typeof PartiesCreateRoute
+  PartiesIndexRoute: typeof PartiesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -95,13 +118,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/parties': {
-      id: '/parties'
-      path: '/parties'
-      fullPath: '/parties'
-      preLoaderRoute: typeof PartiesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -116,15 +132,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parties/': {
+      id: '/parties/'
+      path: '/parties'
+      fullPath: '/parties'
+      preLoaderRoute: typeof PartiesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parties/create': {
+      id: '/parties/create'
+      path: '/parties/create'
+      fullPath: '/parties/create'
+      preLoaderRoute: typeof PartiesCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
-  PartiesRoute: PartiesRoute,
   ProfileRoute: ProfileRoute,
   SignupRoute: SignupRoute,
+  PartiesCreateRoute: PartiesCreateRoute,
+  PartiesIndexRoute: PartiesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

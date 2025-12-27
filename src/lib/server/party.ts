@@ -1,7 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
-import { parties, users } from '@/db/schema'
+import { parties, users, politicalStances, partyStances } from '@/db/schema'
 import { eq, sql, getTableColumns } from 'drizzle-orm'
 import { db } from '@/db'
+import { CreatePartySchema } from '@/lib/schemas/party-schema'
 
 export const partyPageData = createServerFn()
   .inputValidator((data: { email: string }) => data)
@@ -56,4 +57,48 @@ export const getPartyById = createServerFn()
       .where(eq(parties.id, data.partyId))
       .limit(1)
     return party || null
+  })
+
+export const getPoliticalStances = createServerFn().handler(async () => {
+  const stances = await db.select().from(politicalStances)
+  return stances
+})
+
+export const createParty = createServerFn()
+  .inputValidator(CreatePartySchema)
+  .handler(async ({ data }) => {
+    const { party, stances } = data
+    const result = await db.transaction(async (tx) => {
+      const [newParty] = await tx
+        .insert(parties)
+        .values({
+          name: party.name,
+          leaderId: party.leader_id,
+          bio: party.bio,
+          color: party.color,
+          logo: party.logo,
+          discord: party.discord,
+          leaning: party.leaning,
+        })
+        .returning()
+
+      await tx
+        .update(users)
+        .set({ partyId: newParty.id })
+        .where(eq(users.id, party.leader_id))
+        .returning()
+
+      if (stances.length > 0) {
+        await tx.insert(partyStances).values(
+          stances.map((stance) => ({
+            partyId: newParty.id,
+            stanceId: stance.stanceId,
+            value: stance.value,
+          })),
+        )
+      }
+
+      return newParty
+    })
+    return result
   })
