@@ -46,3 +46,14 @@ export const getPartyMembers = createServerFn()
       .where(eq(users.partyId, data.partyId))
     return members
   })
+
+export const getPartyById = createServerFn()
+  .inputValidator((data: { partyId: number }) => data)
+  .handler(async ({ data }) => {
+    const [party] = await db
+      .select()
+      .from(parties)
+      .where(eq(parties.id, data.partyId))
+      .limit(1)
+    return party || null
+  })
