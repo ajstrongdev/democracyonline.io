@@ -28,7 +28,7 @@ import { Users, TrendingUp, Crown, Handshake } from 'lucide-react'
 import { partyPageData } from '@/lib/server/party'
 import ProtectedRoute from '@/components/auth/protected-route'
 import { useAuth } from '@/lib/auth-context'
-import { User } from 'firebase/auth'
+import { type User } from 'firebase/auth'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import PartyLogo from '@/components/party-logo'
@@ -47,10 +47,10 @@ export const Route = createFileRoute('/parties/')({
       data: { email: (context.auth.user as User).email! },
     })
   },
-  component: PartyPage,
+  component: PartyDetailsPage,
 })
 
-function PartyPage() {
+function PartyDetailsPage() {
   return (
     <Suspense fallback={<GenericSkeleton />}>
       <ProtectedRoute>

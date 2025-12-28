@@ -18,9 +18,6 @@ export interface SignInData {
   password: string
 }
 
-/**
- * Sign up a new user with email and password
- */
 export async function signUp({ email, password, displayName }: SignUpData) {
   try {
     const userCredential = await createUserWithEmailAndPassword(
@@ -39,9 +36,6 @@ export async function signUp({ email, password, displayName }: SignUpData) {
   }
 }
 
-/**
- * Sign in an existing user with email and password
- */
 export async function signIn({ email, password }: SignInData) {
   try {
     const userCredential = await signInWithEmailAndPassword(
@@ -55,9 +49,6 @@ export async function signIn({ email, password }: SignInData) {
   }
 }
 
-/**
- * Sign out the current user
- */
 export async function logOut() {
   try {
     await signOut(auth)
@@ -67,9 +58,6 @@ export async function logOut() {
   }
 }
 
-/**
- * Send a password reset email
- */
 export async function resetPassword(email: string) {
   try {
     await sendPasswordResetEmail(auth, email)
@@ -77,11 +65,4 @@ export async function resetPassword(email: string) {
   } catch (error: any) {
     return { error: error.message || 'Failed to send password reset email' }
   }
-}
-
-/**
- * Get the current authenticated user
- */
-export function getCurrentUserEmail(): string | null {
-  return auth.currentUser ? auth.currentUser.email : null
 }

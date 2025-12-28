@@ -15,6 +15,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PartiesIndexRouteImport } from './routes/parties/index'
 import { Route as PartiesCreateRouteImport } from './routes/parties/create'
+import { Route as PartiesIdRouteImport } from './routes/parties/$id'
+import { Route as PartiesManageIdRouteImport } from './routes/parties/manage/$id'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -46,22 +48,36 @@ const PartiesCreateRoute = PartiesCreateRouteImport.update({
   path: '/parties/create',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartiesIdRoute = PartiesIdRouteImport.update({
+  id: '/parties/$id',
+  path: '/parties/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartiesManageIdRoute = PartiesManageIdRouteImport.update({
+  id: '/parties/manage/$id',
+  path: '/parties/manage/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
+  '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
   '/parties': typeof PartiesIndexRoute
+  '/parties/manage/$id': typeof PartiesManageIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
+  '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
   '/parties': typeof PartiesIndexRoute
+  '/parties/manage/$id': typeof PartiesManageIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -69,8 +85,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
+  '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
   '/parties/': typeof PartiesIndexRoute
+  '/parties/manage/$id': typeof PartiesManageIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -79,18 +97,30 @@ export interface FileRouteTypes {
     | '/login'
     | '/profile'
     | '/signup'
+    | '/parties/$id'
     | '/parties/create'
     | '/parties'
+    | '/parties/manage/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/profile' | '/signup' | '/parties/create' | '/parties'
+  to:
+    | '/'
+    | '/login'
+    | '/profile'
+    | '/signup'
+    | '/parties/$id'
+    | '/parties/create'
+    | '/parties'
+    | '/parties/manage/$id'
   id:
     | '__root__'
     | '/'
     | '/login'
     | '/profile'
     | '/signup'
+    | '/parties/$id'
     | '/parties/create'
     | '/parties/'
+    | '/parties/manage/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -98,8 +128,10 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
   SignupRoute: typeof SignupRoute
+  PartiesIdRoute: typeof PartiesIdRoute
   PartiesCreateRoute: typeof PartiesCreateRoute
   PartiesIndexRoute: typeof PartiesIndexRoute
+  PartiesManageIdRoute: typeof PartiesManageIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -146,6 +178,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartiesCreateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parties/$id': {
+      id: '/parties/$id'
+      path: '/parties/$id'
+      fullPath: '/parties/$id'
+      preLoaderRoute: typeof PartiesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parties/manage/$id': {
+      id: '/parties/manage/$id'
+      path: '/parties/manage/$id'
+      fullPath: '/parties/manage/$id'
+      preLoaderRoute: typeof PartiesManageIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -154,8 +200,10 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
   SignupRoute: SignupRoute,
+  PartiesIdRoute: PartiesIdRoute,
   PartiesCreateRoute: PartiesCreateRoute,
   PartiesIndexRoute: PartiesIndexRoute,
+  PartiesManageIdRoute: PartiesManageIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

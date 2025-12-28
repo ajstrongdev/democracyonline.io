@@ -19,3 +19,9 @@ export const CreatePartySchema = z.object({
   party: PartySchema,
   stances: z.array(PartyStanceInputSchema),
 })
+
+export const UpdatePartySchema = CreatePartySchema.extend({
+  party: CreatePartySchema.shape.party.extend({
+    id: z.number(),
+  }),
+})
