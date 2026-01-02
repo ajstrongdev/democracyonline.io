@@ -47,10 +47,11 @@ export const leanings = [
 function PartyCreatePage() {
   const user = Route.useLoaderData().userData
   const navigate = useNavigate()
-  const { userData, stances } = Route.useLoaderData()
+  const { stances } = Route.useLoaderData()
   const [leaning, setLeaning] = useState([3])
   const [selectedLogo, setSelectedLogo] = useState<string | null>(null)
   const [stanceValues, setStanceValues] = useState<Record<number, string>>({})
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const form = useForm({
     defaultValues: {
@@ -61,6 +62,7 @@ function PartyCreatePage() {
       stanceValues: {},
     },
     onSubmit: async ({ value }) => {
+      setSubmitError(null)
       const stanceEntries = Object.entries(stanceValues).filter(
         ([_, val]) => val.trim() !== '',
       )
@@ -89,7 +91,11 @@ function PartyCreatePage() {
         })
       } catch (error) {
         console.error('Error creating party:', error)
-        alert('Failed to create party. Please try again.')
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : 'Failed to create party. Please try again.'
+        setSubmitError(errorMessage)
       }
     },
   })
@@ -114,7 +120,17 @@ function PartyCreatePage() {
           }}
         >
           {/* Party Name */}
-          <form.Field name="name">
+          <form.Field
+            name="name"
+            validators={{
+              onChange: ({ value }) => {
+                if (!value || value.trim().length === 0) {
+                  return 'Party name is required'
+                }
+                return undefined
+              },
+            }}
+          >
             {(field) => (
               <div className="grid grid-cols-1 gap-2">
                 <Label
@@ -130,14 +146,29 @@ function PartyCreatePage() {
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
                   placeholder="Enter party name"
-                  required
                 />
+                {field.state.meta.errors.length > 0 && (
+                  <span className="text-sm text-red-500">
+                    {field.state.meta.errors.join(', ')}
+                  </span>
+                )}
               </div>
             )}
           </form.Field>
 
           {/* Party Color */}
-          <form.Field name="color">
+          <form.Field
+            name="color"
+            validators={{
+              onChange: ({ value }) => {
+                const colorRegex = /^#[0-9A-Fa-f]{6}$/
+                if (!colorRegex.test(value)) {
+                  return 'Invalid color format (e.g., #ff0000)'
+                }
+                return undefined
+              },
+            }}
+          >
             {(field) => (
               <div className="grid grid-cols-1 gap-2">
                 <Label
@@ -156,9 +187,7 @@ function PartyCreatePage() {
                     onChange={(e) => field.handleChange(e.target.value)}
                     placeholder="#ff0000"
                     maxLength={7}
-                    pattern="^#([A-Fa-f0-9]{6})$"
                     className="w-full"
-                    required
                   />
                   <Input
                     type="color"
@@ -167,12 +196,27 @@ function PartyCreatePage() {
                     className="w-10 p-0 border-0"
                   />
                 </div>
+                {field.state.meta.errors.length > 0 && (
+                  <span className="text-sm text-red-500">
+                    {field.state.meta.errors.join(', ')}
+                  </span>
+                )}
               </div>
             )}
           </form.Field>
 
           {/* Party Bio */}
-          <form.Field name="bio">
+          <form.Field
+            name="bio"
+            validators={{
+              onChange: ({ value }) => {
+                if (!value || value.trim().length === 0) {
+                  return 'Party bio is required'
+                }
+                return undefined
+              },
+            }}
+          >
             {(field) => (
               <div className="grid grid-cols-1 gap-2">
                 <Label
@@ -188,15 +232,33 @@ function PartyCreatePage() {
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
                   placeholder="Brief description of your party"
-                  className="min-h-[80px]"
-                  required
+                  className="min-h-20"
                 />
+                {field.state.meta.errors.length > 0 && (
+                  <span className="text-sm text-red-500">
+                    {field.state.meta.errors.join(', ')}
+                  </span>
+                )}
               </div>
             )}
           </form.Field>
 
           {/* Discord Link */}
-          <form.Field name="discord_link">
+          <form.Field
+            name="discord_link"
+            validators={{
+              onChange: ({ value }) => {
+                if (value && value.trim().length > 0) {
+                  try {
+                    new URL(value)
+                  } catch {
+                    return 'Invalid URL format'
+                  }
+                }
+                return undefined
+              },
+            }}
+          >
             {(field) => (
               <div className="grid grid-cols-1 gap-2">
                 <Label
@@ -214,6 +276,11 @@ function PartyCreatePage() {
                   onChange={(e) => field.handleChange(e.target.value)}
                   placeholder="https://discord.gg/..."
                 />
+                {field.state.meta.errors.length > 0 && (
+                  <span className="text-sm text-red-500">
+                    {field.state.meta.errors.join(', ')}
+                  </span>
+                )}
               </div>
             )}
           </form.Field>
@@ -313,18 +380,27 @@ function PartyCreatePage() {
                     }))
                   }
                   placeholder={stance.description}
-                  className="min-h-[80px]"
+                  className="min-h-20"
                 />
               </div>
             ))}
 
+          {/* Submit Error */}
+          {submitError && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600">{submitError}</p>
+            </div>
+          )}
+
           {/* Submit Button */}
-          <form.Subscribe selector={(state) => [state.isSubmitting]}>
-            {([isSubmitting]) => (
+          <form.Subscribe
+            selector={(state) => [state.isSubmitting, state.canSubmit]}
+          >
+            {([isSubmitting, canSubmit]) => (
               <Button
                 type="submit"
                 className="w-full py-3"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !canSubmit}
               >
                 {isSubmitting ? 'Creating Party...' : 'Create Party'}
               </Button>

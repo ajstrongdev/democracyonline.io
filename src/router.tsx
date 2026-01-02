@@ -24,6 +24,7 @@ export const getRouter = () => {
         <AuthProvider>{children}</AuthProvider>
       </TanstackQuery.Provider>
     ),
+    scrollRestoration: true,
   })
 
   onAuthStateChanged(auth, (user) => {
