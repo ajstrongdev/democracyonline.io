@@ -8,7 +8,9 @@ import {
   billVotesSenate,
   billVotesPresidential,
 } from '@/db/schema'
+import { CreateBillsSchema } from '@/lib/schemas/bills-schema'
 
+// Data fetching
 export const getBills = createServerFn().handler(async () => {
   const getVoteCount = (
     name: string,
@@ -103,3 +105,17 @@ export const getBills = createServerFn().handler(async () => {
 
   return rows
 })
+
+// Mutations
+export const createBill = createServerFn()
+  .inputValidator(CreateBillsSchema)
+  .handler(async ({ data }) => {
+    const result = await db
+      .insert(bills)
+      .values({
+        title: data.title,
+        content: data.content,
+        creatorId: data.creatorId,
+      })
+    return result
+  })
