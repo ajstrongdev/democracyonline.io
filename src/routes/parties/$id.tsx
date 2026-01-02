@@ -193,7 +193,12 @@ function PartyPage() {
                         className="w-full justify-start"
                         onClick={() => {
                           // TODO: Implement edit party page
-                          alert('Edit party functionality coming soon')
+                          navigate({
+                            to: '/parties/manage/$id',
+                            params: {
+                              id: party.id.toString(),
+                            },
+                          })
                         }}
                       >
                         <Pencil className="mr-2 h-4 w-4" /> Edit Party Info

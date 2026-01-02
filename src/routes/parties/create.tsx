@@ -45,9 +45,8 @@ export const leanings = [
 ]
 
 function PartyCreatePage() {
-  const user = Route.useLoaderData().userData
   const navigate = useNavigate()
-  const { stances } = Route.useLoaderData()
+  const { userData: user, stances } = Route.useLoaderData()
   const [leaning, setLeaning] = useState([3])
   const [selectedLogo, setSelectedLogo] = useState<string | null>(null)
   const [stanceValues, setStanceValues] = useState<Record<number, string>>({})
