@@ -6,9 +6,10 @@ import {
   billVotesSenate,
   billVotesPresidential,
 } from '@/db/schema'
-import { eq, getTableColumns } from 'drizzle-orm'
+import { eq, getTableColumns, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { UpdateUserProfileSchema } from '@/lib/schemas/user-schema'
+import { SearchUsersSchema } from '@/lib/schemas/user-search-schema'
 
 export const fetchUserInfo = createServerFn()
   .inputValidator((data: { userId: number }) => data)
@@ -129,3 +130,57 @@ export const getUserVotingHistory = createServerFn()
 
     return allVotes
   })
+
+export const searchUsers = createServerFn()
+  .inputValidator((data: unknown) => SearchUsersSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { q, excludeUserId } = data
+
+    if (!q || q.trim() === '') {
+      return { users: [] }
+    }
+
+    try {
+      const results = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          bio: users.bio,
+          politicalLeaning: users.politicalLeaning,
+          role: users.role,
+          partyId: users.partyId,
+          createdAt: users.createdAt,
+          lastActivity: users.lastActivity,
+        })
+        .from(users)
+        .where(
+          sql`${users.username} ILIKE ${'%' + q + '%'}
+              AND ${users.username} NOT LIKE 'Banned User%'
+              ${excludeUserId ? sql`AND ${users.id} != ${excludeUserId}` : sql``}`,
+        )
+        .orderBy(users.username)
+        .limit(50)
+
+      return { users: results }
+    } catch (error) {
+      console.error('Error searching users:', error)
+      throw new Error('Failed to search users')
+    }
+  })
+
+export const getUserStats = createServerFn().handler(async () => {
+  try {
+    const result = await db.execute(sql`
+      SELECT
+        COUNT(*) as total_users,
+        COUNT(*) FILTER (WHERE is_active = TRUE) as active_users
+      FROM users
+      WHERE username NOT LIKE 'Banned User%'
+    `)
+
+    return result.rows[0] as Record<string, string>
+  } catch (error) {
+    console.error('Error fetching user stats:', error)
+    throw new Error('Failed to fetch user stats')
+  }
+})

@@ -1,11 +1,12 @@
 import { createServerFn } from '@tanstack/react-start'
 import { parties, users, politicalStances, partyStances } from '@/db/schema'
-import { eq, sql, getTableColumns } from 'drizzle-orm'
+import { eq, sql, getTableColumns, inArray } from 'drizzle-orm'
 import { db } from '@/db'
 import {
   CreatePartySchema,
   UpdatePartySchema,
 } from '@/lib/schemas/party-schema'
+import { z } from 'zod'
 
 // Data fetching
 export const partyPageData = createServerFn()
@@ -294,4 +295,38 @@ export const becomePartyLeader = createServerFn()
       .set({ leaderId: data.userId })
       .where(eq(parties.id, data.partyId))
     return true
+  })
+
+const GetPartiesByIdsSchema = z.object({
+  partyIds: z.array(z.number()).min(1),
+})
+
+export const getPartiesByIds = createServerFn()
+  .inputValidator((data: unknown) => GetPartiesByIdsSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { partyIds } = data
+
+    if (partyIds.length === 0) return {}
+
+    try {
+      const results = await db
+        .select({
+          id: parties.id,
+          name: parties.name,
+          color: parties.color,
+          logo: parties.logo,
+        })
+        .from(parties)
+        .where(inArray(parties.id, partyIds))
+
+      const partyMap: Record<number, (typeof results)[0]> = {}
+      results.forEach((party) => {
+        partyMap[party.id] = party
+      })
+
+      return partyMap
+    } catch (error) {
+      console.error('Error fetching parties:', error)
+      throw new Error('Failed to fetch parties')
+    }
   })
