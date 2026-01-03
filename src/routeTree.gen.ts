@@ -10,12 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
-import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProfileIndexRouteImport } from './routes/profile/index'
 import { Route as PartiesIndexRouteImport } from './routes/parties/index'
 import { Route as BillsIndexRouteImport } from './routes/bills/index'
+import { Route as ProfileIdRouteImport } from './routes/profile/$id'
 import { Route as PartiesCreateRouteImport } from './routes/parties/create'
 import { Route as PartiesIdRouteImport } from './routes/parties/$id'
 import { Route as BillsBillsRouteImport } from './routes/bills/bills'
@@ -31,9 +33,9 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -51,6 +53,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileIndexRoute = ProfileIndexRouteImport.update({
+  id: '/profile/',
+  path: '/profile/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PartiesIndexRoute = PartiesIndexRouteImport.update({
   id: '/parties/',
   path: '/parties/',
@@ -59,6 +66,11 @@ const PartiesIndexRoute = PartiesIndexRouteImport.update({
 const BillsIndexRoute = BillsIndexRouteImport.update({
   id: '/bills/',
   path: '/bills/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileIdRoute = ProfileIdRouteImport.update({
+  id: '/profile/$id',
+  path: '/profile/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PartiesCreateRoute = PartiesCreateRouteImport.update({
@@ -111,15 +123,17 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
-  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/bills': typeof BillsBillsRoute
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
+  '/profile/$id': typeof ProfileIdRoute
   '/bills': typeof BillsIndexRoute
   '/parties': typeof PartiesIndexRoute
+  '/profile': typeof ProfileIndexRoute
   '/api/feed/add': typeof ApiFeedAddRoute
   '/api/feed/list': typeof ApiFeedListRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
@@ -129,15 +143,17 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
-  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/bills': typeof BillsBillsRoute
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
+  '/profile/$id': typeof ProfileIdRoute
   '/bills': typeof BillsIndexRoute
   '/parties': typeof PartiesIndexRoute
+  '/profile': typeof ProfileIndexRoute
   '/api/feed/add': typeof ApiFeedAddRoute
   '/api/feed/list': typeof ApiFeedListRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
@@ -148,15 +164,17 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
-  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/bills': typeof BillsBillsRoute
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
+  '/profile/$id': typeof ProfileIdRoute
   '/bills/': typeof BillsIndexRoute
   '/parties/': typeof PartiesIndexRoute
+  '/profile/': typeof ProfileIndexRoute
   '/api/feed/add': typeof ApiFeedAddRoute
   '/api/feed/list': typeof ApiFeedListRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
@@ -168,15 +186,17 @@ export interface FileRouteTypes {
     | '/'
     | '/feed'
     | '/login'
-    | '/profile'
+    | '/settings'
     | '/signup'
     | '/api/game-advance'
     | '/bills/$id'
     | '/bills/bills'
     | '/parties/$id'
     | '/parties/create'
+    | '/profile/$id'
     | '/bills'
     | '/parties'
+    | '/profile'
     | '/api/feed/add'
     | '/api/feed/list'
     | '/parties/manage/$id'
@@ -186,15 +206,17 @@ export interface FileRouteTypes {
     | '/'
     | '/feed'
     | '/login'
-    | '/profile'
+    | '/settings'
     | '/signup'
     | '/api/game-advance'
     | '/bills/$id'
     | '/bills/bills'
     | '/parties/$id'
     | '/parties/create'
+    | '/profile/$id'
     | '/bills'
     | '/parties'
+    | '/profile'
     | '/api/feed/add'
     | '/api/feed/list'
     | '/parties/manage/$id'
@@ -204,15 +226,17 @@ export interface FileRouteTypes {
     | '/'
     | '/feed'
     | '/login'
-    | '/profile'
+    | '/settings'
     | '/signup'
     | '/api/game-advance'
     | '/bills/$id'
     | '/bills/bills'
     | '/parties/$id'
     | '/parties/create'
+    | '/profile/$id'
     | '/bills/'
     | '/parties/'
+    | '/profile/'
     | '/api/feed/add'
     | '/api/feed/list'
     | '/parties/manage/$id'
@@ -223,15 +247,17 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   FeedRoute: typeof FeedRoute
   LoginRoute: typeof LoginRoute
-  ProfileRoute: typeof ProfileRoute
+  SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute
   BillsIdRoute: typeof BillsIdRoute
   BillsBillsRoute: typeof BillsBillsRoute
   PartiesIdRoute: typeof PartiesIdRoute
   PartiesCreateRoute: typeof PartiesCreateRoute
+  ProfileIdRoute: typeof ProfileIdRoute
   BillsIndexRoute: typeof BillsIndexRoute
   PartiesIndexRoute: typeof PartiesIndexRoute
+  ProfileIndexRoute: typeof ProfileIndexRoute
   ApiFeedAddRoute: typeof ApiFeedAddRoute
   ApiFeedListRoute: typeof ApiFeedListRoute
   PartiesManageIdRoute: typeof PartiesManageIdRoute
@@ -247,11 +273,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -275,6 +301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile/': {
+      id: '/profile/'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/parties/': {
       id: '/parties/'
       path: '/parties'
@@ -287,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/bills'
       fullPath: '/bills'
       preLoaderRoute: typeof BillsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile/$id': {
+      id: '/profile/$id'
+      path: '/profile/$id'
+      fullPath: '/profile/$id'
+      preLoaderRoute: typeof ProfileIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/parties/create': {
@@ -359,15 +399,17 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   FeedRoute: FeedRoute,
   LoginRoute: LoginRoute,
-  ProfileRoute: ProfileRoute,
+  SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   ApiGameAdvanceRoute: ApiGameAdvanceRoute,
   BillsIdRoute: BillsIdRoute,
   BillsBillsRoute: BillsBillsRoute,
   PartiesIdRoute: PartiesIdRoute,
   PartiesCreateRoute: PartiesCreateRoute,
+  ProfileIdRoute: ProfileIdRoute,
   BillsIndexRoute: BillsIndexRoute,
   PartiesIndexRoute: PartiesIndexRoute,
+  ProfileIndexRoute: ProfileIndexRoute,
   ApiFeedAddRoute: ApiFeedAddRoute,
   ApiFeedListRoute: ApiFeedListRoute,
   PartiesManageIdRoute: PartiesManageIdRoute,

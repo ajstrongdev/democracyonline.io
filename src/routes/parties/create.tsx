@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Slider } from '@/components/ui/slider'
 import { useState } from 'react'
 import { icons } from '@/lib/utils/logo-helper'
+import { leanings } from '@/lib/constants'
 
 export const Route = createFileRoute('/parties/create')({
   beforeLoad: ({ context }) => {
@@ -33,16 +34,6 @@ export const Route = createFileRoute('/parties/create')({
   },
   component: PartyCreatePage,
 })
-
-export const leanings = [
-  'Far Left',
-  'Left',
-  'Center Left',
-  'Center',
-  'Center Right',
-  'Right',
-  'Far Right',
-]
 
 function PartyCreatePage() {
   const navigate = useNavigate()

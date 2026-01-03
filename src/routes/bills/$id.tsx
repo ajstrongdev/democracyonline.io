@@ -1,31 +1,27 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { billPageData } from '@/lib/server/bills'
 
 export const Route = createFileRoute('/bills/$id')({
   beforeLoad: ({ context }) => {
-    if (context.auth.loading) {
-      return
-    }
     if (!context.auth.user) {
       throw redirect({ to: '/login' })
     }
   },
   loader: async ({ params }) => {
-    const billId: number = Number(params.id)
-    if (isNaN(billId)) {
-      throw redirect({ to: '/bills' })
-    }
-      const billData = await billPageData({ data: { id: billId } })
-      if (billData === null) {
-        throw redirect({ to: '/bills' })
-      } 
-      return billData;
+    // TODO: Implement bill detail fetching
+    return { billId: params.id }
   },
-  component: RouteComponent,
+  component: BillDetailPage,
 })
 
-function RouteComponent() {
-  const data = Route.useLoaderData()
-  const { bill, votes } = data;
-  return <div>Hello "/bills/$id"!</div>
+function BillDetailPage() {
+  const { billId } = Route.useLoaderData()
+
+  return (
+    <div className="container mx-auto p-8 max-w-4xl">
+      <h1 className="text-4xl font-bold mb-4">Bill #{billId}</h1>
+      <p className="text-muted-foreground">
+        Bill detail view - implementation pending
+      </p>
+    </div>
+  )
 }

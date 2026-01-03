@@ -1,4 +1,9 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  redirect,
+  useNavigate,
+  Link,
+} from '@tanstack/react-router'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -30,16 +35,17 @@ function parseContentWithLinks(content: string): ReactNode[] {
       parts.push(content.substring(lastIndex, match.index))
     }
 
-    // Add the bill link (route NYI)
+    // Add the bill link
     const billId = match[1]
     parts.push(
-      <span
+      <Link
         key={`bill-${billId}-${match.index}`}
-        className="text-primary hover:underline cursor-pointer"
-        title={`Bill #${billId} (route not yet implemented)`}
+        to="/bills/$id"
+        params={{ id: billId }}
+        className="text-primary hover:underline"
       >
         {match[0]}
-      </span>,
+      </Link>,
     )
 
     lastIndex = match.index + match[0].length
@@ -81,6 +87,7 @@ function FeedPage() {
 }
 
 function FeedContent() {
+  const navigate = useNavigate()
   const { initialFeedItems } = Route.useLoaderData()
   const [feedItems, setFeedItems] = useState<FeedItem[]>(initialFeedItems)
   const [isLoading, setIsLoading] = useState(false)
@@ -133,7 +140,12 @@ function FeedContent() {
                         {item.userId ? (
                           <span
                             className="font-bold text-foreground hover:underline cursor-pointer"
-                            title={`User profile for ${item.username} (route not yet implemented)`}
+                            onClick={() =>
+                              navigate({
+                                to: '/profile/$id',
+                                params: { id: String(item.userId) },
+                              })
+                            }
                           >
                             {item.username || 'Anonymous'}
                           </span>
