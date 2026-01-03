@@ -8,7 +8,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Pencil } from 'lucide-react'
 import { CheckCircle2, XCircle } from 'lucide-react'
 
-export const Route = createFileRoute('/bills')({
+export const Route = createFileRoute('/bills/')({
   beforeLoad: ({ context }) => {
     if (!context.auth.user) {
       throw redirect({ to: '/login' })
