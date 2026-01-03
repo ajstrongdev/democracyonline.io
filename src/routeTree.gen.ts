@@ -18,6 +18,7 @@ import { Route as PartiesIndexRouteImport } from './routes/parties/index'
 import { Route as PartiesCreateRouteImport } from './routes/parties/create'
 import { Route as PartiesIdRouteImport } from './routes/parties/$id'
 import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
+import { Route as PartiesMergeIdRouteImport } from './routes/parties/merge/$id'
 import { Route as PartiesManageIdRouteImport } from './routes/parties/manage/$id'
 
 const SignupRoute = SignupRouteImport.update({
@@ -65,6 +66,11 @@ const ApiGameAdvanceRoute = ApiGameAdvanceRouteImport.update({
   path: '/api/game-advance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartiesMergeIdRoute = PartiesMergeIdRouteImport.update({
+  id: '/parties/merge/$id',
+  path: '/parties/merge/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PartiesManageIdRoute = PartiesManageIdRouteImport.update({
   id: '/parties/manage/$id',
   path: '/parties/manage/$id',
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/parties/create': typeof PartiesCreateRoute
   '/parties': typeof PartiesIndexRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
+  '/parties/merge/$id': typeof PartiesMergeIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/parties/create': typeof PartiesCreateRoute
   '/parties': typeof PartiesIndexRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
+  '/parties/merge/$id': typeof PartiesMergeIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/parties/create': typeof PartiesCreateRoute
   '/parties/': typeof PartiesIndexRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
+  '/parties/merge/$id': typeof PartiesMergeIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/parties/create'
     | '/parties'
     | '/parties/manage/$id'
+    | '/parties/merge/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/parties/create'
     | '/parties'
     | '/parties/manage/$id'
+    | '/parties/merge/$id'
   id:
     | '__root__'
     | '/'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/parties/create'
     | '/parties/'
     | '/parties/manage/$id'
+    | '/parties/merge/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -158,6 +170,7 @@ export interface RootRouteChildren {
   PartiesCreateRoute: typeof PartiesCreateRoute
   PartiesIndexRoute: typeof PartiesIndexRoute
   PartiesManageIdRoute: typeof PartiesManageIdRoute
+  PartiesMergeIdRoute: typeof PartiesMergeIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -225,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGameAdvanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parties/merge/$id': {
+      id: '/parties/merge/$id'
+      path: '/parties/merge/$id'
+      fullPath: '/parties/merge/$id'
+      preLoaderRoute: typeof PartiesMergeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/parties/manage/$id': {
       id: '/parties/manage/$id'
       path: '/parties/manage/$id'
@@ -246,6 +266,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartiesCreateRoute: PartiesCreateRoute,
   PartiesIndexRoute: PartiesIndexRoute,
   PartiesManageIdRoute: PartiesManageIdRoute,
+  PartiesMergeIdRoute: PartiesMergeIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

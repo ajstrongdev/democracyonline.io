@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { type User } from 'firebase/auth'
 import { getPartyDetails, joinParty, leaveParty } from '@/lib/server/party'
+import { getMergeRequestCount } from '@/lib/server/party-merge'
 import { fetchUserInfoByEmail } from '@/lib/server/users'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import PartyLogo from '@/components/party-logo'
@@ -35,23 +36,33 @@ export const Route = createFileRoute('/parties/$id')({
     if (isNaN(partyId)) {
       throw redirect({ to: '/parties' })
     }
-    const partyDetails = await getPartyDetails({
-      data: {
-        partyId,
-        userId: userInfo?.id ?? null,
-      },
-    })
+    const [partyDetails, mergeRequestCount] = await Promise.all([
+      getPartyDetails({
+        data: {
+          partyId,
+          userId: userInfo?.id ?? null,
+        },
+      }),
+      getMergeRequestCount({ data: { partyId } }),
+    ])
     return {
       ...partyDetails,
       userInfo,
+      mergeRequestCount,
     }
   },
   component: PartyPage,
 })
 
 function PartyPage() {
-  const { party, stances, members, membershipStatus, userInfo } =
-    Route.useLoaderData()
+  const {
+    party,
+    stances,
+    members,
+    membershipStatus,
+    userInfo,
+    mergeRequestCount,
+  } = Route.useLoaderData()
   const navigate = useNavigate()
   const [showKickDialog, setShowKickDialog] = useState(false)
   const [selectedMember, setSelectedMember] = useState<{
@@ -205,13 +216,20 @@ function PartyPage() {
                       </Button>
                       <Button
                         variant="outline"
-                        className="w-full justify-start"
+                        className="w-full justify-start relative"
                         onClick={() => {
-                          // TODO: Implement merge party page
-                          alert('Merge party functionality coming soon')
+                          navigate({
+                            to: '/parties/merge/$id',
+                            params: { id: party.id.toString() },
+                          })
                         }}
                       >
                         <ArrowLeftRight className="mr-2 h-4 w-4" /> Merge Party
+                        {mergeRequestCount > 0 && (
+                          <span className="ml-auto inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+                            {mergeRequestCount}
+                          </span>
+                        )}
                       </Button>
                     </>
                   )}
