@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as FeedRouteImport } from './routes/feed'
 import { Route as BillsRouteImport } from './routes/bills'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PartiesIndexRouteImport } from './routes/parties/index'
@@ -20,6 +21,8 @@ import { Route as PartiesIdRouteImport } from './routes/parties/$id'
 import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
 import { Route as PartiesMergeIdRouteImport } from './routes/parties/merge/$id'
 import { Route as PartiesManageIdRouteImport } from './routes/parties/manage/$id'
+import { Route as ApiFeedListRouteImport } from './routes/api/feed.list'
+import { Route as ApiFeedAddRouteImport } from './routes/api/feed.add'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -34,6 +37,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedRoute = FeedRouteImport.update({
+  id: '/feed',
+  path: '/feed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BillsRoute = BillsRouteImport.update({
@@ -76,10 +84,21 @@ const PartiesManageIdRoute = PartiesManageIdRouteImport.update({
   path: '/parties/manage/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFeedListRoute = ApiFeedListRouteImport.update({
+  id: '/api/feed/list',
+  path: '/api/feed/list',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFeedAddRoute = ApiFeedAddRouteImport.update({
+  id: '/api/feed/add',
+  path: '/api/feed/add',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bills': typeof BillsRoute
+  '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
@@ -87,12 +106,15 @@ export interface FileRoutesByFullPath {
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
   '/parties': typeof PartiesIndexRoute
+  '/api/feed/add': typeof ApiFeedAddRoute
+  '/api/feed/list': typeof ApiFeedListRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
   '/parties/merge/$id': typeof PartiesMergeIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bills': typeof BillsRoute
+  '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
@@ -100,6 +122,8 @@ export interface FileRoutesByTo {
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
   '/parties': typeof PartiesIndexRoute
+  '/api/feed/add': typeof ApiFeedAddRoute
+  '/api/feed/list': typeof ApiFeedListRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
   '/parties/merge/$id': typeof PartiesMergeIdRoute
 }
@@ -107,6 +131,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/bills': typeof BillsRoute
+  '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
@@ -114,6 +139,8 @@ export interface FileRoutesById {
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
   '/parties/': typeof PartiesIndexRoute
+  '/api/feed/add': typeof ApiFeedAddRoute
+  '/api/feed/list': typeof ApiFeedListRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
   '/parties/merge/$id': typeof PartiesMergeIdRoute
 }
@@ -122,6 +149,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/bills'
+    | '/feed'
     | '/login'
     | '/profile'
     | '/signup'
@@ -129,12 +157,15 @@ export interface FileRouteTypes {
     | '/parties/$id'
     | '/parties/create'
     | '/parties'
+    | '/api/feed/add'
+    | '/api/feed/list'
     | '/parties/manage/$id'
     | '/parties/merge/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/bills'
+    | '/feed'
     | '/login'
     | '/profile'
     | '/signup'
@@ -142,12 +173,15 @@ export interface FileRouteTypes {
     | '/parties/$id'
     | '/parties/create'
     | '/parties'
+    | '/api/feed/add'
+    | '/api/feed/list'
     | '/parties/manage/$id'
     | '/parties/merge/$id'
   id:
     | '__root__'
     | '/'
     | '/bills'
+    | '/feed'
     | '/login'
     | '/profile'
     | '/signup'
@@ -155,6 +189,8 @@ export interface FileRouteTypes {
     | '/parties/$id'
     | '/parties/create'
     | '/parties/'
+    | '/api/feed/add'
+    | '/api/feed/list'
     | '/parties/manage/$id'
     | '/parties/merge/$id'
   fileRoutesById: FileRoutesById
@@ -162,6 +198,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BillsRoute: typeof BillsRoute
+  FeedRoute: typeof FeedRoute
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
   SignupRoute: typeof SignupRoute
@@ -169,6 +206,8 @@ export interface RootRouteChildren {
   PartiesIdRoute: typeof PartiesIdRoute
   PartiesCreateRoute: typeof PartiesCreateRoute
   PartiesIndexRoute: typeof PartiesIndexRoute
+  ApiFeedAddRoute: typeof ApiFeedAddRoute
+  ApiFeedListRoute: typeof ApiFeedListRoute
   PartiesManageIdRoute: typeof PartiesManageIdRoute
   PartiesMergeIdRoute: typeof PartiesMergeIdRoute
 }
@@ -194,6 +233,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feed': {
+      id: '/feed'
+      path: '/feed'
+      fullPath: '/feed'
+      preLoaderRoute: typeof FeedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bills': {
@@ -252,12 +298,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartiesManageIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/feed/list': {
+      id: '/api/feed/list'
+      path: '/api/feed/list'
+      fullPath: '/api/feed/list'
+      preLoaderRoute: typeof ApiFeedListRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/feed/add': {
+      id: '/api/feed/add'
+      path: '/api/feed/add'
+      fullPath: '/api/feed/add'
+      preLoaderRoute: typeof ApiFeedAddRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BillsRoute: BillsRoute,
+  FeedRoute: FeedRoute,
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
   SignupRoute: SignupRoute,
@@ -265,6 +326,8 @@ const rootRouteChildren: RootRouteChildren = {
   PartiesIdRoute: PartiesIdRoute,
   PartiesCreateRoute: PartiesCreateRoute,
   PartiesIndexRoute: PartiesIndexRoute,
+  ApiFeedAddRoute: ApiFeedAddRoute,
+  ApiFeedListRoute: ApiFeedListRoute,
   PartiesManageIdRoute: PartiesManageIdRoute,
   PartiesMergeIdRoute: PartiesMergeIdRoute,
 }
