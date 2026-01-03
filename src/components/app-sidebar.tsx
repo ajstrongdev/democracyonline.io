@@ -46,7 +46,7 @@ const data = {
     },
     {
       title: 'Feed',
-      url: '/notifications',
+      url: '/feed',
       icon: Bell,
     },
     {
