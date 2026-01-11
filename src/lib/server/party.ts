@@ -1,7 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq, getTableColumns, inArray, sql } from "drizzle-orm";
+import { eq, getTableColumns, inArray, sql, or } from "drizzle-orm";
 import { z } from "zod";
-import { parties, partyStances, politicalStances, users } from "@/db/schema";
+import {
+  parties,
+  partyStances,
+  politicalStances,
+  users,
+  partyNotifications,
+} from "@/db/schema";
 import { db } from "@/db";
 import {
   CreatePartySchema,
@@ -303,14 +309,14 @@ export const deleteParty = createServerFn()
       await tx
         .delete(partyStances)
         .where(eq(partyStances.partyId, data.partyId));
-      // Delete party notifications where this party is sender or receiver
-      // Note: Assuming partyNotifications is imported if it exists in schema
-      // await tx.delete(partyNotifications).where(
-      //   or(
-      //     eq(partyNotifications.senderPartyId, data.partyId),
-      //     eq(partyNotifications.receiverPartyId, data.partyId)
-      //   )
-      // )
+      await tx
+        .delete(partyNotifications)
+        .where(
+          or(
+            eq(partyNotifications.senderPartyId, data.partyId),
+            eq(partyNotifications.receiverPartyId, data.partyId),
+          ),
+        );
       await tx.delete(parties).where(eq(parties.id, data.partyId));
     });
     return true;
