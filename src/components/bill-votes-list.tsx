@@ -35,7 +35,7 @@ function VoterCard({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <div
-            className={`flex-shrink-0 ${
+            className={`shrink-0 ${
               voter.vote_yes
                 ? "text-green-600 dark:text-green-400"
                 : "text-red-600 dark:text-red-400"
@@ -48,11 +48,11 @@ function VoterCard({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-medium text-foreground text-sm sm:text-base break-words">
+            <p className="font-medium text-foreground text-sm sm:text-base wrap-break-words">
               {voter.username}
             </p>
             {showParty && voter.party_name && (
-              <p className="text-xs sm:text-sm text-muted-foreground break-words">
+              <p className="text-xs sm:text-sm text-muted-foreground wrap-break-words">
                 <span
                   className="font-medium"
                   style={{ color: voter.party_color || undefined }}
@@ -78,7 +78,6 @@ function VoterCard({
 function VotersSection({
   title,
   voters,
-  stage,
 }: {
   title: string;
   voters: Voter[];
@@ -101,7 +100,7 @@ function VotersSection({
   return (
     <Card>
       <CardHeader className="p-3 sm:p-4 md:p-6">
-        <CardTitle className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground break-words">
+        <CardTitle className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground wrap-break-words">
           {title}
         </CardTitle>
         <CardDescription className="flex items-center gap-2 text-xs sm:text-sm">

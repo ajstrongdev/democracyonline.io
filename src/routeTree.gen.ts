@@ -8,409 +8,410 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root";
-import { Route as SignupRouteImport } from "./routes/signup";
-import { Route as SettingsRouteImport } from "./routes/settings";
-import { Route as SearchRouteImport } from "./routes/search";
-import { Route as LoginRouteImport } from "./routes/login";
-import { Route as FeedRouteImport } from "./routes/feed";
-import { Route as IndexRouteImport } from "./routes/index";
-import { Route as ProfileIndexRouteImport } from "./routes/profile/index";
-import { Route as PartiesIndexRouteImport } from "./routes/parties/index";
-import { Route as BillsIndexRouteImport } from "./routes/bills/index";
-import { Route as ProfileIdRouteImport } from "./routes/profile/$id";
-import { Route as PartiesCreateRouteImport } from "./routes/parties/create";
-import { Route as PartiesIdRouteImport } from "./routes/parties/$id";
-import { Route as BillsIdRouteImport } from "./routes/bills/$id";
-import { Route as ApiGameAdvanceRouteImport } from "./routes/api/game-advance";
-import { Route as PartiesMergeIdRouteImport } from "./routes/parties/merge/$id";
-import { Route as PartiesManageIdRouteImport } from "./routes/parties/manage/$id";
-import { Route as ApiFeedListRouteImport } from "./routes/api/feed.list";
-import { Route as ApiFeedAddRouteImport } from "./routes/api/feed.add";
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as FeedRouteImport } from './routes/feed'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProfileIndexRouteImport } from './routes/profile/index'
+import { Route as PartiesIndexRouteImport } from './routes/parties/index'
+import { Route as BillsIndexRouteImport } from './routes/bills/index'
+import { Route as ProfileIdRouteImport } from './routes/profile/$id'
+import { Route as PartiesCreateRouteImport } from './routes/parties/create'
+import { Route as PartiesIdRouteImport } from './routes/parties/$id'
+import { Route as BillsCreateRouteImport } from './routes/bills/create'
+import { Route as BillsIdRouteImport } from './routes/bills/$id'
+import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
+import { Route as PartiesMergeIdRouteImport } from './routes/parties/merge/$id'
+import { Route as PartiesManageIdRouteImport } from './routes/parties/manage/$id'
+import { Route as ApiFeedListRouteImport } from './routes/api/feed.list'
+import { Route as ApiFeedAddRouteImport } from './routes/api/feed.add'
 
 const SignupRoute = SignupRouteImport.update({
-  id: "/signup",
-  path: "/signup",
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
-  id: "/settings",
-  path: "/settings",
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SearchRoute = SearchRouteImport.update({
-  id: "/search",
-  path: "/search",
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const LoginRoute = LoginRouteImport.update({
-  id: "/login",
-  path: "/login",
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const FeedRoute = FeedRouteImport.update({
-  id: "/feed",
-  path: "/feed",
+  id: '/feed',
+  path: '/feed',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ProfileIndexRoute = ProfileIndexRouteImport.update({
-  id: "/profile/",
-  path: "/profile/",
+  id: '/profile/',
+  path: '/profile/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const PartiesIndexRoute = PartiesIndexRouteImport.update({
-  id: "/parties/",
-  path: "/parties/",
+  id: '/parties/',
+  path: '/parties/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const BillsIndexRoute = BillsIndexRouteImport.update({
-  id: "/bills/",
-  path: "/bills/",
+  id: '/bills/',
+  path: '/bills/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ProfileIdRoute = ProfileIdRouteImport.update({
-  id: "/profile/$id",
-  path: "/profile/$id",
+  id: '/profile/$id',
+  path: '/profile/$id',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const PartiesCreateRoute = PartiesCreateRouteImport.update({
-  id: "/parties/create",
-  path: "/parties/create",
+  id: '/parties/create',
+  path: '/parties/create',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const PartiesIdRoute = PartiesIdRouteImport.update({
-  id: "/parties/$id",
-  path: "/parties/$id",
+  id: '/parties/$id',
+  path: '/parties/$id',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const BillsCreateRoute = BillsCreateRouteImport.update({
-  id: "/bills/create",
-  path: "/bills/create",
+  id: '/bills/create',
+  path: '/bills/create',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const BillsIdRoute = BillsIdRouteImport.update({
-  id: "/bills/$id",
-  path: "/bills/$id",
+  id: '/bills/$id',
+  path: '/bills/$id',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ApiGameAdvanceRoute = ApiGameAdvanceRouteImport.update({
-  id: "/api/game-advance",
-  path: "/api/game-advance",
+  id: '/api/game-advance',
+  path: '/api/game-advance',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const PartiesMergeIdRoute = PartiesMergeIdRouteImport.update({
-  id: "/parties/merge/$id",
-  path: "/parties/merge/$id",
+  id: '/parties/merge/$id',
+  path: '/parties/merge/$id',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const PartiesManageIdRoute = PartiesManageIdRouteImport.update({
-  id: "/parties/manage/$id",
-  path: "/parties/manage/$id",
+  id: '/parties/manage/$id',
+  path: '/parties/manage/$id',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ApiFeedListRoute = ApiFeedListRouteImport.update({
-  id: "/api/feed/list",
-  path: "/api/feed/list",
+  id: '/api/feed/list',
+  path: '/api/feed/list',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ApiFeedAddRoute = ApiFeedAddRouteImport.update({
-  id: "/api/feed/add",
-  path: "/api/feed/add",
+  id: '/api/feed/add',
+  path: '/api/feed/add',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute;
-  "/feed": typeof FeedRoute;
-  "/login": typeof LoginRoute;
-  "/search": typeof SearchRoute;
-  "/settings": typeof SettingsRoute;
-  "/signup": typeof SignupRoute;
-  "/api/game-advance": typeof ApiGameAdvanceRoute;
-  "/bills/$id": typeof BillsIdRoute;
-  "/bills/create": typeof BillsCreateRoute;
-  "/parties/$id": typeof PartiesIdRoute;
-  "/parties/create": typeof PartiesCreateRoute;
-  "/profile/$id": typeof ProfileIdRoute;
-  "/bills": typeof BillsIndexRoute;
-  "/parties": typeof PartiesIndexRoute;
-  "/profile": typeof ProfileIndexRoute;
-  "/api/feed/add": typeof ApiFeedAddRoute;
-  "/api/feed/list": typeof ApiFeedListRoute;
-  "/parties/manage/$id": typeof PartiesManageIdRoute;
-  "/parties/merge/$id": typeof PartiesMergeIdRoute;
+  '/': typeof IndexRoute
+  '/feed': typeof FeedRoute
+  '/login': typeof LoginRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
+  '/signup': typeof SignupRoute
+  '/api/game-advance': typeof ApiGameAdvanceRoute
+  '/bills/$id': typeof BillsIdRoute
+  '/bills/create': typeof BillsCreateRoute
+  '/parties/$id': typeof PartiesIdRoute
+  '/parties/create': typeof PartiesCreateRoute
+  '/profile/$id': typeof ProfileIdRoute
+  '/bills': typeof BillsIndexRoute
+  '/parties': typeof PartiesIndexRoute
+  '/profile': typeof ProfileIndexRoute
+  '/api/feed/add': typeof ApiFeedAddRoute
+  '/api/feed/list': typeof ApiFeedListRoute
+  '/parties/manage/$id': typeof PartiesManageIdRoute
+  '/parties/merge/$id': typeof PartiesMergeIdRoute
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute;
-  "/feed": typeof FeedRoute;
-  "/login": typeof LoginRoute;
-  "/search": typeof SearchRoute;
-  "/settings": typeof SettingsRoute;
-  "/signup": typeof SignupRoute;
-  "/api/game-advance": typeof ApiGameAdvanceRoute;
-  "/bills/$id": typeof BillsIdRoute;
-  "/bills/create": typeof BillsCreateRoute;
-  "/parties/$id": typeof PartiesIdRoute;
-  "/parties/create": typeof PartiesCreateRoute;
-  "/profile/$id": typeof ProfileIdRoute;
-  "/bills": typeof BillsIndexRoute;
-  "/parties": typeof PartiesIndexRoute;
-  "/profile": typeof ProfileIndexRoute;
-  "/api/feed/add": typeof ApiFeedAddRoute;
-  "/api/feed/list": typeof ApiFeedListRoute;
-  "/parties/manage/$id": typeof PartiesManageIdRoute;
-  "/parties/merge/$id": typeof PartiesMergeIdRoute;
+  '/': typeof IndexRoute
+  '/feed': typeof FeedRoute
+  '/login': typeof LoginRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
+  '/signup': typeof SignupRoute
+  '/api/game-advance': typeof ApiGameAdvanceRoute
+  '/bills/$id': typeof BillsIdRoute
+  '/bills/create': typeof BillsCreateRoute
+  '/parties/$id': typeof PartiesIdRoute
+  '/parties/create': typeof PartiesCreateRoute
+  '/profile/$id': typeof ProfileIdRoute
+  '/bills': typeof BillsIndexRoute
+  '/parties': typeof PartiesIndexRoute
+  '/profile': typeof ProfileIndexRoute
+  '/api/feed/add': typeof ApiFeedAddRoute
+  '/api/feed/list': typeof ApiFeedListRoute
+  '/parties/manage/$id': typeof PartiesManageIdRoute
+  '/parties/merge/$id': typeof PartiesMergeIdRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  "/": typeof IndexRoute;
-  "/feed": typeof FeedRoute;
-  "/login": typeof LoginRoute;
-  "/search": typeof SearchRoute;
-  "/settings": typeof SettingsRoute;
-  "/signup": typeof SignupRoute;
-  "/api/game-advance": typeof ApiGameAdvanceRoute;
-  "/bills/$id": typeof BillsIdRoute;
-  "/bills/create": typeof BillsCreateRoute;
-  "/parties/$id": typeof PartiesIdRoute;
-  "/parties/create": typeof PartiesCreateRoute;
-  "/profile/$id": typeof ProfileIdRoute;
-  "/bills/": typeof BillsIndexRoute;
-  "/parties/": typeof PartiesIndexRoute;
-  "/profile/": typeof ProfileIndexRoute;
-  "/api/feed/add": typeof ApiFeedAddRoute;
-  "/api/feed/list": typeof ApiFeedListRoute;
-  "/parties/manage/$id": typeof PartiesManageIdRoute;
-  "/parties/merge/$id": typeof PartiesMergeIdRoute;
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/feed': typeof FeedRoute
+  '/login': typeof LoginRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
+  '/signup': typeof SignupRoute
+  '/api/game-advance': typeof ApiGameAdvanceRoute
+  '/bills/$id': typeof BillsIdRoute
+  '/bills/create': typeof BillsCreateRoute
+  '/parties/$id': typeof PartiesIdRoute
+  '/parties/create': typeof PartiesCreateRoute
+  '/profile/$id': typeof ProfileIdRoute
+  '/bills/': typeof BillsIndexRoute
+  '/parties/': typeof PartiesIndexRoute
+  '/profile/': typeof ProfileIndexRoute
+  '/api/feed/add': typeof ApiFeedAddRoute
+  '/api/feed/list': typeof ApiFeedListRoute
+  '/parties/manage/$id': typeof PartiesManageIdRoute
+  '/parties/merge/$id': typeof PartiesMergeIdRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
+  fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | "/"
-    | "/feed"
-    | "/login"
-    | "/search"
-    | "/settings"
-    | "/signup"
-    | "/api/game-advance"
-    | "/bills/$id"
-    | "/bills/create"
-    | "/parties/$id"
-    | "/parties/create"
-    | "/profile/$id"
-    | "/bills"
-    | "/parties"
-    | "/profile"
-    | "/api/feed/add"
-    | "/api/feed/list"
-    | "/parties/manage/$id"
-    | "/parties/merge/$id";
-  fileRoutesByTo: FileRoutesByTo;
+    | '/'
+    | '/feed'
+    | '/login'
+    | '/search'
+    | '/settings'
+    | '/signup'
+    | '/api/game-advance'
+    | '/bills/$id'
+    | '/bills/create'
+    | '/parties/$id'
+    | '/parties/create'
+    | '/profile/$id'
+    | '/bills'
+    | '/parties'
+    | '/profile'
+    | '/api/feed/add'
+    | '/api/feed/list'
+    | '/parties/manage/$id'
+    | '/parties/merge/$id'
+  fileRoutesByTo: FileRoutesByTo
   to:
-    | "/"
-    | "/feed"
-    | "/login"
-    | "/search"
-    | "/settings"
-    | "/signup"
-    | "/api/game-advance"
-    | "/bills/$id"
-    | "/bills/create"
-    | "/parties/$id"
-    | "/parties/create"
-    | "/profile/$id"
-    | "/bills"
-    | "/parties"
-    | "/profile"
-    | "/api/feed/add"
-    | "/api/feed/list"
-    | "/parties/manage/$id"
-    | "/parties/merge/$id";
+    | '/'
+    | '/feed'
+    | '/login'
+    | '/search'
+    | '/settings'
+    | '/signup'
+    | '/api/game-advance'
+    | '/bills/$id'
+    | '/bills/create'
+    | '/parties/$id'
+    | '/parties/create'
+    | '/profile/$id'
+    | '/bills'
+    | '/parties'
+    | '/profile'
+    | '/api/feed/add'
+    | '/api/feed/list'
+    | '/parties/manage/$id'
+    | '/parties/merge/$id'
   id:
-    | "__root__"
-    | "/"
-    | "/feed"
-    | "/login"
-    | "/search"
-    | "/settings"
-    | "/signup"
-    | "/api/game-advance"
-    | "/bills/$id"
-    | "/bills/create"
-    | "/parties/$id"
-    | "/parties/create"
-    | "/profile/$id"
-    | "/bills/"
-    | "/parties/"
-    | "/profile/"
-    | "/api/feed/add"
-    | "/api/feed/list"
-    | "/parties/manage/$id"
-    | "/parties/merge/$id";
-  fileRoutesById: FileRoutesById;
+    | '__root__'
+    | '/'
+    | '/feed'
+    | '/login'
+    | '/search'
+    | '/settings'
+    | '/signup'
+    | '/api/game-advance'
+    | '/bills/$id'
+    | '/bills/create'
+    | '/parties/$id'
+    | '/parties/create'
+    | '/profile/$id'
+    | '/bills/'
+    | '/parties/'
+    | '/profile/'
+    | '/api/feed/add'
+    | '/api/feed/list'
+    | '/parties/manage/$id'
+    | '/parties/merge/$id'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
-  FeedRoute: typeof FeedRoute;
-  LoginRoute: typeof LoginRoute;
-  SearchRoute: typeof SearchRoute;
-  SettingsRoute: typeof SettingsRoute;
-  SignupRoute: typeof SignupRoute;
-  ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute;
-  BillsIdRoute: typeof BillsIdRoute;
-  BillsCreateRoute: typeof BillsCreateRoute;
-  PartiesIdRoute: typeof PartiesIdRoute;
-  PartiesCreateRoute: typeof PartiesCreateRoute;
-  ProfileIdRoute: typeof ProfileIdRoute;
-  BillsIndexRoute: typeof BillsIndexRoute;
-  PartiesIndexRoute: typeof PartiesIndexRoute;
-  ProfileIndexRoute: typeof ProfileIndexRoute;
-  ApiFeedAddRoute: typeof ApiFeedAddRoute;
-  ApiFeedListRoute: typeof ApiFeedListRoute;
-  PartiesManageIdRoute: typeof PartiesManageIdRoute;
-  PartiesMergeIdRoute: typeof PartiesMergeIdRoute;
+  IndexRoute: typeof IndexRoute
+  FeedRoute: typeof FeedRoute
+  LoginRoute: typeof LoginRoute
+  SearchRoute: typeof SearchRoute
+  SettingsRoute: typeof SettingsRoute
+  SignupRoute: typeof SignupRoute
+  ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute
+  BillsIdRoute: typeof BillsIdRoute
+  BillsCreateRoute: typeof BillsCreateRoute
+  PartiesIdRoute: typeof PartiesIdRoute
+  PartiesCreateRoute: typeof PartiesCreateRoute
+  ProfileIdRoute: typeof ProfileIdRoute
+  BillsIndexRoute: typeof BillsIndexRoute
+  PartiesIndexRoute: typeof PartiesIndexRoute
+  ProfileIndexRoute: typeof ProfileIndexRoute
+  ApiFeedAddRoute: typeof ApiFeedAddRoute
+  ApiFeedListRoute: typeof ApiFeedListRoute
+  PartiesManageIdRoute: typeof PartiesManageIdRoute
+  PartiesMergeIdRoute: typeof PartiesMergeIdRoute
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/signup": {
-      id: "/signup";
-      path: "/signup";
-      fullPath: "/signup";
-      preLoaderRoute: typeof SignupRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/settings": {
-      id: "/settings";
-      path: "/settings";
-      fullPath: "/settings";
-      preLoaderRoute: typeof SettingsRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/search": {
-      id: "/search";
-      path: "/search";
-      fullPath: "/search";
-      preLoaderRoute: typeof SearchRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/login": {
-      id: "/login";
-      path: "/login";
-      fullPath: "/login";
-      preLoaderRoute: typeof LoginRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/feed": {
-      id: "/feed";
-      path: "/feed";
-      fullPath: "/feed";
-      preLoaderRoute: typeof FeedRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/": {
-      id: "/";
-      path: "/";
-      fullPath: "/";
-      preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/profile/": {
-      id: "/profile/";
-      path: "/profile";
-      fullPath: "/profile";
-      preLoaderRoute: typeof ProfileIndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/parties/": {
-      id: "/parties/";
-      path: "/parties";
-      fullPath: "/parties";
-      preLoaderRoute: typeof PartiesIndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/bills/": {
-      id: "/bills/";
-      path: "/bills";
-      fullPath: "/bills";
-      preLoaderRoute: typeof BillsIndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/profile/$id": {
-      id: "/profile/$id";
-      path: "/profile/$id";
-      fullPath: "/profile/$id";
-      preLoaderRoute: typeof ProfileIdRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/parties/create": {
-      id: "/parties/create";
-      path: "/parties/create";
-      fullPath: "/parties/create";
-      preLoaderRoute: typeof PartiesCreateRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/parties/$id": {
-      id: "/parties/$id";
-      path: "/parties/$id";
-      fullPath: "/parties/$id";
-      preLoaderRoute: typeof PartiesIdRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/bills/create": {
-      id: "/bills/create";
-      path: "/bills/create";
-      fullPath: "/bills/create";
-      preLoaderRoute: typeof BillsCreateRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/bills/$id": {
-      id: "/bills/$id";
-      path: "/bills/$id";
-      fullPath: "/bills/$id";
-      preLoaderRoute: typeof BillsIdRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/api/game-advance": {
-      id: "/api/game-advance";
-      path: "/api/game-advance";
-      fullPath: "/api/game-advance";
-      preLoaderRoute: typeof ApiGameAdvanceRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/parties/merge/$id": {
-      id: "/parties/merge/$id";
-      path: "/parties/merge/$id";
-      fullPath: "/parties/merge/$id";
-      preLoaderRoute: typeof PartiesMergeIdRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/parties/manage/$id": {
-      id: "/parties/manage/$id";
-      path: "/parties/manage/$id";
-      fullPath: "/parties/manage/$id";
-      preLoaderRoute: typeof PartiesManageIdRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/api/feed/list": {
-      id: "/api/feed/list";
-      path: "/api/feed/list";
-      fullPath: "/api/feed/list";
-      preLoaderRoute: typeof ApiFeedListRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/api/feed/add": {
-      id: "/api/feed/add";
-      path: "/api/feed/add";
-      fullPath: "/api/feed/add";
-      preLoaderRoute: typeof ApiFeedAddRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feed': {
+      id: '/feed'
+      path: '/feed'
+      fullPath: '/feed'
+      preLoaderRoute: typeof FeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile/': {
+      id: '/profile/'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parties/': {
+      id: '/parties/'
+      path: '/parties'
+      fullPath: '/parties'
+      preLoaderRoute: typeof PartiesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bills/': {
+      id: '/bills/'
+      path: '/bills'
+      fullPath: '/bills'
+      preLoaderRoute: typeof BillsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile/$id': {
+      id: '/profile/$id'
+      path: '/profile/$id'
+      fullPath: '/profile/$id'
+      preLoaderRoute: typeof ProfileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parties/create': {
+      id: '/parties/create'
+      path: '/parties/create'
+      fullPath: '/parties/create'
+      preLoaderRoute: typeof PartiesCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parties/$id': {
+      id: '/parties/$id'
+      path: '/parties/$id'
+      fullPath: '/parties/$id'
+      preLoaderRoute: typeof PartiesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bills/create': {
+      id: '/bills/create'
+      path: '/bills/create'
+      fullPath: '/bills/create'
+      preLoaderRoute: typeof BillsCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bills/$id': {
+      id: '/bills/$id'
+      path: '/bills/$id'
+      fullPath: '/bills/$id'
+      preLoaderRoute: typeof BillsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/game-advance': {
+      id: '/api/game-advance'
+      path: '/api/game-advance'
+      fullPath: '/api/game-advance'
+      preLoaderRoute: typeof ApiGameAdvanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parties/merge/$id': {
+      id: '/parties/merge/$id'
+      path: '/parties/merge/$id'
+      fullPath: '/parties/merge/$id'
+      preLoaderRoute: typeof PartiesMergeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parties/manage/$id': {
+      id: '/parties/manage/$id'
+      path: '/parties/manage/$id'
+      fullPath: '/parties/manage/$id'
+      preLoaderRoute: typeof PartiesManageIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/feed/list': {
+      id: '/api/feed/list'
+      path: '/api/feed/list'
+      fullPath: '/api/feed/list'
+      preLoaderRoute: typeof ApiFeedListRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/feed/add': {
+      id: '/api/feed/add'
+      path: '/api/feed/add'
+      fullPath: '/api/feed/add'
+      preLoaderRoute: typeof ApiFeedAddRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -434,16 +435,16 @@ const rootRouteChildren: RootRouteChildren = {
   ApiFeedListRoute: ApiFeedListRoute,
   PartiesManageIdRoute: PartiesManageIdRoute,
   PartiesMergeIdRoute: PartiesMergeIdRoute,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from "./router.tsx";
-import type { createStart } from "@tanstack/react-start";
-declare module "@tanstack/react-start" {
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
   interface Register {
-    ssr: true;
-    router: Awaited<ReturnType<typeof getRouter>>;
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
   }
 }

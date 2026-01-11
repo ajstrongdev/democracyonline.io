@@ -113,12 +113,12 @@ function BillDetailPage() {
           <CardHeader className="p-3 sm:p-4 md:p-6">
             <div className="flex flex-col gap-3">
               <div className="space-y-2">
-                <CardTitle className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold break-words hyphens-auto">
+                <CardTitle className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold wrap-break-words hyphens-auto">
                   Bill #{bill.id}: {bill.title}
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm break-words">
+                <CardDescription className="text-xs sm:text-sm wrap-break-words">
                   Proposed by{" "}
-                  <span className="font-semibold text-foreground break-words">
+                  <span className="font-semibold text-foreground wrap-break-words">
                     {bill.creator || "Unknown User"}
                   </span>{" "}
                   {bill.createdAt &&
@@ -138,7 +138,7 @@ function BillDetailPage() {
               <h3 className="text-sm sm:text-base md:text-lg font-semibold mb-2">
                 Bill Content
               </h3>
-              <div className="p-3 sm:p-4 bg-muted/50 rounded-lg border whitespace-pre-wrap text-xs sm:text-sm leading-relaxed break-words overflow-x-auto">
+              <div className="p-3 sm:p-4 bg-muted/50 rounded-lg border whitespace-pre-wrap text-xs sm:text-sm leading-relaxed wrap-break-words overflow-x-auto">
                 {bill.content || "No content available."}
               </div>
             </div>
