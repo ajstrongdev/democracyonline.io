@@ -1,61 +1,61 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { useForm } from '@tanstack/react-form'
-import { fetchUserInfoByEmail } from '@/lib/server/users'
-import { getPoliticalStances, createParty } from '@/lib/server/party'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Slider } from '@/components/ui/slider'
-import { useState } from 'react'
-import { icons } from '@/lib/utils/logo-helper'
-import { leanings } from '@/lib/constants'
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { useForm } from "@tanstack/react-form";
+import { useState } from "react";
+import { fetchUserInfoByEmail } from "@/lib/server/users";
+import { createParty, getPoliticalStances } from "@/lib/server/party";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
+import { icons } from "@/lib/utils/logo-helper";
+import { leanings } from "@/lib/constants";
 
-export const Route = createFileRoute('/parties/create')({
+export const Route = createFileRoute("/parties/create")({
   beforeLoad: ({ context }) => {
     if (!context.auth.user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
   },
   loader: async ({ context }) => {
     if (!context.auth.user?.email) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
     const [userData, stances] = await Promise.all([
       fetchUserInfoByEmail({
         data: { email: context.auth.user.email },
       }),
       getPoliticalStances(),
-    ])
+    ]);
     return {
       userData: Array.isArray(userData) ? userData[0] : userData,
       stances,
-    }
+    };
   },
   component: PartyCreatePage,
-})
+});
 
 function PartyCreatePage() {
-  const navigate = useNavigate()
-  const { userData: user, stances } = Route.useLoaderData()
-  const [leaning, setLeaning] = useState([3])
-  const [selectedLogo, setSelectedLogo] = useState<string | null>(null)
-  const [stanceValues, setStanceValues] = useState<Record<number, string>>({})
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const navigate = useNavigate();
+  const { userData: user, stances } = Route.useLoaderData();
+  const [leaning, setLeaning] = useState([3]);
+  const [selectedLogo, setSelectedLogo] = useState<string | null>(null);
+  const [stanceValues, setStanceValues] = useState<Record<number, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const form = useForm({
     defaultValues: {
-      name: '',
-      color: '#ff0000',
-      bio: '',
-      discord_link: '',
+      name: "",
+      color: "#ff0000",
+      bio: "",
+      discord_link: "",
       stanceValues: {},
     },
     onSubmit: async ({ value }) => {
-      setSubmitError(null)
+      setSubmitError(null);
       const stanceEntries = Object.entries(stanceValues).filter(
-        ([_, val]) => val.trim() !== '',
-      )
+        ([_, val]) => val.trim() !== "",
+      );
 
       try {
         const newParty = await createParty({
@@ -74,21 +74,21 @@ function PartyCreatePage() {
               value: val,
             })),
           },
-        })
+        });
         navigate({
-          to: '/parties/$id',
+          to: "/parties/$id",
           params: { id: String(newParty.id) },
-        })
+        });
       } catch (error) {
-        console.error('Error creating party:', error)
+        console.error("Error creating party:", error);
         const errorMessage =
           error instanceof Error
             ? error.message
-            : 'Failed to create party. Please try again.'
-        setSubmitError(errorMessage)
+            : "Failed to create party. Please try again.";
+        setSubmitError(errorMessage);
       }
     },
-  })
+  });
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -104,9 +104,9 @@ function PartyCreatePage() {
         <form
           className="space-y-8"
           onSubmit={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            form.handleSubmit()
+            e.preventDefault();
+            e.stopPropagation();
+            form.handleSubmit();
           }}
         >
           {/* Party Name */}
@@ -115,9 +115,9 @@ function PartyCreatePage() {
             validators={{
               onChange: ({ value }) => {
                 if (!value || value.trim().length === 0) {
-                  return 'Party name is required'
+                  return "Party name is required";
                 }
-                return undefined
+                return undefined;
               },
             }}
           >
@@ -139,7 +139,7 @@ function PartyCreatePage() {
                 />
                 {field.state.meta.errors.length > 0 && (
                   <span className="text-sm text-red-500">
-                    {field.state.meta.errors.join(', ')}
+                    {field.state.meta.errors.join(", ")}
                   </span>
                 )}
               </div>
@@ -151,11 +151,11 @@ function PartyCreatePage() {
             name="color"
             validators={{
               onChange: ({ value }) => {
-                const colorRegex = /^#[0-9A-Fa-f]{6}$/
+                const colorRegex = /^#[0-9A-Fa-f]{6}$/;
                 if (!colorRegex.test(value)) {
-                  return 'Invalid color format (e.g., #ff0000)'
+                  return "Invalid color format (e.g., #ff0000)";
                 }
-                return undefined
+                return undefined;
               },
             }}
           >
@@ -188,7 +188,7 @@ function PartyCreatePage() {
                 </div>
                 {field.state.meta.errors.length > 0 && (
                   <span className="text-sm text-red-500">
-                    {field.state.meta.errors.join(', ')}
+                    {field.state.meta.errors.join(", ")}
                   </span>
                 )}
               </div>
@@ -201,9 +201,9 @@ function PartyCreatePage() {
             validators={{
               onChange: ({ value }) => {
                 if (!value || value.trim().length === 0) {
-                  return 'Party bio is required'
+                  return "Party bio is required";
                 }
-                return undefined
+                return undefined;
               },
             }}
           >
@@ -226,7 +226,7 @@ function PartyCreatePage() {
                 />
                 {field.state.meta.errors.length > 0 && (
                   <span className="text-sm text-red-500">
-                    {field.state.meta.errors.join(', ')}
+                    {field.state.meta.errors.join(", ")}
                   </span>
                 )}
               </div>
@@ -240,12 +240,12 @@ function PartyCreatePage() {
               onChange: ({ value }) => {
                 if (value && value.trim().length > 0) {
                   try {
-                    new URL(value)
+                    new URL(value);
                   } catch {
-                    return 'Invalid URL format'
+                    return "Invalid URL format";
                   }
                 }
-                return undefined
+                return undefined;
               },
             }}
           >
@@ -268,7 +268,7 @@ function PartyCreatePage() {
                 />
                 {field.state.meta.errors.length > 0 && (
                   <span className="text-sm text-red-500">
-                    {field.state.meta.errors.join(', ')}
+                    {field.state.meta.errors.join(", ")}
                   </span>
                 )}
               </div>
@@ -286,8 +286,8 @@ function PartyCreatePage() {
                 onClick={() => setSelectedLogo(null)}
                 className={`flex items-center justify-center w-14 h-14 rounded-md border p-2 text-sm hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${
                   selectedLogo === null
-                    ? 'ring-2 ring-offset-2 ring-primary'
-                    : ''
+                    ? "ring-2 ring-offset-2 ring-primary"
+                    : ""
                 }`}
                 aria-pressed={selectedLogo === null}
                 title="None"
@@ -296,7 +296,7 @@ function PartyCreatePage() {
               </button>
 
               {icons.map((ic) => {
-                const IconComp = ic.Icon
+                const IconComp = ic.Icon;
                 return (
                   <button
                     key={ic.name}
@@ -304,15 +304,15 @@ function PartyCreatePage() {
                     onClick={() => setSelectedLogo(ic.name)}
                     className={`flex items-center justify-center w-14 h-14 rounded-md border p-2 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${
                       selectedLogo === ic.name
-                        ? 'ring-2 ring-offset-2 ring-primary'
-                        : ''
+                        ? "ring-2 ring-offset-2 ring-primary"
+                        : ""
                     }`}
                     aria-pressed={selectedLogo === ic.name}
                     title={ic.name}
                   >
                     <IconComp className="w-6 h-6" />
                   </button>
-                )
+                );
               })}
             </div>
           </div>
@@ -337,12 +337,12 @@ function PartyCreatePage() {
                 {leanings.map((_, i) => (
                   <span key={i} className="text-center w-12">
                     {i === 0
-                      ? 'Far Left'
+                      ? "Far Left"
                       : i === 6
-                        ? 'Far Right'
+                        ? "Far Right"
                         : i - 3 === 0
-                          ? 'Center'
-                          : ''}
+                          ? "Center"
+                          : ""}
                   </span>
                 ))}
               </div>
@@ -362,7 +362,7 @@ function PartyCreatePage() {
                 </Label>
                 <Textarea
                   id={`stance-${stance.id}`}
-                  value={stanceValues[stance.id] || ''}
+                  value={stanceValues[stance.id] || ""}
                   onChange={(e) =>
                     setStanceValues((prev) => ({
                       ...prev,
@@ -392,12 +392,12 @@ function PartyCreatePage() {
                 className="w-full py-3"
                 disabled={isSubmitting || !canSubmit}
               >
-                {isSubmitting ? 'Creating Party...' : 'Create Party'}
+                {isSubmitting ? "Creating Party..." : "Create Party"}
               </Button>
             )}
           </form.Subscribe>
         </form>
       </div>
     </div>
-  )
+  );
 }

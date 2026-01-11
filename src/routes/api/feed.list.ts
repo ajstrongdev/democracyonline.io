@@ -1,9 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { db } from '@/db'
-import { feed, users } from '@/db/schema'
-import { desc, eq } from 'drizzle-orm'
+import { createFileRoute } from "@tanstack/react-router";
+import { desc, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { feed, users } from "@/db/schema";
 
-export const Route = createFileRoute('/api/feed/list')({
+export const Route = createFileRoute("/api/feed/list")({
   server: {
     handlers: {
       GET: async ({ request }) => {
@@ -20,27 +20,27 @@ export const Route = createFileRoute('/api/feed/list')({
             .from(feed)
             .leftJoin(users, eq(feed.userId, users.id))
             .orderBy(desc(feed.createdAt))
-            .limit(50)
+            .limit(50);
 
           return new Response(JSON.stringify(feedItems), {
             status: 200,
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
-          })
+          });
         } catch (error) {
-          console.error('Error fetching feed:', error)
+          console.error("Error fetching feed:", error);
           return new Response(
-            JSON.stringify({ error: 'Failed to fetch feed' }),
+            JSON.stringify({ error: "Failed to fetch feed" }),
             {
               status: 500,
               headers: {
-                'Content-Type': 'application/json',
+                "Content-Type": "application/json",
               },
             },
-          )
+          );
         }
       },
     },
   },
-})
+});

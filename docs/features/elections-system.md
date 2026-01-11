@@ -197,7 +197,7 @@ presidentialElection {
 
 ```typescript
 // Top N candidates by vote count
-const winners = candidates.sort((a, b) => b.votes - a.votes).slice(0, seats)
+const winners = candidates.sort((a, b) => b.votes - a.votes).slice(0, seats);
 ```
 
 #### Ranked-Choice Voting (Senate/President)

@@ -1,35 +1,35 @@
-import { createServerFn } from '@tanstack/react-start'
-import { parties, users, politicalStances, partyStances } from '@/db/schema'
-import { eq, sql, getTableColumns, inArray } from 'drizzle-orm'
-import { db } from '@/db'
+import { createServerFn } from "@tanstack/react-start";
+import { eq, getTableColumns, inArray, sql } from "drizzle-orm";
+import { z } from "zod";
+import { parties, partyStances, politicalStances, users } from "@/db/schema";
+import { db } from "@/db";
 import {
   CreatePartySchema,
   UpdatePartySchema,
-} from '@/lib/schemas/party-schema'
-import { z } from 'zod'
-import { requireAuthMiddleware } from '@/middleware'
+} from "@/lib/schemas/party-schema";
+import { requireAuthMiddleware } from "@/middleware";
 
 // Data fetching
 export const partyPageData = createServerFn()
   .inputValidator((data: { email: string }) => data)
   .handler(async ({ data }) => {
-    const partyInfo = await getParties()
-    const isInParty = await checkUserInParty({ data: { email: data.email } })
-    return { partyInfo, isInParty }
-  })
+    const partyInfo = await getParties();
+    const isInParty = await checkUserInParty({ data: { email: data.email } });
+    return { partyInfo, isInParty };
+  });
 
 export const getParties = createServerFn().handler(async () => {
   const rows = await db
     .select({
       ...getTableColumns(parties),
-      memberCount: sql<number>`count(${users.id})`.as('memberCount'),
+      memberCount: sql<number>`count(${users.id})`.as("memberCount"),
     })
     .from(parties)
     .leftJoin(users, eq(users.partyId, parties.id))
     .groupBy(parties.id)
-    .orderBy(sql`count(${users.id}) desc`)
-  return rows
-})
+    .orderBy(sql`count(${users.id}) desc`);
+  return rows;
+});
 
 export const checkUserInParty = createServerFn()
   .inputValidator((data: { email: string }) => data)
@@ -38,10 +38,10 @@ export const checkUserInParty = createServerFn()
       .select({ partyId: users.partyId })
       .from(users)
       .where(eq(users.email, data.email))
-      .limit(1)
+      .limit(1);
 
-    return user?.partyId !== null && user?.partyId !== undefined
-  })
+    return user?.partyId !== null && user?.partyId !== undefined;
+  });
 
 export const checkUserInSpecificParty = createServerFn()
   .inputValidator((data: { userId: number; partyId: number }) => data)
@@ -50,9 +50,9 @@ export const checkUserInSpecificParty = createServerFn()
       .select({ partyId: users.partyId })
       .from(users)
       .where(eq(users.id, data.userId))
-      .limit(1)
-    return user?.partyId === data.partyId
-  })
+      .limit(1);
+    return user?.partyId === data.partyId;
+  });
 
 export const checkIfUserIsPartyLeader = createServerFn()
   .inputValidator((data: { userId: number; partyId: number }) => data)
@@ -61,32 +61,32 @@ export const checkIfUserIsPartyLeader = createServerFn()
       .select({ leaderId: parties.leaderId })
       .from(parties)
       .where(eq(parties.id, data.partyId))
-      .limit(1)
-    return party?.leaderId === data.userId
-  })
+      .limit(1);
+    return party?.leaderId === data.userId;
+  });
 
 export const getMembershipStatus = createServerFn()
   .inputValidator((data: { userId: number; partyId: number }) => data)
   .handler(async ({ data }) => {
     const isInParty = await checkUserInSpecificParty({
       data: { userId: data.userId, partyId: data.partyId },
-    })
+    });
     const isLeader = await checkIfUserIsPartyLeader({
       data: { userId: data.userId, partyId: data.partyId },
-    })
-    return { isInParty, isLeader }
-  })
+    });
+    return { isInParty, isLeader };
+  });
 
 export const getPartyMembers = createServerFn()
   .inputValidator((data: { partyId: number }) => data)
   .handler(async ({ data }) => {
-    const { email, ...userColumns } = getTableColumns(users)
+    const { email, ...userColumns } = getTableColumns(users);
     const members = await db
       .select(userColumns)
       .from(users)
-      .where(eq(users.partyId, data.partyId))
-    return members
-  })
+      .where(eq(users.partyId, data.partyId));
+    return members;
+  });
 
 export const getPartyById = createServerFn()
   .inputValidator((data: { partyId: number }) => data)
@@ -95,9 +95,9 @@ export const getPartyById = createServerFn()
       .select()
       .from(parties)
       .where(eq(parties.id, data.partyId))
-      .limit(1)
-    return party || null
-  })
+      .limit(1);
+    return party || null;
+  });
 
 export const getPartyStances = createServerFn()
   .inputValidator((data: { partyId: number }) => data)
@@ -113,41 +113,41 @@ export const getPartyStances = createServerFn()
         politicalStances,
         eq(partyStances.stanceId, politicalStances.id),
       )
-      .where(eq(partyStances.partyId, data.partyId))
-    return stances
-  })
+      .where(eq(partyStances.partyId, data.partyId));
+    return stances;
+  });
 
 export const getPartyDetails = createServerFn()
   .inputValidator((data: { partyId: number; userId: number | null }) => data)
   .handler(async ({ data }) => {
-    const party = await getPartyById({ data: { partyId: data.partyId } })
-    const members = await getPartyMembers({ data: { partyId: data.partyId } })
-    const stances = await getPartyStances({ data: { partyId: data.partyId } })
+    const party = await getPartyById({ data: { partyId: data.partyId } });
+    const members = await getPartyMembers({ data: { partyId: data.partyId } });
+    const stances = await getPartyStances({ data: { partyId: data.partyId } });
     const membershipStatus = data.userId
       ? await getMembershipStatus({
           data: { userId: data.userId, partyId: data.partyId },
         })
-      : { isInParty: false, isLeader: false }
+      : { isInParty: false, isLeader: false };
 
     return {
       party,
       members,
       stances,
       membershipStatus,
-    }
-  })
+    };
+  });
 
 export const getPoliticalStances = createServerFn().handler(async () => {
-  const stances = await db.select().from(politicalStances)
-  return stances
-})
+  const stances = await db.select().from(politicalStances);
+  return stances;
+});
 
 // Mutations
 export const createParty = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator(CreatePartySchema)
   .handler(async ({ data }) => {
-    const { party, stances } = data
+    const { party, stances } = data;
     const result = await db.transaction(async (tx) => {
       const [newParty] = await tx
         .insert(parties)
@@ -160,13 +160,13 @@ export const createParty = createServerFn()
           discord: party.discord,
           leaning: party.leaning,
         })
-        .returning()
+        .returning();
 
       await tx
         .update(users)
         .set({ partyId: newParty.id })
         .where(eq(users.id, party.leader_id))
-        .returning()
+        .returning();
 
       if (stances.length > 0) {
         await tx.insert(partyStances).values(
@@ -175,43 +175,43 @@ export const createParty = createServerFn()
             stanceId: stance.stanceId,
             value: stance.value,
           })),
-        )
+        );
       }
 
-      return newParty
-    })
-    return result
-  })
+      return newParty;
+    });
+    return result;
+  });
 
 export const updateParty = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator(UpdatePartySchema)
   .handler(async ({ data, context }) => {
     if (!context.user?.email) {
-      throw new Error('Authentication required')
+      throw new Error("Authentication required");
     }
 
     const [currentUser] = await db
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, context.user.email))
-      .limit(1)
+      .limit(1);
 
     if (!currentUser) {
-      throw new Error('User not found')
+      throw new Error("User not found");
     }
 
     const [party] = await db
       .select({ leaderId: parties.leaderId })
       .from(parties)
-      .where(eq(parties.id, data.party.id!))
-      .limit(1)
+      .where(eq(parties.id, data.party.id))
+      .limit(1);
 
     if (!party || party.leaderId !== currentUser.id) {
-      throw new Error('Only the party leader can update the party')
+      throw new Error("Only the party leader can update the party");
     }
 
-    const { party: partyData, stances } = data
+    const { party: partyData, stances } = data;
     await db.transaction(async (tx) => {
       await tx
         .update(parties)
@@ -223,41 +223,41 @@ export const updateParty = createServerFn()
           discord: partyData.discord,
           leaning: partyData.leaning,
         })
-        .where(eq(parties.id, partyData.id!))
+        .where(eq(parties.id, partyData.id));
 
       await tx
         .delete(partyStances)
-        .where(eq(partyStances.partyId, partyData.id!))
+        .where(eq(partyStances.partyId, partyData.id));
 
       if (stances.length > 0) {
         await tx.insert(partyStances).values(
           stances.map((stance) => ({
-            partyId: partyData.id!,
+            partyId: partyData.id,
             stanceId: stance.stanceId,
             value: stance.value,
           })),
-        )
+        );
       }
-    })
-    return true
-  })
+    });
+    return true;
+  });
 
 export const leaveParty = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { userId: number }) => data)
   .handler(async ({ data, context }) => {
     if (!context.user?.email) {
-      throw new Error('Authentication required')
+      throw new Error("Authentication required");
     }
 
     const [currentUser] = await db
       .select({ id: users.id, partyId: users.partyId })
       .from(users)
       .where(eq(users.email, context.user.email))
-      .limit(1)
+      .limit(1);
 
     if (!currentUser || currentUser.id !== data.userId) {
-      throw new Error('You can only leave a party as yourself')
+      throw new Error("You can only leave a party as yourself");
     }
 
     if (currentUser.partyId) {
@@ -265,32 +265,32 @@ export const leaveParty = createServerFn()
         .select({ leaderId: parties.leaderId })
         .from(parties)
         .where(eq(parties.id, currentUser.partyId))
-        .limit(1)
+        .limit(1);
       if (party?.leaderId === data.userId) {
         await db
           .update(parties)
           .set({ leaderId: null })
-          .where(eq(parties.id, currentUser.partyId))
+          .where(eq(parties.id, currentUser.partyId));
       }
     }
 
     await db
       .update(users)
       .set({ partyId: null })
-      .where(eq(users.id, data.userId))
+      .where(eq(users.id, data.userId));
 
     if (currentUser.partyId) {
       const memberCount = await db
         .select()
         .from(users)
-        .where(eq(users.partyId, currentUser.partyId))
+        .where(eq(users.partyId, currentUser.partyId));
 
       if (memberCount.length === 0) {
-        await deleteParty({ data: { partyId: currentUser.partyId } })
+        await deleteParty({ data: { partyId: currentUser.partyId } });
       }
     }
-    return true
-  })
+    return true;
+  });
 
 export const deleteParty = createServerFn()
   .inputValidator((data: { partyId: number }) => data)
@@ -299,10 +299,10 @@ export const deleteParty = createServerFn()
       await tx
         .update(users)
         .set({ partyId: null })
-        .where(eq(users.partyId, data.partyId))
+        .where(eq(users.partyId, data.partyId));
       await tx
         .delete(partyStances)
-        .where(eq(partyStances.partyId, data.partyId))
+        .where(eq(partyStances.partyId, data.partyId));
       // Delete party notifications where this party is sender or receiver
       // Note: Assuming partyNotifications is imported if it exists in schema
       // await tx.delete(partyNotifications).where(
@@ -311,17 +311,17 @@ export const deleteParty = createServerFn()
       //     eq(partyNotifications.receiverPartyId, data.partyId)
       //   )
       // )
-      await tx.delete(parties).where(eq(parties.id, data.partyId))
-    })
-    return true
-  })
+      await tx.delete(parties).where(eq(parties.id, data.partyId));
+    });
+    return true;
+  });
 
 export const joinParty = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { userId: number; partyId: number }) => data)
   .handler(async ({ data, context }) => {
     if (!context.user?.email) {
-      throw new Error('Authentication required')
+      throw new Error("Authentication required");
     }
 
     // Verify the authenticated user matches the userId
@@ -329,25 +329,25 @@ export const joinParty = createServerFn()
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, context.user.email))
-      .limit(1)
+      .limit(1);
 
     if (!currentUser || currentUser.id !== data.userId) {
-      throw new Error('You can only join a party as yourself')
+      throw new Error("You can only join a party as yourself");
     }
 
     await db
       .update(users)
       .set({ partyId: data.partyId })
-      .where(eq(users.id, data.userId))
-    return true
-  })
+      .where(eq(users.id, data.userId));
+    return true;
+  });
 
 export const becomePartyLeader = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { userId: number; partyId: number }) => data)
   .handler(async ({ data, context }) => {
     if (!context.user?.email) {
-      throw new Error('Authentication required')
+      throw new Error("Authentication required");
     }
 
     // Verify the authenticated user matches the userId
@@ -355,15 +355,15 @@ export const becomePartyLeader = createServerFn()
       .select({ id: users.id, partyId: users.partyId })
       .from(users)
       .where(eq(users.email, context.user.email))
-      .limit(1)
+      .limit(1);
 
     if (!currentUser || currentUser.id !== data.userId) {
-      throw new Error('You can only become leader as yourself')
+      throw new Error("You can only become leader as yourself");
     }
 
     // Check if user is a member of the party
     if (currentUser.partyId !== data.partyId) {
-      throw new Error('You must be a member of the party to become leader')
+      throw new Error("You must be a member of the party to become leader");
     }
 
     // Check if party currently has no leader
@@ -371,29 +371,29 @@ export const becomePartyLeader = createServerFn()
       .select({ leaderId: parties.leaderId })
       .from(parties)
       .where(eq(parties.id, data.partyId))
-      .limit(1)
+      .limit(1);
 
     if (party?.leaderId) {
-      throw new Error('Party already has a leader')
+      throw new Error("Party already has a leader");
     }
 
     await db
       .update(parties)
       .set({ leaderId: data.userId })
-      .where(eq(parties.id, data.partyId))
-    return true
-  })
+      .where(eq(parties.id, data.partyId));
+    return true;
+  });
 
 const GetPartiesByIdsSchema = z.object({
   partyIds: z.array(z.number()).min(1),
-})
+});
 
 export const getPartiesByIds = createServerFn()
   .inputValidator((data: unknown) => GetPartiesByIdsSchema.parse(data))
   .handler(async ({ data }) => {
-    const { partyIds } = data
+    const { partyIds } = data;
 
-    if (partyIds.length === 0) return {}
+    if (partyIds.length === 0) return {};
 
     try {
       const results = await db
@@ -404,16 +404,16 @@ export const getPartiesByIds = createServerFn()
           logo: parties.logo,
         })
         .from(parties)
-        .where(inArray(parties.id, partyIds))
+        .where(inArray(parties.id, partyIds));
 
-      const partyMap: Record<number, (typeof results)[0]> = {}
+      const partyMap: Record<number, (typeof results)[0]> = {};
       results.forEach((party) => {
-        partyMap[party.id] = party
-      })
+        partyMap[party.id] = party;
+      });
 
-      return partyMap
+      return partyMap;
     } catch (error) {
-      console.error('Error fetching parties:', error)
-      throw new Error('Failed to fetch parties')
+      console.error("Error fetching parties:", error);
+      throw new Error("Failed to fetch parties");
     }
-  })
+  });

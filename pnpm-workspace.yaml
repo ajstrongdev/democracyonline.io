@@ -1,5 +1,5 @@
 onlyBuiltDependencies:
-  - '@firebase/util'
+  - "@firebase/util"
   - esbuild
   - protobufjs
   - unrs-resolver

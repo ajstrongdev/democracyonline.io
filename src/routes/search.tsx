@@ -1,30 +1,30 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
-import { getUserStats, fetchUserInfoByEmail } from '@/lib/server/users'
-import { UserStatsDisplay } from '@/components/search/UserStatsDisplay'
-import { SearchForm } from '@/components/search/SearchForm'
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { fetchUserInfoByEmail, getUserStats } from "@/lib/server/users";
+import { UserStatsDisplay } from "@/components/search/UserStatsDisplay";
+import { SearchForm } from "@/components/search/SearchForm";
 
-export const Route = createFileRoute('/search')({
+export const Route = createFileRoute("/search")({
   component: SearchPage,
   beforeLoad: ({ context }) => {
     if (!context.auth.user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
   },
   loader: async ({ context }) => {
     if (!context.auth.user?.email) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
 
-    const stats = await getUserStats()
+    const stats = await getUserStats();
 
     const currentUserData = await fetchUserInfoByEmail({
       data: { email: context.auth.user.email },
-    })
+    });
     const currentUser = Array.isArray(currentUserData)
       ? currentUserData[0]
-      : currentUserData
+      : currentUserData;
 
-    return { stats, currentUserId: currentUser?.id }
+    return { stats, currentUserId: currentUser?.id };
   },
   pendingComponent: () => (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -42,10 +42,10 @@ export const Route = createFileRoute('/search')({
       </div>
     </div>
   ),
-})
+});
 
 function SearchPage() {
-  const { stats, currentUserId } = Route.useLoaderData()
+  const { stats, currentUserId } = Route.useLoaderData();
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -58,5 +58,5 @@ function SearchPage() {
 
       <SearchForm currentUserId={currentUserId} />
     </div>
-  )
+  );
 }

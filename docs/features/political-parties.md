@@ -152,10 +152,10 @@ Displays all parties in a grid with:
 ```typescript
 loader: ({ context }) => {
   return queryClient.ensureQueryData({
-    queryKey: ['parties'],
+    queryKey: ["parties"],
     queryFn: () => partyPageData({ data: { email: userEmail } }),
-  })
-}
+  });
+};
 ```
 
 #### Party Detail Page

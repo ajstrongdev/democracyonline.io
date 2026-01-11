@@ -1,42 +1,43 @@
 import {
+  Link,
   createFileRoute,
   redirect,
   useNavigate,
-  Link,
-} from '@tanstack/react-router'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+} from "@tanstack/react-router";
+import {  Suspense, useState } from "react";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import type {ReactNode} from "react";
+import type {FeedItem} from "@/types/feed";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import GenericSkeleton from '@/components/generic-skeleton'
-import { Suspense, useState, type ReactNode } from 'react'
-import { getFeedItems } from '@/lib/server/feed'
-import ProtectedRoute from '@/components/auth/protected-route'
-import { type FeedItem } from '@/types/feed'
-import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
+} from "@/components/ui/tooltip";
+import GenericSkeleton from "@/components/generic-skeleton";
+import { getFeedItems } from "@/lib/server/feed";
+import ProtectedRoute from "@/components/auth/protected-route";
 
-dayjs.extend(relativeTime)
+dayjs.extend(relativeTime);
 
 // Helper function to parse content and create links for bill references
-function parseContentWithLinks(content: string): ReactNode[] {
+function parseContentWithLinks(content: string): Array<ReactNode> {
   // Match patterns like "Bill #123", "bill #123", "Bill 123", etc.
-  const billPattern = /\b[Bb]ill\s*#?(\d+)\b/g
-  const parts: ReactNode[] = []
-  let lastIndex = 0
-  let match
+  const billPattern = /\b[Bb]ill\s*#?(\d+)\b/g;
+  const parts: Array<ReactNode> = [];
+  let lastIndex = 0;
+  let match;
 
   while ((match = billPattern.exec(content)) !== null) {
     // Add text before the match
     if (match.index > lastIndex) {
-      parts.push(content.substring(lastIndex, match.index))
+      parts.push(content.substring(lastIndex, match.index));
     }
 
     // Add the bill link
-    const billId = match[1]
+    const billId = match[1];
     parts.push(
       <Link
         key={`bill-${billId}-${match.index}`}
@@ -46,35 +47,35 @@ function parseContentWithLinks(content: string): ReactNode[] {
       >
         {match[0]}
       </Link>,
-    )
+    );
 
-    lastIndex = match.index + match[0].length
+    lastIndex = match.index + match[0].length;
   }
 
   // Add remaining text
   if (lastIndex < content.length) {
-    parts.push(content.substring(lastIndex))
+    parts.push(content.substring(lastIndex));
   }
 
-  return parts.length > 0 ? parts : [content]
+  return parts.length > 0 ? parts : [content];
 }
 
-export const Route = createFileRoute('/feed')({
+export const Route = createFileRoute("/feed")({
   beforeLoad: ({ context }) => {
     if (context.auth.loading) {
-      return
+      return;
     }
     if (!context.auth.user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
   },
   loader: async () => {
     return {
       initialFeedItems: await getFeedItems({ data: { limit: 25, offset: 0 } }),
-    }
+    };
   },
   component: FeedPage,
-})
+});
 
 function FeedPage() {
   return (
@@ -83,34 +84,34 @@ function FeedPage() {
         <FeedContent />
       </ProtectedRoute>
     </Suspense>
-  )
+  );
 }
 
 function FeedContent() {
-  const navigate = useNavigate()
-  const { initialFeedItems } = Route.useLoaderData()
-  const [feedItems, setFeedItems] = useState<FeedItem[]>(initialFeedItems)
-  const [isLoading, setIsLoading] = useState(false)
-  const [hasMore, setHasMore] = useState(initialFeedItems.length === 25)
+  const navigate = useNavigate();
+  const { initialFeedItems } = Route.useLoaderData();
+  const [feedItems, setFeedItems] = useState<Array<FeedItem>>(initialFeedItems);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(initialFeedItems.length === 25);
 
   const loadMore = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       const newItems = await getFeedItems({
         data: { limit: 25, offset: feedItems.length },
-      })
+      });
 
       if (newItems.length < 25) {
-        setHasMore(false)
+        setHasMore(false);
       }
 
-      setFeedItems([...feedItems, ...newItems])
+      setFeedItems([...feedItems, ...newItems]);
     } catch (error) {
-      console.error('Error loading more feed items:', error)
+      console.error("Error loading more feed items:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -142,18 +143,18 @@ function FeedContent() {
                             className="font-bold text-foreground hover:underline cursor-pointer"
                             onClick={() =>
                               navigate({
-                                to: '/profile/$id',
+                                to: "/profile/$id",
                                 params: { id: String(item.userId) },
                               })
                             }
                           >
-                            {item.username || 'Anonymous'}
+                            {item.username || "Anonymous"}
                           </span>
                         ) : (
                           <span className="font-bold text-foreground">
-                            {item.username || 'Anonymous'}
+                            {item.username || "Anonymous"}
                           </span>
-                        )}{' '}
+                        )}{" "}
                         <span className="text-muted-foreground">
                           {parseContentWithLinks(item.content)}
                         </span>
@@ -169,12 +170,12 @@ function FeedContent() {
                           </TooltipTrigger>
                           <TooltipContent>
                             {dayjs(item.createdAt).format(
-                              'MMMM D, YYYY h:mm A',
+                              "MMMM D, YYYY h:mm A",
                             )}
                           </TooltipContent>
                         </Tooltip>
                       ) : (
-                        'Unknown date'
+                        "Unknown date"
                       )}
                     </div>
                   </div>
@@ -189,7 +190,7 @@ function FeedContent() {
                   disabled={isLoading}
                   variant="outline"
                 >
-                  {isLoading ? 'Loading...' : 'Load More'}
+                  {isLoading ? "Loading..." : "Load More"}
                 </Button>
               </div>
             )}
@@ -197,5 +198,5 @@ function FeedContent() {
         )}
       </div>
     </div>
-  )
+  );
 }

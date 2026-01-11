@@ -1,15 +1,16 @@
-import { initializeApp } from 'firebase/app'
+import { initializeApp } from "firebase/app";
 import {
-  getAuth,
-  signInWithEmailAndPassword,
+  
   createUserWithEmailAndPassword,
-  signOut,
-  sendPasswordResetEmail,
-  updateProfile,
+  getAuth,
   onAuthStateChanged,
-  type User,
-} from 'firebase/auth'
-import { env } from '../env'
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile
+} from "firebase/auth";
+import { env } from "../env";
+import type {User} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: env.VITE_FIREBASE_API_KEY,
@@ -19,10 +20,10 @@ const firebaseConfig = {
   messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: env.VITE_FIREBASE_APP_ID,
   measurementId: env.VITE_FIREBASE_MEASUREMENT_ID,
-}
+};
 
-const app = initializeApp(firebaseConfig)
-const auth = getAuth(app)
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
 export {
   auth,
@@ -33,4 +34,4 @@ export {
   updateProfile,
   onAuthStateChanged,
   type User,
-}
+};

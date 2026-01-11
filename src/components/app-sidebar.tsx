@@ -1,25 +1,25 @@
-import * as React from 'react'
+import * as React from "react";
 import {
-  User,
   Bell,
   Building2,
-  Landmark,
-  Crown,
-  LogOut,
-  Handshake,
-  Newspaper,
-  ChevronDown,
   ChartNoAxesCombined,
+  ChevronDown,
+  Crown,
+  Handshake,
+  Landmark,
+  LogOut,
   MessageSquare,
+  Newspaper,
   Notebook,
-  Shield,
   Search,
-} from 'lucide-react'
-import { Logo } from '@/components/logo'
-import { logOut } from '@/lib/auth-utils'
-import { Link, useRouter, useRouterState } from '@tanstack/react-router'
-import { useAuth } from '@/lib/auth-context'
-import { ModeToggle } from './theme-toggle'
+  Shield,
+  User,
+} from "lucide-react";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import { ModeToggle } from "./theme-toggle";
+import { Logo } from "@/components/logo";
+import { logOut } from "@/lib/auth-utils";
+import { useAuth } from "@/lib/auth-context";
 
 import {
   Sidebar,
@@ -32,119 +32,119 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
-  SidebarMenuSubItem,
   SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
-} from '@/components/ui/sidebar'
+} from "@/components/ui/sidebar";
 
 const data = {
   navMain: [
     {
-      title: 'Profile',
-      url: '/profile',
+      title: "Profile",
+      url: "/profile",
       icon: User,
     },
     {
-      title: 'Feed',
-      url: '/feed',
+      title: "Feed",
+      url: "/feed",
       icon: Bell,
     },
     {
-      title: 'Find Users',
-      url: '/search',
+      title: "Find Users",
+      url: "/search",
       icon: Search,
     },
     {
-      title: 'Political Parties',
+      title: "Political Parties",
       icon: Handshake,
-      url: '/parties',
+      url: "/parties",
     },
     {
-      title: 'Bills',
-      url: '/bills',
+      title: "Bills",
+      url: "/bills",
       icon: Newspaper,
     },
     {
-      title: 'House of Representatives',
+      title: "House of Representatives",
       icon: Building2,
       dropdown: [
         {
-          title: 'Bills',
-          url: '/house-of-representatives/bills',
+          title: "Bills",
+          url: "/house-of-representatives/bills",
           icon: Newspaper,
         },
       ],
-      url: '/house-of-representatives',
+      url: "/house-of-representatives",
     },
     {
-      title: 'Senate',
+      title: "Senate",
       icon: Landmark,
       dropdown: [
         {
-          title: 'Bills',
-          url: '/senate/bills',
+          title: "Bills",
+          url: "/senate/bills",
           icon: Newspaper,
         },
         {
-          title: 'Elections',
-          url: '/senate/elections',
+          title: "Elections",
+          url: "/senate/elections",
           icon: ChartNoAxesCombined,
         },
       ],
-      url: '/senate',
+      url: "/senate",
     },
     {
-      title: 'Oval Office',
+      title: "Oval Office",
       icon: Crown,
       dropdown: [
         {
-          title: 'Bills',
-          url: '/oval-office/bills',
+          title: "Bills",
+          url: "/oval-office/bills",
           icon: Newspaper,
         },
         {
-          title: 'Elections',
-          url: '/oval-office/elections',
+          title: "Elections",
+          url: "/oval-office/elections",
           icon: ChartNoAxesCombined,
         },
       ],
-      url: '/oval-office',
+      url: "/oval-office",
     },
   ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const [mounted, setMounted] = React.useState(false)
-  const { user } = useAuth()
-  const router = useRouter()
-  const routerState = useRouterState()
-  const pathname = routerState.location.pathname
+  const [mounted, setMounted] = React.useState(false);
+  const { user } = useAuth();
+  const router = useRouter();
+  const routerState = useRouterState();
+  const pathname = routerState.location.pathname;
 
   const ALLOWED_ADMIN_EMAILS = [
-    'jenewland1999@gmail.com',
-    'ajstrongdev@pm.me',
-    'robertjenner5@outlook.com',
-    'spam@hpsaucii.dev',
-  ]
+    "jenewland1999@gmail.com",
+    "ajstrongdev@pm.me",
+    "robertjenner5@outlook.com",
+    "spam@hpsaucii.dev",
+  ];
 
-  const isAdmin = user?.email && ALLOWED_ADMIN_EMAILS.includes(user.email)
+  const isAdmin = user?.email && ALLOWED_ADMIN_EMAILS.includes(user.email);
 
   React.useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   const handleSignOut = async () => {
     try {
-      await logOut()
-      router.navigate({ to: '/' })
+      await logOut();
+      router.navigate({ to: "/" });
     } catch (error) {
-      console.error('Error signing out:', error)
+      console.error("Error signing out:", error);
     }
-  }
+  };
 
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
-    return null
+    return null;
   }
 
   return (
@@ -172,16 +172,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup className={user ? '' : 'hidden'}>
+        <SidebarGroup className={user ? "" : "hidden"}>
           <SidebarGroupContent>
             <SidebarMenu>
               {data.navMain.map((item) => {
-                const isActive = pathname === item.url
+                const isActive = pathname === item.url;
                 if (item.dropdown) {
                   const isDropdownOpen = item.dropdown.some(
                     (sub) =>
                       pathname === sub.url || pathname.startsWith(sub.url),
-                  )
+                  );
                   return (
                     <SidebarMenuItem key={item.title}>
                       <details className="w-full group" open={isDropdownOpen}>
@@ -211,7 +211,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         </SidebarMenuSub>
                       </details>
                     </SidebarMenuItem>
-                  )
+                  );
                 }
                 // Regular menu item, same size as dropdown headers
                 return (
@@ -230,7 +230,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                )
+                );
               })}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -244,7 +244,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                isActive={pathname === '/admin'}
+                isActive={pathname === "/admin"}
                 className="bg-primary/10 hover:bg-primary/20 text-primary font-semibold"
               >
                 <Link to="/admin" className="flex items-center gap-2">
@@ -257,7 +257,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() =>
-                window.open('https://discord.gg/m7gDfgJund', '_blank')
+                window.open("https://discord.gg/m7gDfgJund", "_blank")
               }
             >
               <MessageSquare />
@@ -265,7 +265,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/releases'}>
+            <SidebarMenuButton asChild isActive={pathname === "/releases"}>
               <Link to="/releases" className="flex items-center gap-2">
                 <Notebook />
                 <span>Releases</span>
@@ -293,5 +293,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }

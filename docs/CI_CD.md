@@ -45,7 +45,6 @@ Go to: https://github.com/ajstrongdev/onlinedemocraticrepublic/settings/secrets/
 Add these two secrets (values will be shown by the setup script):
 
 1. **`GCP_WORKLOAD_IDENTITY_PROVIDER`**
-
    - The full resource name of the Workload Identity Provider
    - Format: `projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL_NAME/providers/PROVIDER_NAME`
 

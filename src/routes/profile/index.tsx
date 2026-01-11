@@ -1,29 +1,29 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
-import { fetchUserInfoByEmail } from '@/lib/server/users'
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { fetchUserInfoByEmail } from "@/lib/server/users";
 
-export const Route = createFileRoute('/profile/')({
+export const Route = createFileRoute("/profile/")({
   beforeLoad: ({ context }) => {
     if (!context.auth.user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
   },
   loader: async ({ context }) => {
     if (!context.auth.user?.email) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
 
     const userData = await fetchUserInfoByEmail({
       data: { email: context.auth.user.email },
-    })
-    const user = Array.isArray(userData) ? userData[0] : userData
+    });
+    const user = Array.isArray(userData) ? userData[0] : userData;
 
     if (!user) {
-      throw redirect({ to: '/' })
+      throw redirect({ to: "/" });
     }
 
-    throw redirect({ to: '/profile/$id', params: { id: String(user.id) } })
+    throw redirect({ to: "/profile/$id", params: { id: String(user.id) } });
   },
   component: () => {
-    return <div>Redirecting...</div>
+    return <div>Redirecting...</div>;
   },
-})
+});

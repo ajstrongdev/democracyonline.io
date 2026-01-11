@@ -1,32 +1,32 @@
 import {
   HeadContent,
+  Outlet,
   Scripts,
   createRootRouteWithContext,
-  Outlet,
-} from '@tanstack/react-router'
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { TanStackDevtools } from '@tanstack/react-devtools'
-import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
-import appCss from '../styles.css?url'
-import type { QueryClient } from '@tanstack/react-query'
-import type { User } from 'firebase/auth'
+} from "@tanstack/react-router";
+import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { TanStackDevtools } from "@tanstack/react-devtools";
+import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
+import appCss from "../styles.css?url";
+import type { QueryClient } from "@tanstack/react-query";
+import type { User } from "firebase/auth";
 import {
-  SidebarProvider,
   SidebarInset,
+  SidebarProvider,
   SidebarTrigger,
-} from '@/components/ui/sidebar'
-import { AppSidebar } from '@/components/app-sidebar'
-import { getThemeServerFn } from '@/lib/server/theme'
-import { ThemeProvider } from '@/components/theme-provider'
+} from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { getThemeServerFn } from "@/lib/server/theme";
+import { ThemeProvider } from "@/components/theme-provider";
 
 type AuthContext = {
-  user: User | null
-  loading: boolean
-}
+  user: User | null;
+  loading: boolean;
+};
 
 interface MyRouterContext {
-  queryClient: QueryClient
-  auth: AuthContext
+  queryClient: QueryClient;
+  auth: AuthContext;
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
@@ -34,19 +34,19 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   head: () => ({
     meta: [
       {
-        charSet: 'utf-8',
+        charSet: "utf-8",
       },
       {
-        name: 'viewport',
-        content: 'width=device-width, initial-scale=1',
+        name: "viewport",
+        content: "width=device-width, initial-scale=1",
       },
       {
-        title: 'TanStack Start Starter',
+        title: "TanStack Start Starter",
       },
     ],
     links: [
       {
-        rel: 'stylesheet',
+        rel: "stylesheet",
         href: appCss,
       },
     ],
@@ -54,7 +54,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
   shellComponent: RootDocument,
   component: RootLayout,
-})
+});
 
 function RootLayout() {
   return (
@@ -71,11 +71,11 @@ function RootLayout() {
         </SidebarInset>
       </SidebarProvider>
     </ThemeProvider>
-  )
+  );
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const theme = Route.useLoaderData()
+  const theme = Route.useLoaderData();
   return (
     <html lang="en" className={theme} suppressHydrationWarning>
       <head>
@@ -85,11 +85,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         {children}
         <TanStackDevtools
           config={{
-            position: 'bottom-right',
+            position: "bottom-right",
           }}
           plugins={[
             {
-              name: 'Tanstack Router',
+              name: "Tanstack Router",
               render: <TanStackRouterDevtoolsPanel />,
             },
             TanStackQueryDevtools,
@@ -98,5 +98,5 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Scripts />
       </body>
     </html>
-  )
+  );
 }

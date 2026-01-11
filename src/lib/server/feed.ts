@@ -1,14 +1,15 @@
-import { createServerFn } from '@tanstack/react-start'
-import { db } from '@/db'
-import { feed, users } from '@/db/schema'
-import { desc, eq } from 'drizzle-orm'
+import { createServerFn } from "@tanstack/react-start";
+import { desc, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { feed, users } from "@/db/schema";
+import { requireAuthMiddleware } from "@/middleware/auth";
 
 // Fetch feed items with pagination
 export const getFeedItems = createServerFn()
   .inputValidator((data: { limit?: number; offset?: number }) => data)
   .handler(async ({ data }) => {
-    const limit = data.limit || 25
-    const offset = data.offset || 0
+    const limit = data.limit || 25;
+    const offset = data.offset || 0;
 
     const feedItems = await db
       .select({
@@ -22,13 +23,14 @@ export const getFeedItems = createServerFn()
       .leftJoin(users, eq(feed.userId, users.id))
       .orderBy(desc(feed.createdAt))
       .limit(limit)
-      .offset(offset)
+      .offset(offset);
 
-    return feedItems
-  })
+    return feedItems;
+  });
 
 // Add a new feed item
-export const addFeedItem = createServerFn({ method: 'POST' })
+export const addFeedItem = createServerFn({ method: "POST" })
+  .middleware([requireAuthMiddleware])
   .inputValidator((data: { userId: number; content: string }) => data)
   .handler(async ({ data }) => {
     const [newFeedItem] = await db
@@ -37,7 +39,7 @@ export const addFeedItem = createServerFn({ method: 'POST' })
         userId: data.userId,
         content: data.content,
       })
-      .returning()
+      .returning();
 
-    return newFeedItem
-  })
+    return newFeedItem;
+  });

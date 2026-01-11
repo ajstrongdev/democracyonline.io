@@ -136,9 +136,9 @@ partyNotifications {
 
    ```typescript
    {
-     senderPartyId: number
-     receiverPartyId: number
-     mergeRequestId: number
+     senderPartyId: number;
+     receiverPartyId: number;
+     mergeRequestId: number;
    }
    ```
 
@@ -153,9 +153,9 @@ partyNotifications {
 
    ```typescript
    {
-     senderPartyId: number
-     receiverPartyId: number
-     mergeRequestId: number
+     senderPartyId: number;
+     receiverPartyId: number;
+     mergeRequestId: number;
    }
    ```
 
@@ -172,8 +172,8 @@ partyNotifications {
 
    ```typescript
    {
-     senderPartyId: number
-     mergeRequestId: number
+     senderPartyId: number;
+     mergeRequestId: number;
    }
    ```
 
@@ -252,9 +252,9 @@ partyNotifications {
 
 ```typescript
 {
-  senderPartyId: number
-  receiverPartyId: number
-  mergeRequestId: number
+  senderPartyId: number;
+  receiverPartyId: number;
+  mergeRequestId: number;
 }
 ```
 
@@ -264,8 +264,8 @@ partyNotifications {
 
 ```typescript
 {
-  senderPartyId: number
-  mergeRequestId: number
+  senderPartyId: number;
+  mergeRequestId: number;
 }
 ```
 

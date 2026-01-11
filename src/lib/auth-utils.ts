@@ -1,21 +1,21 @@
 import {
   auth,
-  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut,
   sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
   updateProfile,
-} from './firebase'
+} from "./firebase";
 
 export interface SignUpData {
-  email: string
-  password: string
-  displayName?: string
+  email: string;
+  password: string;
+  displayName?: string;
 }
 
 export interface SignInData {
-  email: string
-  password: string
+  email: string;
+  password: string;
 }
 
 export async function signUp({ email, password, displayName }: SignUpData) {
@@ -24,15 +24,15 @@ export async function signUp({ email, password, displayName }: SignUpData) {
       auth,
       email,
       password,
-    )
+    );
 
     if (displayName && userCredential.user) {
-      await updateProfile(userCredential.user, { displayName })
+      await updateProfile(userCredential.user, { displayName });
     }
 
-    return { user: userCredential.user, error: null }
+    return { user: userCredential.user, error: null };
   } catch (error: any) {
-    return { user: null, error: error.message || 'Failed to sign up' }
+    return { user: null, error: error.message || "Failed to sign up" };
   }
 }
 
@@ -42,27 +42,27 @@ export async function signIn({ email, password }: SignInData) {
       auth,
       email,
       password,
-    )
-    return { user: userCredential.user, error: null }
+    );
+    return { user: userCredential.user, error: null };
   } catch (error: any) {
-    return { user: null, error: error.message || 'Failed to sign in' }
+    return { user: null, error: error.message || "Failed to sign in" };
   }
 }
 
 export async function logOut() {
   try {
-    await signOut(auth)
-    return { error: null }
+    await signOut(auth);
+    return { error: null };
   } catch (error: any) {
-    return { error: error.message || 'Failed to sign out' }
+    return { error: error.message || "Failed to sign out" };
   }
 }
 
 export async function resetPassword(email: string) {
   try {
-    await sendPasswordResetEmail(auth, email)
-    return { error: null }
+    await sendPasswordResetEmail(auth, email);
+    return { error: null };
   } catch (error: any) {
-    return { error: error.message || 'Failed to send password reset email' }
+    return { error: error.message || "Failed to send password reset email" };
   }
 }

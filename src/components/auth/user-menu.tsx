@@ -1,18 +1,18 @@
-import { useAuth } from '@/lib/auth-context'
-import { logOut } from '@/lib/auth-utils'
-import { Button } from '@/components/ui/button'
-import { Link } from '@tanstack/react-router'
-import { LogOut, User } from 'lucide-react'
+import { Link } from "@tanstack/react-router";
+import { LogOut, User } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { logOut } from "@/lib/auth-utils";
+import { Button } from "@/components/ui/button";
 
 export function UserMenu() {
-  const { user, loading } = useAuth()
+  const { user, loading } = useAuth();
 
   const handleLogout = async () => {
-    await logOut()
-  }
+    await logOut();
+  };
 
   if (loading) {
-    return <div className="h-9 w-24 bg-muted animate-pulse rounded-md" />
+    return <div className="h-9 w-24 bg-muted animate-pulse rounded-md" />;
   }
 
   if (!user) {
@@ -25,7 +25,7 @@ export function UserMenu() {
           <Link to="/signup">Sign Up</Link>
         </Button>
       </div>
-    )
+    );
   }
 
   return (
@@ -40,5 +40,5 @@ export function UserMenu() {
         <LogOut className="size-4" />
       </Button>
     </div>
-  )
+  );
 }

@@ -67,53 +67,53 @@ import {
   SignupForm,
   UserMenu,
   ProtectedRoute,
-} from '@/components/auth'
+} from "@/components/auth";
 ```
 
 ### Auth Hooks
 
 ```tsx
-import { useAuth } from '@/lib/auth-context'
+import { useAuth } from "@/lib/auth-context";
 
 function MyComponent() {
-  const { user, loading } = useAuth()
+  const { user, loading } = useAuth();
 
-  if (loading) return <div>Loading...</div>
-  if (!user) return <div>Please sign in</div>
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <div>Please sign in</div>;
 
-  return <div>Hello, {user.email}</div>
+  return <div>Hello, {user.email}</div>;
 }
 ```
 
 ### Auth Utilities
 
 ```tsx
-import { signIn, signUp, logOut, resetPassword } from '@/lib/auth-utils'
+import { signIn, signUp, logOut, resetPassword } from "@/lib/auth-utils";
 
 // Sign in
-const { user, error } = await signIn({ email, password })
+const { user, error } = await signIn({ email, password });
 
 // Sign up
-const { user, error } = await signUp({ email, password, displayName })
+const { user, error } = await signUp({ email, password, displayName });
 
 // Sign out
-await logOut()
+await logOut();
 
 // Reset password
-await resetPassword(email)
+await resetPassword(email);
 ```
 
 ### Protected Routes
 
 ```tsx
-import { ProtectedRoute } from '@/components/auth'
+import { ProtectedRoute } from "@/components/auth";
 
 function ProtectedPage() {
   return (
     <ProtectedRoute>
       <YourProtectedContent />
     </ProtectedRoute>
-  )
+  );
 }
 ```
 
@@ -122,8 +122,8 @@ function ProtectedPage() {
 Server functions can be protected using authentication middleware. The middleware uses `getRequest()` from TanStack Start to access the Authorization header and verifies tokens using Firebase Admin SDK.
 
 ```tsx
-import { createServerFn } from '@tanstack/react-start'
-import { requireAuthMiddleware } from '@/middleware'
+import { createServerFn } from "@tanstack/react-start";
+import { requireAuthMiddleware } from "@/middleware";
 
 // This function requires authentication
 export const updateUserProfile = createServerFn()
@@ -131,11 +131,11 @@ export const updateUserProfile = createServerFn()
   .validator(schema)
   .handler(async ({ data, context }) => {
     // context.user contains { uid, email }
-    const { uid, email } = context.user
+    const { uid, email } = context.user;
 
     // Verify the user is performing action on their own data
     // ... your logic here
-  })
+  });
 ```
 
 Two middleware options are available:

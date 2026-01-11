@@ -1,40 +1,40 @@
-import { useState } from 'react'
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { type User } from 'firebase/auth'
-import { getPartyDetails, joinParty, leaveParty } from '@/lib/server/party'
-import { getMergeRequestCount } from '@/lib/server/party-merge'
-import { fetchUserInfoByEmail } from '@/lib/server/users'
-import { Card, CardHeader, CardContent } from '@/components/ui/card'
-import PartyLogo from '@/components/party-logo'
-import { Button } from '@/components/ui/button'
+import { useState } from "react";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import {
-  DoorOpen,
-  Pencil,
   ArrowLeftRight,
   Crown,
+  DoorOpen,
   Handshake,
   MessageSquare,
-} from 'lucide-react'
-import { MessageDialog } from '@/components/message-dialog'
+  Pencil,
+} from "lucide-react";
+import type {User} from "firebase/auth";
+import { getPartyDetails, joinParty, leaveParty } from "@/lib/server/party";
+import { getMergeRequestCount } from "@/lib/server/party-merge";
+import { fetchUserInfoByEmail } from "@/lib/server/users";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import PartyLogo from "@/components/party-logo";
+import { Button } from "@/components/ui/button";
+import { MessageDialog } from "@/components/message-dialog";
 
-export const Route = createFileRoute('/parties/$id')({
+export const Route = createFileRoute("/parties/$id")({
   beforeLoad: ({ context }) => {
     if (context.auth.loading) {
-      return
+      return;
     }
     if (!context.auth.user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
   },
   loader: async ({ context, params }) => {
-    const user = context.auth.user as User
+    const user = context.auth.user as User;
     const userInfoArr = await fetchUserInfoByEmail({
       data: { email: user.email! },
-    })
-    const userInfo = Array.isArray(userInfoArr) ? userInfoArr[0] : userInfoArr
-    const partyId: number = Number(params.id)
+    });
+    const userInfo = Array.isArray(userInfoArr) ? userInfoArr[0] : userInfoArr;
+    const partyId = Number(params.id);
     if (isNaN(partyId)) {
-      throw redirect({ to: '/parties' })
+      throw redirect({ to: "/parties" });
     }
     const [partyDetails, mergeRequestCount] = await Promise.all([
       getPartyDetails({
@@ -44,15 +44,15 @@ export const Route = createFileRoute('/parties/$id')({
         },
       }),
       getMergeRequestCount({ data: { partyId } }),
-    ])
+    ]);
     return {
       ...partyDetails,
       userInfo,
       mergeRequestCount,
-    }
+    };
   },
   component: PartyPage,
-})
+});
 
 function PartyPage() {
   const {
@@ -62,20 +62,20 @@ function PartyPage() {
     membershipStatus,
     userInfo,
     mergeRequestCount,
-  } = Route.useLoaderData()
-  const navigate = useNavigate()
-  const [showKickDialog, setShowKickDialog] = useState(false)
+  } = Route.useLoaderData();
+  const navigate = useNavigate();
+  const [showKickDialog, setShowKickDialog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{
-    id: number
-    username: string
-  } | null>(null)
-  const [showJoinDialog, setShowJoinDialog] = useState(false)
-  const [showLeaveDialog, setShowLeaveDialog] = useState(false)
+    id: number;
+    username: string;
+  } | null>(null);
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   const kickMember = (member: { id: number; username: string }) => {
-    setSelectedMember({ id: member.id, username: member.username })
-    setShowKickDialog(true)
-  }
+    setSelectedMember({ id: member.id, username: member.username });
+    setShowKickDialog(true);
+  };
 
   if (!party) {
     return (
@@ -86,7 +86,7 @@ function PartyPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -157,11 +157,11 @@ function PartyPage() {
                           className="p-0 h-auto text-base font-medium"
                           onClick={() =>
                             navigate({
-                              to: '/profile/$id',
+                              to: "/profile/$id",
                               params: {
                                 id: party.leaderId
                                   ? party.leaderId.toString()
-                                  : '',
+                                  : "",
                               },
                             })
                           }
@@ -191,7 +191,7 @@ function PartyPage() {
                       variant="destructive"
                       className="w-full justify-start"
                       onClick={() => {
-                        setShowLeaveDialog(true)
+                        setShowLeaveDialog(true);
                       }}
                     >
                       <DoorOpen className="mr-2 h-4 w-4" /> Leave Party
@@ -205,11 +205,11 @@ function PartyPage() {
                         onClick={() => {
                           // TODO: Implement edit party page
                           navigate({
-                            to: '/parties/manage/$id',
+                            to: "/parties/manage/$id",
                             params: {
                               id: party.id.toString(),
                             },
-                          })
+                          });
                         }}
                       >
                         <Pencil className="mr-2 h-4 w-4" /> Edit Party Info
@@ -219,9 +219,9 @@ function PartyPage() {
                         className="w-full justify-start relative"
                         onClick={() => {
                           navigate({
-                            to: '/parties/merge/$id',
+                            to: "/parties/merge/$id",
                             params: { id: party.id.toString() },
-                          })
+                          });
                         }}
                       >
                         <ArrowLeftRight className="mr-2 h-4 w-4" /> Merge Party
@@ -241,7 +241,7 @@ function PartyPage() {
                         className="w-full justify-start"
                         onClick={() => {
                           // TODO: Implement become leader functionality
-                          alert('Become leader functionality coming soon')
+                          alert("Become leader functionality coming soon");
                         }}
                       >
                         <Crown className="mr-2 h-4 w-4" /> Become Party Leader
@@ -253,7 +253,7 @@ function PartyPage() {
                       className="w-full justify-start"
                       onClick={async () => {
                         if (userInfo?.id) {
-                          setShowJoinDialog(true)
+                          setShowJoinDialog(true);
                         }
                       }}
                     >
@@ -265,7 +265,7 @@ function PartyPage() {
                       variant="outline"
                       className="w-full justify-start"
                       onClick={() =>
-                        window.open(party.discord || '', '_blank', 'noopener')
+                        window.open(party.discord || "", "_blank", "noopener")
                       }
                     >
                       <MessageSquare className="mr-2 h-4 w-4" /> Join Party
@@ -275,7 +275,7 @@ function PartyPage() {
                   <Button
                     variant="outline"
                     className="w-full justify-start"
-                    onClick={() => navigate({ to: '/parties' })}
+                    onClick={() => navigate({ to: "/parties" })}
                   >
                     ← Back to All Parties
                   </Button>
@@ -295,23 +295,23 @@ function PartyPage() {
               {stances
                 .slice()
                 .sort((a, b) => {
-                  if (a.stanceId == null && b.stanceId == null) return 0
-                  if (a.stanceId == null) return 1
-                  if (b.stanceId == null) return -1
-                  return a.stanceId - b.stanceId
+                  if (a.stanceId == null && b.stanceId == null) return 0;
+                  if (a.stanceId == null) return 1;
+                  if (b.stanceId == null) return -1;
+                  return a.stanceId - b.stanceId;
                 })
                 .map(
                   (stance: {
-                    title: string
-                    value: string
-                    stanceId: number | null
+                    title: string;
+                    value: string;
+                    stanceId: number | null;
                   }) => (
                     <div key={stance.stanceId}>
                       <h3 className="text-xl font-medium text-foreground mb-2">
                         {stance.title}
                       </h3>
                       <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                        {stance.value || 'No stance provided.'}
+                        {stance.value || "No stance provided."}
                       </p>
                     </div>
                   ),
@@ -339,7 +339,7 @@ function PartyPage() {
                           {member.username}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {member.role}{' '}
+                          {member.role}{" "}
                           {member.id === party.leaderId && (
                             <span className={`font-medium text-green-500`}>
                               - Party Leader
@@ -369,7 +369,7 @@ function PartyPage() {
                           className="text-sm"
                           onClick={() =>
                             navigate({
-                              to: '/profile/$id',
+                              to: "/profile/$id",
                               params: { id: member.id.toString() },
                             })
                           }
@@ -396,10 +396,10 @@ function PartyPage() {
         description={
           <span className="text-left leading-relaxed">
             <span className="block">
-              Are you sure you want to remove{' '}
+              Are you sure you want to remove{" "}
               <span className="font-semibold">
-                {selectedMember?.username ?? 'this member'}
-              </span>{' '}
+                {selectedMember?.username ?? "this member"}
+              </span>{" "}
               from the party?
             </span>
           </span>
@@ -411,9 +411,9 @@ function PartyPage() {
         variant="destructive"
         onConfirm={() => {
           if (selectedMember?.id != null) {
-            console.log('Kicked member with ID:', selectedMember.id)
+            console.log("Kicked member with ID:", selectedMember.id);
           }
-          setShowKickDialog(false)
+          setShowKickDialog(false);
         }}
       />
       <MessageDialog
@@ -423,9 +423,9 @@ function PartyPage() {
         description={
           <span className="text-left leading-relaxed">
             <span className="block">
-              Are you sure you want to leave{' '}
+              Are you sure you want to leave{" "}
               <span className="font-semibold">
-                {party?.name ?? 'this party'}
+                {party?.name ?? "this party"}
               </span>
               ?
             </span>
@@ -442,10 +442,10 @@ function PartyPage() {
               data: {
                 userId: userInfo.id,
               },
-            })
-            navigate({ to: '/parties/$id', params: { id: String(party.id) } })
+            });
+            navigate({ to: "/parties/$id", params: { id: String(party.id) } });
           }
-          setShowLeaveDialog(false)
+          setShowLeaveDialog(false);
         }}
       />
       <MessageDialog
@@ -455,9 +455,9 @@ function PartyPage() {
         description={
           <span className="text-left leading-relaxed">
             <span className="block">
-              Are you sure you want to join{' '}
+              Are you sure you want to join{" "}
               <span className="font-semibold">
-                {party?.name ?? 'this party'}
+                {party?.name ?? "this party"}
               </span>
               ?
             </span>
@@ -471,12 +471,12 @@ function PartyPage() {
           if (userInfo?.id) {
             await joinParty({
               data: { userId: userInfo.id, partyId: party.id },
-            })
-            navigate({ to: '/parties/$id', params: { id: String(party.id) } })
+            });
+            navigate({ to: "/parties/$id", params: { id: String(party.id) } });
           }
-          setShowJoinDialog(false)
+          setShowJoinDialog(false);
         }}
       />
     </div>
-  )
+  );
 }

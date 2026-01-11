@@ -1,11 +1,11 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute('/api/game-advance')({
+export const Route = createFileRoute("/api/game-advance")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        return new Response('Hello, world!')
+        return new Response("Hello, world!");
       },
     },
   },
-})
+});

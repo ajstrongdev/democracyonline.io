@@ -1,34 +1,33 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useNavigate } from '@tanstack/react-router'
-import { useForm } from '@tanstack/react-form'
-import { signIn } from '@/lib/auth-utils'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { createFileRoute, useNavigate  } from "@tanstack/react-router";
+import { useForm } from "@tanstack/react-form";
+import { signIn } from "@/lib/auth-utils";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
-export const Route = createFileRoute('/login')({
+export const Route = createFileRoute("/login")({
   component: LoginPage,
-})
+});
 
 function LoginPage() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const form = useForm({
     defaultValues: {
-      email: '',
-      password: '',
+      email: "",
+      password: "",
     },
     onSubmit: async ({ value }) => {
-      const { user, error } = await signIn(value)
+      const { user, error } = await signIn(value);
 
       if (error) {
         form.setErrorMap({
           onSubmit: error,
-        })
+        });
       } else if (user) {
-        navigate({ to: '/' })
+        navigate({ to: "/" });
       }
     },
-  })
+  });
 
   return (
     <div className="flex items-center justify-center h-full p-4">
@@ -42,9 +41,9 @@ function LoginPage() {
 
         <form
           onSubmit={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            form.handleSubmit()
+            e.preventDefault();
+            e.stopPropagation();
+            form.handleSubmit();
           }}
           className="space-y-4"
         >
@@ -99,12 +98,12 @@ function LoginPage() {
           <form.Subscribe selector={(state) => [state.isSubmitting]}>
             {([isSubmitting]) => (
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? 'Signing in...' : 'Sign In'}
+                {isSubmitting ? "Signing in..." : "Sign In"}
               </Button>
             )}
           </form.Subscribe>
         </form>
       </Card>
     </div>
-  )
+  );
 }

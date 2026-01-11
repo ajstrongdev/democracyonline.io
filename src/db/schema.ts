@@ -1,89 +1,89 @@
 import {
+  bigint,
+  boolean,
+  integer,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
-  varchar,
-  integer,
-  boolean,
-  bigint,
-  primaryKey,
   unique,
-} from 'drizzle-orm/pg-core'
-import { relations } from 'drizzle-orm'
+  varchar,
+} from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
 // Users table
-export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  username: varchar('username', { length: 255 }).notNull().unique(),
-  bio: text('bio'),
-  politicalLeaning: varchar('political_leaning', { length: 50 }),
-  role: varchar('role', { length: 50 }).default('Representative'),
-  partyId: integer('party_id'),
-  createdAt: timestamp('created_at').defaultNow(),
-  isActive: boolean('is_active').default(true),
-  lastActivity: bigint('last_activity', { mode: 'number' }).default(0),
-})
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  username: varchar("username", { length: 255 }).notNull().unique(),
+  bio: text("bio"),
+  politicalLeaning: varchar("political_leaning", { length: 50 }),
+  role: varchar("role", { length: 50 }).default("Representative"),
+  partyId: integer("party_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  isActive: boolean("is_active").default(true),
+  lastActivity: bigint("last_activity", { mode: "number" }).default(0),
+});
 
 // Parties table
-export const parties = pgTable('parties', {
-  id: serial('id').primaryKey(),
-  leaderId: integer('leader_id'),
-  name: varchar('name', { length: 255 }).notNull().unique(),
-  color: varchar('color', { length: 7 }).notNull(),
-  bio: text('bio'),
-  politicalLeaning: varchar('political_leaning', { length: 50 }),
-  createdAt: timestamp('created_at').defaultNow(),
-  leaning: varchar('leaning', { length: 25 }),
-  logo: varchar('logo', { length: 100 }),
-  discord: varchar('discord', { length: 255 }),
-})
+export const parties = pgTable("parties", {
+  id: serial("id").primaryKey(),
+  leaderId: integer("leader_id"),
+  name: varchar("name", { length: 255 }).notNull().unique(),
+  color: varchar("color", { length: 7 }).notNull(),
+  bio: text("bio"),
+  politicalLeaning: varchar("political_leaning", { length: 50 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  leaning: varchar("leaning", { length: 25 }),
+  logo: varchar("logo", { length: 100 }),
+  discord: varchar("discord", { length: 255 }),
+});
 
 // Political stances table
-export const politicalStances = pgTable('political_stances', {
-  id: serial('id').primaryKey(),
-  issue: varchar('issue', { length: 100 }).notNull(),
-  description: varchar('description', { length: 255 }).notNull(),
-})
+export const politicalStances = pgTable("political_stances", {
+  id: serial("id").primaryKey(),
+  issue: varchar("issue", { length: 100 }).notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+});
 
 // Party stances table
-export const partyStances = pgTable('party_stances', {
-  partyId: integer('party_id'),
-  stanceId: integer('stance_id'),
-  value: varchar('value', { length: 1024 }).notNull(),
-})
+export const partyStances = pgTable("party_stances", {
+  partyId: integer("party_id"),
+  stanceId: integer("stance_id"),
+  value: varchar("value", { length: 1024 }).notNull(),
+});
 
 // Merge request table
-export const mergeRequest = pgTable('merge_request', {
-  id: serial('id').primaryKey(),
-  leaderId: integer('leader_id'),
-  name: varchar('name', { length: 255 }).notNull(),
-  color: varchar('color', { length: 7 }).notNull(),
-  bio: text('bio'),
-  politicalLeaning: varchar('political_leaning', { length: 50 }).notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-  leaning: varchar('leaning', { length: 25 }).notNull(),
-  logo: varchar('logo', { length: 100 }),
-})
+export const mergeRequest = pgTable("merge_request", {
+  id: serial("id").primaryKey(),
+  leaderId: integer("leader_id"),
+  name: varchar("name", { length: 255 }).notNull(),
+  color: varchar("color", { length: 7 }).notNull(),
+  bio: text("bio"),
+  politicalLeaning: varchar("political_leaning", { length: 50 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  leaning: varchar("leaning", { length: 25 }).notNull(),
+  logo: varchar("logo", { length: 100 }),
+});
 
 // Merge request stances table
-export const mergeRequestStances = pgTable('merge_request_stances', {
-  id: serial('id').primaryKey(),
-  mergeRequestId: integer('merge_request_id').notNull(),
-  stanceId: integer('stance_id').notNull(),
-  value: text('value'),
-})
+export const mergeRequestStances = pgTable("merge_request_stances", {
+  id: serial("id").primaryKey(),
+  mergeRequestId: integer("merge_request_id").notNull(),
+  stanceId: integer("stance_id").notNull(),
+  value: text("value"),
+});
 
 // Party notifications table
 export const partyNotifications = pgTable(
-  'party_notifications',
+  "party_notifications",
   {
-    senderPartyId: integer('sender_party_id').notNull(),
-    receiverPartyId: integer('receiver_party_id').notNull(),
-    mergeRequestId: integer('merge_request_id').notNull(),
-    createdAt: timestamp('created_at').defaultNow(),
-    status: varchar('status', { length: 20 }).default('Pending').notNull(),
+    senderPartyId: integer("sender_party_id").notNull(),
+    receiverPartyId: integer("receiver_party_id").notNull(),
+    mergeRequestId: integer("merge_request_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+    status: varchar("status", { length: 20 }).default("Pending").notNull(),
   },
   (table) => ({
     pk: primaryKey({
@@ -94,75 +94,75 @@ export const partyNotifications = pgTable(
       ],
     }),
   }),
-)
+);
 
 // Bills table
-export const bills = pgTable('bills', {
-  id: serial('id').primaryKey(),
-  status: varchar('status', { length: 50 }).default('Queued').notNull(),
-  stage: varchar('stage', { length: 50 }).default('House').notNull(),
-  title: varchar('title', { length: 255 }).notNull(),
-  creatorId: integer('creator_id'),
-  content: text('content').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-  pool: integer('pool'),
-})
+export const bills = pgTable("bills", {
+  id: serial("id").primaryKey(),
+  status: varchar("status", { length: 50 }).default("Queued").notNull(),
+  stage: varchar("stage", { length: 50 }).default("House").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  creatorId: integer("creator_id"),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  pool: integer("pool"),
+});
 
 // Bill votes house table
-export const billVotesHouse = pgTable('bill_votes_house', {
-  id: serial('id').primaryKey(),
-  billId: integer('bill_id'),
-  voterId: integer('voter_id'),
-  voteYes: boolean('vote_yes').notNull(),
-})
+export const billVotesHouse = pgTable("bill_votes_house", {
+  id: serial("id").primaryKey(),
+  billId: integer("bill_id"),
+  voterId: integer("voter_id"),
+  voteYes: boolean("vote_yes").notNull(),
+});
 
 // Bill votes senate table
-export const billVotesSenate = pgTable('bill_votes_senate', {
-  id: serial('id').primaryKey(),
-  billId: integer('bill_id'),
-  voterId: integer('voter_id'),
-  voteYes: boolean('vote_yes').notNull(),
-})
+export const billVotesSenate = pgTable("bill_votes_senate", {
+  id: serial("id").primaryKey(),
+  billId: integer("bill_id"),
+  voterId: integer("voter_id"),
+  voteYes: boolean("vote_yes").notNull(),
+});
 
 // Bill votes presidential table
-export const billVotesPresidential = pgTable('bill_votes_presidential', {
-  id: serial('id').primaryKey(),
-  billId: integer('bill_id'),
-  voterId: integer('voter_id'),
-  voteYes: boolean('vote_yes').notNull(),
-})
+export const billVotesPresidential = pgTable("bill_votes_presidential", {
+  id: serial("id").primaryKey(),
+  billId: integer("bill_id"),
+  voterId: integer("voter_id"),
+  voteYes: boolean("vote_yes").notNull(),
+});
 
 // Elections table
-export const elections = pgTable('elections', {
-  election: varchar('election', { length: 50 }).primaryKey(),
-  status: varchar('status', { length: 50 }).default('Candidacy').notNull(),
-  seats: integer('seats'),
-  daysLeft: integer('days_left').notNull(),
-})
+export const elections = pgTable("elections", {
+  election: varchar("election", { length: 50 }).primaryKey(),
+  status: varchar("status", { length: 50 }).default("Candidacy").notNull(),
+  seats: integer("seats"),
+  daysLeft: integer("days_left").notNull(),
+});
 
 // Candidates table
 export const candidates = pgTable(
-  'candidates',
+  "candidates",
   {
-    id: serial('id').primaryKey(),
-    userId: integer('user_id'),
-    election: varchar('election', { length: 50 }),
-    votes: integer('votes').default(0),
-    haswon: boolean('haswon'),
+    id: serial("id").primaryKey(),
+    userId: integer("user_id"),
+    election: varchar("election", { length: 50 }),
+    votes: integer("votes").default(0),
+    haswon: boolean("haswon"),
   },
   (table) => ({
     userIdElectionUnique: unique().on(table.userId, table.election),
   }),
-)
+);
 
 // Votes table
 export const votes = pgTable(
-  'votes',
+  "votes",
   {
-    id: serial('id').primaryKey(),
-    userId: integer('user_id'),
-    election: varchar('election', { length: 50 }),
-    candidateId: integer('candidate_id'),
+    id: serial("id").primaryKey(),
+    userId: integer("user_id"),
+    election: varchar("election", { length: 50 }),
+    candidateId: integer("candidate_id"),
   },
   (table) => ({
     userIdElectionCandidateIdUnique: unique().on(
@@ -171,54 +171,54 @@ export const votes = pgTable(
       table.candidateId,
     ),
   }),
-)
+);
 
 // Senate election table
-export const senateElection = pgTable('senate_election', {
-  id: serial('id').primaryKey(),
-  voterId: integer('voter_id'),
-  candidateId: integer('candidate_id'),
-  pointsWon: integer('points_won').notNull(),
-})
+export const senateElection = pgTable("senate_election", {
+  id: serial("id").primaryKey(),
+  voterId: integer("voter_id"),
+  candidateId: integer("candidate_id"),
+  pointsWon: integer("points_won").notNull(),
+});
 
 // Presidential election table
-export const presidentialElection = pgTable('presidential_election', {
-  id: serial('id').primaryKey(),
-  voterId: integer('voter_id'),
-  candidateId: integer('candidate_id'),
-  pointsWon: integer('points_won').notNull(),
-})
+export const presidentialElection = pgTable("presidential_election", {
+  id: serial("id").primaryKey(),
+  voterId: integer("voter_id"),
+  candidateId: integer("candidate_id"),
+  pointsWon: integer("points_won").notNull(),
+});
 
 // Chats table
-export const chats = pgTable('chats', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id'),
-  room: varchar('room', { length: 255 }).notNull(),
-  username: varchar('username', { length: 255 }).notNull(),
-  message: text('message').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-})
+export const chats = pgTable("chats", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id"),
+  room: varchar("room", { length: 255 }).notNull(),
+  username: varchar("username", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 // Feed table
-export const feed = pgTable('feed', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id'),
-  content: text('content').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-})
+export const feed = pgTable("feed", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id"),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 // Access tokens table
-export const accessTokens = pgTable('access_tokens', {
-  id: serial('id').primaryKey(),
-  token: varchar('token', { length: 255 }).notNull().unique(),
-  createdAt: timestamp('created_at').defaultNow(),
-})
+export const accessTokens = pgTable("access_tokens", {
+  id: serial("id").primaryKey(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 // Game tracker table
-export const gameTracker = pgTable('game_tracker', {
-  id: serial('id').primaryKey(),
-  billPool: integer('bill_pool').default(1).notNull(),
-})
+export const gameTracker = pgTable("game_tracker", {
+  id: serial("id").primaryKey(),
+  billPool: integer("bill_pool").default(1).notNull(),
+});
 
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -234,7 +234,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   billVotesHouse: many(billVotesHouse),
   billVotesSenate: many(billVotesSenate),
   billVotesPresidential: many(billVotesPresidential),
-}))
+}));
 
 export const partiesRelations = relations(parties, ({ one, many }) => ({
   leader: one(users, {
@@ -243,11 +243,11 @@ export const partiesRelations = relations(parties, ({ one, many }) => ({
   }),
   members: many(users),
   partyStances: many(partyStances),
-  sentNotifications: many(partyNotifications, { relationName: 'senderParty' }),
+  sentNotifications: many(partyNotifications, { relationName: "senderParty" }),
   receivedNotifications: many(partyNotifications, {
-    relationName: 'receiverParty',
+    relationName: "receiverParty",
   }),
-}))
+}));
 
 export const billsRelations = relations(bills, ({ one, many }) => ({
   creator: one(users, {
@@ -257,7 +257,7 @@ export const billsRelations = relations(bills, ({ one, many }) => ({
   houseVotes: many(billVotesHouse),
   senateVotes: many(billVotesSenate),
   presidentialVotes: many(billVotesPresidential),
-}))
+}));
 
 export const billVotesHouseRelations = relations(billVotesHouse, ({ one }) => ({
   bill: one(bills, {
@@ -268,7 +268,7 @@ export const billVotesHouseRelations = relations(billVotesHouse, ({ one }) => ({
     fields: [billVotesHouse.voterId],
     references: [users.id],
   }),
-}))
+}));
 
 export const billVotesSenateRelations = relations(
   billVotesSenate,
@@ -282,7 +282,7 @@ export const billVotesSenateRelations = relations(
       references: [users.id],
     }),
   }),
-)
+);
 
 export const billVotesPresidentialRelations = relations(
   billVotesPresidential,
@@ -296,7 +296,7 @@ export const billVotesPresidentialRelations = relations(
       references: [users.id],
     }),
   }),
-)
+);
 
 export const candidatesRelations = relations(candidates, ({ one, many }) => ({
   user: one(users, {
@@ -308,7 +308,7 @@ export const candidatesRelations = relations(candidates, ({ one, many }) => ({
     references: [elections.election],
   }),
   votes: many(votes),
-}))
+}));
 
 export const votesRelations = relations(votes, ({ one }) => ({
   user: one(users, {
@@ -323,12 +323,12 @@ export const votesRelations = relations(votes, ({ one }) => ({
     fields: [votes.election],
     references: [elections.election],
   }),
-}))
+}));
 
 export const electionsRelations = relations(elections, ({ many }) => ({
   candidates: many(candidates),
   votes: many(votes),
-}))
+}));
 
 export const partyStancesRelations = relations(partyStances, ({ one }) => ({
   party: one(parties, {
@@ -339,7 +339,7 @@ export const partyStancesRelations = relations(partyStances, ({ one }) => ({
     fields: [partyStances.stanceId],
     references: [politicalStances.id],
   }),
-}))
+}));
 
 export const politicalStancesRelations = relations(
   politicalStances,
@@ -347,12 +347,12 @@ export const politicalStancesRelations = relations(
     partyStances: many(partyStances),
     mergeRequestStances: many(mergeRequestStances),
   }),
-)
+);
 
 export const mergeRequestRelations = relations(mergeRequest, ({ many }) => ({
   stances: many(mergeRequestStances),
   notifications: many(partyNotifications),
-}))
+}));
 
 export const mergeRequestStancesRelations = relations(
   mergeRequestStances,
@@ -366,7 +366,7 @@ export const mergeRequestStancesRelations = relations(
       references: [politicalStances.id],
     }),
   }),
-)
+);
 
 export const partyNotificationsRelations = relations(
   partyNotifications,
@@ -374,30 +374,30 @@ export const partyNotificationsRelations = relations(
     senderParty: one(parties, {
       fields: [partyNotifications.senderPartyId],
       references: [parties.id],
-      relationName: 'senderParty',
+      relationName: "senderParty",
     }),
     receiverParty: one(parties, {
       fields: [partyNotifications.receiverPartyId],
       references: [parties.id],
-      relationName: 'receiverParty',
+      relationName: "receiverParty",
     }),
     mergeRequest: one(mergeRequest, {
       fields: [partyNotifications.mergeRequestId],
       references: [mergeRequest.id],
     }),
   }),
-)
+);
 
 export const chatsRelations = relations(chats, ({ one }) => ({
   user: one(users, {
     fields: [chats.userId],
     references: [users.id],
   }),
-}))
+}));
 
 export const feedRelations = relations(feed, ({ one }) => ({
   user: one(users, {
     fields: [feed.userId],
     references: [users.id],
   }),
-}))
+}));

@@ -1,78 +1,78 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { useForm } from '@tanstack/react-form'
-import { fetchUserInfoByEmail, updateUserProfile } from '@/lib/server/users'
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { useForm } from "@tanstack/react-form";
+import { useState } from "react";
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
+} from "firebase/auth";
+import { fetchUserInfoByEmail, updateUserProfile } from "@/lib/server/users";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Slider } from '@/components/ui/slider'
-import { useState } from 'react'
-import { leanings } from '@/lib/constants'
-import {
-  updatePassword,
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-} from 'firebase/auth'
-import { useAuth } from '@/lib/auth-context'
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
+import { leanings } from "@/lib/constants";
+import { useAuth } from "@/lib/auth-context";
 
-export const Route = createFileRoute('/settings')({
+export const Route = createFileRoute("/settings")({
   beforeLoad: ({ context }) => {
     if (!context.auth.user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
   },
   loader: async ({ context }) => {
     if (!context.auth.user?.email) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
 
     const userData = await fetchUserInfoByEmail({
       data: { email: context.auth.user.email },
-    })
-    const user = Array.isArray(userData) ? userData[0] : userData
+    });
+    const user = Array.isArray(userData) ? userData[0] : userData;
 
     if (!user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
 
-    return { user }
+    return { user };
   },
   component: SettingsPage,
-})
+});
 
 function SettingsPage() {
-  const navigate = useNavigate()
-  const { user: firebaseUser } = useAuth()
-  const { user } = Route.useLoaderData()
-  const [isEditingProfile, setIsEditingProfile] = useState(false)
-  const [isEditingPassword, setIsEditingPassword] = useState(false)
-  const [passwordError, setPasswordError] = useState<string | null>(null)
-  const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const navigate = useNavigate();
+  const { user: firebaseUser } = useAuth();
+  const { user } = Route.useLoaderData();
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isEditingPassword, setIsEditingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   // Password form state
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // Political leaning state
   const initialLeaningIndex = leanings.indexOf(
-    user.politicalLeaning || 'Center',
-  )
+    user.politicalLeaning || "Center",
+  );
   const [leaning, setLeaning] = useState([
     initialLeaningIndex >= 0 ? initialLeaningIndex : 3,
-  ])
+  ]);
 
   const profileForm = useForm({
     defaultValues: {
       username: user.username,
-      bio: user.bio || '',
+      bio: user.bio || "",
     },
     onSubmit: async ({ value }) => {
       try {
@@ -83,36 +83,36 @@ function SettingsPage() {
             bio: value.bio,
             politicalLeaning: leanings[leaning[0]],
           },
-        })
-        setIsEditingProfile(false)
+        });
+        setIsEditingProfile(false);
         // Navigate to profile to see updated data
-        navigate({ to: '/profile/$id', params: { id: String(user.id) } })
+        navigate({ to: "/profile/$id", params: { id: String(user.id) } });
       } catch (error) {
-        console.error('Error updating profile:', error)
-        alert('Failed to update profile. Please try again.')
+        console.error("Error updating profile:", error);
+        alert("Failed to update profile. Please try again.");
       }
     },
-  })
+  });
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setPasswordError(null)
-    setPasswordSuccess(false)
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(false);
 
     // Validate passwords
     if (newPassword !== confirmPassword) {
-      setPasswordError('New passwords do not match')
-      return
+      setPasswordError("New passwords do not match");
+      return;
     }
 
     if (newPassword.length < 6) {
-      setPasswordError('Password must be at least 6 characters')
-      return
+      setPasswordError("Password must be at least 6 characters");
+      return;
     }
 
     if (!firebaseUser?.email) {
-      setPasswordError('User not authenticated')
-      return
+      setPasswordError("User not authenticated");
+      return;
     }
 
     try {
@@ -120,40 +120,40 @@ function SettingsPage() {
       const credential = EmailAuthProvider.credential(
         firebaseUser.email,
         currentPassword,
-      )
-      await reauthenticateWithCredential(firebaseUser, credential)
+      );
+      await reauthenticateWithCredential(firebaseUser, credential);
 
       // Update password
-      await updatePassword(firebaseUser, newPassword)
+      await updatePassword(firebaseUser, newPassword);
 
       // Success
-      setPasswordSuccess(true)
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
+      setPasswordSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
       setTimeout(() => {
-        setIsEditingPassword(false)
-        setPasswordSuccess(false)
-      }, 2000)
+        setIsEditingPassword(false);
+        setPasswordSuccess(false);
+      }, 2000);
     } catch (error) {
-      console.error('Error updating password:', error)
+      console.error("Error updating password:", error);
       if (
         error instanceof Error &&
-        error.message.includes('auth/wrong-password')
+        error.message.includes("auth/wrong-password")
       ) {
-        setPasswordError('Current password is incorrect')
+        setPasswordError("Current password is incorrect");
       } else if (
         error instanceof Error &&
-        error.message.includes('auth/requires-recent-login')
+        error.message.includes("auth/requires-recent-login")
       ) {
         setPasswordError(
-          'Please log out and log back in before changing password',
-        )
+          "Please log out and log back in before changing password",
+        );
       } else {
-        setPasswordError('Failed to update password. Please try again.')
+        setPasswordError("Failed to update password. Please try again.");
       }
     }
-  }
+  };
 
   return (
     <div className="container mx-auto p-8 max-w-3xl space-y-6">
@@ -186,7 +186,7 @@ function SettingsPage() {
                   Bio
                 </Label>
                 <p className="text-base whitespace-pre-wrap">
-                  {user.bio || 'No bio provided'}
+                  {user.bio || "No bio provided"}
                 </p>
               </div>
               <div>
@@ -194,7 +194,7 @@ function SettingsPage() {
                   Political Leaning
                 </Label>
                 <p className="text-lg">
-                  {user.politicalLeaning || 'Not specified'}
+                  {user.politicalLeaning || "Not specified"}
                 </p>
               </div>
               <Button onClick={() => setIsEditingProfile(true)}>
@@ -205,9 +205,9 @@ function SettingsPage() {
             <form
               className="space-y-6"
               onSubmit={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                profileForm.handleSubmit()
+                e.preventDefault();
+                e.stopPropagation();
+                profileForm.handleSubmit();
               }}
             >
               {/* Username */}
@@ -216,9 +216,9 @@ function SettingsPage() {
                 validators={{
                   onChange: ({ value }) => {
                     if (!value || value.trim().length === 0) {
-                      return 'Username is required'
+                      return "Username is required";
                     }
-                    return undefined
+                    return undefined;
                   },
                 }}
               >
@@ -237,7 +237,7 @@ function SettingsPage() {
                     />
                     {field.state.meta.errors.length > 0 && (
                       <span className="text-sm text-red-500">
-                        {field.state.meta.errors.join(', ')}
+                        {field.state.meta.errors.join(", ")}
                       </span>
                     )}
                   </div>
@@ -250,9 +250,9 @@ function SettingsPage() {
                 validators={{
                   onChange: ({ value }) => {
                     if (!value || value.trim().length === 0) {
-                      return 'Bio is required'
+                      return "Bio is required";
                     }
-                    return undefined
+                    return undefined;
                   },
                 }}
               >
@@ -272,7 +272,7 @@ function SettingsPage() {
                     />
                     {field.state.meta.errors.length > 0 && (
                       <span className="text-sm text-red-500">
-                        {field.state.meta.errors.join(', ')}
+                        {field.state.meta.errors.join(", ")}
                       </span>
                     )}
                   </div>
@@ -302,11 +302,11 @@ function SettingsPage() {
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setIsEditingProfile(false)
-                    profileForm.reset()
+                    setIsEditingProfile(false);
+                    profileForm.reset();
                     setLeaning([
                       initialLeaningIndex >= 0 ? initialLeaningIndex : 3,
-                    ])
+                    ]);
                   }}
                 >
                   Cancel
@@ -400,12 +400,12 @@ function SettingsPage() {
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setIsEditingPassword(false)
-                    setCurrentPassword('')
-                    setNewPassword('')
-                    setConfirmPassword('')
-                    setPasswordError(null)
-                    setPasswordSuccess(false)
+                    setIsEditingPassword(false);
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                    setPasswordError(null);
+                    setPasswordSuccess(false);
                   }}
                 >
                   Cancel
@@ -416,5 +416,5 @@ function SettingsPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

@@ -1,80 +1,80 @@
-import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from "@tanstack/react-start";
+import { eq, getTableColumns, sql } from "drizzle-orm";
 import {
-  users,
-  bills,
   billVotesHouse,
-  billVotesSenate,
   billVotesPresidential,
-} from '@/db/schema'
-import { eq, getTableColumns, sql } from 'drizzle-orm'
-import { db } from '@/db'
-import { UpdateUserProfileSchema } from '@/lib/schemas/user-schema'
-import { SearchUsersSchema } from '@/lib/schemas/user-search-schema'
-import { requireAuthMiddleware } from '@/middleware'
+  billVotesSenate,
+  bills,
+  users,
+} from "@/db/schema";
+import { db } from "@/db";
+import { UpdateUserProfileSchema } from "@/lib/schemas/user-schema";
+import { SearchUsersSchema } from "@/lib/schemas/user-search-schema";
+import { requireAuthMiddleware } from "@/middleware";
 
 export const fetchUserInfo = createServerFn()
   .inputValidator((data: { userId: number }) => data)
   .handler(async ({ data }) => {
-    const { email, ...userColumns } = getTableColumns(users)
+    const { email, ...userColumns } = getTableColumns(users);
     const user = await db
       .select(userColumns)
       .from(users)
       .where(eq(users.id, data.userId))
-      .limit(1)
-    return user
-  })
+      .limit(1);
+    return user;
+  });
 
 export const fetchUserInfoByEmail = createServerFn()
   .inputValidator((data: { email: string }) => data)
   .handler(async ({ data }) => {
-    const { email, ...userColumns } = getTableColumns(users)
+    const { email, ...userColumns } = getTableColumns(users);
     const user = await db
       .select(userColumns)
       .from(users)
       .where(eq(users.email, data.email))
-      .limit(1)
-    return user
-  })
+      .limit(1);
+    return user;
+  });
 
 export const getUserFullById = createServerFn()
   .inputValidator((data: { userId: number; checkActive?: boolean }) => data)
   .handler(async ({ data }) => {
-    const { email, ...userColumns } = getTableColumns(users)
+    const { email, ...userColumns } = getTableColumns(users);
     const user = await db
       .select(userColumns)
       .from(users)
       .where(eq(users.id, data.userId))
-      .limit(1)
+      .limit(1);
 
     if (user.length === 0) {
-      throw new Error('User not found')
+      throw new Error("User not found");
     }
 
-    const userData = user[0]
+    const userData = user[0];
 
     if (data.checkActive && !userData.isActive) {
-      throw new Error('Profile not available')
+      throw new Error("Profile not available");
     }
 
-    return userData
-  })
+    return userData;
+  });
 
-export const updateUserProfile = createServerFn({ method: 'POST' })
+export const updateUserProfile = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
   .inputValidator(UpdateUserProfileSchema)
   .handler(async ({ data, context }) => {
     if (!context.user?.email) {
-      throw new Error('User email not found in context')
+      throw new Error("User email not found in context");
     }
 
     const [currentUser] = await db
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, context.user.email))
-      .limit(1)
+      .limit(1);
 
     if (!currentUser || currentUser.id !== data.userId) {
-      throw new Error('You can only update your own profile')
+      throw new Error("You can only update your own profile");
     }
 
     const updatedUser = await db
@@ -85,14 +85,14 @@ export const updateUserProfile = createServerFn({ method: 'POST' })
         politicalLeaning: data.politicalLeaning,
       })
       .where(eq(users.id, data.userId))
-      .returning()
+      .returning();
 
     if (updatedUser.length === 0) {
-      throw new Error('Failed to update user profile')
+      throw new Error("Failed to update user profile");
     }
 
-    return updatedUser[0]
-  })
+    return updatedUser[0];
+  });
 
 export const getUserVotingHistory = createServerFn()
   .inputValidator((data: { userId: number }) => data)
@@ -109,7 +109,7 @@ export const getUserVotingHistory = createServerFn()
       })
       .from(billVotesHouse)
       .innerJoin(bills, eq(billVotesHouse.billId, bills.id))
-      .where(eq(billVotesHouse.voterId, data.userId))
+      .where(eq(billVotesHouse.voterId, data.userId));
 
     // Get senate votes
     const senateVotes = await db
@@ -123,7 +123,7 @@ export const getUserVotingHistory = createServerFn()
       })
       .from(billVotesSenate)
       .innerJoin(bills, eq(billVotesSenate.billId, bills.id))
-      .where(eq(billVotesSenate.voterId, data.userId))
+      .where(eq(billVotesSenate.voterId, data.userId));
 
     // Get presidential votes
     const presidentialVotes = await db
@@ -137,23 +137,23 @@ export const getUserVotingHistory = createServerFn()
       })
       .from(billVotesPresidential)
       .innerJoin(bills, eq(billVotesPresidential.billId, bills.id))
-      .where(eq(billVotesPresidential.voterId, data.userId))
+      .where(eq(billVotesPresidential.voterId, data.userId));
 
     // Combine all votes and sort by ID
     const allVotes = [...houseVotes, ...senateVotes, ...presidentialVotes].sort(
       (a, b) => b.id - a.id,
-    )
+    );
 
-    return allVotes
-  })
+    return allVotes;
+  });
 
 export const searchUsers = createServerFn()
   .inputValidator((data: unknown) => SearchUsersSchema.parse(data))
   .handler(async ({ data }) => {
-    const { q, excludeUserId } = data
+    const { q, excludeUserId } = data;
 
-    if (!q || q.trim() === '') {
-      return { users: [] }
+    if (!q || q.trim() === "") {
+      return { users: [] };
     }
 
     try {
@@ -170,19 +170,19 @@ export const searchUsers = createServerFn()
         })
         .from(users)
         .where(
-          sql`${users.username} ILIKE ${'%' + q + '%'}
+          sql`${users.username} ILIKE ${"%" + q + "%"}
               AND ${users.username} NOT LIKE 'Banned User%'
               ${excludeUserId ? sql`AND ${users.id} != ${excludeUserId}` : sql``}`,
         )
         .orderBy(users.username)
-        .limit(50)
+        .limit(50);
 
-      return { users: results }
+      return { users: results };
     } catch (error) {
-      console.error('Error searching users:', error)
-      throw new Error('Failed to search users')
+      console.error("Error searching users:", error);
+      throw new Error("Failed to search users");
     }
-  })
+  });
 
 export const getUserStats = createServerFn().handler(async () => {
   try {
@@ -192,11 +192,11 @@ export const getUserStats = createServerFn().handler(async () => {
         COUNT(*) FILTER (WHERE is_active = TRUE) as active_users
       FROM users
       WHERE username NOT LIKE 'Banned User%'
-    `)
+    `);
 
-    return result.rows[0] as Record<string, string>
+    return result.rows[0] as Record<string, string>;
   } catch (error) {
-    console.error('Error fetching user stats:', error)
-    throw new Error('Failed to fetch user stats')
+    console.error("Error fetching user stats:", error);
+    throw new Error("Failed to fetch user stats");
   }
-})
+});

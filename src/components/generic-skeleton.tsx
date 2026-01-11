@@ -1,4 +1,4 @@
-import { Skeleton } from './ui/skeleton'
+import { Skeleton } from "./ui/skeleton";
 
 export default function GenericSkeleton() {
   return (
@@ -34,5 +34,5 @@ export default function GenericSkeleton() {
         </div>
       </div>
     </div>
-  )
+  );
 }

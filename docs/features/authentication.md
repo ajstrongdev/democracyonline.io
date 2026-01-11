@@ -157,16 +157,16 @@ The application uses TanStack Start middleware to verify Firebase ID tokens on t
 **Usage in Server Functions**:
 
 ```typescript
-import { requireAuthMiddleware } from '@/middleware'
+import { requireAuthMiddleware } from "@/middleware";
 
 export const updateUserProfile = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator(UpdateUserProfileSchema.parse)
   .handler(async ({ data, context }) => {
     // context.user is guaranteed to exist
-    const { uid, email } = context.user
+    const { uid, email } = context.user;
     // ... perform authenticated action
-  })
+  });
 ```
 
 ## Security Features
@@ -216,30 +216,30 @@ Authentication state is integrated with TanStack Query to:
 ### Accessing Authentication State in Components
 
 ```tsx
-import { useAuth } from '@/lib/auth-context'
+import { useAuth } from "@/lib/auth-context";
 
 function MyComponent() {
-  const { user, loading } = useAuth()
+  const { user, loading } = useAuth();
 
-  if (loading) return <Spinner />
-  if (!user) return <LoginPrompt />
+  if (loading) return <Spinner />;
+  if (!user) return <LoginPrompt />;
 
-  return <div>Welcome {user.email}</div>
+  return <div>Welcome {user.email}</div>;
 }
 ```
 
 ### Creating Protected Routes
 
 ```tsx
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute('/protected-page')({
+export const Route = createFileRoute("/protected-page")({
   beforeLoad: ({ context }) => {
     if (!context.auth.user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
   },
-})
+});
 ```
 
 ## Future Enhancements

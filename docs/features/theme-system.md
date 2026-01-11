@@ -90,9 +90,9 @@ This enables dark mode by adding `dark` class to the `html` element:
 
 ```typescript
 module.exports = {
-  darkMode: 'class',
+  darkMode: "class",
   // ...
-}
+};
 ```
 
 **Dark Mode Utilities**:
@@ -150,21 +150,21 @@ Theme uses CSS custom properties for dynamic theming:
 **System Preference Detection**:
 
 ```typescript
-const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-  ? 'dark'
-  : 'light'
+const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+  ? "dark"
+  : "light";
 ```
 
 **Change Listener**:
 
 ```typescript
 window
-  .matchMedia('(prefers-color-scheme: dark)')
-  .addEventListener('change', (e) => {
-    if (theme === 'system') {
-      applyTheme(e.matches ? 'dark' : 'light')
+  .matchMedia("(prefers-color-scheme: dark)")
+  .addEventListener("change", (e) => {
+    if (theme === "system") {
+      applyTheme(e.matches ? "dark" : "light");
     }
-  })
+  });
 ```
 
 #### Theme Application
@@ -172,11 +172,11 @@ window
 **DOM Manipulation**:
 
 ```typescript
-const applyTheme = (theme: 'light' | 'dark') => {
-  const root = document.documentElement
-  root.classList.remove('light', 'dark')
-  root.classList.add(theme)
-}
+const applyTheme = (theme: "light" | "dark") => {
+  const root = document.documentElement;
+  root.classList.remove("light", "dark");
+  root.classList.add(theme);
+};
 ```
 
 #### LocalStorage Persistence
@@ -184,13 +184,13 @@ const applyTheme = (theme: 'light' | 'dark') => {
 **Save Theme**:
 
 ```typescript
-localStorage.setItem('theme', theme)
+localStorage.setItem("theme", theme);
 ```
 
 **Load Theme**:
 
 ```typescript
-const savedTheme = localStorage.getItem('theme') || 'system'
+const savedTheme = localStorage.getItem("theme") || "system";
 ```
 
 ### Integration Points

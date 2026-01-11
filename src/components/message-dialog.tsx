@@ -7,29 +7,29 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+} from "@/components/ui/alert-dialog";
 
-type MessageVariant = 'default' | 'destructive'
+type MessageVariant = "default" | "destructive";
 
 export interface MessageDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 
-  title: string
-  description?: React.ReactNode
+  title: string;
+  description?: React.ReactNode;
 
-  confirmText?: string
-  cancelText?: string
+  confirmText?: string;
+  cancelText?: string;
 
-  onConfirm?: () => void
-  onCancel?: () => void
+  onConfirm?: () => void;
+  onCancel?: () => void;
 
-  variant?: MessageVariant
+  variant?: MessageVariant;
 
-  confirmAriaLabel?: string
-  cancelAriaLabel?: string
+  confirmAriaLabel?: string;
+  cancelAriaLabel?: string;
 
-  contentClassName?: string
+  contentClassName?: string;
 }
 
 export function MessageDialog({
@@ -37,31 +37,31 @@ export function MessageDialog({
   onOpenChange,
   title,
   description,
-  confirmText = 'OK',
-  cancelText = 'Cancel',
+  confirmText = "OK",
+  cancelText = "Cancel",
   onConfirm,
   onCancel,
-  variant = 'default',
+  variant = "default",
   confirmAriaLabel,
   cancelAriaLabel,
   contentClassName,
 }: MessageDialogProps) {
   const handleConfirm = () => {
-    onConfirm?.()
-    onOpenChange(false)
-  }
+    onConfirm?.();
+    onOpenChange(false);
+  };
 
   const handleCancel = () => {
-    onCancel?.()
-    onOpenChange(false)
-  }
+    onCancel?.();
+    onOpenChange(false);
+  };
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent
-        className={['sm:max-w-[520px]', contentClassName]
+        className={["sm:max-w-[520px]", contentClassName]
           .filter(Boolean)
-          .join(' ')}
+          .join(" ")}
       >
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
@@ -76,16 +76,16 @@ export function MessageDialog({
         <AlertDialogFooter className="gap-2 sm:space-x-2">
           <AlertDialogCancel
             onClick={handleCancel}
-            aria-label={cancelAriaLabel || 'Cancel'}
+            aria-label={cancelAriaLabel || "Cancel"}
           >
             {cancelText}
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
-            aria-label={confirmAriaLabel || 'Confirm'}
+            aria-label={confirmAriaLabel || "Confirm"}
             className={
-              variant === 'destructive'
-                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-destructive/20 dark:focus:ring-destructive/40'
+              variant === "destructive"
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-destructive/20 dark:focus:ring-destructive/40"
                 : undefined
             }
           >
@@ -94,5 +94,5 @@ export function MessageDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

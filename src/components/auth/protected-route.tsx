@@ -1,14 +1,14 @@
-import { ReactNode } from 'react'
-import { useAuth } from '@/lib/auth-context'
-import { Navigate } from '@tanstack/react-router'
-import GenericSkeleton from '@/components/generic-skeleton'
+import { Navigate } from "@tanstack/react-router";
+import type { ReactNode } from "react";
+import { useAuth } from "@/lib/auth-context";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 interface ProtectedRouteProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading } = useAuth()
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -20,14 +20,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           </p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!user) {
-    return <Navigate to="/login" />
+    return <Navigate to="/login" />;
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }
 
-export default ProtectedRoute
+export default ProtectedRoute;

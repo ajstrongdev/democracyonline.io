@@ -1,54 +1,55 @@
-import { createFileRoute, redirect, Link } from '@tanstack/react-router'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card'
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from '@/components/ui/chart'
+import { Link, createFileRoute, redirect } from "@tanstack/react-router";
 import {
   Bar,
   BarChart,
   CartesianGrid,
-  YAxis,
-  Pie,
-  PieChart,
   Cell,
   Label,
-} from 'recharts'
-import GenericSkeleton from '@/components/generic-skeleton'
-import { Suspense } from 'react'
-import { Users, TrendingUp, Crown, Handshake } from 'lucide-react'
-import { partyPageData } from '@/lib/server/party'
-import ProtectedRoute from '@/components/auth/protected-route'
-import { useAuth } from '@/lib/auth-context'
-import { type User } from 'firebase/auth'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
-import PartyLogo from '@/components/party-logo'
+  Pie,
+  PieChart,
+  YAxis,
+} from "recharts";
+import { Suspense } from "react";
+import { Crown, Handshake, TrendingUp, Users } from "lucide-react";
+import type {User} from "firebase/auth";
+import type {ChartConfig} from "@/components/ui/chart";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent
+} from "@/components/ui/chart";
+import GenericSkeleton from "@/components/generic-skeleton";
+import { partyPageData } from "@/lib/server/party";
+import ProtectedRoute from "@/components/auth/protected-route";
+import { useAuth } from "@/lib/auth-context";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import PartyLogo from "@/components/party-logo";
 
-export const Route = createFileRoute('/parties/')({
+export const Route = createFileRoute("/parties/")({
   beforeLoad: ({ context }) => {
     if (context.auth.loading) {
-      return
+      return;
     }
     if (!context.auth.user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
   },
   loader: async ({ context }) => {
     return partyPageData({
       data: { email: (context.auth.user as User).email! },
-    })
+    });
   },
   component: PartyDetailsPage,
-})
+});
 
 function PartyDetailsPage() {
   return (
@@ -57,61 +58,61 @@ function PartyDetailsPage() {
         <PartyContent />
       </ProtectedRoute>
     </Suspense>
-  )
+  );
 }
 
 function PartyContent() {
-  const data = Route.useLoaderData()
-  const partyStats = data.partyInfo
+  const data = Route.useLoaderData();
+  const partyStats = data.partyInfo;
 
   // Debug logging
-  console.log('Party Stats:', partyStats)
-  console.log('First party:', partyStats[0])
+  console.log("Party Stats:", partyStats);
+  console.log("First party:", partyStats[0]);
 
   // Get total numnber of party members.
   const totalMembers = partyStats.reduce(
     (sum, stats) => sum + Number(stats.memberCount || 0),
     0,
-  )
+  );
 
   // Sort parties by member count
   const sortedParties = [...partyStats].sort(
     (a, b) => Number(b.memberCount || 0) - Number(a.memberCount || 0),
-  )
+  );
 
   // Chart config
   const barChartConfig: ChartConfig = {
     members: {
-      label: 'Members',
-      color: 'hsl(var(--chart-1))',
+      label: "Members",
+      color: "hsl(var(--chart-1))",
     },
-  }
+  };
 
   const pieChartConfig: ChartConfig = sortedParties.reduce(
     (config, stats, index) => {
       config[stats.id.toString()] = {
         label: stats.name,
         color: stats.color || `hsl(var(--chart-${(index % 5) + 1}))`,
-      }
-      return config
+      };
+      return config;
     },
     {} as ChartConfig,
-  )
+  );
 
   // Chart data
   const barChartData = sortedParties.map((stats) => ({
     name: stats.name,
     members: Number(stats.memberCount || 0),
-    fill: stats.color || 'hsl(var(--chart-1))',
-  }))
+    fill: stats.color || "hsl(var(--chart-1))",
+  }));
 
   const pieChartData = sortedParties
     .filter((stats) => Number(stats.memberCount || 0) > 0)
     .map((stats) => ({
       name: stats.name,
       value: Number(stats.memberCount || 0),
-      fill: stats.color || 'hsl(var(--chart-1))',
-    }))
+      fill: stats.color || "hsl(var(--chart-1))",
+    }));
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
@@ -154,7 +155,7 @@ function PartyContent() {
           </CardHeader>
           <CardContent>
             <div className="text-xl md:text-xl font-bold truncate">
-              {partyStats[0]?.name || 'N/A'}
+              {partyStats[0]?.name || "N/A"}
             </div>
             <p className="text-xs text-muted-foreground">
               {partyStats[0]?.memberCount || 0} members
@@ -192,7 +193,7 @@ function PartyContent() {
                     className="stroke-muted"
                   />
                   <YAxis
-                    tick={{ fill: 'hsl(var(--foreground))' }}
+                    tick={{ fill: "hsl(var(--foreground))" }}
                     className="text-[10px] md:text-xs"
                     width={30}
                   />
@@ -200,7 +201,7 @@ function PartyContent() {
                     content={
                       <ChartTooltipContent
                         labelFormatter={(value, payload) => {
-                          return payload?.[0]?.payload?.name || value
+                          return payload?.[0]?.payload?.name || value;
                         }}
                       />
                     }
@@ -230,7 +231,7 @@ function PartyContent() {
                       ))}
                       <Label
                         content={({ viewBox }) => {
-                          if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
+                          if (viewBox && "cx" in viewBox && "cy" in viewBox) {
                             return (
                               <text
                                 x={viewBox.cx}
@@ -253,7 +254,7 @@ function PartyContent() {
                                   Total Members
                                 </tspan>
                               </text>
-                            )
+                            );
                           }
                         }}
                       />
@@ -290,7 +291,7 @@ function PartyContent() {
                 key={stats.id}
                 className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border bg-card transition-colors"
                 style={{
-                  borderLeftWidth: '4px',
+                  borderLeftWidth: "4px",
                   borderLeftColor: stats.color,
                 }}
               >
@@ -342,7 +343,7 @@ function PartyContent() {
                         ? `${((stats.memberCount / totalMembers) * 100).toFixed(
                             1,
                           )}% of total`
-                        : '0% of total'}
+                        : "0% of total"}
                     </span>
                   </div>
 
@@ -373,5 +374,5 @@ function PartyContent() {
         </div>
       )}
     </div>
-  )
+  );
 }

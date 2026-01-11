@@ -1,51 +1,51 @@
-import { useQuery } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Search } from 'lucide-react'
-import { searchUsers } from '@/lib/server/users'
-import { getPartiesByIds } from '@/lib/server/party'
-import { SearchResults } from './SearchResults'
-import { Spinner } from '@/components/ui/spinner'
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { Search } from "lucide-react";
+import { SearchResults } from "./SearchResults";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { searchUsers } from "@/lib/server/users";
+import { getPartiesByIds } from "@/lib/server/party";
+import { Spinner } from "@/components/ui/spinner";
 
 interface SearchFormProps {
-  currentUserId?: number
+  currentUserId?: number;
 }
 
 export function SearchForm({ currentUserId }: SearchFormProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery)
-    }, 300)
+      setDebouncedQuery(searchQuery);
+    }, 300);
 
-    return () => clearTimeout(timer)
-  }, [searchQuery])
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const {
     data: searchResults,
     isLoading: isSearching,
     error: searchError,
   } = useQuery({
-    queryKey: ['searchUsers', debouncedQuery, currentUserId],
+    queryKey: ["searchUsers", debouncedQuery, currentUserId],
     queryFn: async () => {
-      if (!debouncedQuery.trim()) return { users: [] }
+      if (!debouncedQuery.trim()) return { users: [] };
 
       const result = await searchUsers({
         data: { q: debouncedQuery, excludeUserId: currentUserId },
-      })
+      });
 
-      return result
+      return result;
     },
     enabled: debouncedQuery.trim().length > 0,
-  })
+  });
 
   const { data: partyData } = useQuery({
     queryKey: [
-      'parties-for-search',
+      "parties-for-search",
       searchResults?.users?.map((u) => u.partyId).filter(Boolean),
     ],
     queryFn: async () => {
@@ -55,25 +55,25 @@ export function SearchForm({ currentUserId }: SearchFormProps) {
             ?.filter((u) => u.partyId !== null)
             .map((u) => u.partyId as number) ?? [],
         ),
-      )
+      );
 
-      if (partyIds.length === 0) return {}
+      if (partyIds.length === 0) return {};
 
       const result = await getPartiesByIds({
         data: { partyIds },
-      })
+      });
 
-      return result
+      return result;
     },
     enabled: !!searchResults?.users && searchResults.users.length > 0,
-  })
+  });
 
   return (
     <Card className="shadow-sm">
       <CardContent>
         <form
           onSubmit={(e) => {
-            e.preventDefault()
+            e.preventDefault();
           }}
         >
           <div className="space-y-2">
@@ -131,5 +131,5 @@ export function SearchForm({ currentUserId }: SearchFormProps) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

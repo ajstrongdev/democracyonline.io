@@ -135,14 +135,14 @@ Server functions provide type-safe, zero-config API endpoints:
 ```typescript
 // Define server function
 export const getParties = createServerFn().handler(async () => {
-  return await db.select().from(parties)
-})
+  return await db.select().from(parties);
+});
 
 // Call from client
 const { data } = useQuery({
-  queryKey: ['parties'],
+  queryKey: ["parties"],
   queryFn: () => getParties(),
-})
+});
 ```
 
 Benefits:
@@ -371,14 +371,14 @@ All server-side logic is organized into domain-specific modules:
 All server functions validate input using Zod schemas:
 
 ```typescript
-import { CreatePartySchema } from '@/lib/schemas/party-schema'
+import { CreatePartySchema } from "@/lib/schemas/party-schema";
 
 export const createParty = createServerFn()
   .inputValidator(CreatePartySchema)
   .handler(async ({ data }) => {
     // data is fully typed and validated
-    return await db.insert(parties).values(data)
-  })
+    return await db.insert(parties).values(data);
+  });
 ```
 
 ## Security Considerations

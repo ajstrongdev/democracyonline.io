@@ -149,10 +149,10 @@ gameTracker {
 
    ```typescript
    {
-     billId: number
-     voterId: number
-     voteYes: boolean
-     stage: 'House' | 'Senate' | 'Presidential'
+     billId: number;
+     voterId: number;
+     voteYes: boolean;
+     stage: "House" | "Senate" | "Presidential";
    }
    ```
 

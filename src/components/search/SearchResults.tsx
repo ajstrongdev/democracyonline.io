@@ -1,31 +1,31 @@
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { User } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
-import PartyLogo from '@/components/party-logo'
+import { User } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import PartyLogo from "@/components/party-logo";
 
 interface UserResult {
-  id: number
-  username: string
-  bio: string | null
-  politicalLeaning: string | null
-  role: string | null
-  partyId: number | null
-  createdAt: Date | null
-  lastActivity: number | null
+  id: number;
+  username: string;
+  bio: string | null;
+  politicalLeaning: string | null;
+  role: string | null;
+  partyId: number | null;
+  createdAt: Date | null;
+  lastActivity: number | null;
 }
 
 interface PartyInfo {
-  id: number
-  name: string
-  color: string | null
-  logo: string | null
+  id: number;
+  name: string;
+  color: string | null;
+  logo: string | null;
 }
 
 interface SearchResultsProps {
-  users: UserResult[]
-  partyData: Record<number, PartyInfo>
-  searchQuery: string
+  users: Array<UserResult>;
+  partyData: Record<number, PartyInfo>;
+  searchQuery: string;
 }
 
 export function SearchResults({
@@ -41,28 +41,28 @@ export function SearchResults({
           No users found for &quot;{searchQuery}&quot;
         </p>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">
-        {users.length} {users.length === 1 ? 'result' : 'results'}
+        {users.length} {users.length === 1 ? "result" : "results"}
       </h2>
       <div className="space-y-3">
         {users.map((user) => {
-          const party = user.partyId ? partyData[user.partyId] : null
+          const party = user.partyId ? partyData[user.partyId] : null;
 
           // Determine if user is active (within last 7 days)
           const isActive = user.lastActivity
             ? Date.now() / 1000 - user.lastActivity < 7 * 24 * 60 * 60
-            : false
+            : false;
 
           return (
             <Card
               key={user.id}
               className="transition-all hover:shadow-md border-l-4"
-              style={{ borderLeftColor: party?.color || '#6b7280' }}
+              style={{ borderLeftColor: party?.color || "#6b7280" }}
             >
               <CardContent className="flex items-start gap-4">
                 {party ? (
@@ -126,9 +126,9 @@ export function SearchResults({
                 </div>
               </CardContent>
             </Card>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }

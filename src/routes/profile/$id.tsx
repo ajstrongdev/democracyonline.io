@@ -1,59 +1,59 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import {
+  CheckCircle2,
+  Clock,
+  Crown,
+  Edit,
+  Handshake,
+  XCircle,
+} from "lucide-react";
+import {
+  fetchUserInfoByEmail,
   getUserFullById,
   getUserVotingHistory,
-  fetchUserInfoByEmail,
-} from '@/lib/server/users'
-import { getPartyById } from '@/lib/server/party'
+} from "@/lib/server/users";
+import { getPartyById } from "@/lib/server/party";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import PartyLogo from '@/components/party-logo'
-import { getLastSeenText } from '@/lib/constants'
-import {
-  Handshake,
-  Crown,
-  Clock,
-  Edit,
-  CheckCircle2,
-  XCircle,
-} from 'lucide-react'
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import PartyLogo from "@/components/party-logo";
+import { getLastSeenText } from "@/lib/constants";
 
-export const Route = createFileRoute('/profile/$id')({
+export const Route = createFileRoute("/profile/$id")({
   beforeLoad: ({ context }) => {
     if (!context.auth.user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
   },
   loader: async ({ params, context }) => {
     if (!context.auth.user?.email) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
 
     // Get current user's DB info
     const currentUserData = await fetchUserInfoByEmail({
       data: { email: context.auth.user.email },
-    })
+    });
     const currentUser = Array.isArray(currentUserData)
       ? currentUserData[0]
-      : currentUserData
+      : currentUserData;
 
     // Get target user
-    const targetUserId = parseInt(params.id)
+    const targetUserId = parseInt(params.id);
     if (isNaN(targetUserId)) {
-      throw new Error('Invalid user ID')
+      throw new Error("Invalid user ID");
     }
 
-    let targetUser
+    let targetUser;
     try {
       targetUser = await getUserFullById({
         data: { userId: targetUserId, checkActive: false },
-      })
+      });
     } catch (error) {
       return {
         targetUser: null,
@@ -63,18 +63,20 @@ export const Route = createFileRoute('/profile/$id')({
         error:
           error instanceof Error
             ? error.message
-            : 'Failed to load user profile',
-      }
+            : "Failed to load user profile",
+      };
     }
 
     // Get party if user has one
-    let party = null
+    let party = null;
     if (targetUser.partyId) {
-      party = await getPartyById({ data: { partyId: targetUser.partyId } })
+      party = await getPartyById({ data: { partyId: targetUser.partyId } });
     }
 
     // Get voting history
-    const votes = await getUserVotingHistory({ data: { userId: targetUserId } })
+    const votes = await getUserVotingHistory({
+      data: { userId: targetUserId },
+    });
 
     return {
       targetUser,
@@ -82,14 +84,15 @@ export const Route = createFileRoute('/profile/$id')({
       votes,
       currentUser,
       error: null,
-    }
+    };
   },
   component: ProfilePage,
-})
+});
 
 function ProfilePage() {
-  const navigate = useNavigate()
-  const { targetUser, party, votes, currentUser, error } = Route.useLoaderData()
+  const navigate = useNavigate();
+  const { targetUser, party, votes, currentUser, error } =
+    Route.useLoaderData();
 
   if (error || !targetUser) {
     return (
@@ -98,26 +101,26 @@ function ProfilePage() {
           <CardHeader>
             <CardTitle>Profile Not Available</CardTitle>
             <CardDescription>
-              {error || 'This user profile could not be found.'}
+              {error || "This user profile could not be found."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => navigate({ to: '/' })}>Go Home</Button>
+            <Button onClick={() => navigate({ to: "/" })}>Go Home</Button>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
-  const isOwnProfile = currentUser?.id === targetUser.id
-  const partyColor = party?.color || '#6b7280'
+  const isOwnProfile = currentUser?.id === targetUser.id;
+  const partyColor = party?.color || "#6b7280";
 
   return (
     <div className="container mx-auto p-8 max-w-4xl space-y-6">
       {/* Header Card */}
       <Card
         className="relative overflow-hidden"
-        style={{ borderLeftColor: partyColor, borderLeftWidth: '6px' }}
+        style={{ borderLeftColor: partyColor, borderLeftWidth: "6px" }}
       >
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between">
@@ -135,7 +138,7 @@ function ProfilePage() {
                 </CardTitle>
                 <div className="flex flex-wrap items-center gap-3 text-sm">
                   <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-medium">
-                    {targetUser.role || 'Representative'}
+                    {targetUser.role || "Representative"}
                   </span>
                   {party && targetUser.id === party.leaderId && (
                     <span className="px-3 py-1 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-full font-medium flex items-center gap-1">
@@ -160,7 +163,7 @@ function ProfilePage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate({ to: '/settings' })}
+                onClick={() => navigate({ to: "/settings" })}
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Profile
@@ -181,7 +184,7 @@ function ProfilePage() {
               Political Leaning
             </p>
             <p className="text-base">
-              {targetUser.politicalLeaning || 'Not specified'}
+              {targetUser.politicalLeaning || "Not specified"}
             </p>
           </div>
           <div>
@@ -189,7 +192,7 @@ function ProfilePage() {
               Bio
             </p>
             <p className="text-base whitespace-pre-wrap">
-              {targetUser.bio || 'No bio provided.'}
+              {targetUser.bio || "No bio provided."}
             </p>
           </div>
         </CardContent>
@@ -216,7 +219,7 @@ function ProfilePage() {
                 <p className="text-sm font-medium text-muted-foreground mb-1">
                   Party Leaning
                 </p>
-                <p className="text-base">{party.leaning || 'Not specified'}</p>
+                <p className="text-base">{party.leaning || "Not specified"}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-1">
@@ -235,14 +238,14 @@ function ProfilePage() {
                   Party Description
                 </p>
                 <p className="text-base whitespace-pre-wrap">
-                  {party.bio || 'No description available.'}
+                  {party.bio || "No description available."}
                 </p>
               </div>
               <Button
                 className="mt-4"
                 onClick={() =>
                   navigate({
-                    to: '/parties/$id',
+                    to: "/parties/$id",
                     params: { id: String(party.id) },
                   })
                 }
@@ -288,7 +291,7 @@ function ProfilePage() {
                           <span className="px-2 py-0.5 bg-muted rounded">
                             {vote.billStatus}
                           </span>
-                          <span>Voted: {vote.voteYes ? 'For' : 'Against'}</span>
+                          <span>Voted: {vote.voteYes ? "For" : "Against"}</span>
                         </div>
                       </div>
                     </div>
@@ -297,7 +300,7 @@ function ProfilePage() {
                       variant="outline"
                       onClick={() =>
                         navigate({
-                          to: '/bills/$id',
+                          to: "/bills/$id",
                           params: { id: String(vote.billId) },
                         })
                       }
@@ -312,5 +315,5 @@ function ProfilePage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

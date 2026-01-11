@@ -1,13 +1,13 @@
-import { createRouter } from '@tanstack/react-router'
-import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
-import * as TanstackQuery from './integrations/tanstack-query/root-provider'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
-import { AuthProvider } from '@/lib/auth-context'
-import { routeTree } from './routeTree.gen'
+import { createRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import { onAuthStateChanged } from "firebase/auth";
+import * as TanstackQuery from "./integrations/tanstack-query/root-provider";
+import { routeTree } from "./routeTree.gen";
+import { auth } from "@/lib/firebase";
+import { AuthProvider } from "@/lib/auth-context";
 
 export const getRouter = () => {
-  const rqContext = TanstackQuery.getContext()
+  const rqContext = TanstackQuery.getContext();
 
   const router = createRouter({
     routeTree,
@@ -18,14 +18,14 @@ export const getRouter = () => {
         loading: true,
       },
     },
-    defaultPreload: 'intent',
+    defaultPreload: "intent",
     Wrap: ({ children }) => (
       <TanstackQuery.Provider {...rqContext}>
         <AuthProvider>{children}</AuthProvider>
       </TanstackQuery.Provider>
     ),
     scrollRestoration: true,
-  })
+  });
 
   onAuthStateChanged(auth, (user) => {
     router.update({
@@ -36,13 +36,13 @@ export const getRouter = () => {
           loading: false,
         },
       },
-    })
-  })
+    });
+  });
 
   setupRouterSsrQueryIntegration({
     router,
     queryClient: rqContext.queryClient,
-  })
+  });
 
-  return router
-}
+  return router;
+};

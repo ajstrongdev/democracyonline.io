@@ -1,46 +1,46 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { useForm } from '@tanstack/react-form'
-import { fetchUserInfoByEmail } from '@/lib/server/users'
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { useForm } from "@tanstack/react-form";
+import { useState } from "react";
+import { ArrowLeftRight, Check, X, XCircle } from "lucide-react";
+import { fetchUserInfoByEmail } from "@/lib/server/users";
 import {
-  getPartyById,
-  getParties,
-  getPoliticalStances,
   checkIfUserIsPartyLeader,
-} from '@/lib/server/party'
+  getParties,
+  getPartyById,
+  getPoliticalStances,
+} from "@/lib/server/party";
 import {
+  acceptMergeRequest,
+  cancelMergeRequest,
+  createMergeRequest,
   getMergeRequestsReceived,
   getMergeRequestsSent,
-  createMergeRequest,
-  acceptMergeRequest,
   rejectMergeRequest,
-  cancelMergeRequest,
-} from '@/lib/server/party-merge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Slider } from '@/components/ui/slider'
-import { Card, CardHeader, CardContent } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useState } from 'react'
-import { icons } from '@/lib/utils/logo-helper'
-import PartyLogo from '@/components/party-logo'
-import { Check, X, XCircle, ArrowLeftRight } from 'lucide-react'
+} from "@/lib/server/party-merge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { icons } from "@/lib/utils/logo-helper";
+import PartyLogo from "@/components/party-logo";
 
-export const Route = createFileRoute('/parties/merge/$id')({
+export const Route = createFileRoute("/parties/merge/$id")({
   beforeLoad: ({ context }) => {
     if (!context.auth.user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
   },
   loader: async ({ context, params }) => {
     if (!context.auth.user?.email) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
 
-    const partyId = Number(params.id)
+    const partyId = Number(params.id);
     if (isNaN(partyId)) {
-      throw redirect({ to: '/parties' })
+      throw redirect({ to: "/parties" });
     }
 
     const [
@@ -59,18 +59,18 @@ export const Route = createFileRoute('/parties/merge/$id')({
       getPoliticalStances(),
       getMergeRequestsReceived({ data: { partyId } }),
       getMergeRequestsSent({ data: { partyId } }),
-    ])
+    ]);
 
-    const user = Array.isArray(userData) ? userData[0] : userData
+    const user = Array.isArray(userData) ? userData[0] : userData;
 
     if (!party) {
-      throw redirect({ to: '/parties' })
+      throw redirect({ to: "/parties" });
     }
 
     // Check if user is party leader
     const isLeader = await checkIfUserIsPartyLeader({
       data: { userId: user.id, partyId },
-    })
+    });
 
     return {
       user,
@@ -80,23 +80,23 @@ export const Route = createFileRoute('/parties/merge/$id')({
       receivedRequests,
       sentRequests,
       isLeader,
-    }
+    };
   },
   component: MergePartyPage,
-})
+});
 
 export const leanings = [
-  'Far Left',
-  'Left',
-  'Center Left',
-  'Center',
-  'Center Right',
-  'Right',
-  'Far Right',
-]
+  "Far Left",
+  "Left",
+  "Center Left",
+  "Center",
+  "Center Right",
+  "Right",
+  "Far Right",
+];
 
 function MergePartyPage() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const {
     party,
     allParties,
@@ -104,7 +104,7 @@ function MergePartyPage() {
     receivedRequests,
     sentRequests,
     isLeader,
-  } = Route.useLoaderData()
+  } = Route.useLoaderData();
 
   if (!isLeader) {
     return (
@@ -118,7 +118,7 @@ function MergePartyPage() {
               className="mt-4"
               onClick={() =>
                 navigate({
-                  to: '/parties/$id',
+                  to: "/parties/$id",
                   params: { id: String(party.id) },
                 })
               }
@@ -128,7 +128,7 @@ function MergePartyPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -168,7 +168,7 @@ function MergePartyPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }
 
 function ViewRequestsTab({
@@ -177,78 +177,78 @@ function ViewRequestsTab({
   sentRequests,
   navigate,
 }: {
-  party: any
-  receivedRequests: any[]
-  sentRequests: any[]
-  navigate: any
+  party: any;
+  receivedRequests: Array<any>;
+  sentRequests: Array<any>;
+  navigate: any;
 }) {
-  const [processing, setProcessing] = useState<number | null>(null)
+  const [processing, setProcessing] = useState<number | null>(null);
 
   const handleAccept = async (mergeRequestId: number) => {
-    setProcessing(mergeRequestId)
+    setProcessing(mergeRequestId);
     try {
       const result = await acceptMergeRequest({
         data: {
           mergeRequestId,
           partyId: party.id,
         },
-      })
+      });
       navigate({
-        to: '/parties/$id',
+        to: "/parties/$id",
         params: { id: String(result.newPartyId) },
-      })
+      });
     } catch (error) {
-      console.error('Error accepting merge request:', error)
+      console.error("Error accepting merge request:", error);
       alert(
         error instanceof Error
           ? error.message
-          : 'Failed to accept merge request',
-      )
-      setProcessing(null)
+          : "Failed to accept merge request",
+      );
+      setProcessing(null);
     }
-  }
+  };
 
   const handleReject = async (mergeRequestId: number) => {
-    setProcessing(mergeRequestId)
+    setProcessing(mergeRequestId);
     try {
       await rejectMergeRequest({
         data: {
           mergeRequestId,
           partyId: party.id,
         },
-      })
-      window.location.reload()
+      });
+      window.location.reload();
     } catch (error) {
-      console.error('Error rejecting merge request:', error)
+      console.error("Error rejecting merge request:", error);
       alert(
         error instanceof Error
           ? error.message
-          : 'Failed to reject merge request',
-      )
-      setProcessing(null)
+          : "Failed to reject merge request",
+      );
+      setProcessing(null);
     }
-  }
+  };
 
   const handleCancel = async (mergeRequestId: number) => {
-    setProcessing(mergeRequestId)
+    setProcessing(mergeRequestId);
     try {
       await cancelMergeRequest({
         data: {
           mergeRequestId,
           partyId: party.id,
         },
-      })
-      window.location.reload()
+      });
+      window.location.reload();
     } catch (error) {
-      console.error('Error canceling merge request:', error)
+      console.error("Error canceling merge request:", error);
       alert(
         error instanceof Error
           ? error.message
-          : 'Failed to cancel merge request',
-      )
-      setProcessing(null)
+          : "Failed to cancel merge request",
+      );
+      setProcessing(null);
     }
-  }
+  };
 
   return (
     <div className="space-y-8">
@@ -301,10 +301,10 @@ function ViewRequestsTab({
                                 {(() => {
                                   const IconComp = icons.find(
                                     (i) => i.name === request.mergedPartyLogo,
-                                  )?.Icon
+                                  )?.Icon;
                                   return IconComp ? (
                                     <IconComp className="w-6 h-6 text-white" />
-                                  ) : null
+                                  ) : null;
                                 })()}
                               </>
                             )}
@@ -428,7 +428,7 @@ function ViewRequestsTab({
         )}
       </div>
     </div>
-  )
+  );
 }
 
 function CreateRequestTab({
@@ -438,47 +438,47 @@ function CreateRequestTab({
   receivedRequests,
   sentRequests,
 }: {
-  party: any
-  allParties: any[]
-  stances: any[]
-  receivedRequests: any[]
-  sentRequests: any[]
+  party: any;
+  allParties: Array<any>;
+  stances: Array<any>;
+  receivedRequests: Array<any>;
+  sentRequests: Array<any>;
 }) {
-  const [leaning, setLeaning] = useState([3])
-  const [selectedLogo, setSelectedLogo] = useState<string | null>(null)
-  const [stanceValues, setStanceValues] = useState<Record<number, string>>({})
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [leaning, setLeaning] = useState([3]);
+  const [selectedLogo, setSelectedLogo] = useState<string | null>(null);
+  const [stanceValues, setStanceValues] = useState<Record<number, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedTargetParty, setSelectedTargetParty] = useState<number | null>(
     null,
-  )
+  );
 
   // Filter out current party and parties with pending requests
   const partiesWithPendingRequests = new Set([
     ...receivedRequests.map((r) => r.senderPartyId),
     ...sentRequests.map((r) => r.receiverPartyId),
-  ])
+  ]);
 
   const availableParties = allParties.filter(
     (p) => p.id !== party.id && !partiesWithPendingRequests.has(p.id),
-  )
+  );
 
   const form = useForm({
     defaultValues: {
-      name: '',
-      color: '#ff0000',
-      bio: '',
+      name: "",
+      color: "#ff0000",
+      bio: "",
     },
     onSubmit: async ({ value }) => {
-      setSubmitError(null)
+      setSubmitError(null);
 
       if (!selectedTargetParty) {
-        setSubmitError('Please select a target party')
-        return
+        setSubmitError("Please select a target party");
+        return;
       }
 
       const stanceEntries = Object.entries(stanceValues).filter(
-        ([_, val]) => val.trim() !== '',
-      )
+        ([_, val]) => val.trim() !== "",
+      );
 
       try {
         await createMergeRequest({
@@ -497,27 +497,27 @@ function CreateRequestTab({
               value: val,
             })),
           },
-        })
-        window.location.reload()
+        });
+        window.location.reload();
       } catch (error) {
-        console.error('Error creating merge request:', error)
+        console.error("Error creating merge request:", error);
         const errorMessage =
           error instanceof Error
             ? error.message
-            : 'Failed to create merge request. Please try again.'
-        setSubmitError(errorMessage)
+            : "Failed to create merge request. Please try again.";
+        setSubmitError(errorMessage);
       }
     },
-  })
+  });
 
   return (
     <Card>
       <CardContent className="pt-6">
         <form
           onSubmit={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            form.handleSubmit()
+            e.preventDefault();
+            e.stopPropagation();
+            form.handleSubmit();
           }}
           className="space-y-6"
         >
@@ -540,8 +540,8 @@ function CreateRequestTab({
                     onClick={() => setSelectedTargetParty(p.id)}
                     className={`flex items-center gap-4 p-4 border rounded-md hover:bg-accent transition-colors ${
                       selectedTargetParty === p.id
-                        ? 'ring-2 ring-primary bg-accent'
-                        : ''
+                        ? "ring-2 ring-primary bg-accent"
+                        : ""
                     }`}
                   >
                     <PartyLogo party_id={p.id} size={48} />
@@ -563,9 +563,9 @@ function CreateRequestTab({
             validators={{
               onChange: ({ value }) => {
                 if (!value || value.trim().length === 0) {
-                  return 'Party name is required'
+                  return "Party name is required";
                 }
-                return undefined
+                return undefined;
               },
             }}
           >
@@ -588,7 +588,7 @@ function CreateRequestTab({
                 />
                 {field.state.meta.errors.length > 0 && (
                   <span className="text-sm text-red-500">
-                    {field.state.meta.errors.join(', ')}
+                    {field.state.meta.errors.join(", ")}
                   </span>
                 )}
               </div>
@@ -601,9 +601,9 @@ function CreateRequestTab({
             validators={{
               onChange: ({ value }) => {
                 if (!/^#[0-9A-Fa-f]{6}$/.test(value)) {
-                  return 'Invalid color format'
+                  return "Invalid color format";
                 }
-                return undefined
+                return undefined;
               },
             }}
           >
@@ -635,7 +635,7 @@ function CreateRequestTab({
                 </div>
                 {field.state.meta.errors.length > 0 && (
                   <span className="text-sm text-red-500">
-                    {field.state.meta.errors.join(', ')}
+                    {field.state.meta.errors.join(", ")}
                   </span>
                 )}
               </div>
@@ -648,9 +648,9 @@ function CreateRequestTab({
             validators={{
               onChange: ({ value }) => {
                 if (!value || value.trim().length === 0) {
-                  return 'Party bio is required'
+                  return "Party bio is required";
                 }
-                return undefined
+                return undefined;
               },
             }}
           >
@@ -673,7 +673,7 @@ function CreateRequestTab({
                 />
                 {field.state.meta.errors.length > 0 && (
                   <span className="text-sm text-red-500">
-                    {field.state.meta.errors.join(', ')}
+                    {field.state.meta.errors.join(", ")}
                   </span>
                 )}
               </div>
@@ -691,8 +691,8 @@ function CreateRequestTab({
                 onClick={() => setSelectedLogo(null)}
                 className={`flex items-center justify-center w-14 h-14 rounded-md border p-2 text-sm hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${
                   selectedLogo === null
-                    ? 'ring-2 ring-offset-2 ring-primary'
-                    : ''
+                    ? "ring-2 ring-offset-2 ring-primary"
+                    : ""
                 }`}
                 aria-pressed={selectedLogo === null}
                 title="None"
@@ -701,7 +701,7 @@ function CreateRequestTab({
               </button>
 
               {icons.map((ic) => {
-                const IconComp = ic.Icon
+                const IconComp = ic.Icon;
                 return (
                   <button
                     key={ic.name}
@@ -709,15 +709,15 @@ function CreateRequestTab({
                     onClick={() => setSelectedLogo(ic.name)}
                     className={`flex items-center justify-center w-14 h-14 rounded-md border p-2 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${
                       selectedLogo === ic.name
-                        ? 'ring-2 ring-offset-2 ring-primary'
-                        : ''
+                        ? "ring-2 ring-offset-2 ring-primary"
+                        : ""
                     }`}
                     aria-pressed={selectedLogo === ic.name}
                     title={ic.name}
                   >
                     <IconComp className="w-6 h-6" />
                   </button>
-                )
+                );
               })}
             </div>
           </div>
@@ -742,12 +742,12 @@ function CreateRequestTab({
                 {leanings.map((_, i) => (
                   <span key={i} className="text-center w-12">
                     {i === 0
-                      ? 'Far Left'
+                      ? "Far Left"
                       : i === 6
-                        ? 'Far Right'
+                        ? "Far Right"
                         : i - 3 === 0
-                          ? 'Center'
-                          : ''}
+                          ? "Center"
+                          : ""}
                   </span>
                 ))}
               </div>
@@ -767,7 +767,7 @@ function CreateRequestTab({
                 </Label>
                 <Textarea
                   id={`stance-${stance.id}`}
-                  value={stanceValues[stance.id] || ''}
+                  value={stanceValues[stance.id] || ""}
                   onChange={(e) =>
                     setStanceValues((prev) => ({
                       ...prev,
@@ -802,12 +802,12 @@ function CreateRequestTab({
                   availableParties.length === 0
                 }
               >
-                {isSubmitting ? 'Sending Request...' : 'Send Merge Request'}
+                {isSubmitting ? "Sending Request..." : "Send Merge Request"}
               </Button>
             )}
           </form.Subscribe>
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

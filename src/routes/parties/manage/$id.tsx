@@ -1,43 +1,43 @@
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Slider } from '@/components/ui/slider'
-import { Button } from '@/components/ui/button'
-import {
-  getPartyById,
-  getPoliticalStances,
-  getPartyStances,
-  updateParty,
-} from '@/lib/server/party'
-import { fetchUserInfoByEmail } from '@/lib/server/users'
-import { useForm } from '@tanstack/react-form'
+import { useForm } from "@tanstack/react-form";
 import {
   createFileRoute,
   notFound,
   redirect,
   useNavigate,
-} from '@tanstack/react-router'
-import { icons } from '@/lib/utils/logo-helper'
+} from "@tanstack/react-router";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
+import {
+  getPartyById,
+  getPartyStances,
+  getPoliticalStances,
+  updateParty,
+} from "@/lib/server/party";
+import { fetchUserInfoByEmail } from "@/lib/server/users";
+import { icons } from "@/lib/utils/logo-helper";
 
 export const POLITICAL_LEANINGS = [
-  'Far Left',
-  'Left',
-  'Center Left',
-  'Center',
-  'Center Right',
-  'Right',
-  'Far Right',
-] as const
+  "Far Left",
+  "Left",
+  "Center Left",
+  "Center",
+  "Center Right",
+  "Right",
+  "Far Right",
+] as const;
 
-export const Route = createFileRoute('/parties/manage/$id')({
+export const Route = createFileRoute("/parties/manage/$id")({
   beforeLoad: ({ context }) => {
     if (!context.auth.user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
   },
   loader: async ({ context, params }) => {
     if (!context.auth.user?.email) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" });
     }
 
     const [userResult, partyResult, stancesResult, partyStancesResult] =
@@ -46,34 +46,34 @@ export const Route = createFileRoute('/parties/manage/$id')({
         getPartyById({ data: { partyId: Number(params.id) } }),
         getPoliticalStances(),
         getPartyStances({ data: { partyId: Number(params.id) } }),
-      ])
+      ]);
 
-    if (userResult.status === 'rejected') {
-      throw new Error(`Failed to fetch user information: ${userResult.reason}`)
+    if (userResult.status === "rejected") {
+      throw new Error(`Failed to fetch user information: ${userResult.reason}`);
     }
-    if (partyResult.status === 'rejected') {
+    if (partyResult.status === "rejected") {
       throw new Error(
         `Failed to fetch party information: ${partyResult.reason}`,
-      )
+      );
     }
-    if (stancesResult.status === 'rejected') {
+    if (stancesResult.status === "rejected") {
       throw new Error(
         `Failed to fetch political stances: ${stancesResult.reason}`,
-      )
+      );
     }
-    if (partyStancesResult.status === 'rejected') {
+    if (partyStancesResult.status === "rejected") {
       throw new Error(
         `Failed to fetch party stances: ${partyStancesResult.reason}`,
-      )
+      );
     }
 
-    const user = userResult.value
-    const party = partyResult.value
-    const stances = stancesResult.value
-    const partyStances = partyStancesResult.value
+    const user = userResult.value;
+    const party = partyResult.value;
+    const stances = stancesResult.value;
+    const partyStances = partyStancesResult.value;
 
     if (!party) {
-      throw notFound()
+      throw notFound();
     }
 
     return {
@@ -81,32 +81,32 @@ export const Route = createFileRoute('/parties/manage/$id')({
       party: party,
       stances: stances,
       partyStances: partyStances,
-    }
+    };
   },
   component: RouteComponent,
-})
+});
 
 function RouteComponent() {
-  const { party, stances, partyStances } = Route.useLoaderData()
-  const navigate = useNavigate()
+  const { party, stances, partyStances } = Route.useLoaderData();
+  const navigate = useNavigate();
 
   // Create a map of existing party stances
   const existingStances = partyStances.reduce(
     (acc, stance) => {
       if (stance.stanceId !== null) {
-        acc[stance.stanceId] = stance.value
+        acc[stance.stanceId] = stance.value;
       }
-      return acc
+      return acc;
     },
     {} as Record<number, string>,
-  )
+  );
 
   const form = useForm({
     defaultValues: {
       name: party.name,
       color: party.color,
-      bio: party.bio ?? '',
-      discord_link: party.discord ?? '',
+      bio: party.bio ?? "",
+      discord_link: party.discord ?? "",
       leaning: party.leaning
         ? POLITICAL_LEANINGS.indexOf(
             party.leaning as (typeof POLITICAL_LEANINGS)[number],
@@ -115,8 +115,8 @@ function RouteComponent() {
       logo: party.logo ?? null,
       stances: stances.reduce(
         (acc, stance) => {
-          acc[stance.id] = existingStances[stance.id] || ''
-          return acc
+          acc[stance.id] = existingStances[stance.id] || "";
+          return acc;
         },
         {} as Record<number, string>,
       ),
@@ -136,19 +136,19 @@ function RouteComponent() {
               leaning: POLITICAL_LEANINGS[value.leaning],
             },
             stances: Object.entries(value.stances)
-              .filter(([_, stanceValue]) => stanceValue.trim() !== '')
+              .filter(([_, stanceValue]) => stanceValue.trim() !== "")
               .map(([stanceId, stanceValue]) => ({
                 stanceId: Number(stanceId),
                 value: stanceValue,
               })),
           },
-        })
-        navigate({ to: '/parties/$id', params: { id: String(party.id) } })
+        });
+        navigate({ to: "/parties/$id", params: { id: String(party.id) } });
       } catch (error) {
-        console.error('Failed to update party:', error)
+        console.error("Failed to update party:", error);
       }
     },
-  })
+  });
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -164,9 +164,9 @@ function RouteComponent() {
         <form
           className="space-y-8"
           onSubmit={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            form.handleSubmit()
+            e.preventDefault();
+            e.stopPropagation();
+            form.handleSubmit();
           }}
         >
           {/* Party Name */}
@@ -299,8 +299,8 @@ function RouteComponent() {
                     onClick={() => field.handleChange(null)}
                     className={`flex items-center justify-center w-14 h-14 rounded-md border p-2 text-sm hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${
                       field.state.value === null
-                        ? 'ring-2 ring-offset-2 ring-primary'
-                        : ''
+                        ? "ring-2 ring-offset-2 ring-primary"
+                        : ""
                     }`}
                     aria-pressed={field.state.value === null}
                     title="None"
@@ -309,7 +309,7 @@ function RouteComponent() {
                   </button>
 
                   {icons.map((ic) => {
-                    const IconComp = ic.Icon
+                    const IconComp = ic.Icon;
                     return (
                       <button
                         key={ic.name}
@@ -317,15 +317,15 @@ function RouteComponent() {
                         onClick={() => field.handleChange(ic.name)}
                         className={`flex items-center justify-center w-14 h-14 rounded-md border p-2 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${
                           field.state.value === ic.name
-                            ? 'ring-2 ring-offset-2 ring-primary'
-                            : ''
+                            ? "ring-2 ring-offset-2 ring-primary"
+                            : ""
                         }`}
                         aria-pressed={field.state.value === ic.name}
                         title={ic.name}
                       >
                         <IconComp className="w-6 h-6" />
                       </button>
-                    )
+                    );
                   })}
                 </div>
               </div>
@@ -338,7 +338,7 @@ function RouteComponent() {
               <div>
                 <Label className="block text-center mb-8">
                   <span className="text-lg font-medium">
-                    Political Leaning:{' '}
+                    Political Leaning:{" "}
                   </span>
                   <span className="font-sm">
                     {POLITICAL_LEANINGS[field.state.value]}
@@ -358,12 +358,12 @@ function RouteComponent() {
                     {POLITICAL_LEANINGS.map((_, i) => (
                       <span key={i} className="text-center w-12">
                         {i === 0
-                          ? 'Far Left'
+                          ? "Far Left"
                           : i === 6
-                            ? 'Far Right'
+                            ? "Far Right"
                             : i - 3 === 0
-                              ? 'Center'
-                              : ''}
+                              ? "Center"
+                              : ""}
                       </span>
                     ))}
                   </div>
@@ -405,12 +405,12 @@ function RouteComponent() {
                 className="w-full py-3"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Updating Party...' : 'Update Party'}
+                {isSubmitting ? "Updating Party..." : "Update Party"}
               </Button>
             )}
           </form.Subscribe>
         </form>
       </div>
     </div>
-  )
+  );
 }

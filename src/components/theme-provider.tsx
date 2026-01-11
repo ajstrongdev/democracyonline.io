@@ -1,24 +1,26 @@
-import { useRouter } from '@tanstack/react-router'
-import { createContext, type PropsWithChildren, use } from 'react'
-import { setThemeServerFn, type T as Theme } from '@/lib/server/theme'
+import { useRouter } from "@tanstack/react-router";
+import {  createContext, use } from "react";
+import type {PropsWithChildren} from "react";
+import type {T as Theme} from "@/lib/server/theme";
+import {  setThemeServerFn } from "@/lib/server/theme";
 
-type ThemeContextVal = { theme: Theme; setTheme: (val: Theme) => void }
-type Props = PropsWithChildren<{ theme: Theme }>
+type ThemeContextVal = { theme: Theme; setTheme: (val: Theme) => void };
+type Props = PropsWithChildren<{ theme: Theme }>;
 
-const ThemeContext = createContext<ThemeContextVal | null>(null)
+const ThemeContext = createContext<ThemeContextVal | null>(null);
 
 export function ThemeProvider({ children, theme }: Props) {
-  const router = useRouter()
+  const router = useRouter();
 
   function setTheme(val: Theme) {
-    setThemeServerFn({ data: val }).then(() => router.invalidate())
+    setThemeServerFn({ data: val }).then(() => router.invalidate());
   }
 
-  return <ThemeContext value={{ theme, setTheme }}>{children}</ThemeContext>
+  return <ThemeContext value={{ theme, setTheme }}>{children}</ThemeContext>;
 }
 
 export function useTheme() {
-  const val = use(ThemeContext)
-  if (!val) throw new Error('useTheme called outside of ThemeProvider!')
-  return val
+  const val = use(ThemeContext);
+  if (!val) throw new Error("useTheme called outside of ThemeProvider!");
+  return val;
 }

@@ -1,35 +1,35 @@
-import { useNavigate } from '@tanstack/react-router'
-import { useForm } from '@tanstack/react-form'
-import { signUp } from '@/lib/auth-utils'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { useNavigate } from "@tanstack/react-router";
+import { useForm } from "@tanstack/react-form";
+import { signUp } from "@/lib/auth-utils";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export function SignupForm() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const form = useForm({
     defaultValues: {
-      email: '',
-      password: '',
-      confirmPassword: '',
-      displayName: '',
+      email: "",
+      password: "",
+      confirmPassword: "",
+      displayName: "",
     },
     onSubmit: async ({ value }) => {
       const { user, error } = await signUp({
         email: value.email,
         password: value.password,
         displayName: value.displayName || undefined,
-      })
+      });
 
       if (error) {
         form.setErrorMap({
           onSubmit: error,
-        })
+        });
       } else if (user) {
-        navigate({ to: '/' })
+        navigate({ to: "/" });
       }
     },
-  })
+  });
 
   return (
     <Card className="w-full max-w-md p-6 space-y-6">
@@ -42,9 +42,9 @@ export function SignupForm() {
 
       <form
         onSubmit={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          form.handleSubmit()
+          e.preventDefault();
+          e.stopPropagation();
+          form.handleSubmit();
         }}
         className="space-y-4"
       >
@@ -100,7 +100,7 @@ export function SignupForm() {
           validators={{
             onChange: ({ value }) =>
               value.length < 6
-                ? 'Password must be at least 6 characters'
+                ? "Password must be at least 6 characters"
                 : undefined,
           }}
         >
@@ -122,7 +122,7 @@ export function SignupForm() {
               />
               {field.state.meta.errors && (
                 <p className="text-sm text-destructive">
-                  {field.state.meta.errors.join(', ')}
+                  {field.state.meta.errors.join(", ")}
                 </p>
               )}
             </div>
@@ -132,10 +132,10 @@ export function SignupForm() {
         <form.Field
           name="confirmPassword"
           validators={{
-            onChangeListenTo: ['password'],
+            onChangeListenTo: ["password"],
             onChange: ({ value, fieldApi }) => {
-              const password = fieldApi.form.getFieldValue('password')
-              return value !== password ? 'Passwords do not match' : undefined
+              const password = fieldApi.form.getFieldValue("password");
+              return value !== password ? "Passwords do not match" : undefined;
             },
           }}
         >
@@ -157,7 +157,7 @@ export function SignupForm() {
               />
               {field.state.meta.errors && (
                 <p className="text-sm text-destructive">
-                  {field.state.meta.errors.join(', ')}
+                  {field.state.meta.errors.join(", ")}
                 </p>
               )}
             </div>
@@ -173,11 +173,11 @@ export function SignupForm() {
               className="w-full"
               disabled={isSubmitting || !canSubmit}
             >
-              {isSubmitting ? 'Creating account...' : 'Create Account'}
+              {isSubmitting ? "Creating account..." : "Create Account"}
             </Button>
           )}
         </form.Subscribe>
       </form>
     </Card>
-  )
+  );
 }

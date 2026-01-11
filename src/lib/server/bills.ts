@@ -1,27 +1,29 @@
-import { createServerFn } from '@tanstack/react-start'
-import { eq, sql, getTableColumns, desc } from 'drizzle-orm'
-import { db } from '@/db'
+import { createServerFn } from "@tanstack/react-start";
+import { desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { db } from "@/db";
 import {
-  bills,
-  users,
   billVotesHouse,
-  billVotesSenate,
   billVotesPresidential,
+  billVotesSenate,
+  bills,
   parties,
-} from '@/db/schema'
-import { CreateBillsSchema } from '@/lib/schemas/bills-schema'
+  users,
+} from "@/db/schema";
+import { CreateBillsSchema } from "@/lib/schemas/bills-schema";
+import { requireAuthMiddleware } from "@/middleware/auth";
+import { addFeedItem } from "@/lib/server/feed";
 
 // Types
-type BillStages = 'house' | 'senate' | 'presidential'
+type BillStages = "house" | "senate" | "presidential";
 
 type BillVoterData = {
-  userId: number | null
-  username: string | null
-  voteYes: boolean
-  partyId: number | null
-  partyName: string | null
-  partyColor: string | null
-}
+  userId: number | null;
+  username: string | null;
+  voteYes: boolean;
+  partyId: number | null;
+  partyName: string | null;
+  partyColor: string | null;
+};
 
 // Data fetching
 export const getBills = createServerFn().handler(async () => {
@@ -43,44 +45,44 @@ export const getBills = createServerFn().handler(async () => {
         .from(table)
         .where(eq(table.voteYes, voteYes))
         .groupBy(table.billId),
-    )
+    );
 
   const houseYes = getVoteCount(
-    'house_yes',
-    'house_yes_count',
+    "house_yes",
+    "house_yes_count",
     billVotesHouse,
     true,
-  )
+  );
   const houseNo = getVoteCount(
-    'house_no',
-    'house_no_count',
+    "house_no",
+    "house_no_count",
     billVotesHouse,
     false,
-  )
+  );
   const senateYes = getVoteCount(
-    'senate_yes',
-    'senate_yes_count',
+    "senate_yes",
+    "senate_yes_count",
     billVotesSenate,
     true,
-  )
+  );
   const senateNo = getVoteCount(
-    'senate_no',
-    'senate_no_count',
+    "senate_no",
+    "senate_no_count",
     billVotesSenate,
     false,
-  )
+  );
   const presYes = getVoteCount(
-    'pres_yes',
-    'pres_yes_count',
+    "pres_yes",
+    "pres_yes_count",
     billVotesPresidential,
     true,
-  )
+  );
   const presNo = getVoteCount(
-    'pres_no',
-    'pres_no_count',
+    "pres_no",
+    "pres_no_count",
     billVotesPresidential,
     false,
-  )
+  );
 
   const rows = await db
     .with(houseYes, houseNo, senateYes, senateNo, presYes, presNo)
@@ -88,22 +90,22 @@ export const getBills = createServerFn().handler(async () => {
       ...getTableColumns(bills),
       creator: users.username,
       houseTotalYes: sql<number>`COALESCE(${houseYes.count}, 0)`.as(
-        'house_total_yes',
+        "house_total_yes",
       ),
       houseTotalNo: sql<number>`COALESCE(${houseNo.count}, 0)`.as(
-        'house_total_no',
+        "house_total_no",
       ),
       senateTotalYes: sql<number>`COALESCE(${senateYes.count}, 0)`.as(
-        'senate_total_yes',
+        "senate_total_yes",
       ),
       senateTotalNo: sql<number>`COALESCE(${senateNo.count}, 0)`.as(
-        'senate_total_no',
+        "senate_total_no",
       ),
       presidentialTotalYes: sql<number>`COALESCE(${presYes.count}, 0)`.as(
-        'presidential_total_yes',
+        "presidential_total_yes",
       ),
       presidentialTotalNo: sql<number>`COALESCE(${presNo.count}, 0)`.as(
-        'presidential_total_no',
+        "presidential_total_no",
       ),
     })
     .from(bills)
@@ -114,10 +116,10 @@ export const getBills = createServerFn().handler(async () => {
     .leftJoin(senateNo, eq(senateNo.billId, bills.id))
     .leftJoin(presYes, eq(presYes.billId, bills.id))
     .leftJoin(presNo, eq(presNo.billId, bills.id))
-    .orderBy(desc(bills.createdAt))
+    .orderBy(desc(bills.createdAt));
 
-  return rows
-})
+  return rows;
+});
 
 export const getBillById = createServerFn()
   .inputValidator((data: { id: number }) => data)
@@ -126,12 +128,12 @@ export const getBillById = createServerFn()
       .select()
       .from(bills)
       .where(eq(bills.id, data.id))
-      .limit(1)
-    return bill
-  })
+      .limit(1);
+    return bill;
+  });
 
 export const getBillVotes = createServerFn()
-  .inputValidator((data: { id: number, stage: BillStages }) => data)
+  .inputValidator((data: { id: number; stage: BillStages }) => data)
   .handler(async ({ data }) => {
     const votes = await db.execute(sql`
       SELECT
@@ -139,25 +141,25 @@ export const getBillVotes = createServerFn()
         COUNT(*) FILTER (WHERE vote_yes = FALSE) as no_count
         FROM ${sql.raw(`bill_votes_${data.stage.toLowerCase()}`)}
         WHERE bill_id = ${data.id}
-    `)
-    const row = votes.rows[0] as { yes_count: string; no_count: string }
+    `);
+    const row = votes.rows[0] as { yes_count: string; no_count: string };
     return {
       count: {
         yes: parseInt(row.yes_count, 10),
         no: parseInt(row.no_count, 10),
-      }
-    }
-  })
+      },
+    };
+  });
 
 export const getBillVoters = createServerFn()
-  .inputValidator((data: { id: number, stage: BillStages }) => data)
+  .inputValidator((data: { id: number; stage: BillStages }) => data)
   .handler(async ({ data }) => {
     const table =
-      data.stage === 'house'
+      data.stage === "house"
         ? billVotesHouse
-        : data.stage === 'senate'
-        ? billVotesSenate
-        : billVotesPresidential
+        : data.stage === "senate"
+          ? billVotesSenate
+          : billVotesPresidential;
 
     const voters = await db
       .select({
@@ -166,57 +168,61 @@ export const getBillVoters = createServerFn()
         voteYes: table.voteYes,
         partyId: users.partyId,
         partyName: parties.name,
-        partyColor: parties.color
+        partyColor: parties.color,
       })
       .from(table)
       .leftJoin(users, eq(users.id, table.voterId))
       .leftJoin(parties, eq(parties.id, users.partyId))
-      .where(eq(table.billId, data.id))
+      .where(eq(table.billId, data.id));
 
-    return voters
-  })
+    return voters;
+  });
 
 export const billPageData = createServerFn()
   .inputValidator((data: { id: number }) => data)
   .handler(async ({ data }) => {
-    const bill = await getBillById({ data: { id: data.id } })
+    const bill = await getBillById({ data: { id: data.id } });
     if (bill.length === 0) {
-      return null
+      return null;
     }
-    const voteData: Record<BillStages, { 
-      count: { 
-        yes: number; 
-        no: number 
-      } 
-    }> = {
-        house: { 
-          count: { yes: 0, no: 0 }  
-        },
-        senate: { 
-          count: { yes: 0, no: 0 } 
-        },
-        presidential: { 
-          count: { yes: 0, no: 0 } 
-        },
+    const voteData: Record<
+      BillStages,
+      {
+        count: {
+          yes: number;
+          no: number;
+        };
+      }
+    > = {
+      house: {
+        count: { yes: 0, no: 0 },
+      },
+      senate: {
+        count: { yes: 0, no: 0 },
+      },
+      presidential: {
+        count: { yes: 0, no: 0 },
+      },
+    };
+    const voterData: Record<BillStages, Array<BillVoterData>> = {
+      house: [],
+      senate: [],
+      presidential: [],
+    };
+    for (const stage of Object.keys(voteData) as Array<BillStages>) {
+      const votes = await getBillVotes({ data: { id: data.id, stage } });
+      voteData[stage] = votes;
     }
-    const voterData: Record<BillStages, BillVoterData[]> = {
-        house: [],
-        senate: [],
-        presidential: [],
+    for (const stage of Object.keys(voterData) as Array<BillStages>) {
+      const voters = await getBillVoters({ data: { id: data.id, stage } });
+      voterData[stage] = voters;
     }
-    for (const stage of Object.keys(voteData) as BillStages[]) {
-      const votes = await getBillVotes({ data: { id: data.id, stage }})
-      voteData[stage] = votes
-    }
-    for (const stage of Object.keys(voterData) as BillStages[]) {
-      const voters = await getBillVoters({ data: { id: data.id, stage }})
-      voterData[stage] = voters
-    }
-    return { bill: bill[0], votes: voteData, voters: voterData }
-  })
+    return { bill: bill[0], votes: voteData, voters: voterData };
+  });
 
 // Mutations
 export const createBill = createServerFn()
+  .middleware([requireAuthMiddleware])
   .inputValidator(CreateBillsSchema)
   .handler(async ({ data }) => {
     const result = await db
@@ -226,5 +232,15 @@ export const createBill = createServerFn()
         content: data.content,
         creatorId: data.creatorId,
       })
-    return result
-  })
+      .returning({ id: bills.id });
+
+    const billId = result[0].id;
+
+    await addFeedItem({
+      data: {
+        userId: data.creatorId,
+        content: `Created a new bill: "Bill #${billId} - ${data.title}"`,
+      },
+    });
+    return result;
+  });
