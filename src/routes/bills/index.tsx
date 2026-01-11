@@ -1,6 +1,14 @@
 import { Link, createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Check, CheckCircle2, Filter, Pencil, User , X, XCircle  } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  Filter,
+  Pencil,
+  User,
+  X,
+  XCircle,
+} from "lucide-react";
 import { getBills } from "@/lib/server/bills";
 import { fetchUserInfoByEmail } from "@/lib/server/users";
 import { Button } from "@/components/ui/button";
@@ -153,13 +161,16 @@ function RouteComponent() {
                   {/* Bill details */}
                   <div>
                     <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-2">
-                      <h2 className="text-lg sm:text-xl font-semibold break-words">
+                      <h2 className="text-lg sm:text-xl font-semibold wrap-break-words">
                         Bill #{bill.id}: {bill.title}
                       </h2>
 
                       {user.id === bill.creatorId &&
                         bill.status === "Queued" && (
-                          <Link to="/bills/edit/$id" params={{ id: bill.id }}>
+                          <Link
+                            to="/bills/edit/$id"
+                            params={{ id: bill.id.toString() }}
+                          >
                             <Button
                               variant="outline"
                               size="sm"
@@ -171,9 +182,9 @@ function RouteComponent() {
                           </Link>
                         )}
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2 break-words">
+                    <p className="text-sm text-muted-foreground mb-2 wrapbreak-words">
                       Proposed By:{" "}
-                      <b className="text-black dark:text-white break-words">
+                      <b className="text-black dark:text-white wrap-break-words">
                         {bill.creator}
                       </b>{" "}
                       | Status: {bill.status} | Stage: {bill.stage} | Created
@@ -182,7 +193,7 @@ function RouteComponent() {
                         ? new Date(bill.createdAt).toLocaleDateString()
                         : "Unknown"}
                     </p>
-                    <p className="line-clamp-3 text-foreground mt-5 sm:mt-3 whitespace-pre-wrap break-words">
+                    <p className="line-clamp-3 text-foreground mt-5 sm:mt-3 whitespace-pre-wrap wrap-break-words">
                       {bill.content}
                     </p>
                   </div>
@@ -318,7 +329,7 @@ function RouteComponent() {
                 </CardContent>
                 <CardFooter className="mt-auto">
                   <Button asChild variant="outline" className="w-full">
-                    <Link to="/bills/$id" params={{ id: bill.id }}>
+                    <Link to="/bills/$id" params={{ id: bill.id.toString() }}>
                       View Bill
                     </Link>
                   </Button>

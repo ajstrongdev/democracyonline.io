@@ -1,8 +1,8 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import {  cert, getApps, initializeApp } from "firebase-admin/app";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import type {App} from "firebase-admin/app";
+import type { App } from "firebase-admin/app";
 import { auth } from "@/lib/firebase";
 
 let adminApp: App | undefined;

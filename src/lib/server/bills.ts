@@ -125,8 +125,12 @@ export const getBillById = createServerFn()
   .inputValidator((data: { id: number }) => data)
   .handler(async ({ data }) => {
     const bill = await db
-      .select()
+      .select({
+        ...getTableColumns(bills),
+        creator: users.username,
+      })
       .from(bills)
+      .leftJoin(users, eq(users.id, bills.creatorId))
       .where(eq(bills.id, data.id))
       .limit(1);
     return bill;
@@ -239,7 +243,7 @@ export const createBill = createServerFn()
     await addFeedItem({
       data: {
         userId: data.creatorId,
-        content: `Created a new bill: "Bill #${billId} - ${data.title}"`,
+        content: `Created a new bill: "Bill #${billId}: ${data.title}"`,
       },
     });
     return result;
