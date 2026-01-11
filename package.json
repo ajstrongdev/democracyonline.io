@@ -46,6 +46,7 @@
     "firebase": "^12.6.0",
     "firebase-admin": "^13.6.0",
     "lucide-react": "^0.544.0",
+    "motion": "^12.25.0",
     "nitro": "latest",
     "pg": "^8.11.0",
     "react": "^19.2.0",
