@@ -182,7 +182,7 @@ function RouteComponent() {
                           </Link>
                         )}
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2 wrapbreak-words">
+                    <p className="text-sm text-muted-foreground mb-2 wrap-break-words">
                       Proposed By:{" "}
                       <b className="text-black dark:text-white wrap-break-words">
                         {bill.creator}
