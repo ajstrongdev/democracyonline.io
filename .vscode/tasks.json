@@ -2,26 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Start Next.js (Unix/macOS)",
+      "label": "Start Tanstack Start (Unix/macOS)",
       "type": "shell",
       "command": "pnpm",
-      "args": ["run", "dev"],
-      "group": "build",
-      "isBackground": true,
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared",
-        "showReuseMessage": true,
-        "clear": false
-      }
-    },
-    {
-      "label": "Start Next.js (Windows)",
-      "type": "shell",
-      "command": "pnpm.cmd",
       "args": ["run", "dev"],
       "group": "build",
       "isBackground": true,
@@ -53,31 +36,9 @@
       }
     },
     {
-      "label": "Start Database (PowerShell)",
-      "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}/src/scripts/postgres.ps1"
-      ],
-      "group": "build",
-      "isBackground": true,
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared",
-        "showReuseMessage": true,
-        "clear": false
-      }
-    },
-    {
       "label": "Start Dev Server (Unix/macOS)",
       "dependsOrder": "parallel",
-      "dependsOn": ["Start Next.js (Unix/macOS)", "Start Database (Bash)"],
+      "dependsOn": ["Start Tanstack Start (Unix/macOS)", "Start Database (Bash)"],
       "group": {
         "kind": "build",
         "isDefault": true
@@ -91,19 +52,5 @@
         "clear": false
       }
     },
-    {
-      "label": "Start Dev Server (Windows)",
-      "dependsOrder": "parallel",
-      "dependsOn": ["Start Next.js (Windows)", "Start Database (PowerShell)"],
-      "group": "build",
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared",
-        "showReuseMessage": true,
-        "clear": false
-      }
-    }
   ]
 }
