@@ -10,7 +10,7 @@ import {
 import { db } from "@/db";
 import { UpdateUserProfileSchema } from "@/lib/schemas/user-schema";
 import { SearchUsersSchema } from "@/lib/schemas/user-search-schema";
-import { requireAuthMiddleware } from "@/middleware";
+import { authMiddleware, requireAuthMiddleware } from "@/middleware";
 
 export const fetchUserInfo = createServerFn()
   .inputValidator((data: { userId: number }) => data)
@@ -34,6 +34,21 @@ export const fetchUserInfoByEmail = createServerFn()
       .where(eq(users.email, data.email))
       .limit(1);
     return user;
+  });
+
+export const getCurrentUserInfo = createServerFn()
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    if (!context.user?.email) {
+      return null;
+    }
+    const { email, ...userColumns } = getTableColumns(users);
+    const user = await db
+      .select(userColumns)
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1);
+    return user[0] ?? null;
   });
 
 export const getUserFullById = createServerFn()

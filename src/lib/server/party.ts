@@ -299,6 +299,7 @@ export const leaveParty = createServerFn()
   });
 
 export const deleteParty = createServerFn()
+  .middleware([requireAuthMiddleware])
   .inputValidator((data: { partyId: number }) => data)
   .handler(async ({ data }) => {
     await db.transaction(async (tx) => {
