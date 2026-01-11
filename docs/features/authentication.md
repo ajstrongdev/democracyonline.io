@@ -136,13 +136,47 @@ Helper functions for:
 - Session management
 - User data extraction from Firebase tokens
 
+### Server-Side Authentication Middleware
+
+**Location**: [src/middleware/auth.ts](../src/middleware/auth.ts)
+
+The application uses TanStack Start middleware to verify Firebase ID tokens on the server:
+
+**Key Components**:
+
+- `authMiddleware`: Optionally authenticates users, sets `context.user` to null if not authenticated
+- `requireAuthMiddleware`: Strictly requires authentication, throws error if not authenticated
+
+**How it works**:
+
+1. Client-side: Middleware automatically retrieves the current user's Firebase ID token
+2. The token is sent to the server via the `Authorization` header
+3. Server-side: Firebase Admin SDK verifies the token
+4. User info (uid, email) is attached to the request context
+
+**Usage in Server Functions**:
+
+```typescript
+import { requireAuthMiddleware } from '@/middleware'
+
+export const updateUserProfile = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .inputValidator(UpdateUserProfileSchema.parse)
+  .handler(async ({ data, context }) => {
+    // context.user is guaranteed to exist
+    const { uid, email } = context.user
+    // ... perform authenticated action
+  })
+```
+
 ## Security Features
 
 1. **Environment Variable Validation**: T3 Env ensures all required Firebase credentials are present
-2. **Server-Side Verification**: Firebase Admin SDK verifies tokens on the server
+2. **Server-Side Token Verification**: Firebase Admin SDK verifies ID tokens on every authenticated request
 3. **Password Requirements**: Firebase enforces minimum password complexity
 4. **Protected Routes**: Unauthorized access automatically redirects to login
 5. **Secure Token Storage**: Firebase handles token storage and refresh automatically
+6. **Request-Level Authentication**: Server functions use middleware to verify user identity before executing
 
 ## Error Handling
 

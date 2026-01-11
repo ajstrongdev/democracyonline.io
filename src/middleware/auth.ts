@@ -1,0 +1,77 @@
+import { createMiddleware } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
+import { initializeApp, getApps, cert, type App } from 'firebase-admin/app'
+import { getAuth } from 'firebase-admin/auth'
+import { auth } from '@/lib/firebase'
+
+let adminApp: App | undefined
+
+function getAdminApp(): App {
+  if (adminApp) return adminApp
+  if (getApps().length) return getApps()[0]!
+
+  adminApp = initializeApp({
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID!,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
+    }),
+  })
+
+  return adminApp
+}
+
+export interface AuthContext {
+  user: {
+    uid: string
+    email?: string
+  } | null
+}
+
+export const authMiddleware = createMiddleware({ type: 'function' })
+  .client(async ({ next }) => {
+    const user = auth.currentUser
+
+    if (!user) return next()
+
+    const token = await user.getIdToken()
+    return next({
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+  })
+  .server(async ({ next }) => {
+    try {
+      const request = getRequest()
+      const authHeader = request?.headers?.get('authorization')
+
+      if (!authHeader?.startsWith('Bearer ')) {
+        return next({ context: { user: null } as AuthContext })
+      }
+
+      const token = authHeader.slice(7)
+      const decoded = await getAuth(getAdminApp()).verifyIdToken(token)
+
+      return next({
+        context: {
+          user: {
+            uid: decoded.uid,
+            email: decoded.email,
+          },
+        } as AuthContext,
+      })
+    } catch {
+      return next({ context: { user: null } as AuthContext })
+    }
+  })
+
+export const requireAuthMiddleware = createMiddleware({ type: 'function' })
+  .middleware([authMiddleware])
+  .server(async ({ next, context }) => {
+    if (!context?.user) {
+      throw new Error('Authentication required')
+    }
+
+    return next()
+  })

@@ -7,6 +7,7 @@ import {
   UpdatePartySchema,
 } from '@/lib/schemas/party-schema'
 import { z } from 'zod'
+import { requireAuthMiddleware } from '@/middleware'
 
 // Data fetching
 export const partyPageData = createServerFn()
@@ -143,6 +144,7 @@ export const getPoliticalStances = createServerFn().handler(async () => {
 
 // Mutations
 export const createParty = createServerFn()
+  .middleware([requireAuthMiddleware])
   .inputValidator(CreatePartySchema)
   .handler(async ({ data }) => {
     const { party, stances } = data
@@ -182,28 +184,55 @@ export const createParty = createServerFn()
   })
 
 export const updateParty = createServerFn()
+  .middleware([requireAuthMiddleware])
   .inputValidator(UpdatePartySchema)
-  .handler(async ({ data }) => {
-    const { party, stances } = data
+  .handler(async ({ data, context }) => {
+    if (!context.user?.email) {
+      throw new Error('Authentication required')
+    }
+
+    const [currentUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1)
+
+    if (!currentUser) {
+      throw new Error('User not found')
+    }
+
+    const [party] = await db
+      .select({ leaderId: parties.leaderId })
+      .from(parties)
+      .where(eq(parties.id, data.party.id!))
+      .limit(1)
+
+    if (!party || party.leaderId !== currentUser.id) {
+      throw new Error('Only the party leader can update the party')
+    }
+
+    const { party: partyData, stances } = data
     await db.transaction(async (tx) => {
       await tx
         .update(parties)
         .set({
-          name: party.name,
-          bio: party.bio,
-          color: party.color,
-          logo: party.logo,
-          discord: party.discord,
-          leaning: party.leaning,
+          name: partyData.name,
+          bio: partyData.bio,
+          color: partyData.color,
+          logo: partyData.logo,
+          discord: partyData.discord,
+          leaning: partyData.leaning,
         })
-        .where(eq(parties.id, party.id))
+        .where(eq(parties.id, partyData.id!))
 
-      await tx.delete(partyStances).where(eq(partyStances.partyId, party.id))
+      await tx
+        .delete(partyStances)
+        .where(eq(partyStances.partyId, partyData.id!))
 
       if (stances.length > 0) {
         await tx.insert(partyStances).values(
           stances.map((stance) => ({
-            partyId: party.id!,
+            partyId: partyData.id!,
             stanceId: stance.stanceId,
             value: stance.value,
           })),
@@ -214,24 +243,34 @@ export const updateParty = createServerFn()
   })
 
 export const leaveParty = createServerFn()
+  .middleware([requireAuthMiddleware])
   .inputValidator((data: { userId: number }) => data)
-  .handler(async ({ data }) => {
-    const [user] = await db
-      .select({ partyId: users.partyId })
+  .handler(async ({ data, context }) => {
+    if (!context.user?.email) {
+      throw new Error('Authentication required')
+    }
+
+    const [currentUser] = await db
+      .select({ id: users.id, partyId: users.partyId })
       .from(users)
-      .where(eq(users.id, data.userId))
+      .where(eq(users.email, context.user.email))
       .limit(1)
-    if (user?.partyId) {
+
+    if (!currentUser || currentUser.id !== data.userId) {
+      throw new Error('You can only leave a party as yourself')
+    }
+
+    if (currentUser.partyId) {
       const [party] = await db
         .select({ leaderId: parties.leaderId })
         .from(parties)
-        .where(eq(parties.id, user.partyId))
+        .where(eq(parties.id, currentUser.partyId))
         .limit(1)
       if (party?.leaderId === data.userId) {
         await db
           .update(parties)
           .set({ leaderId: null })
-          .where(eq(parties.id, user.partyId))
+          .where(eq(parties.id, currentUser.partyId))
       }
     }
 
@@ -240,14 +279,14 @@ export const leaveParty = createServerFn()
       .set({ partyId: null })
       .where(eq(users.id, data.userId))
 
-    if (user?.partyId) {
+    if (currentUser.partyId) {
       const memberCount = await db
         .select()
         .from(users)
-        .where(eq(users.partyId, user.partyId))
+        .where(eq(users.partyId, currentUser.partyId))
 
       if (memberCount.length === 0) {
-        await deleteParty({ data: { partyId: user.partyId } })
+        await deleteParty({ data: { partyId: currentUser.partyId } })
       }
     }
     return true
@@ -278,8 +317,24 @@ export const deleteParty = createServerFn()
   })
 
 export const joinParty = createServerFn()
+  .middleware([requireAuthMiddleware])
   .inputValidator((data: { userId: number; partyId: number }) => data)
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!context.user?.email) {
+      throw new Error('Authentication required')
+    }
+
+    // Verify the authenticated user matches the userId
+    const [currentUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1)
+
+    if (!currentUser || currentUser.id !== data.userId) {
+      throw new Error('You can only join a party as yourself')
+    }
+
     await db
       .update(users)
       .set({ partyId: data.partyId })
@@ -288,8 +343,40 @@ export const joinParty = createServerFn()
   })
 
 export const becomePartyLeader = createServerFn()
+  .middleware([requireAuthMiddleware])
   .inputValidator((data: { userId: number; partyId: number }) => data)
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!context.user?.email) {
+      throw new Error('Authentication required')
+    }
+
+    // Verify the authenticated user matches the userId
+    const [currentUser] = await db
+      .select({ id: users.id, partyId: users.partyId })
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1)
+
+    if (!currentUser || currentUser.id !== data.userId) {
+      throw new Error('You can only become leader as yourself')
+    }
+
+    // Check if user is a member of the party
+    if (currentUser.partyId !== data.partyId) {
+      throw new Error('You must be a member of the party to become leader')
+    }
+
+    // Check if party currently has no leader
+    const [party] = await db
+      .select({ leaderId: parties.leaderId })
+      .from(parties)
+      .where(eq(parties.id, data.partyId))
+      .limit(1)
+
+    if (party?.leaderId) {
+      throw new Error('Party already has a leader')
+    }
+
     await db
       .update(parties)
       .set({ leaderId: data.userId })

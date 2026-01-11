@@ -10,6 +10,7 @@ import { eq, getTableColumns, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { UpdateUserProfileSchema } from '@/lib/schemas/user-schema'
 import { SearchUsersSchema } from '@/lib/schemas/user-search-schema'
+import { requireAuthMiddleware } from '@/middleware'
 
 export const fetchUserInfo = createServerFn()
   .inputValidator((data: { userId: number }) => data)
@@ -58,9 +59,24 @@ export const getUserFullById = createServerFn()
     return userData
   })
 
-export const updateUserProfile = createServerFn()
-  .inputValidator(UpdateUserProfileSchema.parse)
-  .handler(async ({ data }) => {
+export const updateUserProfile = createServerFn({ method: 'POST' })
+  .middleware([requireAuthMiddleware])
+  .inputValidator(UpdateUserProfileSchema)
+  .handler(async ({ data, context }) => {
+    if (!context.user?.email) {
+      throw new Error('User email not found in context')
+    }
+
+    const [currentUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1)
+
+    if (!currentUser || currentUser.id !== data.userId) {
+      throw new Error('You can only update your own profile')
+    }
+
     const updatedUser = await db
       .update(users)
       .set({
