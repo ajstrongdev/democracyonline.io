@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
   Bell,
+  Book,
   Building2,
   ChartNoAxesCombined,
   ChevronDown,
@@ -10,7 +11,6 @@ import {
   LogOut,
   MessageSquare,
   Newspaper,
-  Notebook,
   Search,
   Shield,
   User,
@@ -265,11 +265,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === "/releases"}>
-              <Link to="/releases" className="flex items-center gap-2">
-                <Notebook />
-                <span>Releases</span>
-              </Link>
+            <SidebarMenuButton asChild>
+              <a
+                href="https://democracyonline.miraheze.org/wiki/Main_Page"
+                target="_blank"
+                className="flex items-center gap-2"
+              >
+                <Book />
+                <span>Wiki</span>
+              </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
