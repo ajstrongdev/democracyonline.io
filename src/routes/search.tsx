@@ -48,11 +48,13 @@ function SearchPage() {
   const { stats, currentUserId } = Route.useLoaderData();
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-2">Find Users</h1>
-      <p className="text-muted-foreground mb-6">
-        Search for users by their username.
-      </p>
+    <div className="container mx-auto p-4 max-w-5xl">
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold mb-3">Find Users</h1>
+        <p className="text-muted-foreground text-lg">
+          Search for users by their username.
+        </p>
+      </div>
 
       <UserStatsDisplay stats={stats} />
 
