@@ -4,11 +4,11 @@ import {
   redirect,
   useNavigate,
 } from "@tanstack/react-router";
-import {  Suspense, useState } from "react";
+import { Suspense, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import type {ReactNode} from "react";
-import type {FeedItem} from "@/types/feed";
+import type { ReactNode } from "react";
+import type { FeedItem } from "@/types/feed";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -137,7 +137,7 @@ function FeedContent() {
                 <CardContent className="p-4">
                   <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
                     <div className="flex-1">
-                      <p>
+                      <p className="wrap-anywhere">
                         {item.userId ? (
                           <span
                             className="font-bold text-foreground hover:underline cursor-pointer"
