@@ -1,12 +1,20 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useNavigate,
+} from "@tanstack/react-router";
 import {
   CheckCircle2,
   Clock,
   Crown,
   Edit,
   Handshake,
+  History,
+  UserCircle,
   XCircle,
 } from "lucide-react";
+import { useState } from "react";
 import {
   fetchUserInfoByEmail,
   getUserFullById,
@@ -58,7 +66,7 @@ export const Route = createFileRoute("/profile/$id")({
       return {
         targetUser: null,
         party: null,
-        votes: [],
+        allVotes: [],
         currentUser,
         error:
           error instanceof Error
@@ -74,14 +82,14 @@ export const Route = createFileRoute("/profile/$id")({
     }
 
     // Get voting history
-    const votes = await getUserVotingHistory({
+    const allVotes = await getUserVotingHistory({
       data: { userId: targetUserId },
     });
 
     return {
       targetUser,
       party,
-      votes,
+      allVotes,
       currentUser,
       error: null,
     };
@@ -91,8 +99,18 @@ export const Route = createFileRoute("/profile/$id")({
 
 function ProfilePage() {
   const navigate = useNavigate();
-  const { targetUser, party, votes, currentUser, error } =
-    Route.useLoaderData();
+  const {
+    targetUser,
+    party,
+    allVotes = [],
+    currentUser,
+    error,
+  } = Route.useLoaderData();
+
+  // State for pagination
+  const [displayedVotes, setDisplayedVotes] = useState(allVotes.slice(0, 10));
+  const [currentOffset, setCurrentOffset] = useState(10);
+  const hasMoreVotes = currentOffset < allVotes.length;
 
   if (error || !targetUser) {
     return (
@@ -115,8 +133,14 @@ function ProfilePage() {
   const isOwnProfile = currentUser?.id === targetUser.id;
   const partyColor = party?.color || "#6b7280";
 
+  const loadMoreVotes = () => {
+    const nextBatch = allVotes.slice(currentOffset, currentOffset + 10);
+    setDisplayedVotes([...displayedVotes, ...nextBatch]);
+    setCurrentOffset(currentOffset + 10);
+  };
+
   return (
-    <div className="container mx-auto p-8 max-w-4xl space-y-6">
+    <div className="p-8 space-y-6">
       {/* Header Card */}
       <Card
         className="relative overflow-hidden"
@@ -176,7 +200,10 @@ function ProfilePage() {
       {/* About This User */}
       <Card>
         <CardHeader>
-          <CardTitle>About This User</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <UserCircle className="w-5 h-5" />
+            About This User
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
@@ -227,7 +254,7 @@ function ProfilePage() {
                 </p>
                 <div className="flex items-center gap-2">
                   <div
-                    className="w-6 h-6 rounded border"
+                    className="size-4 rounded-full"
                     style={{ backgroundColor: party.color }}
                   />
                   <span className="text-base font-mono">{party.color}</span>
@@ -262,54 +289,72 @@ function ProfilePage() {
       {/* Voting History */}
       <Card>
         <CardHeader>
-          <CardTitle>Voting History</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <History className="w-5 h-5" />
+            Voting History
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          {votes.length === 0 ? (
+          {allVotes.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               No voting history available.
             </p>
           ) : (
             <div className="space-y-3">
-              {votes.map((vote) => (
-                <Card key={vote.id} className="p-4">
+              {displayedVotes.map((vote) => (
+                <div
+                  key={vote.id}
+                  className="p-4 py-8 border rounded-lg hover:shadow transition"
+                >
                   <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1">
-                      {vote.voteYes ? (
-                        <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
-                      ) : (
-                        <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium mb-1">
-                          Bill #{vote.billId}: {vote.billTitle}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                          <span className="px-2 py-0.5 bg-muted rounded">
-                            {vote.stage}
-                          </span>
-                          <span className="px-2 py-0.5 bg-muted rounded">
-                            {vote.billStatus}
-                          </span>
-                          <span>Voted: {vote.voteYes ? "For" : "Against"}</span>
-                        </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-medium mb-1">
+                        Bill #{vote.billId}: {vote.billTitle}
+                      </h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className={`flex items-center gap-1 text-sm font-medium ${
+                            vote.voteYes
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-red-600 dark:text-red-400"
+                          }`}
+                        >
+                          {vote.voteYes ? (
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          ) : (
+                            <XCircle className="w-3.5 h-3.5" />
+                          )}
+                          {vote.voteYes ? "For" : "Against"}
+                        </span>
+                        <span className="text-sm text-muted-foreground">•</span>
+                        <span className="text-sm text-muted-foreground capitalize">
+                          {vote.stage}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Status: {vote.billStatus}
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        navigate({
-                          to: "/bills/$id",
-                          params: { id: String(vote.billId) },
-                        })
-                      }
-                    >
-                      View Bill
+                    <Button size="sm" variant="outline" asChild>
+                      <Link
+                        to="/bills/$id"
+                        params={{ id: String(vote.billId) }}
+                      >
+                        View Bill
+                      </Link>
                     </Button>
                   </div>
-                </Card>
+                </div>
               ))}
+              {hasMoreVotes && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={loadMoreVotes}
+                >
+                  Load More
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
