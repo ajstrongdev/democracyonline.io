@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { billPageData } from "@/lib/server/bills";
 import { CheckCircle2, XCircle } from "lucide-react";
 import BillVotersList from "@/components/bill-votes-list";
@@ -10,13 +10,9 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import ProtectedRoute from "@/components/auth/protected-route";
 
 export const Route = createFileRoute("/bills/$id")({
-  beforeLoad: ({ context }) => {
-    if (!context.auth.user) {
-      throw redirect({ to: "/login" });
-    }
-  },
   loader: async ({ params }) => {
     const billId = Number(params.id);
     if (isNaN(billId)) {
@@ -103,72 +99,76 @@ function BillDetailPage() {
   const { bill, votes, voters } = billPageDataResult;
 
   return (
-    <div className="w-full py-4 sm:py-8 px-3 sm:px-4 max-w-5xl mx-auto">
-      <div className="mb-4 sm:mb-6">
-        <BackButton fallbackUrl="/bills" />
+    <ProtectedRoute>
+      <div className="w-full py-4 sm:py-8 px-3 sm:px-4 max-w-5xl mx-auto">
+        <div className="mb-4 sm:mb-6">
+          <BackButton fallbackUrl="/bills" />
+        </div>
+
+        <div className="flex flex-col gap-4 sm:gap-6">
+          <Card>
+            <CardHeader className="p-3 sm:p-4 md:p-6">
+              <div className="flex flex-col gap-3">
+                <div className="space-y-2">
+                  <CardTitle className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold wrap-break-words hyphens-auto">
+                    Bill #{bill.id}: {bill.title}
+                  </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm wrap-break-words">
+                    Proposed by{" "}
+                    <span className="font-semibold text-foreground wrap-break-words">
+                      {bill.creator || "Unknown User"}
+                    </span>{" "}
+                    {bill.createdAt &&
+                      `on ${new Date(bill.createdAt).toLocaleDateString()}`}
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <StatusBadge status={bill.status} />
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground border border-border whitespace-nowrap">
+                    {bill.stage} Stage
+                  </span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-4 md:p-6">
+              <div className="w-full">
+                <h3 className="text-sm sm:text-base md:text-lg font-semibold mb-2">
+                  Bill Content
+                </h3>
+                <div className="p-3 sm:p-4 bg-muted/50 rounded-lg border whitespace-pre-wrap text-xs sm:text-sm leading-relaxed wrap-break-words overflow-x-auto">
+                  {bill.content || "No content available."}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-lg sm:text-xl">
+                Voting History
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Results from each legislative stage
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                <VoteSummary
+                  title="House of Representatives"
+                  votes={votes.house.count}
+                />
+                <VoteSummary title="Senate" votes={votes.senate.count} />
+                <VoteSummary
+                  title="Presidential"
+                  votes={votes.presidential.count}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <BillVotersList votersData={voters} />
+        </div>
       </div>
-
-      <div className="flex flex-col gap-4 sm:gap-6">
-        <Card>
-          <CardHeader className="p-3 sm:p-4 md:p-6">
-            <div className="flex flex-col gap-3">
-              <div className="space-y-2">
-                <CardTitle className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold wrap-break-words hyphens-auto">
-                  Bill #{bill.id}: {bill.title}
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm wrap-break-words">
-                  Proposed by{" "}
-                  <span className="font-semibold text-foreground wrap-break-words">
-                    {bill.creator || "Unknown User"}
-                  </span>{" "}
-                  {bill.createdAt &&
-                    `on ${new Date(bill.createdAt).toLocaleDateString()}`}
-                </CardDescription>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <StatusBadge status={bill.status} />
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground border border-border whitespace-nowrap">
-                  {bill.stage} Stage
-                </span>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 md:p-6">
-            <div className="w-full">
-              <h3 className="text-sm sm:text-base md:text-lg font-semibold mb-2">
-                Bill Content
-              </h3>
-              <div className="p-3 sm:p-4 bg-muted/50 rounded-lg border whitespace-pre-wrap text-xs sm:text-sm leading-relaxed wrap-break-words overflow-x-auto">
-                {bill.content || "No content available."}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-lg sm:text-xl">Voting History</CardTitle>
-            <CardDescription className="text-sm">
-              Results from each legislative stage
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-              <VoteSummary
-                title="House of Representatives"
-                votes={votes.house.count}
-              />
-              <VoteSummary title="Senate" votes={votes.senate.count} />
-              <VoteSummary
-                title="Presidential"
-                votes={votes.presidential.count}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <BillVotersList votersData={voters} />
-      </div>
-    </div>
+    </ProtectedRoute>
   );
 }

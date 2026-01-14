@@ -16,6 +16,7 @@ import PartyLogo from "@/components/party-logo";
 import { Button } from "@/components/ui/button";
 import { MessageDialog } from "@/components/message-dialog";
 import ProtectedRoute from "@/components/auth/protected-route";
+import { useUserData } from "@/lib/hooks/use-user-data";
 
 export const Route = createFileRoute("/parties/$id")({
   loader: async ({ params }) => {
@@ -42,6 +43,7 @@ export const Route = createFileRoute("/parties/$id")({
       mergeRequestCount,
     };
   },
+  gcTime: 0, // Force loader to refetch on client hydration
   component: PartyPage,
 });
 
@@ -50,10 +52,10 @@ function PartyPage() {
     party,
     stances,
     members,
-    membershipStatus,
-    userInfo,
+    userInfo: loaderUserInfo,
     mergeRequestCount,
   } = Route.useLoaderData();
+  const userInfo = useUserData(loaderUserInfo);
   const navigate = useNavigate();
   const [showKickDialog, setShowKickDialog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{
@@ -62,6 +64,12 @@ function PartyPage() {
   } | null>(null);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+
+  // Hack: Determine membership status client-side since direct navigation caused the loader to return incomplete data.
+  const membershipStatus = {
+    isInParty: members.some((m) => m.id === userInfo?.id),
+    isLeader: party?.leaderId === userInfo?.id,
+  };
 
   const kickMember = (member: { id: number; username: string }) => {
     setSelectedMember({ id: member.id, username: member.username });

@@ -26,18 +26,11 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { icons } from "@/lib/utils/logo-helper";
 import PartyLogo from "@/components/party-logo";
+import ProtectedRoute from "@/components/auth/protected-route";
+import { useUserData } from "@/lib/hooks/use-user-data";
 
 export const Route = createFileRoute("/parties/merge/$id")({
-  beforeLoad: ({ context }) => {
-    if (!context.auth.user) {
-      throw redirect({ to: "/login" });
-    }
-  },
   loader: async ({ context, params }) => {
-    if (!context.auth.user?.email) {
-      throw redirect({ to: "/login" });
-    }
-
     const partyId = Number(params.id);
     if (isNaN(partyId)) {
       throw redirect({ to: "/parties" });
@@ -52,7 +45,7 @@ export const Route = createFileRoute("/parties/merge/$id")({
       sentRequests,
     ] = await Promise.all([
       fetchUserInfoByEmail({
-        data: { email: context.auth.user.email },
+        data: { email: context.auth.user?.email || "" },
       }),
       getPartyById({ data: { partyId } }),
       getParties(),
@@ -67,10 +60,12 @@ export const Route = createFileRoute("/parties/merge/$id")({
       throw redirect({ to: "/parties" });
     }
 
-    // Check if user is party leader
-    const isLeader = await checkIfUserIsPartyLeader({
-      data: { userId: user.id, partyId },
-    });
+    // Hack: Skip isLeader check on SSR and handle in client to prevent navigation issues when navigating directly.
+    const isLeader = user?.id
+      ? await checkIfUserIsPartyLeader({
+          data: { userId: user.id, partyId },
+        })
+      : false;
 
     return {
       user,
@@ -103,71 +98,79 @@ function MergePartyPage() {
     stances,
     receivedRequests,
     sentRequests,
-    isLeader,
+    user: loadingUser,
   } = Route.useLoaderData();
+  const user = useUserData(loadingUser);
+
+  // Hack: determine isLeader client-side to handle SSR correctly
+  const isLeader = party.leaderId === user?.id;
 
   if (!isLeader) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground text-lg">
-              Only party leaders can access merge functionality
-            </p>
-            <Button
-              className="mt-4"
-              onClick={() =>
-                navigate({
-                  to: "/parties/$id",
-                  params: { id: String(party.id) },
-                })
-              }
-            >
-              Back to Party
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <ProtectedRoute>
+        <div className="container mx-auto py-8 px-4">
+          <Card>
+            <CardContent className="py-8 text-center">
+              <p className="text-muted-foreground text-lg">
+                Only party leaders can access merge functionality
+              </p>
+              <Button
+                className="mt-4"
+                onClick={() =>
+                  navigate({
+                    to: "/parties/$id",
+                    params: { id: String(party.id) },
+                  })
+                }
+              >
+                Back to Party
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </ProtectedRoute>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          Merge Party: {party.name}
-        </h1>
-        <p className="text-muted-foreground">
-          Create or manage merge requests with other parties
-        </p>
+    <ProtectedRoute>
+      <div className="container mx-auto py-8 px-4 max-w-6xl">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Merge Party: {party.name}
+          </h1>
+          <p className="text-muted-foreground">
+            Create or manage merge requests with other parties
+          </p>
+        </div>
+
+        <Tabs defaultValue="view" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="view">View Requests</TabsTrigger>
+            <TabsTrigger value="create">Create Request</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="view" className="space-y-6">
+            <ViewRequestsTab
+              party={party}
+              receivedRequests={receivedRequests}
+              sentRequests={sentRequests}
+              navigate={navigate}
+            />
+          </TabsContent>
+
+          <TabsContent value="create">
+            <CreateRequestTab
+              party={party}
+              allParties={allParties}
+              stances={stances}
+              receivedRequests={receivedRequests}
+              sentRequests={sentRequests}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs defaultValue="view" className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="view">View Requests</TabsTrigger>
-          <TabsTrigger value="create">Create Request</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="view" className="space-y-6">
-          <ViewRequestsTab
-            party={party}
-            receivedRequests={receivedRequests}
-            sentRequests={sentRequests}
-            navigate={navigate}
-          />
-        </TabsContent>
-
-        <TabsContent value="create">
-          <CreateRequestTab
-            party={party}
-            allParties={allParties}
-            stances={stances}
-            receivedRequests={receivedRequests}
-            sentRequests={sentRequests}
-          />
-        </TabsContent>
-      </Tabs>
-    </div>
+    </ProtectedRoute>
   );
 }
 
