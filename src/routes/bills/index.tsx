@@ -152,7 +152,7 @@ function RouteComponent() {
                   <CardContent>
                     <div>
                       <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-2">
-                        <h2 className="text-lg sm:text-xl font-semibold wrap-break-words">
+                        <h2 className="text-lg sm:text-xl font-semibold wrap-anywhere">
                           Bill #{bill.id}: {bill.title}
                         </h2>
 
