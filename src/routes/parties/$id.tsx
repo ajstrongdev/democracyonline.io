@@ -99,7 +99,7 @@ function PartyPage() {
               <div className="md:flex items-center gap-4">
                 <PartyLogo party_id={party.id} size={80} />
                 <div className="flex-1">
-                  <h1 className="text-2xl mt-8 md:mt-0 md:text-4xl font-bold text-foreground text-wrap break-words">
+                  <h1 className="text-2xl mt-8 md:mt-0 md:text-4xl font-bold text-foreground text-wrap wrap-break-words">
                     {party.name}
                   </h1>
                 </div>

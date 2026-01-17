@@ -30,6 +30,7 @@ type creatorFilter = "all" | "mine";
 function RouteComponent() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [creatorFilter, setCreatorFilter] = useState<creatorFilter>("all");
+  // Hack: get user data client side for direct nav
   const { bills, userData: loaderUserData } = Route.useLoaderData();
   const userData = useUserData(loaderUserData);
 

@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { fetchUserInfoByEmail } from "@/lib/server/users";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/profile/")({
   beforeLoad: ({ context }) => {
@@ -24,6 +25,6 @@ export const Route = createFileRoute("/profile/")({
     throw redirect({ to: "/profile/$id", params: { id: String(user.id) } });
   },
   component: () => {
-    return <div>Redirecting...</div>;
+    return <GenericSkeleton />;
   },
 });

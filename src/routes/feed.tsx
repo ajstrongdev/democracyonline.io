@@ -1,9 +1,4 @@
-import {
-  Link,
-  createFileRoute,
-  redirect,
-  useNavigate,
-} from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Suspense, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -61,14 +56,6 @@ function parseContentWithLinks(content: string): Array<ReactNode> {
 }
 
 export const Route = createFileRoute("/feed")({
-  beforeLoad: ({ context }) => {
-    if (context.auth.loading) {
-      return;
-    }
-    if (!context.auth.user) {
-      throw redirect({ to: "/login" });
-    }
-  },
   loader: async () => {
     return {
       initialFeedItems: await getFeedItems({ data: { limit: 25, offset: 0 } }),

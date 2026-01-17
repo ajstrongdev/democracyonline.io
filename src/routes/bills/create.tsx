@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import ProtectedRoute from "@/components/auth/protected-route";
+import { useUserData } from "@/lib/hooks/use-user-data";
 
 export const Route = createFileRoute("/bills/create")({
   loader: async () => {
@@ -20,7 +21,10 @@ export const Route = createFileRoute("/bills/create")({
 
 function RouteComponent() {
   const navigate = useNavigate();
-  const user = Route.useLoaderData();
+  // Hack: get user data client side for direct nav
+  const userLoaderData = Route.useLoaderData();
+  const user = useUserData(userLoaderData);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
