@@ -43,7 +43,7 @@ const BENEFITS = [
 
 function RouteComponent() {
   return (
-    <div className="overflow-x-hidden -m-4">
+    <div className="">
       {/* Hero Section */}
       <section className="relative min-h-[85vh] flex items-center justify-center px-4 py-12 md:py-20">
         {/* Animated background elements */}
@@ -71,7 +71,7 @@ function RouteComponent() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-balance text-lg sm:text-xl md:text-2xl text-muted-foreground leading-relaxed"
+            className="text-balance max-w-prose mx-auto text-lg sm:text-xl md:text-2xl text-muted-foreground leading-relaxed"
           >
             democracyonline.io is the ultimate political arena. Build parties,
             win elections, and pass legislation in a living democracy.
