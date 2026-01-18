@@ -135,12 +135,12 @@ function ProfilePage() {
     <ProtectedRoute>
       <div className="p-8 space-y-6">
         <Card
-          className="relative overflow-hidden"
-          style={{ borderLeftColor: partyColor, borderLeftWidth: "6px" }}
+          className="relative overflow-hidden border-0 border-t-[6px] sm:border-l-[6px]"
+          style={{ borderColor: partyColor }}
         >
-          <CardHeader className="pb-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-4">
+          <CardHeader className="sm:pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start sm:gap-4 w-full sm:w-auto">
                 {party ? (
                   <PartyLogo party_id={party.id} size={64} />
                 ) : (
@@ -148,27 +148,27 @@ function ProfilePage() {
                     I
                   </div>
                 )}
-                <div>
-                  <CardTitle className="text-3xl mb-2">
+                <div className="flex flex-col items-center sm:items-start w-full sm:w-auto">
+                  <CardTitle className="text-3xl mb-2 text-center sm:text-left">
                     {targetUser.username}'s Profile
                   </CardTitle>
-                  <div className="flex flex-wrap items-center gap-3 text-sm">
-                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-medium">
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap items-center sm:items-center gap-3 text-sm w-full">
+                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-medium w-full sm:w-auto text-center">
                       {targetUser.role || "Representative"}
                     </span>
                     {party && targetUser.id === party.leaderId && (
-                      <span className="px-3 py-1 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-full font-medium flex items-center gap-1">
+                      <span className="px-3 py-1 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-full font-medium flex items-center justify-center gap-1 w-full sm:w-auto">
                         <Crown className="w-4 h-4" />
                         Party Leader
                       </span>
                     )}
                     {targetUser.lastActivity !== null &&
                       targetUser.lastActivity > 15 && (
-                        <span className="px-3 py-1 bg-red-500/10 text-red-600 dark:text-red-400 rounded-full font-medium">
+                        <span className="px-3 py-1 bg-red-500/10 text-red-600 dark:text-red-400 rounded-full font-medium w-full sm:w-auto text-center">
                           Inactive
                         </span>
                       )}
-                    <span className="flex items-center gap-1 text-muted-foreground">
+                    <span className="flex items-center justify-center gap-1 text-muted-foreground w-full sm:w-auto">
                       <Clock className="w-4 h-4" />
                       Last seen: {getLastSeenText(targetUser.lastActivity)}
                     </span>
@@ -179,6 +179,7 @@ function ProfilePage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => navigate({ to: "/settings" })}
                 >
                   <Edit className="w-4 h-4 mr-2" />
@@ -297,7 +298,7 @@ function ProfilePage() {
                     key={vote.id}
                     className="p-4 py-8 border rounded-lg hover:shadow transition"
                   >
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <h3 className="text-lg font-medium mb-1">
                           Bill #{vote.billId}: {vote.billTitle}
@@ -328,7 +329,12 @@ function ProfilePage() {
                           Status: {vote.billStatus}
                         </div>
                       </div>
-                      <Button size="sm" variant="outline" asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        asChild
+                      >
                         <Link
                           to="/bills/$id"
                           params={{ id: String(vote.billId) }}
