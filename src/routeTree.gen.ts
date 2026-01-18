@@ -23,6 +23,8 @@ import { Route as SenateBillsRouteImport } from './routes/senate/bills'
 import { Route as ProfileIdRouteImport } from './routes/profile/$id'
 import { Route as PartiesCreateRouteImport } from './routes/parties/create'
 import { Route as PartiesIdRouteImport } from './routes/parties/$id'
+import { Route as OvalOfficeElectionsRouteImport } from './routes/oval-office/elections'
+import { Route as OvalOfficeBillsRouteImport } from './routes/oval-office/bills'
 import { Route as BillsCreateRouteImport } from './routes/bills/create'
 import { Route as BillsIdRouteImport } from './routes/bills/$id'
 import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
@@ -100,6 +102,16 @@ const PartiesIdRoute = PartiesIdRouteImport.update({
   path: '/parties/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OvalOfficeElectionsRoute = OvalOfficeElectionsRouteImport.update({
+  id: '/oval-office/elections',
+  path: '/oval-office/elections',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OvalOfficeBillsRoute = OvalOfficeBillsRouteImport.update({
+  id: '/oval-office/bills',
+  path: '/oval-office/bills',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BillsCreateRoute = BillsCreateRouteImport.update({
   id: '/bills/create',
   path: '/bills/create',
@@ -141,6 +153,8 @@ export interface FileRoutesByFullPath {
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
+  '/oval-office/bills': typeof OvalOfficeBillsRoute
+  '/oval-office/elections': typeof OvalOfficeElectionsRoute
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
   '/profile/$id': typeof ProfileIdRoute
@@ -163,6 +177,8 @@ export interface FileRoutesByTo {
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
+  '/oval-office/bills': typeof OvalOfficeBillsRoute
+  '/oval-office/elections': typeof OvalOfficeElectionsRoute
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
   '/profile/$id': typeof ProfileIdRoute
@@ -186,6 +202,8 @@ export interface FileRoutesById {
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
+  '/oval-office/bills': typeof OvalOfficeBillsRoute
+  '/oval-office/elections': typeof OvalOfficeElectionsRoute
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
   '/profile/$id': typeof ProfileIdRoute
@@ -210,6 +228,8 @@ export interface FileRouteTypes {
     | '/api/game-advance'
     | '/bills/$id'
     | '/bills/create'
+    | '/oval-office/bills'
+    | '/oval-office/elections'
     | '/parties/$id'
     | '/parties/create'
     | '/profile/$id'
@@ -232,6 +252,8 @@ export interface FileRouteTypes {
     | '/api/game-advance'
     | '/bills/$id'
     | '/bills/create'
+    | '/oval-office/bills'
+    | '/oval-office/elections'
     | '/parties/$id'
     | '/parties/create'
     | '/profile/$id'
@@ -254,6 +276,8 @@ export interface FileRouteTypes {
     | '/api/game-advance'
     | '/bills/$id'
     | '/bills/create'
+    | '/oval-office/bills'
+    | '/oval-office/elections'
     | '/parties/$id'
     | '/parties/create'
     | '/profile/$id'
@@ -277,6 +301,8 @@ export interface RootRouteChildren {
   ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute
   BillsIdRoute: typeof BillsIdRoute
   BillsCreateRoute: typeof BillsCreateRoute
+  OvalOfficeBillsRoute: typeof OvalOfficeBillsRoute
+  OvalOfficeElectionsRoute: typeof OvalOfficeElectionsRoute
   PartiesIdRoute: typeof PartiesIdRoute
   PartiesCreateRoute: typeof PartiesCreateRoute
   ProfileIdRoute: typeof ProfileIdRoute
@@ -390,6 +416,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartiesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/oval-office/elections': {
+      id: '/oval-office/elections'
+      path: '/oval-office/elections'
+      fullPath: '/oval-office/elections'
+      preLoaderRoute: typeof OvalOfficeElectionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oval-office/bills': {
+      id: '/oval-office/bills'
+      path: '/oval-office/bills'
+      fullPath: '/oval-office/bills'
+      preLoaderRoute: typeof OvalOfficeBillsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/bills/create': {
       id: '/bills/create'
       path: '/bills/create'
@@ -445,6 +485,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGameAdvanceRoute: ApiGameAdvanceRoute,
   BillsIdRoute: BillsIdRoute,
   BillsCreateRoute: BillsCreateRoute,
+  OvalOfficeBillsRoute: OvalOfficeBillsRoute,
+  OvalOfficeElectionsRoute: OvalOfficeElectionsRoute,
   PartiesIdRoute: PartiesIdRoute,
   PartiesCreateRoute: PartiesCreateRoute,
   ProfileIdRoute: ProfileIdRoute,
