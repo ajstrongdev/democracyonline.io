@@ -18,6 +18,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProfileIndexRouteImport } from './routes/profile/index'
 import { Route as PartiesIndexRouteImport } from './routes/parties/index'
 import { Route as BillsIndexRouteImport } from './routes/bills/index'
+import { Route as SenateElectionsRouteImport } from './routes/senate/elections'
+import { Route as SenateBillsRouteImport } from './routes/senate/bills'
 import { Route as ProfileIdRouteImport } from './routes/profile/$id'
 import { Route as PartiesCreateRouteImport } from './routes/parties/create'
 import { Route as PartiesIdRouteImport } from './routes/parties/$id'
@@ -71,6 +73,16 @@ const PartiesIndexRoute = PartiesIndexRouteImport.update({
 const BillsIndexRoute = BillsIndexRouteImport.update({
   id: '/bills/',
   path: '/bills/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SenateElectionsRoute = SenateElectionsRouteImport.update({
+  id: '/senate/elections',
+  path: '/senate/elections',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SenateBillsRoute = SenateBillsRouteImport.update({
+  id: '/senate/bills',
+  path: '/senate/bills',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileIdRoute = ProfileIdRouteImport.update({
@@ -132,6 +144,8 @@ export interface FileRoutesByFullPath {
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
   '/profile/$id': typeof ProfileIdRoute
+  '/senate/bills': typeof SenateBillsRoute
+  '/senate/elections': typeof SenateElectionsRoute
   '/bills': typeof BillsIndexRoute
   '/parties': typeof PartiesIndexRoute
   '/profile': typeof ProfileIndexRoute
@@ -152,6 +166,8 @@ export interface FileRoutesByTo {
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
   '/profile/$id': typeof ProfileIdRoute
+  '/senate/bills': typeof SenateBillsRoute
+  '/senate/elections': typeof SenateElectionsRoute
   '/bills': typeof BillsIndexRoute
   '/parties': typeof PartiesIndexRoute
   '/profile': typeof ProfileIndexRoute
@@ -173,6 +189,8 @@ export interface FileRoutesById {
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
   '/profile/$id': typeof ProfileIdRoute
+  '/senate/bills': typeof SenateBillsRoute
+  '/senate/elections': typeof SenateElectionsRoute
   '/bills/': typeof BillsIndexRoute
   '/parties/': typeof PartiesIndexRoute
   '/profile/': typeof ProfileIndexRoute
@@ -195,6 +213,8 @@ export interface FileRouteTypes {
     | '/parties/$id'
     | '/parties/create'
     | '/profile/$id'
+    | '/senate/bills'
+    | '/senate/elections'
     | '/bills'
     | '/parties'
     | '/profile'
@@ -215,6 +235,8 @@ export interface FileRouteTypes {
     | '/parties/$id'
     | '/parties/create'
     | '/profile/$id'
+    | '/senate/bills'
+    | '/senate/elections'
     | '/bills'
     | '/parties'
     | '/profile'
@@ -235,6 +257,8 @@ export interface FileRouteTypes {
     | '/parties/$id'
     | '/parties/create'
     | '/profile/$id'
+    | '/senate/bills'
+    | '/senate/elections'
     | '/bills/'
     | '/parties/'
     | '/profile/'
@@ -256,6 +280,8 @@ export interface RootRouteChildren {
   PartiesIdRoute: typeof PartiesIdRoute
   PartiesCreateRoute: typeof PartiesCreateRoute
   ProfileIdRoute: typeof ProfileIdRoute
+  SenateBillsRoute: typeof SenateBillsRoute
+  SenateElectionsRoute: typeof SenateElectionsRoute
   BillsIndexRoute: typeof BillsIndexRoute
   PartiesIndexRoute: typeof PartiesIndexRoute
   ProfileIndexRoute: typeof ProfileIndexRoute
@@ -327,6 +353,20 @@ declare module '@tanstack/react-router' {
       path: '/bills'
       fullPath: '/bills'
       preLoaderRoute: typeof BillsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/senate/elections': {
+      id: '/senate/elections'
+      path: '/senate/elections'
+      fullPath: '/senate/elections'
+      preLoaderRoute: typeof SenateElectionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/senate/bills': {
+      id: '/senate/bills'
+      path: '/senate/bills'
+      fullPath: '/senate/bills'
+      preLoaderRoute: typeof SenateBillsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile/$id': {
@@ -408,6 +448,8 @@ const rootRouteChildren: RootRouteChildren = {
   PartiesIdRoute: PartiesIdRoute,
   PartiesCreateRoute: PartiesCreateRoute,
   ProfileIdRoute: ProfileIdRoute,
+  SenateBillsRoute: SenateBillsRoute,
+  SenateElectionsRoute: SenateElectionsRoute,
   BillsIndexRoute: BillsIndexRoute,
   PartiesIndexRoute: PartiesIndexRoute,
   ProfileIndexRoute: ProfileIndexRoute,
