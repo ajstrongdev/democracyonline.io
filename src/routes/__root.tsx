@@ -18,6 +18,7 @@ import {
 import { AppSidebar } from "@/components/app-sidebar";
 import { getThemeServerFn } from "@/lib/server/theme";
 import { ThemeProvider } from "@/components/theme-provider";
+import { NotFound } from "@/components/not-found";
 
 type AuthContext = {
   user: User | null;
@@ -54,6 +55,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
   shellComponent: RootDocument,
   component: RootLayout,
+  notFoundComponent: NotFound,
 });
 
 function RootLayout() {

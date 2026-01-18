@@ -5,6 +5,7 @@ import * as TanstackQuery from "./integrations/tanstack-query/root-provider";
 import { routeTree } from "./routeTree.gen";
 import { auth } from "@/lib/firebase";
 import { AuthProvider } from "@/lib/auth-context";
+import { NotFound } from "@/components/not-found";
 
 export const getRouter = () => {
   const rqContext = TanstackQuery.getContext();
@@ -19,6 +20,7 @@ export const getRouter = () => {
       },
     },
     defaultPreload: "intent",
+    defaultNotFoundComponent: NotFound,
     Wrap: ({ children }) => (
       <TanstackQuery.Provider {...rqContext}>
         <AuthProvider>{children}</AuthProvider>
