@@ -135,7 +135,7 @@ function ProfilePage() {
     <ProtectedRoute>
       <div className="p-8 space-y-6">
         <Card
-          className="relative overflow-hidden border-0 border-t-[6px] sm:border-l-[6px]"
+          className="relative overflow-hidden border-0 border-t-[6px] sm:border-t-0 sm:border-l-[6px]"
           style={{ borderColor: partyColor }}
         >
           <CardHeader className="sm:pb-4">
