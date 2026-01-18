@@ -9,7 +9,10 @@ import {
   parties,
   users,
 } from "@/db/schema";
-import { CreateBillsSchema } from "@/lib/schemas/bills-schema";
+import {
+  CreateBillsSchema,
+  UpdateBillsSchema,
+} from "@/lib/schemas/bills-schema";
 import { requireAuthMiddleware } from "@/middleware/auth";
 import { addFeedItem } from "@/lib/server/feed";
 
@@ -246,5 +249,77 @@ export const createBill = createServerFn()
         content: `Created a new bill: "Bill #${billId}: ${data.title}"`,
       },
     });
+    return result;
+  });
+
+export const getBillForEdit = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .inputValidator((data: { id: number; userId: number }) => data)
+  .handler(async ({ data }) => {
+    const bill = await db
+      .select({
+        ...getTableColumns(bills),
+        creator: users.username,
+      })
+      .from(bills)
+      .leftJoin(users, eq(users.id, bills.creatorId))
+      .where(eq(bills.id, data.id))
+      .limit(1);
+
+    if (bill.length === 0) {
+      throw new Error("Bill not found");
+    }
+
+    if (bill[0].creatorId !== data.userId) {
+      throw new Error("You are not authorized to edit this bill");
+    }
+
+    if (bill[0].status !== "Queued") {
+      throw new Error("Only bills with 'Queued' status can be edited");
+    }
+
+    return bill[0];
+  });
+
+export const updateBill = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .inputValidator(UpdateBillsSchema)
+  .handler(async ({ data }) => {
+    // Fetch the bill to validate ownership and status
+    const existingBill = await db
+      .select()
+      .from(bills)
+      .where(eq(bills.id, data.id))
+      .limit(1);
+
+    if (existingBill.length === 0) {
+      throw new Error("Bill not found");
+    }
+
+    if (existingBill[0].creatorId !== data.creatorId) {
+      throw new Error("You are not authorized to edit this bill");
+    }
+
+    if (existingBill[0].status !== "Queued") {
+      throw new Error("Only bills with 'Queued' status can be edited");
+    }
+
+    // Update only title and content
+    const result = await db
+      .update(bills)
+      .set({
+        title: data.title,
+        content: data.content,
+      })
+      .where(eq(bills.id, data.id))
+      .returning({ id: bills.id });
+
+    await addFeedItem({
+      data: {
+        userId: data.creatorId,
+        content: `Updated bill: "Bill #${data.id}: ${data.title}"`,
+      },
+    });
+
     return result;
   });
