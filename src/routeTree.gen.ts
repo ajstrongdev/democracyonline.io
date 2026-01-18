@@ -25,6 +25,7 @@ import { Route as PartiesCreateRouteImport } from './routes/parties/create'
 import { Route as PartiesIdRouteImport } from './routes/parties/$id'
 import { Route as OvalOfficeElectionsRouteImport } from './routes/oval-office/elections'
 import { Route as OvalOfficeBillsRouteImport } from './routes/oval-office/bills'
+import { Route as HouseOfRepresentativesBillsRouteImport } from './routes/house-of-representatives/bills'
 import { Route as BillsCreateRouteImport } from './routes/bills/create'
 import { Route as BillsIdRouteImport } from './routes/bills/$id'
 import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
@@ -112,6 +113,12 @@ const OvalOfficeBillsRoute = OvalOfficeBillsRouteImport.update({
   path: '/oval-office/bills',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HouseOfRepresentativesBillsRoute =
+  HouseOfRepresentativesBillsRouteImport.update({
+    id: '/house-of-representatives/bills',
+    path: '/house-of-representatives/bills',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const BillsCreateRoute = BillsCreateRouteImport.update({
   id: '/bills/create',
   path: '/bills/create',
@@ -153,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
+  '/house-of-representatives/bills': typeof HouseOfRepresentativesBillsRoute
   '/oval-office/bills': typeof OvalOfficeBillsRoute
   '/oval-office/elections': typeof OvalOfficeElectionsRoute
   '/parties/$id': typeof PartiesIdRoute
@@ -177,6 +185,7 @@ export interface FileRoutesByTo {
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
+  '/house-of-representatives/bills': typeof HouseOfRepresentativesBillsRoute
   '/oval-office/bills': typeof OvalOfficeBillsRoute
   '/oval-office/elections': typeof OvalOfficeElectionsRoute
   '/parties/$id': typeof PartiesIdRoute
@@ -202,6 +211,7 @@ export interface FileRoutesById {
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
+  '/house-of-representatives/bills': typeof HouseOfRepresentativesBillsRoute
   '/oval-office/bills': typeof OvalOfficeBillsRoute
   '/oval-office/elections': typeof OvalOfficeElectionsRoute
   '/parties/$id': typeof PartiesIdRoute
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/api/game-advance'
     | '/bills/$id'
     | '/bills/create'
+    | '/house-of-representatives/bills'
     | '/oval-office/bills'
     | '/oval-office/elections'
     | '/parties/$id'
@@ -252,6 +263,7 @@ export interface FileRouteTypes {
     | '/api/game-advance'
     | '/bills/$id'
     | '/bills/create'
+    | '/house-of-representatives/bills'
     | '/oval-office/bills'
     | '/oval-office/elections'
     | '/parties/$id'
@@ -276,6 +288,7 @@ export interface FileRouteTypes {
     | '/api/game-advance'
     | '/bills/$id'
     | '/bills/create'
+    | '/house-of-representatives/bills'
     | '/oval-office/bills'
     | '/oval-office/elections'
     | '/parties/$id'
@@ -301,6 +314,7 @@ export interface RootRouteChildren {
   ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute
   BillsIdRoute: typeof BillsIdRoute
   BillsCreateRoute: typeof BillsCreateRoute
+  HouseOfRepresentativesBillsRoute: typeof HouseOfRepresentativesBillsRoute
   OvalOfficeBillsRoute: typeof OvalOfficeBillsRoute
   OvalOfficeElectionsRoute: typeof OvalOfficeElectionsRoute
   PartiesIdRoute: typeof PartiesIdRoute
@@ -430,6 +444,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OvalOfficeBillsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/house-of-representatives/bills': {
+      id: '/house-of-representatives/bills'
+      path: '/house-of-representatives/bills'
+      fullPath: '/house-of-representatives/bills'
+      preLoaderRoute: typeof HouseOfRepresentativesBillsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/bills/create': {
       id: '/bills/create'
       path: '/bills/create'
@@ -485,6 +506,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGameAdvanceRoute: ApiGameAdvanceRoute,
   BillsIdRoute: BillsIdRoute,
   BillsCreateRoute: BillsCreateRoute,
+  HouseOfRepresentativesBillsRoute: HouseOfRepresentativesBillsRoute,
   OvalOfficeBillsRoute: OvalOfficeBillsRoute,
   OvalOfficeElectionsRoute: OvalOfficeElectionsRoute,
   PartiesIdRoute: PartiesIdRoute,
