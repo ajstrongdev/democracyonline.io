@@ -35,7 +35,7 @@ export function CandidatesChart({ candidates }: CandidatesChartProps) {
 
   return (
     <Card className="row-span-2 flex items-center justify-center">
-      <CardContent className="w-full h-full flex flex-col items-center justify-center pt-6">
+      <CardContent className="w-full h-full flex flex-col items-center justify-center">
         <ChartContainer
           config={chartConfig}
           className="w-48 h-48 flex items-center justify-center"
