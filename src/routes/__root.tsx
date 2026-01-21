@@ -19,6 +19,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { getThemeServerFn } from "@/lib/server/theme";
 import { ThemeProvider } from "@/components/theme-provider";
 import { NotFound } from "@/components/not-found";
+import { Toaster } from "sonner";
 
 type AuthContext = {
   user: User | null;
@@ -85,6 +86,15 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         {children}
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            classNames: {
+              success:
+                "bg-green-50 dark:bg-green-950 text-green-900 dark:text-green-50 border-green-200 dark:border-green-800",
+            },
+          }}
+        />
         <TanStackDevtools
           config={{
             position: "bottom-right",

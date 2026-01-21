@@ -8,6 +8,17 @@ export const env = createEnv({
     FIREBASE_PROJECT_ID: z.string().min(1).optional(),
     FIREBASE_CLIENT_EMAIL: z.string().optional(),
     FIREBASE_PRIVATE_KEY: z.string().min(1).optional(),
+    // Admin emails (comma-separated list)
+    ADMIN_EMAILS: z
+      .string()
+      .optional()
+      .default("")
+      .transform((val) =>
+        val
+          .split(",")
+          .map((email) => email.trim())
+          .filter(Boolean),
+      ),
   },
 
   /**
@@ -31,7 +42,24 @@ export const env = createEnv({
    * What object holds the environment variables at runtime. This is usually
    * `process.env` or `import.meta.env`.
    */
-  runtimeEnv: import.meta.env,
+  runtimeEnv: {
+    // Server-side variables from process.env
+    SERVER_URL: process.env.SERVER_URL,
+    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+    FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
+    FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY,
+    ADMIN_EMAILS: process.env.ADMIN_EMAILS,
+    // Client-side variables from import.meta.env
+    VITE_APP_TITLE: import.meta.env.VITE_APP_TITLE,
+    VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
+    VITE_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    VITE_FIREBASE_PROJECT_ID: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    VITE_FIREBASE_STORAGE_BUCKET: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    VITE_FIREBASE_MESSAGING_SENDER_ID: import.meta.env
+      .VITE_FIREBASE_MESSAGING_SENDER_ID,
+    VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
+    VITE_FIREBASE_MEASUREMENT_ID: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  },
 
   /**
    * By default, this library will feed the environment variables directly to
