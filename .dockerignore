@@ -9,11 +9,12 @@ pnpm-debug.log*
 coverage
 .nyc_output
 
-# Next.js
-.next/
-out/
-build
+# TanStack Start / Nitro
+.output/
+
+# Vite
 dist
+build
 
 # Misc
 .DS_Store
