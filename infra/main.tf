@@ -285,7 +285,7 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
-        name = "CONNECTION_STRING"
+        name = "DATABASE_URL"
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.db_connection_string.secret_id
@@ -337,6 +337,79 @@ resource "google_cloud_run_v2_service" "app" {
       env {
         name  = "SERVER_URL"
         value = "https://${var.custom_domain}"
+      }
+
+      # Client-side Firebase configuration (VITE_* variables)
+      # These are baked into the app at build time, but also needed
+      # for SSR/server-side rendering in TanStack Start
+      env {
+        name = "VITE_FIREBASE_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["api-key"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "VITE_FIREBASE_AUTH_DOMAIN"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["auth-domain"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "VITE_FIREBASE_PROJECT_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["project-id"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "VITE_FIREBASE_STORAGE_BUCKET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["storage-bucket"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "VITE_FIREBASE_MESSAGING_SENDER_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["messaging-sender-id"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "VITE_FIREBASE_APP_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["app-id"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "VITE_FIREBASE_MEASUREMENT_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["measurement-id"].secret_id
+            version = "latest"
+          }
+        }
       }
     }
 
