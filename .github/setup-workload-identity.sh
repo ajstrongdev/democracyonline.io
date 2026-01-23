@@ -14,7 +14,7 @@ echo ""
 
 # Configuration
 PROJECT_ID="onlinedemocraticrepublic"
-GITHUB_REPO="ajstrongdev/onlinedemocraticrepublic"
+GITHUB_REPO="ajstrongdev/democracyonline.io"
 SERVICE_ACCOUNT_NAME="github-actions-deployer"
 WORKLOAD_IDENTITY_POOL="github-pool"
 WORKLOAD_IDENTITY_PROVIDER="github-provider"
