@@ -30,6 +30,8 @@ import { Route as HouseOfRepresentativesBillsRouteImport } from './routes/house-
 import { Route as BillsCreateRouteImport } from './routes/bills/create'
 import { Route as BillsIdRouteImport } from './routes/bills/$id'
 import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
+import { Route as ApiBotRouteImport } from './routes/api/bot'
+import { Route as ApiBillAdvanceRouteImport } from './routes/api/bill-advance'
 import { Route as PartiesMergeIdRouteImport } from './routes/parties/merge/$id'
 import { Route as PartiesManageIdRouteImport } from './routes/parties/manage/$id'
 import { Route as BillsEditIdRouteImport } from './routes/bills/edit/$id'
@@ -140,6 +142,16 @@ const ApiGameAdvanceRoute = ApiGameAdvanceRouteImport.update({
   path: '/api/game-advance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBotRoute = ApiBotRouteImport.update({
+  id: '/api/bot',
+  path: '/api/bot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBillAdvanceRoute = ApiBillAdvanceRouteImport.update({
+  id: '/api/bill-advance',
+  path: '/api/bill-advance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PartiesMergeIdRoute = PartiesMergeIdRouteImport.update({
   id: '/parties/merge/$id',
   path: '/parties/merge/$id',
@@ -164,6 +176,8 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
+  '/api/bill-advance': typeof ApiBillAdvanceRoute
+  '/api/bot': typeof ApiBotRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
@@ -190,6 +204,8 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
+  '/api/bill-advance': typeof ApiBillAdvanceRoute
+  '/api/bot': typeof ApiBotRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
@@ -217,6 +233,8 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
+  '/api/bill-advance': typeof ApiBillAdvanceRoute
+  '/api/bot': typeof ApiBotRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
@@ -245,6 +263,8 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/signup'
+    | '/api/bill-advance'
+    | '/api/bot'
     | '/api/game-advance'
     | '/bills/$id'
     | '/bills/create'
@@ -271,6 +291,8 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/signup'
+    | '/api/bill-advance'
+    | '/api/bot'
     | '/api/game-advance'
     | '/bills/$id'
     | '/bills/create'
@@ -297,6 +319,8 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/signup'
+    | '/api/bill-advance'
+    | '/api/bot'
     | '/api/game-advance'
     | '/bills/$id'
     | '/bills/create'
@@ -324,6 +348,8 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
+  ApiBillAdvanceRoute: typeof ApiBillAdvanceRoute
+  ApiBotRoute: typeof ApiBotRoute
   ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute
   BillsIdRoute: typeof BillsIdRoute
   BillsCreateRoute: typeof BillsCreateRoute
@@ -492,6 +518,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGameAdvanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/bot': {
+      id: '/api/bot'
+      path: '/api/bot'
+      fullPath: '/api/bot'
+      preLoaderRoute: typeof ApiBotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/bill-advance': {
+      id: '/api/bill-advance'
+      path: '/api/bill-advance'
+      fullPath: '/api/bill-advance'
+      preLoaderRoute: typeof ApiBillAdvanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/parties/merge/$id': {
       id: '/parties/merge/$id'
       path: '/parties/merge/$id'
@@ -524,6 +564,8 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
+  ApiBillAdvanceRoute: ApiBillAdvanceRoute,
+  ApiBotRoute: ApiBotRoute,
   ApiGameAdvanceRoute: ApiGameAdvanceRoute,
   BillsIdRoute: BillsIdRoute,
   BillsCreateRoute: BillsCreateRoute,

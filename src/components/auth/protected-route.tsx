@@ -2,6 +2,15 @@ import { Navigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import GenericSkeleton from "@/components/generic-skeleton";
+import { createServerFn } from "@tanstack/react-start";
+import { userActivityMiddleware } from "@/middleware";
+import { useEffect } from "react";
+
+const trackUserActivity = createServerFn()
+  .middleware([userActivityMiddleware])
+  .handler(async () => {
+    return { success: true };
+  });
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -9,6 +18,14 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      trackUserActivity().catch((error) => {
+        console.error("Failed to track user activity:", error);
+      });
+    }
+  }, [user]);
 
   if (loading) {
     return <GenericSkeleton />;

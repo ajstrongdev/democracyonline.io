@@ -9,7 +9,7 @@ export const leanings = [
 ];
 
 export function getLastSeenText(lastActivity: number | null): string {
-  if (!lastActivity || lastActivity < 0) {
+  if (lastActivity === null || lastActivity === undefined || lastActivity < 0) {
     return "Unknown";
   }
   if (lastActivity === 0) {

@@ -1,9 +1,12 @@
 import { createMiddleware } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
+import { getCookie, getRequest, setCookie } from "@tanstack/react-start/server";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import type { App } from "firebase-admin/app";
 import { auth } from "@/lib/firebase";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 let adminApp: App | undefined;
 
@@ -72,6 +75,43 @@ export const requireAuthMiddleware = createMiddleware({ type: "function" })
   .server(async ({ next, context }) => {
     if (!context?.user) {
       throw new Error("Authentication required");
+    }
+
+    return next();
+  });
+
+const activityCookieName = "user_activity_updated";
+const activityCookieMaxAge = 60 * 60;
+
+export const userActivityMiddleware = createMiddleware({ type: "function" })
+  .middleware([authMiddleware])
+  .server(async ({ next, context }) => {
+    if (!context?.user?.email) {
+      return next();
+    }
+
+    try {
+      const activityCookie = getCookie(activityCookieName);
+
+      if (!activityCookie) {
+        await db
+          .update(users)
+          .set({
+            lastActivity: 0,
+            isActive: true,
+          })
+          .where(eq(users.email, context.user.email));
+
+        setCookie(activityCookieName, "1", {
+          maxAge: activityCookieMaxAge,
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating user activity:", error);
     }
 
     return next();
