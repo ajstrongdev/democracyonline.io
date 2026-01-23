@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { eq, getTableColumns, sql } from "drizzle-orm";
+import { z } from "zod";
 import {
   billVotesHouse,
   billVotesPresidential,
@@ -11,6 +12,39 @@ import { db } from "@/db";
 import { UpdateUserProfileSchema } from "@/lib/schemas/user-schema";
 import { SearchUsersSchema } from "@/lib/schemas/user-search-schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware";
+
+const CreateUserSchema = z.object({
+  email: z.string().email(),
+  username: z.string().min(1, "Username is required"),
+  bio: z.string().optional(),
+  politicalLeaning: z.string().optional(),
+});
+
+export const createUser = createServerFn({ method: "POST" })
+  .inputValidator(CreateUserSchema)
+  .handler(async ({ data }) => {
+    const existingUser = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.username, data.username))
+      .limit(1);
+
+    if (existingUser.length > 0) {
+      throw new Error("Username already exists");
+    }
+
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        email: data.email,
+        username: data.username,
+        bio: data.bio || null,
+        politicalLeaning: data.politicalLeaning || null,
+      })
+      .returning();
+
+    return newUser;
+  });
 
 export const fetchUserInfo = createServerFn()
   .inputValidator((data: { userId: number }) => data)

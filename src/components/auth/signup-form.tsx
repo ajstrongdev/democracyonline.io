@@ -1,32 +1,55 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
+import { useState } from "react";
 import { signUp } from "@/lib/auth-utils";
+import { createUser } from "@/lib/server/users";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
+import { leanings } from "@/lib/constants";
 
 export function SignupForm() {
   const navigate = useNavigate();
+  const [leaningValue, setLeaningValue] = useState([3]);
 
   const form = useForm({
     defaultValues: {
       email: "",
       password: "",
       confirmPassword: "",
-      displayName: "",
+      username: "",
+      bio: "",
+      politicalLeaning: "Center",
     },
     onSubmit: async ({ value }) => {
       const { user, error } = await signUp({
         email: value.email,
         password: value.password,
-        displayName: value.displayName || undefined,
       });
 
       if (error) {
         form.setErrorMap({
           onSubmit: error,
         });
-      } else if (user) {
-        navigate({ to: "/" });
+        return;
+      }
+
+      if (user) {
+        try {
+          await createUser({
+            data: {
+              email: value.email,
+              username: value.username,
+              bio: value.bio || undefined,
+              politicalLeaning: leanings[leaningValue[0]],
+            },
+          });
+          navigate({ to: "/" });
+        } catch (dbError: any) {
+          form.setErrorMap({
+            onSubmit: dbError.message || "Failed to create user profile",
+          });
+        }
       }
     },
   });
@@ -54,11 +77,17 @@ export function SignupForm() {
           </div>
         )}
 
-        <form.Field name="displayName">
+        <form.Field
+          name="username"
+          validators={{
+            onChange: ({ value }) =>
+              value.length < 1 ? "Username is required" : undefined,
+          }}
+        >
           {(field) => (
             <div className="space-y-2">
               <label htmlFor={field.name} className="text-sm font-medium">
-                Display Name (optional)
+                Username
               </label>
               <input
                 id={field.name}
@@ -67,12 +96,53 @@ export function SignupForm() {
                 value={field.state.value}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
+                required
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="John Doe"
+                placeholder=""
+              />
+              {field.state.meta.errors && (
+                <p className="text-sm text-destructive">
+                  {field.state.meta.errors.join(", ")}
+                </p>
+              )}
+            </div>
+          )}
+        </form.Field>
+
+        <form.Field name="bio">
+          {(field) => (
+            <div className="space-y-2">
+              <label htmlFor={field.name} className="text-sm font-medium">
+                Bio (optional)
+              </label>
+              <textarea
+                id={field.name}
+                name={field.name}
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring min-h-20"
+                placeholder="Tell us about yourself..."
               />
             </div>
           )}
         </form.Field>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Political Leaning</label>
+          <div className="space-y-3 p-4 bg-muted/50 rounded-md">
+            <Slider
+              min={0}
+              max={6}
+              step={1}
+              value={leaningValue}
+              onValueChange={setLeaningValue}
+            />
+            <p className="text-center font-medium text-sm">
+              {leanings[leaningValue[0]]}
+            </p>
+          </div>
+        </div>
 
         <form.Field name="email">
           {(field) => (

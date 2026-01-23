@@ -18,9 +18,6 @@ This project uses Firebase Authentication with email/password sign-in.
 3. **Configure Environment Variables**
    - Copy `.env.local.example` to `.env.local`
    - Fill in your Firebase configuration values:
-     ```bash
-     cp .env.local.example .env.local
-     ```
 
 4. **Environment Variables**
 
@@ -46,16 +43,16 @@ This project uses Firebase Authentication with email/password sign-in.
 
 ## Features
 
-- ✅ Email/Password Authentication
-- ✅ User Sign Up with optional display name
-- ✅ User Sign In
-- ✅ User Sign Out
-- ✅ Password Reset
-- ✅ Protected Routes
-- ✅ Auth Context with React hooks
-- ✅ User Menu Component
-- ✅ Server-Side Token Verification (Firebase Admin SDK)
-- ✅ Authentication Middleware for Server Functions
+- Email/Password Authentication
+- User Sign Up with optional display name
+- User Sign In
+- User Sign Out
+- Password Reset
+- Protected Routes
+- Auth Context with React hooks
+- User Menu Component
+- Server-Side Token Verification (Firebase Admin SDK)
+- Authentication Middleware for Server Functions
 
 ## Usage
 
@@ -143,18 +140,9 @@ Two middleware options are available:
 - `authMiddleware`: Optional auth - sets `context.user` to the authenticated user or `null` if not authenticated
 - `requireAuthMiddleware`: Required auth - throws `Error('Authentication required')` if not authenticated
 
-The client-side middleware automatically attaches the Firebase ID token to requests via the `Authorization: Bearer <token>` header.
-
 ## Routes
 
 - `/` - Home page with user menu
 - `/login` - Login page
-- `/signup` - Sign up page
+- `/register` - Sign up page
 - `/profile` - Protected profile page (requires authentication)
-
-## Security Notes
-
-- Never commit `.env.local` to version control (it's in .gitignore)
-- Firebase API keys are safe to expose in client code, but set up Firebase Security Rules
-- Enable email verification in Firebase Console for production
-- Consider adding rate limiting and other security measures

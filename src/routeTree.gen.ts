@@ -9,9 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -36,11 +36,6 @@ import { Route as PartiesMergeIdRouteImport } from './routes/parties/merge/$id'
 import { Route as PartiesManageIdRouteImport } from './routes/parties/manage/$id'
 import { Route as BillsEditIdRouteImport } from './routes/bills/edit/$id'
 
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -49,6 +44,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -173,9 +173,9 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
-  '/signup': typeof SignupRoute
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
@@ -201,9 +201,9 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
-  '/signup': typeof SignupRoute
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
@@ -230,9 +230,9 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
-  '/signup': typeof SignupRoute
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
@@ -260,9 +260,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/feed'
     | '/login'
+    | '/register'
     | '/search'
     | '/settings'
-    | '/signup'
     | '/api/bill-advance'
     | '/api/bot'
     | '/api/game-advance'
@@ -288,9 +288,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/feed'
     | '/login'
+    | '/register'
     | '/search'
     | '/settings'
-    | '/signup'
     | '/api/bill-advance'
     | '/api/bot'
     | '/api/game-advance'
@@ -316,9 +316,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/feed'
     | '/login'
+    | '/register'
     | '/search'
     | '/settings'
-    | '/signup'
     | '/api/bill-advance'
     | '/api/bot'
     | '/api/game-advance'
@@ -345,9 +345,9 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   FeedRoute: typeof FeedRoute
   LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
-  SignupRoute: typeof SignupRoute
   ApiBillAdvanceRoute: typeof ApiBillAdvanceRoute
   ApiBotRoute: typeof ApiBotRoute
   ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute
@@ -371,13 +371,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -390,6 +383,13 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -561,9 +561,9 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   FeedRoute: FeedRoute,
   LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
-  SignupRoute: SignupRoute,
   ApiBillAdvanceRoute: ApiBillAdvanceRoute,
   ApiBotRoute: ApiBotRoute,
   ApiGameAdvanceRoute: ApiGameAdvanceRoute,
