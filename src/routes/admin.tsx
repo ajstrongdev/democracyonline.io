@@ -62,10 +62,14 @@ function RouteComponent() {
 
     const loadData = async () => {
       try {
+        console.log("[Admin] User email:", user?.email);
+        console.log("[Admin] Calling checkIsAdmin...");
         const adminCheck = await checkIsAdmin();
+        console.log("[Admin] checkIsAdmin result:", adminCheck);
         setIsAdmin(adminCheck);
 
         if (!adminCheck) {
+          console.log("[Admin] Not admin, redirecting...");
           navigate({ to: "/" });
           return;
         }
