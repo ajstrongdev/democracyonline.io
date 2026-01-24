@@ -4,7 +4,6 @@ import { Search } from "lucide-react";
 import { SearchResults } from "./SearchResults";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { searchUsers } from "@/lib/server/users";
 import { getPartiesByIds } from "@/lib/server/party";
 import { Spinner } from "@/components/ui/spinner";
@@ -84,33 +83,33 @@ export function SearchForm({ currentUserId }: SearchFormProps) {
       </div>
 
       <div>
-          {isSearching && (
-            <Card>
-              <CardContent className="py-16 text-center">
-                <Spinner className="mx-auto h-12 w-12" />
-                <p className="mt-3 text-lg text-muted-foreground">Searching...</p>
-              </CardContent>
-            </Card>
-          )}
+        {isSearching && (
+          <Card>
+            <CardContent className="py-16 text-center">
+              <Spinner className="mx-auto h-12 w-12" />
+              <p className="mt-3 text-lg text-muted-foreground">Searching...</p>
+            </CardContent>
+          </Card>
+        )}
 
-          {searchError && (
-            <Card>
-              <CardContent className="py-16 text-center">
-                <p className="text-red-600 dark:text-red-400 text-lg">
-                  Error searching users. Please try again.
-                </p>
-              </CardContent>
-            </Card>
-          )}
+        {searchError && (
+          <Card>
+            <CardContent className="py-16 text-center">
+              <p className="text-red-600 dark:text-red-400 text-lg">
+                Error searching users. Please try again.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
-          {searchResults && !isSearching && (
-            <SearchResults
-              users={searchResults.users}
-              partyData={partyData || {}}
-              searchQuery={debouncedQuery}
-            />
-          )}
-        </div>
+        {searchResults && !isSearching && (
+          <SearchResults
+            users={searchResults.users}
+            partyData={partyData || {}}
+            searchQuery={debouncedQuery}
+          />
+        )}
+      </div>
     </>
   );
 }
