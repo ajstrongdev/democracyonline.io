@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -64,29 +64,28 @@ jobs:
           DOCKER_BUILDKIT: 1
         run: |
           # Create temporary files for secrets
-          echo -n "${{ steps.secrets.outputs.FIREBASE_ADMIN_PROJECT_ID }}" > /tmp/firebase_admin_project_id
-          echo -n "${{ steps.secrets.outputs.FIREBASE_ADMIN_CLIENT_EMAIL }}" > /tmp/firebase_admin_client_email
-          echo -n "${{ steps.secrets.outputs.FIREBASE_ADMIN_PRIVATE_KEY }}" > /tmp/firebase_admin_private_key
+          echo -n "${{ steps.secrets.outputs.FIREBASE_ADMIN_PROJECT_ID }}" > /tmp/firebase_project_id
+          echo -n "${{ steps.secrets.outputs.FIREBASE_ADMIN_CLIENT_EMAIL }}" > /tmp/firebase_client_email
+          echo -n "${{ steps.secrets.outputs.FIREBASE_ADMIN_PRIVATE_KEY }}" > /tmp/firebase_private_key
 
           docker build \
             --platform linux/amd64 \
-            --secret id=firebase_admin_project_id,src=/tmp/firebase_admin_project_id \
-            --secret id=firebase_admin_client_email,src=/tmp/firebase_admin_client_email \
-            --secret id=firebase_admin_private_key,src=/tmp/firebase_admin_private_key \
-            --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="${{ steps.secrets.outputs.FIREBASE_API_KEY }}" \
-            --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="${{ steps.secrets.outputs.FIREBASE_AUTH_DOMAIN }}" \
-            --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID="${{ steps.secrets.outputs.FIREBASE_PROJECT_ID }}" \
-            --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="${{ steps.secrets.outputs.FIREBASE_STORAGE_BUCKET }}" \
-            --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="${{ steps.secrets.outputs.FIREBASE_MESSAGING_SENDER_ID }}" \
-            --build-arg NEXT_PUBLIC_FIREBASE_APP_ID="${{ steps.secrets.outputs.FIREBASE_APP_ID }}" \
-            --build-arg NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="${{ steps.secrets.outputs.FIREBASE_MEASUREMENT_ID }}" \
-            --build-arg NEXT_PUBLIC_API_URL="https://democracyonline.io/api" \
+            --secret id=firebase_project_id,src=/tmp/firebase_project_id \
+            --secret id=firebase_client_email,src=/tmp/firebase_client_email \
+            --secret id=firebase_private_key,src=/tmp/firebase_private_key \
+            --build-arg VITE_FIREBASE_API_KEY="${{ steps.secrets.outputs.FIREBASE_API_KEY }}" \
+            --build-arg VITE_FIREBASE_AUTH_DOMAIN="${{ steps.secrets.outputs.FIREBASE_AUTH_DOMAIN }}" \
+            --build-arg VITE_FIREBASE_PROJECT_ID="${{ steps.secrets.outputs.FIREBASE_PROJECT_ID }}" \
+            --build-arg VITE_FIREBASE_STORAGE_BUCKET="${{ steps.secrets.outputs.FIREBASE_STORAGE_BUCKET }}" \
+            --build-arg VITE_FIREBASE_MESSAGING_SENDER_ID="${{ steps.secrets.outputs.FIREBASE_MESSAGING_SENDER_ID }}" \
+            --build-arg VITE_FIREBASE_APP_ID="${{ steps.secrets.outputs.FIREBASE_APP_ID }}" \
+            --build-arg VITE_FIREBASE_MEASUREMENT_ID="${{ steps.secrets.outputs.FIREBASE_MEASUREMENT_ID }}" \
             -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
             -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest \
             .
 
           # Clean up temporary secret files
-          rm -f /tmp/firebase_admin_project_id /tmp/firebase_admin_client_email /tmp/firebase_admin_private_key
+          rm -f /tmp/firebase_project_id /tmp/firebase_client_email /tmp/firebase_private_key
 
       - name: Push Docker image to Artifact Registry
         run: |

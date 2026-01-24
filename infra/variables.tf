@@ -12,7 +12,7 @@ variable "region" {
 variable "app_name" {
   description = "The application name"
   type        = string
-  default     = "online-democratic-republic"
+  default     = "odr"
 }
 
 variable "environment" {
@@ -120,10 +120,10 @@ variable "cloud_run_max_instances" {
   default     = 10
 }
 
-variable "cron_secret" {
-  description = "Secret key for securing API endpoints"
+variable "admin_emails" {
+  description = "Comma-separated list of admin email addresses"
   type        = string
-  sensitive   = true
+  default     = ""
 }
 
 variable "custom_domain" {

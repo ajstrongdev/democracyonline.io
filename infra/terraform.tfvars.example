@@ -3,7 +3,7 @@ project_id = "your-gcp-project-id"
 region     = "europe-west2"
 
 # Application Configuration
-app_name    = "online-democratic-republic"
+app_name    = "odr"
 environment = "production"
 
 # Database Configuration
@@ -28,13 +28,14 @@ firebase_admin_project_id      = "your-firebase-project-id"
 firebase_admin_client_email    = "firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com"
 firebase_admin_private_key     = "-----BEGIN PRIVATE KEY-----\nYOUR-PRIVATE-KEY-HERE\n-----END PRIVATE KEY-----\n"
 
-cron_secret = "base64-string"
-
 # Cloud Run Configuration
 cloud_run_cpu           = "1"
 cloud_run_memory        = "512Mi"
 cloud_run_min_instances = 0  # Scale to zero for cost savings
 cloud_run_max_instances = 10
+
+# Admin Configuration
+admin_emails = "admin@example.com,admin2@example.com"  # Comma-separated list of admin emails
 
 # Custom Domain Configuration (optional)
 # Leave empty ("") to skip load balancer setup

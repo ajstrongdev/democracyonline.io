@@ -49,13 +49,9 @@ locals {
   # All secret IDs for IAM binding
   all_secret_ids = concat(
     ["${var.app_name}-db-connection-string"],
-    ["${var.app_name}-cron-secret"],
     [for key, _ in local.firebase_secrets : "${var.app_name}-firebase-${key}"],
     [for key, _ in local.firebase_admin_secrets : "${var.app_name}-firebase-${key}"]
   )
-
-  # API Auth token
-  cron_secret = var.cron_secret
 }
 
 # ============================================
@@ -220,26 +216,6 @@ resource "google_secret_manager_secret_version" "firebase_admin" {
   secret_data = each.value
 }
 
-# Cron secret for securing API endpoints
-resource "google_secret_manager_secret" "cron_secret" {
-  secret_id = "${var.app_name}-cron-secret"
-
-  replication {
-    auto {}
-  }
-
-  depends_on = [google_project_service.required_apis]
-}
-
-resource "google_secret_manager_secret_version" "cron_secret" {
-  secret      = google_secret_manager_secret.cron_secret.id
-  secret_data = var.cron_secret
-
-  lifecycle {
-    ignore_changes = [secret_data]
-  }
-}
-
 # ============================================
 # CLOUD RUN
 # ============================================
@@ -309,7 +285,7 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
-        name = "CONNECTION_STRING"
+        name = "DATABASE_URL"
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.db_connection_string.secret_id
@@ -319,17 +295,7 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
-        name = "CRON_SECRET"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.cron_secret.secret_id
-            version = "latest"
-          }
-        }
-      }
-
-      env {
-        name = "FIREBASE_ADMIN_PROJECT_ID"
+        name = "FIREBASE_PROJECT_ID"
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.firebase_admin["admin-project-id"].secret_id
@@ -339,7 +305,7 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
-        name = "FIREBASE_ADMIN_CLIENT_EMAIL"
+        name = "FIREBASE_CLIENT_EMAIL"
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.firebase_admin["admin-client-email"].secret_id
@@ -349,7 +315,7 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
-        name = "FIREBASE_ADMIN_PRIVATE_KEY"
+        name = "FIREBASE_PRIVATE_KEY"
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.firebase_admin["admin-private-key"].secret_id
@@ -359,13 +325,91 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
+        name  = "ADMIN_EMAILS"
+        value = var.admin_emails
+      }
+
+      env {
         name  = "NODE_ENV"
         value = "production"
       }
 
       env {
-        name  = "NEXT_PUBLIC_SITE_URL"
+        name  = "SERVER_URL"
         value = "https://${var.custom_domain}"
+      }
+
+      # Client-side Firebase configuration (VITE_* variables)
+      # These are baked into the app at build time, but also needed
+      # for SSR/server-side rendering in TanStack Start
+      env {
+        name = "VITE_FIREBASE_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["api-key"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "VITE_FIREBASE_AUTH_DOMAIN"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["auth-domain"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "VITE_FIREBASE_PROJECT_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["project-id"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "VITE_FIREBASE_STORAGE_BUCKET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["storage-bucket"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "VITE_FIREBASE_MESSAGING_SENDER_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["messaging-sender-id"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "VITE_FIREBASE_APP_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["app-id"].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "VITE_FIREBASE_MEASUREMENT_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.firebase["measurement-id"].secret_id
+            version = "latest"
+          }
+        }
       }
     }
 
