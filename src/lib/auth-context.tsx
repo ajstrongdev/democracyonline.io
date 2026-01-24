@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, onAuthStateChanged } from "./firebase";
 import type { User } from "./firebase";
+import { createSessionCookie, deleteSessionCookie } from "./server/users";
 
 interface AuthContextType {
   user: User | null;
@@ -17,9 +18,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       setLoading(false);
+
+      if (user) {
+        try {
+          const idToken = await user.getIdToken();
+          await createSessionCookie({ data: { idToken } });
+        } catch (error) {
+          console.error("Failed to create session cookie:", error);
+        }
+      } else {
+        try {
+          await deleteSessionCookie();
+        } catch (error) {
+          console.error("Failed to delete session cookie:", error);
+        }
+      }
     });
 
     return unsubscribe;

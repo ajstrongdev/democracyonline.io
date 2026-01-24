@@ -103,6 +103,32 @@ export const getCurrentUserInfo = createServerFn()
     return user[0] ?? null;
   });
 
+export const getAuthContext = createServerFn()
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    if (!context.user) {
+      return { user: null, loading: false };
+    }
+    // Return a Firebase-compatible user object for the router context
+    return {
+      user: {
+        uid: context.user.uid,
+        email: context.user.email ?? null,
+        emailVerified: false,
+        isAnonymous: false,
+        metadata: {},
+        providerData: [],
+        refreshToken: "",
+        tenantId: null,
+        displayName: null,
+        phoneNumber: null,
+        photoURL: null,
+        providerId: "firebase",
+      },
+      loading: false,
+    };
+  });
+
 export const getUserFullById = createServerFn()
   .inputValidator((data: { userId: number; checkActive?: boolean }) => data)
   .handler(async ({ data }) => {
@@ -267,3 +293,62 @@ export const getUserStats = createServerFn().handler(async () => {
     throw new Error("Failed to fetch user stats");
   }
 });
+
+export const createSessionCookie = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ idToken: z.string() }))
+  .handler(async ({ data }) => {
+    const { getAuth } = await import("firebase-admin/auth");
+    const { setCookie } = await import("@tanstack/react-start/server");
+    const { cert, getApps, initializeApp } = await import("firebase-admin/app");
+
+    try {
+      let adminApp;
+      if (getApps().length) {
+        adminApp = getApps()[0];
+      } else {
+        adminApp = initializeApp({
+          credential: cert({
+            projectId: process.env.FIREBASE_PROJECT_ID!,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
+            privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, "\n"),
+          }),
+        });
+      }
+
+      const expiresIn = 60 * 60 * 24 * 5 * 1000;
+      const sessionCookie = await getAuth(adminApp).createSessionCookie(
+        data.idToken,
+        { expiresIn },
+      );
+
+      setCookie("__session", sessionCookie, {
+        maxAge: expiresIn / 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error("Error creating session cookie:", error);
+      throw new Error("Failed to create session");
+    }
+  });
+
+export const deleteSessionCookie = createServerFn({ method: "POST" }).handler(
+  async () => {
+    const { setCookie } = await import("@tanstack/react-start/server");
+
+    // Delete the session cookie
+    setCookie("__session", "", {
+      maxAge: 0,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
+
+    return { success: true };
+  },
+);
