@@ -62,8 +62,19 @@ FROM node:24-alpine AS runner
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
+ENV PNPM_HOME=/pnpm
+ENV PATH="$PNPM_HOME:$PATH"
 
 WORKDIR /usr/src/app
+
+# Install pnpm for production dependency installation
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy package files
+COPY --from=builder /usr/src/app/package.json /usr/src/app/pnpm-lock.yaml ./
+
+# Install only production dependencies (needed for externalized packages like firebase-admin)
+RUN pnpm install --prod --frozen-lockfile
 
 # Copy built application from builder stage
 # TanStack Start with Nitro outputs to .output directory
