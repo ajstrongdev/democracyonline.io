@@ -35,10 +35,12 @@ export interface AuthContext {
 export const authMiddleware = createMiddleware({ type: "function" })
   .client(async ({ next }) => {
     const user = auth.currentUser;
+    console.log("[authMiddleware.client] currentUser:", user?.email);
 
     if (!user) return next();
 
     const token = await user.getIdToken();
+    console.log("[authMiddleware.client] Got token, sending with request");
     return next({
       headers: {
         Authorization: `Bearer ${token}`,
@@ -49,6 +51,7 @@ export const authMiddleware = createMiddleware({ type: "function" })
     try {
       const request = getRequest();
       const authHeader = request?.headers?.get("authorization");
+      console.log("[authMiddleware.server] Has auth header:", !!authHeader);
 
       if (!authHeader?.startsWith("Bearer ")) {
         return next({ context: { user: null } as AuthContext });
@@ -56,6 +59,7 @@ export const authMiddleware = createMiddleware({ type: "function" })
 
       const token = authHeader.slice(7);
       const decoded = await getAuth(getAdminApp()).verifyIdToken(token);
+      console.log("[authMiddleware.server] Decoded email:", decoded.email);
 
       return next({
         context: {
@@ -65,7 +69,8 @@ export const authMiddleware = createMiddleware({ type: "function" })
           },
         } as AuthContext,
       });
-    } catch {
+    } catch (error) {
+      console.error("[authMiddleware.server] Error:", error);
       return next({ context: { user: null } as AuthContext });
     }
   });

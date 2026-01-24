@@ -44,8 +44,12 @@ export const checkIsAdmin = createServerFn()
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const email = context.user?.email;
+    console.log("[checkIsAdmin] User email from context:", email);
+    console.log("[checkIsAdmin] ADMIN_EMAILS:", env.ADMIN_EMAILS);
     if (!email) return false;
-    return env.ADMIN_EMAILS.includes(email);
+    const isAdmin = env.ADMIN_EMAILS.includes(email);
+    console.log("[checkIsAdmin] Is admin:", isAdmin);
+    return isAdmin;
   });
 
 export function getAdminEmails(): string[] {
