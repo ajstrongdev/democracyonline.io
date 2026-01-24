@@ -8,19 +8,12 @@ import { getAuth } from "firebase-admin/auth";
 import type { App } from "firebase-admin/app";
 import type { Auth } from "firebase-admin/auth";
 
-let adminApp: App | undefined;
-
 /**
- * Get or initialize the Firebase Admin App singleton.
- * This ensures only one instance of the Firebase Admin SDK is created.
+ * Get or initialize the Firebase Admin App.
+ * Uses Firebase's built-in getApps() to check for existing instances.
  */
 export function getAdminApp(): App {
   console.log("[firebase-admin] getAdminApp called");
-
-  if (adminApp) {
-    console.log("[firebase-admin] Returning cached adminApp instance");
-    return adminApp;
-  }
 
   if (getApps().length) {
     console.log("[firebase-admin] Returning existing app from getApps()");
@@ -33,22 +26,33 @@ export function getAdminApp(): App {
   );
 
   try {
-    adminApp = initializeApp({
+    console.log(
+      "[firebase-admin] [credentials] projectId:",
+      process.env.FIREBASE_PROJECT_ID,
+    );
+    console.log(
+      "[firebase-admin] [credentials] clientEmail:",
+      process.env.FIREBASE_CLIENT_EMAIL,
+    );
+    console.log(
+      "[firebase-admin] [credentials] privateKey:",
+      process.env.FIREBASE_PRIVATE_KEY,
+    );
+    const app = initializeApp({
       credential: useCert
         ? cert({
             projectId: process.env.FIREBASE_PROJECT_ID,
             clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, ""),
+            privateKey: process.env.FIREBASE_PRIVATE_KEY!,
           })
         : applicationDefault(), // Uses Cloud Run's default credentials
     });
     console.log("[firebase-admin] App initialized successfully");
+    return app;
   } catch (error) {
     console.error("[firebase-admin] Error initializing app:", error);
     throw error;
   }
-
-  return adminApp;
 }
 
 /**
