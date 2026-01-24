@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { signUp } from "@/lib/auth-utils";
-import { createUser } from "@/lib/server/users";
+import { createUser, validateAccessToken } from "@/lib/server/users";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -14,6 +14,7 @@ export function SignupForm() {
 
   const form = useForm({
     defaultValues: {
+      accessToken: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -22,6 +23,17 @@ export function SignupForm() {
       politicalLeaning: "Center",
     },
     onSubmit: async ({ value }) => {
+      // Validate access token first
+      try {
+        await validateAccessToken({ data: { token: value.accessToken } });
+      } catch (tokenError: any) {
+        form.setErrorMap({
+          onSubmit: tokenError.message || "Invalid access token",
+        });
+        return;
+      }
+
+      // Only create Firebase user after token validation
       const { user, error } = await signUp({
         email: value.email,
         password: value.password,
@@ -38,6 +50,7 @@ export function SignupForm() {
         try {
           await createUser({
             data: {
+              accessToken: value.accessToken,
               email: value.email,
               username: value.username,
               bio: value.bio || undefined,
@@ -76,6 +89,53 @@ export function SignupForm() {
             {form.state.errorMap.onSubmit}
           </div>
         )}
+
+        <form.Field
+          name="accessToken"
+          validators={{
+            onChange: ({ value }) => {
+              if (value.length < 1) {
+                return "Access token is required";
+              }
+              return undefined;
+            },
+          }}
+        >
+          {(field) => (
+            <div className="space-y-2">
+              <label htmlFor={field.name} className="text-sm font-medium">
+                Access Token
+              </label>
+              <input
+                id={field.name}
+                name={field.name}
+                type="text"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                required
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Enter your access token"
+              />
+              <p className="text-xs text-muted-foreground">
+                To get an access token, please join our{" "}
+                <a
+                  href="https://discord.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Discord
+                </a>
+              </p>
+              {field.state.meta.errors && (
+                <p className="text-sm text-destructive">
+                  {field.state.meta.errors.join(", ")}
+                </p>
+              )}
+            </div>
+          )}
+        </form.Field>
 
         <form.Field
           name="username"
