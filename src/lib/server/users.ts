@@ -301,16 +301,35 @@ export const createSessionCookie = createServerFn({ method: "POST" })
     const { setCookie } = await import("@tanstack/react-start/server");
     const { cert, getApps, initializeApp } = await import("firebase-admin/app");
 
+    // Helper to format private key for different environments
+    const formatPrivateKey = (key: string): string => {
+      let formatted = key.replace(/\\n/g, "\n");
+      if (!formatted.includes("-----BEGIN")) {
+        try {
+          formatted = JSON.parse(key);
+        } catch {
+          // If that fails, just use the original replacement
+        }
+      }
+      return formatted;
+    };
+
     try {
       let adminApp;
       if (getApps().length) {
         adminApp = getApps()[0];
       } else {
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+        if (!privateKey) {
+          throw new Error(
+            "FIREBASE_PRIVATE_KEY environment variable is not set",
+          );
+        }
         adminApp = initializeApp({
           credential: cert({
             projectId: process.env.FIREBASE_PROJECT_ID!,
             clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, "\n"),
+            privateKey: formatPrivateKey(privateKey),
           }),
         });
       }

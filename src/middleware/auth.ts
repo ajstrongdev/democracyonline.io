@@ -10,15 +10,42 @@ import { eq } from "drizzle-orm";
 
 let adminApp: App | undefined;
 
+function formatPrivateKey(key: string): string {
+  // Handle different formats of the private key:
+  // 1. JSON-escaped with \\n (from .env files)
+  // 2. Literal \n characters (from some cloud providers)
+  // 3. Already formatted with actual newlines
+
+  // First, try to handle JSON-escaped format
+  let formatted = key.replace(/\\n/g, "\n");
+
+  // If the key doesn't start with the expected header, it might need different handling
+  if (!formatted.includes("-----BEGIN")) {
+    // Try parsing as JSON string (some providers wrap it in quotes)
+    try {
+      formatted = JSON.parse(key);
+    } catch {
+      // If that fails, just use the original replacement
+    }
+  }
+
+  return formatted;
+}
+
 function getAdminApp(): App {
   if (adminApp) return adminApp;
   if (getApps().length) return getApps()[0];
+
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  if (!privateKey) {
+    throw new Error("FIREBASE_PRIVATE_KEY environment variable is not set");
+  }
 
   adminApp = initializeApp({
     credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID!,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, "\n"),
+      privateKey: formatPrivateKey(privateKey),
     }),
   });
 
