@@ -3,6 +3,7 @@ import { z } from "zod";
 
 export const env = createEnv({
   server: {
+    IS_DEPLOYED_ENV: z.stringbool().default(true),
     SERVER_URL: z.string().url().optional(),
     // Firebase Admin SDK credentials (server-side only)
     FIREBASE_PROJECT_ID: z.string().min(1).optional(),

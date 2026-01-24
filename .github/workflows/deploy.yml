@@ -54,10 +54,12 @@ jobs:
             echo "${var_name}=${value}" >> $GITHUB_OUTPUT
           done
 
-          # Handle multiline private key with EOF delimiter
-          echo "FIREBASE_ADMIN_PRIVATE_KEY<<EOF" >> $GITHUB_OUTPUT
+          # Handle multiline private key with unique delimiter
+          DELIMITER=$(openssl rand -hex 16)
+          echo "FIREBASE_ADMIN_PRIVATE_KEY<<${DELIMITER}" >> $GITHUB_OUTPUT
           gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-admin-private-key" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "${DELIMITER}" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
         env:

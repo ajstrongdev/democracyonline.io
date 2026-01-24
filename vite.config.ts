@@ -9,7 +9,16 @@ import { nitro } from "nitro/vite";
 const config = defineConfig({
   plugins: [
     devtools(),
-    nitro(),
+    nitro({
+      externals: {
+        inline: [],
+        external: [
+          "firebase-admin",
+          "firebase-admin/app",
+          "firebase-admin/auth",
+        ],
+      },
+    }),
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ["./tsconfig.json"],
@@ -19,8 +28,6 @@ const config = defineConfig({
     viteReact(),
   ],
   ssr: {
-    // Don't bundle these packages - use Node.js runtime versions
-    // firebase-admin uses crypto APIs that don't bundle properly
     external: ["firebase-admin"],
     noExternal: [],
   },

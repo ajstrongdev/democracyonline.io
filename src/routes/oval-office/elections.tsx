@@ -360,7 +360,7 @@ function RouteComponent() {
         </div>
 
         {!electionInfo ? (
-          <Alert className="mb-6">
+          <Alert className="mb-6 bg-card">
             <AlertTitle className="font-bold">
               Error loading election info
             </AlertTitle>
@@ -373,7 +373,7 @@ function RouteComponent() {
           <>
             {/* Voting Phase Alert */}
             {electionInfo.status === "Voting" && (
-              <Alert className="mb-6">
+              <Alert className="mb-6 bg-card">
                 <AlertTitle className="font-bold">
                   Elections are live!
                 </AlertTitle>
@@ -393,7 +393,7 @@ function RouteComponent() {
 
             {/* Candidacy Phase */}
             {electionInfo.status === "Candidate" && (
-              <Alert className="mb-6">
+              <Alert className="mb-6 bg-card">
                 <AlertTitle className="font-bold">
                   {isAlreadyCandidate
                     ? "You are standing in this election"
@@ -437,7 +437,7 @@ function RouteComponent() {
 
             {/* Concluded Phase */}
             {electionInfo.status === "Concluded" && (
-              <Alert className="mb-6">
+              <Alert className="mb-6 bg-card">
                 <AlertTitle className="font-bold">
                   Elections concluded
                 </AlertTitle>

@@ -130,6 +130,10 @@ function ProfilePage() {
     setDisplayedVotes([...displayedVotes, ...nextBatch]);
     setCurrentOffset(currentOffset + 10);
   };
+  
+  const withSoftHyphens = (text: string): string => {
+    return Array.from(text).join('\u00AD');
+  }
 
   return (
     <ProtectedRoute>
@@ -150,7 +154,7 @@ function ProfilePage() {
                 )}
                 <div className="flex flex-col items-center sm:items-start w-full sm:w-auto">
                   <CardTitle className="text-3xl mb-2 text-center sm:text-left">
-                    {targetUser.username}'s Profile
+                    {withSoftHyphens(targetUser.username)}'s Profile
                   </CardTitle>
                   <div className="flex flex-col sm:flex-row sm:flex-wrap items-center sm:items-center gap-3 text-sm w-full">
                     <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-medium w-full sm:w-auto text-center">
