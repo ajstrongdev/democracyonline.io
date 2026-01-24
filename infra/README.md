@@ -4,10 +4,12 @@ This directory contains Terraform configuration for deploying the Democracy Onli
 
 ## Architecture Overview
 
-- **Cloud Run**: Serverless container platform hosting the Next.js application
+- **Cloud Run**: Serverless container platform hosting the TanStack Start application
 - **Cloud SQL (PostgreSQL 15)**: Managed PostgreSQL database
 - **Artifact Registry**: Container image repository
 - **Secret Manager**: Secure storage for sensitive configuration (Firebase credentials, database connection string)
+- **Cloud Scheduler**: Scheduled jobs for game/bill advancement
+- **Global Load Balancer**: HTTPS traffic with managed SSL certificate
 
 ## Cost Optimization Features
 
@@ -66,7 +68,6 @@ This directory contains Terraform configuration for deploying the Democracy Onli
    ```
 
 2. **Edit `terraform.tfvars`** with your values:
-
    - Set `project_id` to your GCP project ID
    - Add your Firebase configuration from the Firebase Console
    - Adjust resource sizing if needed
@@ -124,20 +125,20 @@ This directory contains Terraform configuration for deploying the Democracy Onli
 
    ```bash
    # From the project root directory
-   docker build -t europe-west2-docker.pkg.dev/YOUR_PROJECT_ID/online-democratic-republic-docker/online-democratic-republic:latest .
+   docker build -t europe-west2-docker.pkg.dev/YOUR_PROJECT_ID/odr-docker/odr:latest .
    ```
 
 3. **Push to Artifact Registry**
 
    ```bash
-   docker push europe-west2-docker.pkg.dev/YOUR_PROJECT_ID/online-democratic-republic-docker/online-democratic-republic:latest
+   docker push europe-west2-docker.pkg.dev/YOUR_PROJECT_ID/odr-docker/odr:latest
    ```
 
 4. **Deploy to Cloud Run**
 
    ```bash
-   gcloud run deploy online-democratic-republic \
-     --image europe-west2-docker.pkg.dev/YOUR_PROJECT_ID/online-democratic-republic-docker/online-democratic-republic:latest \
+   gcloud run deploy odr \
+     --image europe-west2-docker.pkg.dev/YOUR_PROJECT_ID/odr-docker/odr:latest \
      --region europe-west2 \
      --platform managed
    ```
@@ -153,9 +154,9 @@ steps:
     args:
       - "build"
       - "-t"
-      - "europe-west2-docker.pkg.dev/$PROJECT_ID/online-democratic-republic-docker/online-democratic-republic:$COMMIT_SHA"
+      - "europe-west2-docker.pkg.dev/$PROJECT_ID/odr-docker/odr:$COMMIT_SHA"
       - "-t"
-      - "europe-west2-docker.pkg.dev/$PROJECT_ID/online-democratic-republic-docker/online-democratic-republic:latest"
+      - "europe-west2-docker.pkg.dev/$PROJECT_ID/odr-docker/odr:latest"
       - "."
 
   # Push the container image
@@ -163,7 +164,7 @@ steps:
     args:
       - "push"
       - "--all-tags"
-      - "europe-west2-docker.pkg.dev/$PROJECT_ID/online-democratic-republic-docker/online-democratic-republic"
+      - "europe-west2-docker.pkg.dev/$PROJECT_ID/odr-docker/odr"
 
   # Deploy to Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
@@ -171,17 +172,17 @@ steps:
     args:
       - "run"
       - "deploy"
-      - "online-democratic-republic"
+      - "odr"
       - "--image"
-      - "europe-west2-docker.pkg.dev/$PROJECT_ID/online-democratic-republic-docker/online-democratic-republic:$COMMIT_SHA"
+      - "europe-west2-docker.pkg.dev/$PROJECT_ID/odr-docker/odr:$COMMIT_SHA"
       - "--region"
       - "europe-west2"
       - "--platform"
       - "managed"
 
 images:
-  - "europe-west2-docker.pkg.dev/$PROJECT_ID/online-democratic-republic-docker/online-democratic-republic:$COMMIT_SHA"
-  - "europe-west2-docker.pkg.dev/$PROJECT_ID/online-democratic-republic-docker/online-democratic-republic:latest"
+  - "europe-west2-docker.pkg.dev/$PROJECT_ID/odr-docker/odr:$COMMIT_SHA"
+  - "europe-west2-docker.pkg.dev/$PROJECT_ID/odr-docker/odr:latest"
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -279,7 +280,7 @@ gcloud services enable \
 
 ### Cloud Run service won't start
 
-- Check logs: `gcloud run services logs read online-democratic-republic --region europe-west2`
+- Check logs: `gcloud run services logs read odr --region europe-west2`
 - Verify all secrets are properly set
 - Ensure database is accessible
 

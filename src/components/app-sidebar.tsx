@@ -1,30 +1,25 @@
-"use client";
-
 import * as React from "react";
 import {
-  User,
   Bell,
+  Book,
   Building2,
-  Landmark,
-  Crown,
-  LogOut,
-  Sun,
-  Moon,
-  Handshake,
-  Newspaper,
-  ChevronDown,
   ChartNoAxesCombined,
+  ChevronDown,
+  Crown,
+  Handshake,
+  Landmark,
+  LogOut,
   MessageSquare,
-  Notebook,
-  Shield,
+  Newspaper,
   Search,
+  Shield,
+  User,
 } from "lucide-react";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import { ModeToggle } from "./theme-toggle";
 import { Logo } from "@/components/logo";
-import { signOut } from "firebase/auth";
-import { useRouter, usePathname } from "next/navigation";
-import { useTheme } from "next-themes";
-import { auth } from "@/lib/firebase";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { logOut } from "@/lib/auth-utils";
+import { useAuth } from "@/lib/auth-context";
 
 import {
   Sidebar,
@@ -37,11 +32,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
-  SidebarMenuSubItem,
   SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import Link from "next/link";
 
 const data = {
   navMain: [
@@ -52,7 +46,7 @@ const data = {
     },
     {
       title: "Feed",
-      url: "/notifications",
+      url: "/feed",
       icon: Bell,
     },
     {
@@ -120,11 +114,11 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
-  const [user] = useAuthState(auth);
+  const { user } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
+  const routerState = useRouterState();
+  const pathname = routerState.location.pathname;
 
   const ALLOWED_ADMIN_EMAILS = [
     "jenewland1999@gmail.com",
@@ -139,14 +133,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     setMounted(true);
   }, []);
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
-
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
-      router.push("/");
+      await logOut();
+      router.navigate({ to: "/" });
     } catch (error) {
       console.error("Error signing out:", error);
     }
@@ -163,7 +153,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link href="/" className="flex items-center gap-4">
+              <Link to="/" className="flex items-center gap-4">
                 <Logo />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <p className="font-bold">
@@ -190,7 +180,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 if (item.dropdown) {
                   const isDropdownOpen = item.dropdown.some(
                     (sub) =>
-                      pathname === sub.url || pathname.startsWith(sub.url)
+                      pathname === sub.url || pathname.startsWith(sub.url),
                   );
                   return (
                     <SidebarMenuItem key={item.title}>
@@ -207,12 +197,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           {item.dropdown.map((sub) => (
                             <SidebarMenuSubItem key={sub.title}>
                               <SidebarMenuSubButton
-                                href={sub.url}
+                                asChild
                                 isActive={pathname === sub.url}
                                 size="sm"
                               >
-                                <sub.icon size={16} />
-                                <span>{sub.title}</span>
+                                <Link to={sub.url as any}>
+                                  <sub.icon size={16} />
+                                  <span>{sub.title}</span>
+                                </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                           ))}
@@ -229,10 +221,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       isActive={isActive}
                       className="px-2 py-2 rounded-md text-[15px]"
                     >
-                      <a href={item.url} className="flex items-center gap-2">
+                      <Link
+                        to={item.url as any}
+                        className="flex items-center gap-2"
+                      >
                         <item.icon size={20} />
                         <span className="text-[15px]">{item.title}</span>
-                      </a>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -248,12 +243,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           {isAdmin && (
             <SidebarMenuItem>
               <SidebarMenuButton
-                onClick={() => router.push("/admin")}
+                asChild
                 isActive={pathname === "/admin"}
                 className="bg-primary/10 hover:bg-primary/20 text-primary font-semibold"
               >
-                <Shield />
-                <span>Admin Panel</span>
+                <Link to="/admin" className="flex items-center gap-2">
+                  <Shield />
+                  <span>Admin Panel</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
@@ -268,19 +265,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => router.push("/releases")}
-              isActive={pathname === "/releases"}
-            >
-              <Notebook />
-              <span>Releases</span>
+            <SidebarMenuButton asChild>
+              <a
+                href="https://democracyonline.miraheze.org/wiki/Main_Page"
+                target="_blank"
+                className="flex items-center gap-2"
+              >
+                <Book />
+                <span>Wiki</span>
+              </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={toggleTheme}>
-              {theme === "dark" ? <Sun /> : <Moon />}
-              <span>Change theme</span>
-            </SidebarMenuButton>
+            <ModeToggle />
           </SidebarMenuItem>
           <SidebarMenuItem>
             {user ? (
@@ -289,9 +286,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <span>Sign out</span>
               </SidebarMenuButton>
             ) : mounted ? (
-              <SidebarMenuButton onClick={() => router.push("/sign-in")}>
-                <Crown />
-                <span>Sign in</span>
+              <SidebarMenuButton asChild>
+                <Link to="/login" className="flex items-center gap-2">
+                  <Crown />
+                  <span>Sign in</span>
+                </Link>
               </SidebarMenuButton>
             ) : null}
           </SidebarMenuItem>
