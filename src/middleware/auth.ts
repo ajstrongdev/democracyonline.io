@@ -50,14 +50,27 @@ export const authMiddleware = createMiddleware({ type: "function" })
   .server(async ({ next }) => {
     try {
       const request = getRequest();
+      console.log("[authMiddleware.server] Request URL:", request?.url);
+      console.log(
+        "[authMiddleware.server] Request headers:",
+        request?.headers ? Object.fromEntries(request.headers.entries()) : null,
+      );
 
       // First, try to get token from session cookie (for SSR)
       const sessionCookie = getCookie("__session");
+      console.log(
+        "[authMiddleware.server] Session cookie exists:",
+        !!sessionCookie,
+      );
       if (sessionCookie) {
         try {
           const decoded = await getAuth(getAdminApp()).verifySessionCookie(
             sessionCookie,
             true,
+          );
+          console.log(
+            "[authMiddleware.server] Session cookie verified, email:",
+            decoded.email,
           );
           return next({
             context: {
@@ -78,12 +91,18 @@ export const authMiddleware = createMiddleware({ type: "function" })
       console.log("[authMiddleware.server] Has auth header:", !!authHeader);
 
       if (!authHeader?.startsWith("Bearer ")) {
+        console.log(
+          "[authMiddleware.server] No valid auth, returning null user",
+        );
         return next({ context: { user: null } as AuthContext });
       }
 
       const token = authHeader.slice(7);
       const decoded = await getAuth(getAdminApp()).verifyIdToken(token);
-      console.log("[authMiddleware.server] Decoded email:", decoded.email);
+      console.log(
+        "[authMiddleware.server] Token verified, email:",
+        decoded.email,
+      );
 
       return next({
         context: {
