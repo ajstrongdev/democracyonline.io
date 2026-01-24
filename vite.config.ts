@@ -18,6 +18,12 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
   ],
+  ssr: {
+    // Don't bundle these packages - use Node.js runtime versions
+    // firebase-admin uses crypto APIs that don't bundle properly
+    external: ["firebase-admin"],
+    noExternal: [],
+  },
 });
 
 export default config;
