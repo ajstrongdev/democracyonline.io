@@ -1,52 +1,111 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
   checkIsAdmin,
-  listFirebaseUsers,
-  listDatabaseUsers,
   listAccessTokens,
+  listDatabaseUsers,
+  listFirebaseUsers,
 } from "@/lib/server/admin";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserList from "@/components/admin/user-list";
 import DBUserList from "@/components/admin/db-user-list";
 import AccessTokenManager from "@/components/admin/access-token-manager";
 import GenericSkeleton from "@/components/generic-skeleton";
+import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/admin")({
-  loader: async () => {
-    const isAdmin = await checkIsAdmin();
-    if (!isAdmin) {
-      throw redirect({ to: "/" });
-    }
-
-    const [firebaseUsers, dbUsers, tokens] = await Promise.all([
-      listFirebaseUsers(),
-      listDatabaseUsers(),
-      listAccessTokens(),
-    ]);
-
-    return {
-      firebaseUsers: firebaseUsers.users,
-      dbUsers: dbUsers.users,
-      tokens: tokens.tokens,
-    };
-  },
-  pendingComponent: () => <GenericSkeleton />,
   component: RouteComponent,
 });
 
+interface FirebaseUser {
+  uid: string;
+  email?: string;
+  displayName?: string;
+  photoURL?: string;
+  disabled: boolean;
+  emailVerified: boolean;
+  creationTime?: string;
+  lastSignInTime?: string;
+}
+
+interface DatabaseUser {
+  id: number;
+  email: string;
+  username: string;
+  role: string | null;
+  partyId: number | null;
+  createdAt: Date | null;
+}
+
+interface AccessToken {
+  id: number;
+  token: string;
+  createdAt: Date | null;
+}
+
 function RouteComponent() {
-  const { firebaseUsers, dbUsers, tokens } = Route.useLoaderData();
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [firebaseUsers, setFirebaseUsers] = useState<Array<FirebaseUser>>([]);
+  const [dbUsers, setDbUsers] = useState<Array<DatabaseUser>>([]);
+  const [tokens, setTokens] = useState<Array<AccessToken>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      navigate({ to: "/" });
+      return;
+    }
+
+    const loadData = async () => {
+      try {
+        const adminCheck = await checkIsAdmin();
+        setIsAdmin(adminCheck);
+
+        if (!adminCheck) {
+          navigate({ to: "/" });
+          return;
+        }
+
+        const [fbUsers, databaseUsers, accessTokens] = await Promise.all([
+          listFirebaseUsers(),
+          listDatabaseUsers(),
+          listAccessTokens(),
+        ]);
+
+        setFirebaseUsers(fbUsers.users);
+        setDbUsers(databaseUsers.users);
+        setTokens(accessTokens.tokens);
+      } catch {
+        navigate({ to: "/" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [user, authLoading, navigate]);
+
+  if (authLoading || loading || isAdmin === null) {
+    return <GenericSkeleton />;
+  }
 
   const refreshFirebaseUsers = async () => {
-    redirect({ to: "/admin" });
+    const result = await listFirebaseUsers();
+    setFirebaseUsers(result.users);
   };
 
   const refreshDbUsers = async () => {
-    redirect({ to: "/admin" });
+    const result = await listDatabaseUsers();
+    setDbUsers(result.users);
   };
 
   const refreshTokens = async () => {
-    redirect({ to: "/admin" });
+    const result = await listAccessTokens();
+    setTokens(result.tokens);
   };
 
   return (
