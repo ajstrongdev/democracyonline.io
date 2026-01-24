@@ -94,11 +94,11 @@ export const authMiddleware = createMiddleware({ type: "function" })
   .server(async ({ next }) => {
     try {
       const request = getRequest();
-      console.log("[authMiddleware.server] Request URL:", request?.url);
-      console.log(
-        "[authMiddleware.server] Request headers:",
-        request?.headers ? Object.fromEntries(request.headers.entries()) : null,
-      );
+      // console.log("[authMiddleware.server] Request URL:", request?.url);
+      // console.log(
+      //   "[authMiddleware.server] Request headers:",
+      //   request?.headers ? Object.fromEntries(request.headers.entries()) : null,
+      // );
 
       // First, try to get token from session cookie (for SSR)
       const sessionCookie = getCookie("__session");
@@ -131,7 +131,7 @@ export const authMiddleware = createMiddleware({ type: "function" })
       }
 
       // Fall back to Authorization header (for client-side API calls)
-      const authHeader = request?.headers?.get("authorization");
+      const authHeader = request.headers.get("authorization");
       console.log("[authMiddleware.server] Has auth header:", !!authHeader);
 
       if (!authHeader?.startsWith("Bearer ")) {
@@ -165,7 +165,7 @@ export const authMiddleware = createMiddleware({ type: "function" })
 export const requireAuthMiddleware = createMiddleware({ type: "function" })
   .middleware([authMiddleware])
   .server(async ({ next, context }) => {
-    if (!context?.user) {
+    if (!context.user) {
       throw new Error("Authentication required");
     }
 
@@ -178,7 +178,7 @@ const activityCookieMaxAge = 60 * 60;
 export const userActivityMiddleware = createMiddleware({ type: "function" })
   .middleware([authMiddleware])
   .server(async ({ next, context }) => {
-    if (!context?.user?.email) {
+    if (!context.user?.email) {
       return next();
     }
 
