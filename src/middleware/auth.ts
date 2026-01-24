@@ -37,15 +37,32 @@ function getAdminApp(): App {
   if (getApps().length) return getApps()[0];
 
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  console.log("[getAdminApp] FIREBASE_PRIVATE_KEY exists:", !!privateKey);
+  console.log("[getAdminApp] FIREBASE_PRIVATE_KEY length:", privateKey?.length);
+  console.log(
+    "[getAdminApp] FIREBASE_PRIVATE_KEY starts with:",
+    privateKey?.substring(0, 50),
+  );
+
   if (!privateKey) {
     throw new Error("FIREBASE_PRIVATE_KEY environment variable is not set");
   }
+
+  const formattedKey = formatPrivateKey(privateKey);
+  console.log(
+    "[getAdminApp] Formatted key starts with:",
+    formattedKey.substring(0, 50),
+  );
+  console.log(
+    "[getAdminApp] Formatted key includes BEGIN:",
+    formattedKey.includes("-----BEGIN"),
+  );
 
   adminApp = initializeApp({
     credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID!,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-      privateKey: formatPrivateKey(privateKey),
+      privateKey: formattedKey,
     }),
   });
 
