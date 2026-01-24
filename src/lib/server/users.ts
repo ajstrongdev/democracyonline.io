@@ -1,15 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setCookie } from "@tanstack/react-start/server";
 import { eq, getTableColumns, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
+  accessTokens,
   billVotesHouse,
   billVotesPresidential,
   billVotesSenate,
   bills,
   users,
-  accessTokens,
 } from "@/db/schema";
 import { db } from "@/db";
+import { getAdminAuth } from "@/lib/firebase-admin";
 import { UpdateUserProfileSchema } from "@/lib/schemas/user-schema";
 import { SearchUsersSchema } from "@/lib/schemas/user-search-schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware";
@@ -297,45 +299,9 @@ export const getUserStats = createServerFn().handler(async () => {
 export const createSessionCookie = createServerFn({ method: "POST" })
   .inputValidator(z.object({ idToken: z.string() }))
   .handler(async ({ data }) => {
-    const { getAuth } = await import("firebase-admin/auth");
-    const { setCookie } = await import("@tanstack/react-start/server");
-    const { cert, getApps, initializeApp } = await import("firebase-admin/app");
-
-    // Helper to format private key for different environments
-    const formatPrivateKey = (key: string): string => {
-      let formatted = key.replace(/\\n/g, "\n");
-      if (!formatted.includes("-----BEGIN")) {
-        try {
-          formatted = JSON.parse(key);
-        } catch {
-          // If that fails, just use the original replacement
-        }
-      }
-      return formatted;
-    };
-
     try {
-      let adminApp;
-      if (getApps().length) {
-        adminApp = getApps()[0];
-      } else {
-        const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-        if (!privateKey) {
-          throw new Error(
-            "FIREBASE_PRIVATE_KEY environment variable is not set",
-          );
-        }
-        adminApp = initializeApp({
-          credential: cert({
-            projectId: process.env.FIREBASE_PROJECT_ID!,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-            privateKey: formatPrivateKey(privateKey),
-          }),
-        });
-      }
-
       const expiresIn = 60 * 60 * 24 * 5 * 1000;
-      const sessionCookie = await getAuth(adminApp).createSessionCookie(
+      const sessionCookie = await getAdminAuth().createSessionCookie(
         data.idToken,
         { expiresIn },
       );
@@ -357,8 +323,6 @@ export const createSessionCookie = createServerFn({ method: "POST" })
 
 export const deleteSessionCookie = createServerFn({ method: "POST" }).handler(
   async () => {
-    const { setCookie } = await import("@tanstack/react-start/server");
-
     // Delete the session cookie
     setCookie("__session", "", {
       maxAge: 0,

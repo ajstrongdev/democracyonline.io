@@ -1,44 +1,25 @@
+import crypto from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
+import { eq } from "drizzle-orm";
 import { env } from "@/env";
 import { authMiddleware } from "@/middleware/auth";
-import { getAuth } from "firebase-admin/auth";
-import { cert, getApps, initializeApp } from "firebase-admin/app";
-import type { App } from "firebase-admin/app";
+import { getAdminAuth } from "@/lib/firebase-admin";
 import { db } from "@/db";
 import {
-  users,
-  parties,
   accessTokens,
+  billVotesHouse,
+  billVotesPresidential,
+  billVotesSenate,
   bills,
   candidates,
-  votes,
   chats,
   feed,
-  billVotesHouse,
-  billVotesSenate,
-  billVotesPresidential,
-  senateElection,
+  parties,
   presidentialElection,
+  senateElection,
+  users,
+  votes,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import crypto from "crypto";
-
-let adminApp: App | undefined;
-
-function getAdminApp(): App {
-  if (adminApp) return adminApp;
-  if (getApps().length) return getApps()[0];
-
-  adminApp = initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID!,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, "\n"),
-    }),
-  });
-
-  return adminApp;
-}
 
 export const checkIsAdmin = createServerFn()
   .middleware([authMiddleware])
@@ -52,7 +33,7 @@ export const checkIsAdmin = createServerFn()
     return isAdmin;
   });
 
-export function getAdminEmails(): string[] {
+export function getAdminEmails(): Array<string> {
   return env.ADMIN_EMAILS;
 }
 
@@ -65,7 +46,7 @@ export const listFirebaseUsers = createServerFn()
       throw new Error("Unauthorized");
     }
 
-    const auth = getAuth(getAdminApp());
+    const auth = getAdminAuth();
     const listUsersResult = await auth.listUsers(1000);
 
     return {
@@ -98,7 +79,7 @@ export const toggleUserDisabled = createServerFn({ method: "POST" })
         throw new Error("Unauthorized");
       }
 
-      const auth = getAuth(getAdminApp());
+      const auth = getAdminAuth();
       await auth.updateUser(data.uid, { disabled: data.disabled });
 
       return { success: true };
@@ -115,7 +96,7 @@ export const deleteFirebaseUser = createServerFn({ method: "POST" })
         throw new Error("Unauthorized");
       }
 
-      const auth = getAuth(getAdminApp());
+      const auth = getAdminAuth();
       await auth.deleteUser(data.uid);
 
       return { success: true };
