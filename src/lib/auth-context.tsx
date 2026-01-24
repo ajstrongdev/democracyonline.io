@@ -19,19 +19,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("[AuthProvider] onAuthStateChanged:", user?.email);
       setUser(user);
       setLoading(false);
 
       if (user) {
         try {
           const idToken = await user.getIdToken();
+          console.log("[AuthProvider] Creating session cookie...");
           await createSessionCookie({ data: { idToken } });
+          console.log("[AuthProvider] Session cookie created successfully");
         } catch (error) {
           console.error("Failed to create session cookie:", error);
         }
       } else {
         try {
+          console.log("[AuthProvider] Deleting session cookie...");
           await deleteSessionCookie();
+          console.log("[AuthProvider] Session cookie deleted");
         } catch (error) {
           console.error("Failed to delete session cookie:", error);
         }
