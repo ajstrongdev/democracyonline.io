@@ -32,7 +32,10 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-  loader: () => getThemeServerFn(),
+  loader: async () => {
+    const theme = await getThemeServerFn();
+    return { theme };
+  },
   head: () => ({
     meta: [
       {
@@ -64,8 +67,10 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 });
 
 function RootLayout() {
+  const { theme } = Route.useLoaderData();
+
   return (
-    <ThemeProvider theme={Route.useLoaderData()}>
+    <ThemeProvider theme={theme}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
@@ -82,7 +87,7 @@ function RootLayout() {
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const theme = Route.useLoaderData();
+  const { theme } = Route.useLoaderData();
   return (
     <html lang="en" className={theme} suppressHydrationWarning>
       <head>

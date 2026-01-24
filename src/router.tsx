@@ -16,7 +16,7 @@ export const getRouter = () => {
       ...rqContext,
       auth: {
         user: null,
-        loading: true,
+        loading: typeof window === "undefined" ? false : true,
       },
     },
     defaultPreload: "intent",
@@ -29,17 +29,20 @@ export const getRouter = () => {
     scrollRestoration: true,
   });
 
-  onAuthStateChanged(auth, (user) => {
-    router.update({
-      context: {
-        ...rqContext,
-        auth: {
-          user,
-          loading: false,
+  // Only set up client-side auth listener on the client
+  if (typeof window !== "undefined") {
+    onAuthStateChanged(auth, (user) => {
+      router.update({
+        context: {
+          ...rqContext,
+          auth: {
+            user,
+            loading: false,
+          },
         },
-      },
+      });
     });
-  });
+  }
 
   setupRouterSsrQueryIntegration({
     router,

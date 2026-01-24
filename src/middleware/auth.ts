@@ -48,6 +48,30 @@ export const authMiddleware = createMiddleware({ type: "function" })
   .server(async ({ next }) => {
     try {
       const request = getRequest();
+
+      // First, try to get token from session cookie (for SSR)
+      const sessionCookie = getCookie("__session");
+      if (sessionCookie) {
+        try {
+          const decoded = await getAuth(getAdminApp()).verifySessionCookie(
+            sessionCookie,
+            true,
+          );
+          return next({
+            context: {
+              user: {
+                uid: decoded.uid,
+                email: decoded.email,
+              },
+            } as AuthContext,
+          });
+        } catch (error) {
+          console.error("Session cookie verification failed:", error);
+          // Continue to check Authorization header
+        }
+      }
+
+      // Fall back to Authorization header (for client-side API calls)
       const authHeader = request?.headers?.get("authorization");
 
       if (!authHeader?.startsWith("Bearer ")) {
@@ -65,7 +89,8 @@ export const authMiddleware = createMiddleware({ type: "function" })
           },
         } as AuthContext,
       });
-    } catch {
+    } catch (error) {
+      console.error("Auth middleware error:", error);
       return next({ context: { user: null } as AuthContext });
     }
   });
@@ -97,7 +122,7 @@ export const userActivityMiddleware = createMiddleware({ type: "function" })
         await db
           .update(users)
           .set({
-            lastActivity: 0,
+            lastActivity: Date.now(),
             isActive: true,
           })
           .where(eq(users.email, context.user.email));
