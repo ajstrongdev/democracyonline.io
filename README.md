@@ -9,7 +9,7 @@ A web-based political simulation game where players participate in a democratic 
 
 ## Contributing
 
-We welcome contributions from the community! Please read our [Contributing Guidelines](./CONTRIBURING.md) before submitting a pull request.
+We welcome contributions from the community! Please read our [Contributing Guidelines](./CONTRIBUTING.md) before submitting a pull request.
 
 **Important Note**: While this project is open source and actively maintained, we have specific goals and a roadmap for its development. Not all feature requests or pull requests will be implemented or merged. We encourage discussion through issues before starting work on major features.
 
