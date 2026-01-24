@@ -7,6 +7,7 @@ import {
   billVotesSenate,
   bills,
   users,
+  accessTokens,
 } from "@/db/schema";
 import { db } from "@/db";
 import { UpdateUserProfileSchema } from "@/lib/schemas/user-schema";
@@ -14,11 +15,28 @@ import { SearchUsersSchema } from "@/lib/schemas/user-search-schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware";
 
 const CreateUserSchema = z.object({
+  accessToken: z.string().min(1, "Access token is required"),
   email: z.string().email(),
   username: z.string().min(1, "Username is required"),
   bio: z.string().optional(),
   politicalLeaning: z.string().optional(),
 });
+
+export const validateAccessToken = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ token: z.string() }))
+  .handler(async ({ data }) => {
+    const validToken = await db
+      .select({ token: accessTokens.token })
+      .from(accessTokens)
+      .where(eq(accessTokens.token, data.token))
+      .limit(1);
+
+    if (validToken.length === 0) {
+      throw new Error("Invalid access token");
+    }
+
+    return { valid: true };
+  });
 
 export const createUser = createServerFn({ method: "POST" })
   .inputValidator(CreateUserSchema)
