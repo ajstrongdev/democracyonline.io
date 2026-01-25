@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setCookie } from "@tanstack/react-start/server";
-import { eq, getTableColumns, sql } from "drizzle-orm";
+import { eq, getTableColumns, sql, desc } from "drizzle-orm";
 import { z } from "zod";
 import {
   accessTokens,
@@ -9,6 +9,7 @@ import {
   billVotesSenate,
   bills,
   users,
+  transactionHistory,
 } from "@/db/schema";
 import { db } from "@/db";
 import { getAdminAuth } from "@/lib/firebase-admin";
@@ -341,3 +342,42 @@ export const deleteSessionCookie = createServerFn({ method: "POST" }).handler(
     return { success: true };
   },
 );
+
+export const getTopRichestUsers = createServerFn().handler(async () => {
+  try {
+    const richestUsers = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        money: users.money,
+        partyId: users.partyId,
+        politicalLeaning: users.politicalLeaning,
+      })
+      .from(users)
+      .where(sql`${users.username} NOT LIKE 'Banned User%'`)
+      .orderBy(sql`${users.money} DESC NULLS LAST`)
+      .limit(10);
+
+    return richestUsers;
+  } catch (error) {
+    console.error("Error fetching richest users:", error);
+    throw new Error("Failed to fetch richest users");
+  }
+});
+
+export const getUserTransactionHistory = createServerFn()
+  .inputValidator((data: { userId: number }) => data)
+  .handler(async ({ data }) => {
+    const transactions = await db
+      .select({
+        id: transactionHistory.id,
+        description: transactionHistory.description,
+        createdAt: transactionHistory.createdAt,
+      })
+      .from(transactionHistory)
+      .where(eq(transactionHistory.userId, data.userId))
+      .orderBy(desc(transactionHistory.createdAt))
+      .limit(50);
+
+    return transactions;
+  });

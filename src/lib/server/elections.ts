@@ -1,7 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, sql, not, like } from "drizzle-orm";
 import { db } from "@/db";
-import { elections, candidates, votes, users, parties } from "@/db/schema";
+import {
+  elections,
+  candidates,
+  votes,
+  users,
+  parties,
+  transactionHistory,
+} from "@/db/schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
 import { addFeedItem } from "@/lib/server/feed";
 
@@ -153,6 +160,17 @@ export const voteForCandidate = createServerFn({ method: "POST" })
     (data: { userId: number; candidateId: number; election: string }) => data,
   )
   .handler(async ({ data }) => {
+    // Get the candidate to verify they're in the specified election
+    const [candidate] = await db
+      .select({ election: candidates.election })
+      .from(candidates)
+      .where(eq(candidates.id, data.candidateId))
+      .limit(1);
+
+    if (!candidate || candidate.election !== data.election) {
+      throw new Error("Candidate not found in this election");
+    }
+
     // Get election info to find max votes (seats)
     const [electionInfo] = await db
       .select({ seats: elections.seats })
@@ -166,12 +184,26 @@ export const voteForCandidate = createServerFn({ method: "POST" })
 
     const maxVotes = electionInfo.seats || 1;
 
-    // Check how many votes the user has already cast
+    // Get all candidates in this election
+    const electionCandidates = await db
+      .select({ id: candidates.id })
+      .from(candidates)
+      .where(eq(candidates.election, data.election));
+
+    const candidateIds = electionCandidates.map((c) => c.id);
+
+    // Check how many votes the user has already cast in this election
     const existingVotes = await db
       .select({ count: sql<number>`count(*)` })
       .from(votes)
       .where(
-        and(eq(votes.userId, data.userId), eq(votes.election, data.election)),
+        and(
+          eq(votes.userId, data.userId),
+          sql`${votes.candidateId} IN (${sql.join(
+            candidateIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`,
+        ),
       );
 
     const votesUsed = Number(existingVotes[0]?.count || 0);
@@ -189,7 +221,6 @@ export const voteForCandidate = createServerFn({ method: "POST" })
       .where(
         and(
           eq(votes.userId, data.userId),
-          eq(votes.election, data.election),
           eq(votes.candidateId, data.candidateId),
         ),
       )
@@ -202,7 +233,7 @@ export const voteForCandidate = createServerFn({ method: "POST" })
     // Insert vote
     await db.insert(votes).values({
       userId: data.userId,
-      election: data.election,
+      voteType: data.election,
       candidateId: data.candidateId,
     });
 
@@ -211,6 +242,26 @@ export const voteForCandidate = createServerFn({ method: "POST" })
       .update(candidates)
       .set({ votes: sql`${candidates.votes} + 1` })
       .where(eq(candidates.id, data.candidateId));
+
+    // Reward user with $500
+    await db
+      .update(users)
+      .set({ money: sql`${users.money} + 500` })
+      .where(eq(users.id, data.userId));
+
+    // Get candidate name for transaction
+    const [candidateUser] = await db
+      .select({ username: users.username })
+      .from(candidates)
+      .innerJoin(users, eq(candidates.userId, users.id))
+      .where(eq(candidates.id, data.candidateId))
+      .limit(1);
+
+    // Add transaction history
+    await db.insert(transactionHistory).values({
+      userId: data.userId,
+      description: `+$500 for voting for ${candidateUser?.username || "candidate"} in ${data.election} election`,
+    });
 
     return { success: true };
   });
@@ -239,12 +290,36 @@ export const getUserVotingStatus = createServerFn()
 
     const maxVotes = electionInfo.seats || 1;
 
-    // Count user's votes
+    // Get all candidates in this election
+    const electionCandidates = await db
+      .select({ id: candidates.id })
+      .from(candidates)
+      .where(eq(candidates.election, data.election));
+
+    const candidateIds = electionCandidates.map((c) => c.id);
+
+    if (candidateIds.length === 0) {
+      return {
+        hasVoted: false,
+        votesUsed: 0,
+        maxVotes,
+        votesRemaining: maxVotes,
+        votedCandidateIds: [],
+      };
+    }
+
+    // Count user's votes in this election
     const voteCount = await db
       .select({ count: sql<number>`count(*)` })
       .from(votes)
       .where(
-        and(eq(votes.userId, data.userId), eq(votes.election, data.election)),
+        and(
+          eq(votes.userId, data.userId),
+          sql`${votes.candidateId} IN (${sql.join(
+            candidateIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`,
+        ),
       );
 
     const votesUsed = Number(voteCount[0]?.count || 0);
@@ -254,7 +329,13 @@ export const getUserVotingStatus = createServerFn()
       .select({ candidateId: votes.candidateId })
       .from(votes)
       .where(
-        and(eq(votes.userId, data.userId), eq(votes.election, data.election)),
+        and(
+          eq(votes.userId, data.userId),
+          sql`${votes.candidateId} IN (${sql.join(
+            candidateIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`,
+        ),
       );
 
     const votedCandidateIds = votedFor

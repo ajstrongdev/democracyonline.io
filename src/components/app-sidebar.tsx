@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+  Banknote,
   Bell,
   Book,
   Building2,
@@ -43,6 +44,11 @@ const data = {
       title: "Profile",
       url: "/profile",
       icon: User,
+    },
+    {
+      title: "Bank",
+      url: "/bank",
+      icon: Banknote,
     },
     {
       title: "Feed",
