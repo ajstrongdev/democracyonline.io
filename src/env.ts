@@ -20,8 +20,6 @@ export const env = createEnv({
     FIREBASE_CLIENT_EMAIL: z.email().endsWith("iam.gserviceaccount.com"),
     FIREBASE_PRIVATE_KEY: z
       .string()
-      .startsWith("-----BEGIN PRIVATE KEY-----\n")
-      .endsWith("-----END PRIVATE KEY-----\n")
       .transform((key) => key.replace(/\\n/gm, "\n")),
     FIREBASE_PROJECT_ID: z.string().min(1),
     SITE_URL: z.url().default("http://localhost:3000"),
