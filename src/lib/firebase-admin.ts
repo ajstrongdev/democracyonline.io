@@ -1,12 +1,8 @@
-import {
-  applicationDefault,
-  cert,
-  getApps,
-  initializeApp,
-} from "firebase-admin/app";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import type { App } from "firebase-admin/app";
 import type { Auth } from "firebase-admin/auth";
+import { env } from "@/env";
 
 /**
  * Get or initialize the Firebase Admin App.
@@ -20,35 +16,13 @@ export function getAdminApp(): App {
     return getApps()[0];
   }
 
-  const useCert = process.env.IS_DEPLOYED_ENV === "false";
-  console.log(
-    `[firebase-admin] Initializing new app with ${useCert ? "cert" : "applicationDefault"} credentials`,
-  );
-
   try {
-    console.log(
-      "[firebase-admin] [credentials] projectId:",
-      process.env.FIREBASE_PROJECT_ID,
-    );
-    console.log(
-      "[firebase-admin] [credentials] clientEmail:",
-      process.env.FIREBASE_CLIENT_EMAIL,
-    );
-    console.log(
-      "[firebase-admin] [credentials] privateKey:",
-      process.env.FIREBASE_PRIVATE_KEY,
-    );
     const app = initializeApp({
-      credential: useCert
-        ? cert({
-            projectId: process.env.FIREBASE_PROJECT_ID,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(
-              /\\n/gm,
-              "\n",
-            ),
-          })
-        : applicationDefault(), // Uses Cloud Run's default credentials
+      credential: cert({
+        projectId: env.FIREBASE_PROJECT_ID,
+        clientEmail: env.FIREBASE_CLIENT_EMAIL,
+        privateKey: env.FIREBASE_PRIVATE_KEY,
+      }),
     });
     console.log("[firebase-admin] App initialized successfully");
     return app;

@@ -1,16 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  elections,
   candidates,
-  votes,
-  users,
+  elections,
   feed,
   parties,
   partyStances,
+  users,
+  votes,
 } from "@/db/schema";
-import { eq, desc, and, sql, inArray } from "drizzle-orm";
+import { env } from "@/env";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -49,7 +50,7 @@ export const Route = createFileRoute("/api/game-advance")({
         try {
           const ticket = await oAuth2Client.verifyIdToken({
             idToken: token,
-            audience: process.env.VITE_SITE_URL || "https://democracyonline.io",
+            audience: env.SITE_URL || "https://democracyonline.io",
           });
 
           const payload = ticket.getPayload();
@@ -121,7 +122,7 @@ export const Route = createFileRoute("/api/game-advance")({
 
               let winner = candidatesRes[0];
 
-              const topVotes = winner?.votes || 0;
+              const topVotes = winner.votes || 0;
               const tiedCandidates = candidatesRes.filter(
                 (c) => c.votes === topVotes,
               );
@@ -133,7 +134,7 @@ export const Route = createFileRoute("/api/game-advance")({
                 winner = tiedCandidates[randomIndex];
               }
 
-              if (winner && winner.userId) {
+              if (winner.userId) {
                 await db
                   .update(users)
                   .set({ role: "President" })
