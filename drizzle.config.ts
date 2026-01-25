@@ -1,7 +1,7 @@
-import { config } from "dotenv";
+import { loadEnvFile } from "node:process";
 import { defineConfig } from "drizzle-kit";
 
-config();
+loadEnvFile();
 
 export default defineConfig({
   out: "./drizzle",

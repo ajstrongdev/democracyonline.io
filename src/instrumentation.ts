@@ -41,7 +41,7 @@ export function register() {
       .shutdown()
       .then(() => console.log("Tracing terminated"))
       .catch((error: unknown) =>
-        console.log("Error terminating tracing", error)
+        console.log("Error terminating tracing", error),
       )
       .finally(() => process.exit(0));
   });

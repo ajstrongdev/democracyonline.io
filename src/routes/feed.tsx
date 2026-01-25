@@ -3,7 +3,6 @@ import { Suspense, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import type { ReactNode } from "react";
-import type { FeedItem } from "@/types/feed";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +72,14 @@ function FeedPage() {
     </Suspense>
   );
 }
+
+type FeedItem = {
+  id: number;
+  userId: number | null;
+  username: string | null;
+  content: string;
+  createdAt: Date | null;
+};
 
 function FeedContent() {
   const navigate = useNavigate();

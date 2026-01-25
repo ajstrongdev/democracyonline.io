@@ -16,6 +16,7 @@ import { getAdminAuth } from "@/lib/firebase-admin";
 import { UpdateUserProfileSchema } from "@/lib/schemas/user-schema";
 import { SearchUsersSchema } from "@/lib/schemas/user-search-schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware";
+import { env } from "@/env";
 
 const CreateUserSchema = z.object({
   accessToken: z.string().min(1, "Access token is required"),
@@ -175,7 +176,7 @@ export const updateUserProfile = createServerFn({ method: "POST" })
       .where(eq(users.email, context.user.email))
       .limit(1);
 
-    if (!currentUser || currentUser.id !== data.userId) {
+    if (currentUser.id !== data.userId) {
       throw new Error("You can only update your own profile");
     }
 
@@ -316,7 +317,7 @@ export const createSessionCookie = createServerFn({ method: "POST" })
       setCookie("__session", sessionCookie, {
         maxAge: expiresIn / 1000,
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
       });
@@ -329,12 +330,12 @@ export const createSessionCookie = createServerFn({ method: "POST" })
   });
 
 export const deleteSessionCookie = createServerFn({ method: "POST" }).handler(
-  async () => {
+  () => {
     // Delete the session cookie
     setCookie("__session", "", {
       maxAge: 0,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
     });

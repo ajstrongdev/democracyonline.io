@@ -71,7 +71,7 @@ function CandidateItem({
       if (candidate.userId) {
         try {
           const user = await getUserFullById({
-            data: { userId: candidate.userId, checkActive: true },
+            data: { userId: candidate.userId, checkActive: false },
           });
           setCandidateUser(user);
 
@@ -173,7 +173,7 @@ function ResultsItem({ candidate }: { candidate: Candidate }) {
       if (candidate.userId) {
         try {
           const user = await getUserFullById({
-            data: { userId: candidate.userId, checkActive: true },
+            data: { userId: candidate.userId, checkActive: false },
           });
           setCandidateUser(user);
 

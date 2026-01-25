@@ -3,13 +3,9 @@ import { z } from "zod";
 
 export const env = createEnv({
   server: {
-    IS_DEPLOYED_ENV: z.stringbool().default(true),
-    SERVER_URL: z.string().url().optional(),
-    // Firebase Admin SDK credentials (server-side only)
-    FIREBASE_PROJECT_ID: z.string().min(1).optional(),
-    FIREBASE_CLIENT_EMAIL: z.string().optional(),
-    FIREBASE_PRIVATE_KEY: z.string().min(1).optional(),
-    // Admin emails (comma-separated list)
+    NODE_ENV: z
+      .enum(["development", "production", "test"])
+      .default("development"),
     ADMIN_EMAILS: z
       .string()
       .optional()
@@ -20,6 +16,15 @@ export const env = createEnv({
           .map((email) => email.trim())
           .filter(Boolean),
       ),
+    DATABASE_URL: z.url(),
+    FIREBASE_CLIENT_EMAIL: z.email().endsWith("iam.gserviceaccount.com"),
+    FIREBASE_PRIVATE_KEY: z
+      .string()
+      .startsWith("-----BEGIN PRIVATE KEY-----\n")
+      .endsWith("-----END PRIVATE KEY-----\n")
+      .transform((key) => key.replace(/\\n/gm, "\n")),
+    FIREBASE_PROJECT_ID: z.string().min(1),
+    SITE_URL: z.url().default("http://localhost:3000"),
   },
 
   /**
@@ -29,7 +34,6 @@ export const env = createEnv({
   clientPrefix: "VITE_",
 
   client: {
-    VITE_APP_TITLE: z.string().min(1).optional(),
     VITE_FIREBASE_API_KEY: z.string().min(1),
     VITE_FIREBASE_AUTH_DOMAIN: z.string().min(1),
     VITE_FIREBASE_PROJECT_ID: z.string().min(1),
@@ -45,13 +49,14 @@ export const env = createEnv({
    */
   runtimeEnv: {
     // Server-side variables from process.env
-    SERVER_URL: process.env.SERVER_URL,
-    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+    NODE_ENV: process.env.NODE_ENV,
+    ADMIN_EMAILS: process.env.ADMIN_EMAILS,
+    DATABASE_URL: process.env.DATABASE_URL,
     FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
     FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY,
-    ADMIN_EMAILS: process.env.ADMIN_EMAILS,
+    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+    SITE_URL: process.env.SITE_URL,
     // Client-side variables from import.meta.env
-    VITE_APP_TITLE: import.meta.env.VITE_APP_TITLE,
     VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
     VITE_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
     VITE_FIREBASE_PROJECT_ID: import.meta.env.VITE_FIREBASE_PROJECT_ID,
