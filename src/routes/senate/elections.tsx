@@ -1,20 +1,19 @@
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import type { Candidate, VotingStatus } from "@/lib/server/elections";
 import { getCurrentUserInfo, getUserFullById } from "@/lib/server/users";
 import { getPartyById } from "@/lib/server/party";
 import {
-  electionPageData,
   declareCandidate,
+  electionPageData,
+  getUserVotingStatus,
   revokeCandidate,
   voteForCandidate,
-  getUserVotingStatus,
-  type Candidate,
-  type VotingStatus,
 } from "@/lib/server/elections";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import GenericSkeleton from "@/components/generic-skeleton";
 import { MessageDialog } from "@/components/message-dialog";
 import { CandidatesChart } from "@/components/candidates-chart";
@@ -54,7 +53,7 @@ function CandidateItem({
   candidate: Candidate;
   electionStatus: string;
   votesRemaining: number;
-  votedCandidateIds: number[];
+  votedCandidateIds: Array<number>;
   onVote: (candidateId: number) => void;
   isVoting: boolean;
 }) {
@@ -71,7 +70,7 @@ function CandidateItem({
       if (candidate.userId) {
         try {
           const user = await getUserFullById({
-            data: { userId: candidate.userId, checkActive: true },
+            data: { userId: candidate.userId, checkActive: false },
           });
           setCandidateUser(user);
 
@@ -173,7 +172,7 @@ function ResultsItem({ candidate }: { candidate: Candidate }) {
       if (candidate.userId) {
         try {
           const user = await getUserFullById({
-            data: { userId: candidate.userId, checkActive: true },
+            data: { userId: candidate.userId, checkActive: false },
           });
           setCandidateUser(user);
 
@@ -237,7 +236,7 @@ function RouteComponent() {
   const [votingStatus, setVotingStatus] = useState<VotingStatus | null>(
     initialVotingStatus,
   );
-  const [localCandidates, setLocalCandidates] = useState<Candidate[]>(
+  const [localCandidates, setLocalCandidates] = useState<Array<Candidate>>(
     candidates || [],
   );
 

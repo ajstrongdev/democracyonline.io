@@ -10,13 +10,10 @@ const config = defineConfig({
   plugins: [
     devtools(),
     nitro({
-      externals: {
-        inline: [],
-        external: [
-          "firebase-admin",
-          "firebase-admin/app",
-          "firebase-admin/auth",
-        ],
+      rollupConfig: {
+        treeshake: {
+          moduleSideEffects: (id) => id.includes("node-forge"),
+        },
       },
     }),
     // this is the plugin that enables path aliases
@@ -27,10 +24,6 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
   ],
-  ssr: {
-    external: ["firebase-admin"],
-    noExternal: [],
-  },
 });
 
 export default config;

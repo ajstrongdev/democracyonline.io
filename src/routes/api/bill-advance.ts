@@ -1,17 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
+import { and, asc, eq, notExists, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  bills,
+  billVotesHouse,
   billVotesPresidential,
   billVotesSenate,
-  billVotesHouse,
+  bills,
   gameTracker,
   parties,
   partyStances,
   users,
 } from "@/db/schema";
-import { eq, and, sql, asc, notExists } from "drizzle-orm";
+import { env } from "@/env";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -33,7 +34,7 @@ export const Route = createFileRoute("/api/bill-advance")({
         try {
           const ticket = await oAuth2Client.verifyIdToken({
             idToken: token,
-            audience: process.env.VITE_SITE_URL || "https://democracyonline.io",
+            audience: env.SITE_URL || "https://democracyonline.io",
           });
 
           const payload = ticket.getPayload();
