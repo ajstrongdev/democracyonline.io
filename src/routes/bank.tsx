@@ -189,7 +189,6 @@ function RouteComponent() {
                       </>
                     )}
 
-                    {/* User info - shows next to rank on mobile */}
                     <div className="flex-1 min-w-0 sm:hidden">
                       <h3 className="font-semibold text-base truncate">
                         {richUser.username}
@@ -202,7 +201,6 @@ function RouteComponent() {
                     </div>
                   </div>
 
-                  {/* User info - separate on desktop */}
                   <div className="hidden sm:block sm:flex-1 min-w-0">
                     <h3 className="font-semibold text-base md:text-lg truncate">
                       {richUser.username}
