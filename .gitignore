@@ -77,3 +77,6 @@ terraform.rc
 
 # TanStack Start / Nitro
 .output/
+
+# Temporary files
+tmp/
