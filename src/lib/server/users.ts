@@ -63,6 +63,12 @@ export const createUser = createServerFn({ method: "POST" })
       })
       .returning();
 
+    const welcomeMessage = `has spawned into existence`;
+    await db.execute(sql`
+      INSERT INTO feed (user_id, message, created_at)
+      VALUES (${newUser.id}, ${welcomeMessage}, NOW())
+    `);
+
     return newUser;
   });
 
