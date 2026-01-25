@@ -120,7 +120,7 @@ export function SignupForm() {
               <p className="text-xs text-muted-foreground">
                 To get an access token, please join our{" "}
                 <a
-                  href="https://discord.com"
+                  href="https://discord.gg/m7gDfgJund"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
