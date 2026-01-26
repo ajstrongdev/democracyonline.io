@@ -92,7 +92,7 @@ export const fetchUserInfoByEmail = createServerFn()
     const user = await db
       .select(userColumns)
       .from(users)
-      .where(eq(users.email, data.email))
+      .where(eq(sql`lower(${users.email})`, sql`lower(${data.email})`))
       .limit(1);
     return user;
   });
@@ -107,7 +107,7 @@ export const getCurrentUserInfo = createServerFn()
     const user = await db
       .select(userColumns)
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(eq(sql`lower(${users.email})`, sql`lower(${context.user.email})`))
       .limit(1);
     return user[0] ?? null;
   });
@@ -172,7 +172,7 @@ export const updateUserProfile = createServerFn({ method: "POST" })
     const [currentUser] = await db
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(eq(sql`lower(${users.email})`, sql`lower(${context.user.email})`))
       .limit(1);
 
     if (currentUser.id !== data.userId) {

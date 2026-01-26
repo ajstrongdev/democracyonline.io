@@ -21,6 +21,12 @@ import {
   votes,
 } from "@/db/schema";
 
+function isAdminEmail(email: string) {
+  return env.ADMIN_EMAILS.some(
+    (adminEmail) => adminEmail.toLowerCase() === email.toLowerCase(),
+  );
+}
+
 export const checkIsAdmin = createServerFn()
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
@@ -28,7 +34,7 @@ export const checkIsAdmin = createServerFn()
     console.log("[checkIsAdmin] User email from context:", email);
     console.log("[checkIsAdmin] ADMIN_EMAILS:", env.ADMIN_EMAILS);
     if (!email) return false;
-    const isAdmin = env.ADMIN_EMAILS.includes(email);
+    const isAdmin = isAdminEmail(email);
     console.log("[checkIsAdmin] Is admin:", isAdmin);
     return isAdmin;
   });
@@ -42,7 +48,7 @@ export const listFirebaseUsers = createServerFn()
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const email = context.user?.email;
-    if (!email || !env.ADMIN_EMAILS.includes(email)) {
+    if (!email || !isAdminEmail(email)) {
       throw new Error("Unauthorized");
     }
 
@@ -75,7 +81,7 @@ export const toggleUserDisabled = createServerFn({ method: "POST" })
       data: { uid: string; disabled: boolean };
     }) => {
       const email = context.user?.email;
-      if (!email || !env.ADMIN_EMAILS.includes(email)) {
+      if (!email || !isAdminEmail(email)) {
         throw new Error("Unauthorized");
       }
 
@@ -92,7 +98,7 @@ export const deleteFirebaseUser = createServerFn({ method: "POST" })
   .handler(
     async ({ context, data }: { context: any; data: { uid: string } }) => {
       const email = context.user?.email;
-      if (!email || !env.ADMIN_EMAILS.includes(email)) {
+      if (!email || !isAdminEmail(email)) {
         throw new Error("Unauthorized");
       }
 
@@ -107,7 +113,7 @@ export const listParties = createServerFn()
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const email = context.user?.email;
-    if (!email || !env.ADMIN_EMAILS.includes(email)) {
+    if (!email || !isAdminEmail(email)) {
       throw new Error("Unauthorized");
     }
 
@@ -133,7 +139,7 @@ export const listDatabaseUsers = createServerFn()
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const email = context.user?.email;
-    if (!email || !env.ADMIN_EMAILS.includes(email)) {
+    if (!email || !isAdminEmail(email)) {
       throw new Error("Unauthorized");
     }
 
@@ -157,7 +163,7 @@ export const purgeUserFromDatabase = createServerFn({ method: "POST" })
   .handler(
     async ({ context, data }: { context: any; data: { userId: number } }) => {
       const email = context.user?.email;
-      if (!email || !env.ADMIN_EMAILS.includes(email)) {
+      if (!email || !isAdminEmail(email)) {
         throw new Error("Unauthorized");
       }
       // Delete bill votes
@@ -211,7 +217,7 @@ export const listAccessTokens = createServerFn()
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const email = context.user?.email;
-    if (!email || !env.ADMIN_EMAILS.includes(email)) {
+    if (!email || !isAdminEmail(email)) {
       throw new Error("Unauthorized");
     }
 
@@ -230,7 +236,7 @@ export const createAccessToken = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const email = context.user?.email;
-    if (!email || !env.ADMIN_EMAILS.includes(email)) {
+    if (!email || !isAdminEmail(email)) {
       throw new Error("Unauthorized");
     }
 
@@ -250,7 +256,7 @@ export const deleteAccessToken = createServerFn({ method: "POST" })
   .handler(
     async ({ context, data }: { context: any; data: { tokenId: number } }) => {
       const email = context.user?.email;
-      if (!email || !env.ADMIN_EMAILS.includes(email)) {
+      if (!email || !isAdminEmail(email)) {
         throw new Error("Unauthorized");
       }
 

@@ -1,12 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq, getTableColumns, inArray, sql, or } from "drizzle-orm";
+import { eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   parties,
+  partyNotifications,
   partyStances,
   politicalStances,
   users,
-  partyNotifications,
 } from "@/db/schema";
 import { db } from "@/db";
 import {
@@ -43,7 +43,7 @@ export const checkUserInParty = createServerFn()
     const [user] = await db
       .select({ partyId: users.partyId })
       .from(users)
-      .where(eq(users.email, data.email))
+      .where(eq(sql`lower(${users.email})`, sql`lower(${data.email})`))
       .limit(1);
 
     return user?.partyId !== null && user?.partyId !== undefined;
