@@ -14,12 +14,12 @@ import { Route as SearchRouteImport } from './routes/search'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FeedRouteImport } from './routes/feed'
-import { Route as BankRouteImport } from './routes/bank'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProfileIndexRouteImport } from './routes/profile/index'
 import { Route as PartiesIndexRouteImport } from './routes/parties/index'
 import { Route as BillsIndexRouteImport } from './routes/bills/index'
+import { Route as BankIndexRouteImport } from './routes/bank/index'
 import { Route as SenateElectionsRouteImport } from './routes/senate/elections'
 import { Route as SenateBillsRouteImport } from './routes/senate/bills'
 import { Route as ProfileIdRouteImport } from './routes/profile/$id'
@@ -30,6 +30,8 @@ import { Route as OvalOfficeBillsRouteImport } from './routes/oval-office/bills'
 import { Route as HouseOfRepresentativesBillsRouteImport } from './routes/house-of-representatives/bills'
 import { Route as BillsCreateRouteImport } from './routes/bills/create'
 import { Route as BillsIdRouteImport } from './routes/bills/$id'
+import { Route as BankCreateRouteImport } from './routes/bank/create'
+import { Route as ApiHourlyAdvanceRouteImport } from './routes/api/hourly-advance'
 import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
 import { Route as ApiBotRouteImport } from './routes/api/bot'
 import { Route as ApiBillAdvanceRouteImport } from './routes/api/bill-advance'
@@ -62,11 +64,6 @@ const FeedRoute = FeedRouteImport.update({
   path: '/feed',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BankRoute = BankRouteImport.update({
-  id: '/bank',
-  path: '/bank',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -90,6 +87,11 @@ const PartiesIndexRoute = PartiesIndexRouteImport.update({
 const BillsIndexRoute = BillsIndexRouteImport.update({
   id: '/bills/',
   path: '/bills/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BankIndexRoute = BankIndexRouteImport.update({
+  id: '/bank/',
+  path: '/bank/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SenateElectionsRoute = SenateElectionsRouteImport.update({
@@ -143,6 +145,16 @@ const BillsIdRoute = BillsIdRouteImport.update({
   path: '/bills/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BankCreateRoute = BankCreateRouteImport.update({
+  id: '/bank/create',
+  path: '/bank/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHourlyAdvanceRoute = ApiHourlyAdvanceRouteImport.update({
+  id: '/api/hourly-advance',
+  path: '/api/hourly-advance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGameAdvanceRoute = ApiGameAdvanceRouteImport.update({
   id: '/api/game-advance',
   path: '/api/game-advance',
@@ -177,7 +189,6 @@ const BillsEditIdRoute = BillsEditIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/bank': typeof BankRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -186,6 +197,8 @@ export interface FileRoutesByFullPath {
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
+  '/api/hourly-advance': typeof ApiHourlyAdvanceRoute
+  '/bank/create': typeof BankCreateRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
   '/house-of-representatives/bills': typeof HouseOfRepresentativesBillsRoute
@@ -196,6 +209,7 @@ export interface FileRoutesByFullPath {
   '/profile/$id': typeof ProfileIdRoute
   '/senate/bills': typeof SenateBillsRoute
   '/senate/elections': typeof SenateElectionsRoute
+  '/bank': typeof BankIndexRoute
   '/bills': typeof BillsIndexRoute
   '/parties': typeof PartiesIndexRoute
   '/profile': typeof ProfileIndexRoute
@@ -206,7 +220,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/bank': typeof BankRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -215,6 +228,8 @@ export interface FileRoutesByTo {
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
+  '/api/hourly-advance': typeof ApiHourlyAdvanceRoute
+  '/bank/create': typeof BankCreateRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
   '/house-of-representatives/bills': typeof HouseOfRepresentativesBillsRoute
@@ -225,6 +240,7 @@ export interface FileRoutesByTo {
   '/profile/$id': typeof ProfileIdRoute
   '/senate/bills': typeof SenateBillsRoute
   '/senate/elections': typeof SenateElectionsRoute
+  '/bank': typeof BankIndexRoute
   '/bills': typeof BillsIndexRoute
   '/parties': typeof PartiesIndexRoute
   '/profile': typeof ProfileIndexRoute
@@ -236,7 +252,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/bank': typeof BankRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -245,6 +260,8 @@ export interface FileRoutesById {
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
+  '/api/hourly-advance': typeof ApiHourlyAdvanceRoute
+  '/bank/create': typeof BankCreateRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
   '/house-of-representatives/bills': typeof HouseOfRepresentativesBillsRoute
@@ -255,6 +272,7 @@ export interface FileRoutesById {
   '/profile/$id': typeof ProfileIdRoute
   '/senate/bills': typeof SenateBillsRoute
   '/senate/elections': typeof SenateElectionsRoute
+  '/bank/': typeof BankIndexRoute
   '/bills/': typeof BillsIndexRoute
   '/parties/': typeof PartiesIndexRoute
   '/profile/': typeof ProfileIndexRoute
@@ -267,7 +285,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
-    | '/bank'
     | '/feed'
     | '/login'
     | '/register'
@@ -276,6 +293,8 @@ export interface FileRouteTypes {
     | '/api/bill-advance'
     | '/api/bot'
     | '/api/game-advance'
+    | '/api/hourly-advance'
+    | '/bank/create'
     | '/bills/$id'
     | '/bills/create'
     | '/house-of-representatives/bills'
@@ -286,6 +305,7 @@ export interface FileRouteTypes {
     | '/profile/$id'
     | '/senate/bills'
     | '/senate/elections'
+    | '/bank'
     | '/bills'
     | '/parties'
     | '/profile'
@@ -296,7 +316,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
-    | '/bank'
     | '/feed'
     | '/login'
     | '/register'
@@ -305,6 +324,8 @@ export interface FileRouteTypes {
     | '/api/bill-advance'
     | '/api/bot'
     | '/api/game-advance'
+    | '/api/hourly-advance'
+    | '/bank/create'
     | '/bills/$id'
     | '/bills/create'
     | '/house-of-representatives/bills'
@@ -315,6 +336,7 @@ export interface FileRouteTypes {
     | '/profile/$id'
     | '/senate/bills'
     | '/senate/elections'
+    | '/bank'
     | '/bills'
     | '/parties'
     | '/profile'
@@ -325,7 +347,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
-    | '/bank'
     | '/feed'
     | '/login'
     | '/register'
@@ -334,6 +355,8 @@ export interface FileRouteTypes {
     | '/api/bill-advance'
     | '/api/bot'
     | '/api/game-advance'
+    | '/api/hourly-advance'
+    | '/bank/create'
     | '/bills/$id'
     | '/bills/create'
     | '/house-of-representatives/bills'
@@ -344,6 +367,7 @@ export interface FileRouteTypes {
     | '/profile/$id'
     | '/senate/bills'
     | '/senate/elections'
+    | '/bank/'
     | '/bills/'
     | '/parties/'
     | '/profile/'
@@ -355,7 +379,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
-  BankRoute: typeof BankRoute
   FeedRoute: typeof FeedRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
@@ -364,6 +387,8 @@ export interface RootRouteChildren {
   ApiBillAdvanceRoute: typeof ApiBillAdvanceRoute
   ApiBotRoute: typeof ApiBotRoute
   ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute
+  ApiHourlyAdvanceRoute: typeof ApiHourlyAdvanceRoute
+  BankCreateRoute: typeof BankCreateRoute
   BillsIdRoute: typeof BillsIdRoute
   BillsCreateRoute: typeof BillsCreateRoute
   HouseOfRepresentativesBillsRoute: typeof HouseOfRepresentativesBillsRoute
@@ -374,6 +399,7 @@ export interface RootRouteChildren {
   ProfileIdRoute: typeof ProfileIdRoute
   SenateBillsRoute: typeof SenateBillsRoute
   SenateElectionsRoute: typeof SenateElectionsRoute
+  BankIndexRoute: typeof BankIndexRoute
   BillsIndexRoute: typeof BillsIndexRoute
   PartiesIndexRoute: typeof PartiesIndexRoute
   ProfileIndexRoute: typeof ProfileIndexRoute
@@ -419,13 +445,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/bank': {
-      id: '/bank'
-      path: '/bank'
-      fullPath: '/bank'
-      preLoaderRoute: typeof BankRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -459,6 +478,13 @@ declare module '@tanstack/react-router' {
       path: '/bills'
       fullPath: '/bills'
       preLoaderRoute: typeof BillsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bank/': {
+      id: '/bank/'
+      path: '/bank'
+      fullPath: '/bank'
+      preLoaderRoute: typeof BankIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/senate/elections': {
@@ -531,6 +557,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BillsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bank/create': {
+      id: '/bank/create'
+      path: '/bank/create'
+      fullPath: '/bank/create'
+      preLoaderRoute: typeof BankCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/hourly-advance': {
+      id: '/api/hourly-advance'
+      path: '/api/hourly-advance'
+      fullPath: '/api/hourly-advance'
+      preLoaderRoute: typeof ApiHourlyAdvanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/game-advance': {
       id: '/api/game-advance'
       path: '/api/game-advance'
@@ -579,7 +619,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
-  BankRoute: BankRoute,
   FeedRoute: FeedRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
@@ -588,6 +627,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBillAdvanceRoute: ApiBillAdvanceRoute,
   ApiBotRoute: ApiBotRoute,
   ApiGameAdvanceRoute: ApiGameAdvanceRoute,
+  ApiHourlyAdvanceRoute: ApiHourlyAdvanceRoute,
+  BankCreateRoute: BankCreateRoute,
   BillsIdRoute: BillsIdRoute,
   BillsCreateRoute: BillsCreateRoute,
   HouseOfRepresentativesBillsRoute: HouseOfRepresentativesBillsRoute,
@@ -598,6 +639,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileIdRoute: ProfileIdRoute,
   SenateBillsRoute: SenateBillsRoute,
   SenateElectionsRoute: SenateElectionsRoute,
+  BankIndexRoute: BankIndexRoute,
   BillsIndexRoute: BillsIndexRoute,
   PartiesIndexRoute: PartiesIndexRoute,
   ProfileIndexRoute: ProfileIndexRoute,

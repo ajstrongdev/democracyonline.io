@@ -191,15 +191,46 @@ export const candidatePurchases = pgTable("candidate_purchases", {
   purchasedAt: timestamp("purchased_at").defaultNow(),
 });
 
-// Stock market table
-export const stocks = pgTable("stocks", {
+// Companies table
+export const companies = pgTable("companies", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
   symbol: varchar("symbol", { length: 10 }).notNull().unique(),
+  description: text("description"),
+  capital: bigint("capital", { mode: "number" }).default(0),
+  issuedShares: bigint("issued_shares", { mode: "number" }).default(0),
+  logo: varchar("logo", { length: 100 }),
+  color: varchar("color", { length: 7 }).default("#3b82f6"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Stock market table
+export const stocks = pgTable("stocks", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").references(() => companies.id),
   price: bigint("price", { mode: "number" }).notNull(),
   broughtToday: bigint("brought_today", { mode: "number" }).default(0),
   soldToday: bigint("sold_today", { mode: "number" }).default(0),
 });
+
+// User shares (holdings) table
+export const userShares = pgTable(
+  "user_shares",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    companyId: integer("company_id")
+      .notNull()
+      .references(() => companies.id),
+    quantity: bigint("quantity", { mode: "number" }).default(0).notNull(),
+    acquiredAt: timestamp("acquired_at").defaultNow(),
+  },
+  (table) => ({
+    userCompanyUnique: unique().on(table.userId, table.companyId),
+  }),
+);
 
 export const sharePriceHistory = pgTable("share_price_history", {
   id: serial("id").primaryKey(),

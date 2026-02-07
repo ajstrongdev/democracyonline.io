@@ -516,6 +516,37 @@ resource "google_cloud_scheduler_job" "bill_advance" {
     }
   }
 
+
+
+  depends_on = [
+    google_project_service.required_apis,
+    google_cloud_run_v2_service.app,
+  ]
+}
+
+# Hourly step for stock market and other stuff
+resource "google_cloud_scheduler_job" "hourly_advance" {
+  name             = "${var.app_name}-hourly-advance"
+  description      = "Trigger hourly advancement at the top of every hour"
+  schedule         = "0 * * * *"
+  time_zone        = "UTC"
+  attempt_deadline = "320s"
+  region           = var.region
+
+  retry_config {
+    retry_count = 3
+  }
+
+  http_target {
+    http_method = "GET"
+    uri         = "https://${var.custom_domain}/api/hourly-advance"
+
+    oidc_token {
+      service_account_email = google_service_account.scheduler_sa.email
+      audience              = "https://${var.custom_domain}"
+    }
+  }
+
   depends_on = [
     google_project_service.required_apis,
     google_cloud_run_v2_service.app,
@@ -684,6 +715,11 @@ output "scheduler_job_name" {
 output "bill_scheduler_job_name" {
   description = "The name of the Cloud Scheduler job for bill advancement"
   value       = google_cloud_scheduler_job.bill_advance.name
+}
+
+output "hourly_scheduler_job_name" {
+  description = "The name of the Cloud Scheduler job for hourly advancement"
+  value       = google_cloud_scheduler_job.hourly_advance.name
 }
 
 output "load_balancer_ip" {

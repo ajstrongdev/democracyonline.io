@@ -9,7 +9,6 @@ import {
   parties,
   partyStances,
   users,
-  votes,
 } from "@/db/schema";
 import { env } from "@/env";
 
@@ -161,7 +160,7 @@ export const Route = createFileRoute("/api/game-advance")({
               await db
                 .delete(candidates)
                 .where(eq(candidates.election, "President"));
-              await db.delete(votes).where(eq(votes.election, "President"));
+              // await db.delete(votes).where(eq(votes.election, "President"));
               await db
                 .update(elections)
                 .set({ status: "Candidate", daysLeft: 5 })
@@ -331,7 +330,7 @@ export const Route = createFileRoute("/api/game-advance")({
               await db
                 .delete(candidates)
                 .where(eq(candidates.election, "Senate"));
-              await db.delete(votes).where(eq(votes.election, "Senate"));
+              // await db.delete(votes).where(eq(votes.election, "Senate"));
               await db
                 .update(elections)
                 .set({ status: "Candidate", daysLeft: 2 })
