@@ -112,6 +112,7 @@ function RouteComponent() {
       color: party.color,
       bio: party.bio ?? "",
       discord_link: party.discord ?? "",
+      membership_fee: party.partySubs ?? 0,
       leaning: party.leaning
         ? POLITICAL_LEANINGS.indexOf(
             party.leaning as (typeof POLITICAL_LEANINGS)[number],
@@ -139,6 +140,7 @@ function RouteComponent() {
               logo: value.logo,
               discord: value.discord_link || null,
               leaning: POLITICAL_LEANINGS[value.leaning],
+              membership_fee: value.membership_fee,
             },
             stances: Object.entries(value.stances)
               .filter(([_, stanceValue]) => stanceValue.trim() !== "")
@@ -287,6 +289,36 @@ function RouteComponent() {
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
                     placeholder="https://discord.gg/..."
+                  />
+                </div>
+              )}
+            </form.Field>
+
+            {/* Membership Fee */}
+            <form.Field name="membership_fee">
+              {(field) => (
+                <div className="grid grid-cols-1 gap-2">
+                  <Label
+                    htmlFor={field.name}
+                    className="text-lg font-medium text-foreground"
+                  >
+                    Daily Membership Fee
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Members who cannot afford the daily fee will be removed from
+                    the party. Set to 0 for free membership.
+                  </p>
+                  <Input
+                    type="number"
+                    id={field.name}
+                    name={field.name}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(e) =>
+                      field.handleChange(Number(e.target.value) || 0)
+                    }
+                    placeholder="0"
+                    min={0}
                   />
                 </div>
               )}

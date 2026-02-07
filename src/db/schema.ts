@@ -68,6 +68,7 @@ export const mergeRequest = pgTable("merge_request", {
   createdAt: timestamp("created_at").defaultNow(),
   leaning: varchar("leaning", { length: 25 }).notNull(),
   logo: varchar("logo", { length: 100 }),
+  partySubs: bigint("party_subs", { mode: "number" }).default(0),
 });
 
 // Merge request stances table
@@ -184,6 +185,15 @@ export const transactionHistory = pgTable("transaction_history", {
   id: serial("id").primaryKey(),
   userId: integer("user_id"),
   description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Party transaction history table
+export const partyTransactionHistory = pgTable("party_transaction_history", {
+  id: serial("id").primaryKey(),
+  partyId: integer("party_id").notNull(),
+  amount: bigint("amount", { mode: "number" }).notNull(),
+  description: text("description").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -338,7 +348,18 @@ export const partiesRelations = relations(parties, ({ one, many }) => ({
   receivedNotifications: many(partyNotifications, {
     relationName: "receiverParty",
   }),
+  transactionHistory: many(partyTransactionHistory),
 }));
+
+export const partyTransactionHistoryRelations = relations(
+  partyTransactionHistory,
+  ({ one }) => ({
+    party: one(parties, {
+      fields: [partyTransactionHistory.partyId],
+      references: [parties.id],
+    }),
+  }),
+);
 
 export const billsRelations = relations(bills, ({ one, many }) => ({
   creator: one(users, {

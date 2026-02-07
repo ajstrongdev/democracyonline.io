@@ -8,6 +8,10 @@ export const PartySchema = z.object({
   logo: z.string().nullable().optional(),
   discord: z.string().nullable().optional(),
   leaning: z.string(),
+  membership_fee: z
+    .number()
+    .min(0, "Membership fee cannot be negative")
+    .default(0),
 });
 
 export const PartyStanceInputSchema = z.object({
