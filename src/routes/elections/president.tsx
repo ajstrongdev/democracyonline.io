@@ -1,24 +1,38 @@
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import type { Candidate } from "@/lib/server/elections";
 import { getCurrentUserInfo, getUserFullById } from "@/lib/server/users";
 import { getPartyById } from "@/lib/server/party";
 import {
   electionPageData,
   declareCandidate,
   revokeCandidate,
-  voteForCandidate,
-  getUserVotingStatus,
-  type Candidate,
-  type VotingStatus,
+  donateToCandidate,
+  getCampaignHistory,
 } from "@/lib/server/elections";
+import { toast } from "sonner";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Slider } from "@/components/ui/slider";
 import GenericSkeleton from "@/components/generic-skeleton";
 import { MessageDialog } from "@/components/message-dialog";
-import { CandidatesChart } from "@/components/candidates-chart";
+import PartyLogo from "@/components/party-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
+import {
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  Label,
+} from "recharts";
+import { TrendingUp, DollarSign, Users, PieChartIcon } from "lucide-react";
 
 export const Route = createFileRoute("/elections/president")({
   loader: async () => {
@@ -37,26 +51,36 @@ export const Route = createFileRoute("/elections/president")({
       }
       return a.username.localeCompare(b.username);
     });
-    return { userData, candidates: sortedCandidates, ...pageData };
+
+    // Fetch campaign history for graphs
+    const campaignHistory = await getCampaignHistory({
+      data: { election: "President" },
+    });
+
+    return {
+      userData,
+      candidates: sortedCandidates,
+      campaignHistory,
+      ...pageData,
+    };
   },
   component: RouteComponent,
 });
 
-// Component to display individual candidate details
 function CandidateItem({
   candidate,
   electionStatus,
-  votesRemaining,
-  votedCandidateIds,
-  onVote,
-  isVoting,
+  currentUserId,
+  currentUserMoney,
+  rank,
+  totalVotes,
 }: {
   candidate: Candidate;
   electionStatus: string;
-  votesRemaining: number;
-  votedCandidateIds: number[];
-  onVote: (candidateId: number) => void;
-  isVoting: boolean;
+  currentUserId?: number;
+  currentUserMoney?: number;
+  rank?: number;
+  totalVotes: number;
 }) {
   const [candidateUser, setCandidateUser] = useState<Awaited<
     ReturnType<typeof getUserFullById>
@@ -65,6 +89,8 @@ function CandidateItem({
     ReturnType<typeof getPartyById>
   > | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [donationAmount, setDonationAmount] = useState<string>("");
+  const [isDonating, setIsDonating] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -98,40 +124,119 @@ function CandidateItem({
     return <div className="p-2">Unknown candidate</div>;
   }
 
-  const hasVotedForThis = votedCandidateIds.includes(candidate.id);
-  const canVote = votesRemaining > 0 && !hasVotedForThis;
+  const handleDonate = async () => {
+    if (!currentUserId || !donationAmount) return;
+    const amount = parseInt(donationAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid donation amount");
+      return;
+    }
+    if (currentUserMoney && amount > currentUserMoney) {
+      toast.error("Insufficient funds");
+      return;
+    }
+    setIsDonating(true);
+    try {
+      await donateToCandidate({
+        data: { userId: currentUserId, candidateId: candidate.id, amount },
+      });
+      toast.success(
+        `Donated $${amount} to ${candidateUser?.username}'s campaign!`,
+      );
+      setDonationAmount("");
+    } catch (error) {
+      console.error("Error donating:", error);
+      toast.error("Failed to donate. Please try again.");
+    } finally {
+      setIsDonating(false);
+    }
+  };
+
+  const showVotingInfo =
+    electionStatus === "Voting" || electionStatus === "Concluded";
+
+  const votePercentage =
+    totalVotes > 0 ? ((candidate.votes || 0) / totalVotes) * 100 : 0;
+  const isElected = electionStatus === "Concluded" && rank === 1;
 
   return (
-    <Card className="py-4 my-4">
-      <CardContent className="md:flex md:items-center md:justify-between">
-        {party ? (
-          <>
-            <div>
-              <h1 className="text-xl font-semibold">
-                {candidateUser.username}
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Current role: {candidateUser.role}
-              </p>
-              <p
-                className="text-sm text-muted-foreground mt-1"
-                style={party ? { color: party.color || undefined } : {}}
+    <div
+      className="group relative border-l-4 hover:bg-accent/50 transition-all duration-200 rounded-lg p-4 bg-card"
+      style={{ borderLeftColor: party?.color || "#94a3b8" }}
+    >
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            {showVotingInfo && party && (
+              <div
+                className="flex items-center justify-center w-12 h-12 rounded-full overflow-hidden bg-card border-2"
+                style={{ borderColor: party.color || "#94a3b8" }}
               >
-                <span className="text-muted-foreground">Party:</span>{" "}
-                {party ? party.name : "Independent"}
+                <PartyLogo party_id={party.id} size={40} />
+              </div>
+            )}
+            {showVotingInfo && !party && (
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-muted text-muted-foreground font-bold text-sm">
+                IND
+              </div>
+            )}
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-xl font-semibold">
+                  {candidateUser.username}
+                </h3>
+                {isElected && (
+                  <Badge className="bg-green-600 hover:bg-green-700">
+                    Elected
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {candidateUser.role}
+                {party && (
+                  <>
+                    {" • "}
+                    <span style={{ color: party.color || undefined }}>
+                      {party.name}
+                    </span>
+                  </>
+                )}
+                {!party && " • Independent"}
               </p>
             </div>
-          </>
-        ) : (
-          <div>
-            <h1 className="text-xl font-semibold">{candidateUser.username}</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Party: Independent
-            </p>
           </div>
-        )}
-        <div className="mt-4 md:mt-0 flex items-center">
-          <Button asChild>
+
+          {showVotingInfo && (
+            <div className="flex gap-6 mt-3 ml-0 md:ml-13">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-500" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Votes</p>
+                  <p className="font-bold text-lg">
+                    {candidate.votes?.toLocaleString() ?? 0}
+                    <span className="text-sm text-muted-foreground ml-2">
+                      ({votePercentage.toFixed(1)}%)
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-green-500" />
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Campaign Funds
+                  </p>
+                  <p className="font-bold text-lg">
+                    ${candidate.donations?.toLocaleString() ?? 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+          <Button asChild variant="outline">
             <Link
               to="/profile/$id"
               params={{ id: candidateUser.id.toString() }}
@@ -139,85 +244,332 @@ function CandidateItem({
               View Profile
             </Link>
           </Button>
-          {electionStatus === "Voting" && (
-            <Button
-              onClick={() => onVote(candidate.id)}
-              disabled={!canVote || isVoting}
-              className="ml-4"
-            >
-              {hasVotedForThis
-                ? "✓ Voted"
-                : votesRemaining === 0
-                  ? "No Votes Left"
-                  : `Vote for ${candidateUser.username}`}
-            </Button>
-          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {electionStatus === "Voting" && (
+        <div className="mt-4 pt-4 border-t">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                Donate to Campaign
+              </span>
+              <span className="text-sm font-semibold">
+                ${donationAmount || 0}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Slider
+                value={[parseInt(donationAmount) || 0]}
+                onValueChange={(value) =>
+                  setDonationAmount(value[0].toString())
+                }
+                max={Math.min(currentUserMoney || 0, 10000)}
+                step={10}
+                disabled={isDonating || !currentUserId}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleDonate}
+                disabled={
+                  !donationAmount ||
+                  isDonating ||
+                  !currentUserId ||
+                  parseInt(donationAmount) === 0
+                }
+                size="sm"
+                className="min-w-[100px]"
+              >
+                {isDonating ? "Donating..." : "Donate"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 // Component to display results item
-function ResultsItem({ candidate }: { candidate: Candidate }) {
-  const [candidateUser, setCandidateUser] = useState<Awaited<
-    ReturnType<typeof getUserFullById>
-  > | null>(null);
-  const [party, setParty] = useState<Awaited<
-    ReturnType<typeof getPartyById>
-  > | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+function CampaignGraphs({
+  campaignHistory,
+  candidates,
+}: {
+  campaignHistory: Awaited<ReturnType<typeof getCampaignHistory>>;
+  candidates: Candidate[];
+}) {
+  // Group snapshots by timestamp
+  const timePoints = Array.from(
+    new Set(
+      campaignHistory.map((snapshot) =>
+        snapshot.snapshotAt ? new Date(snapshot.snapshotAt).toISOString() : "",
+      ),
+    ),
+  ).sort();
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (candidate.userId) {
-        try {
-          const user = await getUserFullById({
-            data: { userId: candidate.userId, checkActive: false },
-          });
-          setCandidateUser(user);
+  // Create a color mapping for candidates based on their party color
+  const candidateColors: Record<number, string> = {};
+  candidates.forEach((candidate) => {
+    candidateColors[candidate.id] = candidate.partyColor || "#94a3b8";
+  });
 
-          if (user?.partyId) {
-            const partyData = await getPartyById({
-              data: { partyId: user.partyId },
-            });
-            setParty(partyData);
-          }
-        } catch (error) {
-          console.error("Error loading candidate data:", error);
-        }
-      }
-      setIsLoading(false);
+  // Prepare votes data - carry forward last known values
+  const lastKnownVotes: Record<string, number> = {};
+  const votesData = timePoints.map((timePoint) => {
+    const dataPoint: Record<string, any> = {
+      time: new Date(timePoint).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+      }),
     };
-    loadData();
-  }, [candidate.userId]);
 
-  if (isLoading) {
-    return <GenericSkeleton />;
+    candidates.forEach((candidate) => {
+      const snapshot = campaignHistory.find(
+        (s) =>
+          s.candidateId === candidate.id &&
+          s.snapshotAt &&
+          new Date(s.snapshotAt).toISOString() === timePoint,
+      );
+
+      if (snapshot) {
+        lastKnownVotes[candidate.username] = snapshot.votes || 0;
+      }
+
+      dataPoint[candidate.username] = lastKnownVotes[candidate.username] ?? 0;
+    });
+
+    return dataPoint;
+  });
+
+  // Prepare donations data - carry forward last known values
+  const lastKnownDonations: Record<string, number> = {};
+  const donationsData = timePoints.map((timePoint) => {
+    const dataPoint: Record<string, any> = {
+      time: new Date(timePoint).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+      }),
+    };
+
+    candidates.forEach((candidate) => {
+      const snapshot = campaignHistory.find(
+        (s) =>
+          s.candidateId === candidate.id &&
+          s.snapshotAt &&
+          new Date(s.snapshotAt).toISOString() === timePoint,
+      );
+
+      if (snapshot) {
+        lastKnownDonations[candidate.username] = snapshot.donations || 0;
+      }
+
+      dataPoint[candidate.username] =
+        lastKnownDonations[candidate.username] ?? 0;
+    });
+
+    return dataPoint;
+  });
+
+  if (votesData.length === 0 || donationsData.length === 0) {
+    return (
+      <Alert className="mb-6">
+        <AlertTitle>No campaign data available yet</AlertTitle>
+        <AlertDescription>
+          Campaign tracking data will be available once hourly snapshots are
+          taken.
+        </AlertDescription>
+      </Alert>
+    );
   }
 
-  if (!candidateUser) {
-    return <div className="p-2">Unknown candidate</div>;
-  }
+  // Prepare pie chart data
+  const totalVotes = candidates.reduce(
+    (sum, candidate) => sum + (candidate.votes || 0),
+    0,
+  );
+  const pieData = candidates
+    .filter((c) => (c.votes || 0) > 0)
+    .map((candidate) => ({
+      name: candidate.username,
+      value: candidate.votes || 0,
+      color: candidateColors[candidate.id],
+    }))
+    .sort((a, b) => b.value - a.value);
 
   return (
-    <Card>
-      <CardHeader>
-        <h3 className="text-xl font-semibold">{candidateUser.username}</h3>
-        <p
-          className="text-sm text-muted-foreground"
-          style={{ color: party?.color || undefined }}
-        >
-          {party?.name || "Independent"}
-        </p>
-      </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-bold text-primary">
-          {candidate.votes ?? 0}
-        </p>
-        <p className="text-sm text-muted-foreground">votes</p>
-      </CardContent>
-    </Card>
+    <div className="mb-8">
+      <Tabs defaultValue="votes" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="votes">
+            <TrendingUp className="w-4 h-4 mr-2" />
+            Votes Over Time
+          </TabsTrigger>
+          <TabsTrigger value="distribution">
+            <PieChartIcon className="w-4 h-4 mr-2" />
+            Vote Distribution
+          </TabsTrigger>
+          <TabsTrigger value="funds">
+            <DollarSign className="w-4 h-4 mr-2" />
+            Campaign Funds
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Votes Graph */}
+        <TabsContent value="votes" className="mt-6">
+          <Card className="overflow-hidden">
+            <CardContent className="pt-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart
+                  data={votesData}
+                  margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                >
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--popover))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      padding: "8px 12px",
+                    }}
+                    formatter={(value: any, name: string) => [
+                      `${Number(value).toLocaleString()} votes`,
+                      name,
+                    ]}
+                    labelFormatter={() => ""}
+                  />
+                  {candidates.map((candidate) => (
+                    <Line
+                      key={candidate.id}
+                      type="natural"
+                      dataKey={candidate.username}
+                      stroke={candidateColors[candidate.id]}
+                      strokeWidth={3}
+                      dot={false}
+                      animationDuration={300}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Votes Distribution Pie Chart */}
+        <TabsContent value="distribution" className="mt-6">
+          <Card className="overflow-hidden">
+            <CardContent className="pt-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={70}
+                    outerRadius={110}
+                    paddingAngle={3}
+                    stroke="none"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.color}
+                        stroke="none"
+                      />
+                    ))}
+                    <Label
+                      content={({ viewBox }) => {
+                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                          return (
+                            <text
+                              x={viewBox.cx}
+                              y={viewBox.cy}
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                            >
+                              <tspan
+                                x={viewBox.cx}
+                                y={viewBox.cy}
+                                className="fill-foreground text-3xl font-bold"
+                              >
+                                {totalVotes.toLocaleString()}
+                              </tspan>
+                              <tspan
+                                x={viewBox.cx}
+                                y={(viewBox.cy || 0) + 24}
+                                className="fill-muted-foreground text-sm"
+                              >
+                                Total Votes
+                              </tspan>
+                            </text>
+                          );
+                        }
+                      }}
+                    />
+                  </Pie>
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-popover text-popover-foreground border border-border rounded-lg shadow-lg p-3">
+                            <p className="font-semibold">{payload[0].name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {Number(payload[0].value).toLocaleString()} votes
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Donations Graph */}
+        <TabsContent value="funds" className="mt-6">
+          <Card className="overflow-hidden">
+            <CardContent className="pt-6">
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart
+                  data={donationsData}
+                  margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                >
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--popover))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      padding: "8px 12px",
+                    }}
+                    formatter={(value: any, name: string) => [
+                      `$${Number(value).toLocaleString()}`,
+                      name,
+                    ]}
+                    labelFormatter={() => ""}
+                  />
+                  {candidates.map((candidate) => (
+                    <Line
+                      key={candidate.id}
+                      type="natural"
+                      dataKey={candidate.username}
+                      stroke={candidateColors[candidate.id]}
+                      strokeWidth={3}
+                      dot={false}
+                      animationDuration={300}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
 
@@ -226,7 +578,7 @@ function RouteComponent() {
   const {
     electionInfo,
     candidates,
-    votingStatus: initialVotingStatus,
+    campaignHistory,
     isCandidateInAny,
     userData: loaderUserData,
   } = Route.useLoaderData();
@@ -234,16 +586,9 @@ function RouteComponent() {
 
   const [showCandidacyDialog, setShowCandidacyDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [votingStatus, setVotingStatus] = useState<VotingStatus | null>(
-    initialVotingStatus,
-  );
   const [localCandidates, setLocalCandidates] = useState<Candidate[]>(
     candidates || [],
   );
-
-  const votesRemaining = votingStatus?.votesRemaining || 0;
-  const maxVotes = votingStatus?.maxVotes || 0;
-  const votedCandidateIds = votingStatus?.votedCandidateIds || [];
 
   const isAlreadyCandidate =
     localCandidates &&
@@ -297,62 +642,61 @@ function RouteComponent() {
     setShowCandidacyDialog(true);
   };
 
-  const handleVoteForCandidate = async (candidateId: number) => {
-    if (!userData) return;
-    setIsSubmitting(true);
-    try {
-      await voteForCandidate({
-        data: { userId: userData.id, candidateId, election: "President" },
-      });
+  // Sort candidates by votes for ranking
+  const sortedByVotes = [...localCandidates].sort(
+    (a, b) => (b.votes || 0) - (a.votes || 0),
+  );
 
-      // Update local candidate votes
-      setLocalCandidates((prev) =>
-        prev.map((c) =>
-          c.id === candidateId ? { ...c, votes: (c.votes || 0) + 1 } : c,
-        ),
-      );
-
-      // Refresh voting status
-      const newVotingStatus = await getUserVotingStatus({
-        data: { userId: userData.id, election: "President" },
-      });
-      setVotingStatus(newVotingStatus);
-
-      router.invalidate();
-    } catch (error) {
-      console.error("Error voting for candidate:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  // Calculate total votes
+  const totalVotes = localCandidates.reduce(
+    (sum, candidate) => sum + (candidate.votes || 0),
+    0,
+  );
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto p-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="container mx-auto p-4 max-w-7xl">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold mb-4">Presidential Elections</h1>
-            <p className="text-muted-foreground mb-6">
+            <h1 className="text-4xl font-bold mb-2">Presidential Elections</h1>
+            <p className="text-muted-foreground">
               Participate in the democratic process by standing as a candidate
-              or voting in the Presidential elections.
+              or donating to campaigns in the Presidential elections.
             </p>
           </div>
           {electionInfo && (
-            <Card>
-              <CardContent>
+            <Card className="md:min-w-[250px]">
+              <CardContent className="pt-6">
                 {electionInfo.status === "Candidate" ? (
-                  <p className="text-muted-foreground text-sm">
-                    Polls open in <b>{electionInfo.daysLeft} days</b>.
-                  </p>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Polls open in
+                    </p>
+                    <p className="text-3xl font-bold text-primary">
+                      {electionInfo.daysLeft}
+                    </p>
+                    <p className="text-sm text-muted-foreground">days</p>
+                  </div>
                 ) : electionInfo.status === "Voting" ? (
-                  <p className="text-muted-foreground text-sm">
-                    Election ends in <b>{electionInfo.daysLeft} days</b>.
-                  </p>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Election ends in
+                    </p>
+                    <p className="text-3xl font-bold text-primary">
+                      {electionInfo.daysLeft}
+                    </p>
+                    <p className="text-sm text-muted-foreground">days</p>
+                  </div>
                 ) : electionInfo.status === "Concluded" ? (
-                  <p className="text-muted-foreground text-sm">
-                    You can stand as a candidate for the next election in{" "}
-                    <b>{electionInfo.daysLeft} days</b>.
-                  </p>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Next election in
+                    </p>
+                    <p className="text-3xl font-bold text-primary">
+                      {electionInfo.daysLeft}
+                    </p>
+                    <p className="text-sm text-muted-foreground">days</p>
+                  </div>
                 ) : null}
               </CardContent>
             </Card>
@@ -373,27 +717,27 @@ function RouteComponent() {
           <>
             {/* Voting Phase Alert */}
             {electionInfo.status === "Voting" && (
-              <Alert className="mb-6 bg-card">
-                <AlertTitle className="font-bold">
+              <Alert className="mb-6 border-blue-500/50 bg-blue-500/10">
+                <AlertTitle className="font-bold text-blue-600 dark:text-blue-400">
                   Elections are live!
                 </AlertTitle>
                 <AlertDescription>
-                  The Presidential elections are now in the voting phase. Cast
-                  your vote for your preferred candidate before the elections
-                  close.
-                  {votingStatus && (
-                    <span className="block mt-2 font-semibold">
-                      You have {votesRemaining} of {maxVotes} vote
-                      {maxVotes !== 1 ? "s" : ""} remaining.
-                    </span>
-                  )}
+                  The Presidential elections are now in the voting phase.
+                  Support your preferred candidate by donating to their campaign
+                  before the elections close.
                 </AlertDescription>
               </Alert>
             )}
 
             {/* Candidacy Phase */}
             {electionInfo.status === "Candidate" && (
-              <Alert className="mb-6 bg-card">
+              <Alert
+                className={
+                  isAlreadyCandidate || !isACandidate
+                    ? "mb-6 border-green-500/50 bg-green-500/10"
+                    : "mb-6 bg-card"
+                }
+              >
                 <AlertTitle className="font-bold">
                   {isAlreadyCandidate
                     ? "You are standing in this election"
@@ -420,6 +764,7 @@ function RouteComponent() {
                     ) : isAlreadyCandidate ? (
                       <Button
                         className="mt-4 md:mt-0"
+                        variant="destructive"
                         onClick={handleRevokeCandidacy}
                         disabled={isSubmitting}
                       >
@@ -448,60 +793,60 @@ function RouteComponent() {
               </Alert>
             )}
 
-            {/* Election Results */}
+            {/* Campaign Graphs */}
             {(electionInfo.status === "Concluded" ||
-              electionInfo.status === "Voting") && (
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold mb-4">
-                  {electionInfo.status === "Concluded"
-                    ? "Election Results"
-                    : "Current Results"}
-                </h2>
-                {localCandidates && localCandidates.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
-                    <CandidatesChart
-                      candidates={localCandidates.map((c) => ({
-                        id: c.id,
-                        username: c.username,
-                        votes: c.votes,
-                        partyName: c.partyName,
-                        partyColor: c.partyColor,
-                      }))}
-                    />
-                    {[...localCandidates]
-                      .sort((a, b) => (b.votes || 0) - (a.votes || 0))
-                      .map((candidate) => (
-                        <ResultsItem key={candidate.id} candidate={candidate} />
-                      ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">No candidates yet.</p>
-                )}
-              </div>
-            )}
+              electionInfo.status === "Voting") &&
+              campaignHistory &&
+              campaignHistory.length > 0 && (
+                <CampaignGraphs
+                  campaignHistory={campaignHistory}
+                  candidates={localCandidates}
+                />
+              )}
 
             {/* Candidates List */}
             {electionInfo && (
               <div>
-                <h2 className="text-2xl font-bold mb-4">Candidates</h2>
-                <p className="text-muted-foreground">
-                  Sorted alphabetically by name and grouped by party.
+                <h2 className="text-2xl font-bold mb-2">
+                  {electionInfo.status === "Voting" ||
+                  electionInfo.status === "Concluded"
+                    ? "Current Standings"
+                    : "Candidates"}
+                </h2>
+                <p className="text-muted-foreground mb-4">
+                  {electionInfo.status === "Voting" ||
+                  electionInfo.status === "Concluded"
+                    ? "Ranked by votes received"
+                    : "Sorted alphabetically by name and grouped by party"}
                 </p>
                 {localCandidates && localCandidates.length > 0 ? (
-                  <div className="space-y-2">
-                    {localCandidates.map((candidate) => (
+                  <div className="space-y-3">
+                    {(electionInfo.status === "Voting" ||
+                    electionInfo.status === "Concluded"
+                      ? sortedByVotes
+                      : localCandidates
+                    ).map((candidate, index) => (
                       <CandidateItem
                         key={candidate.id}
                         candidate={candidate}
                         electionStatus={electionInfo.status}
-                        votesRemaining={votesRemaining}
-                        votedCandidateIds={votedCandidateIds}
-                        onVote={handleVoteForCandidate}
-                        isVoting={isSubmitting}
+                        currentUserId={userData?.id}
+                        currentUserMoney={
+                          userData?.money ? Number(userData.money) : 0
+                        }
+                        rank={
+                          electionInfo.status === "Voting" ||
+                          electionInfo.status === "Concluded"
+                            ? index + 1
+                            : undefined
+                        }
+                        totalVotes={totalVotes}
                       />
                     ))}
                   </div>
-                ) : null}
+                ) : (
+                  <p className="text-muted-foreground">No candidates yet.</p>
+                )}
               </div>
             )}
           </>

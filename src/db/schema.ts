@@ -161,6 +161,24 @@ export const candidates = pgTable(
   }),
 );
 
+export const donationHistory = pgTable("donation_history", {
+  id: serial("id").primaryKey(),
+  candidateId: integer("candidate_id"),
+  amount: bigint("amount", { mode: "number" }).notNull(),
+  donator: integer("donator"),
+  donatedAt: timestamp("donated_at").defaultNow(),
+});
+
+// Candidate snapshot table for hourly tracking
+export const candidateSnapshots = pgTable("candidate_snapshots", {
+  id: serial("id").primaryKey(),
+  candidateId: integer("candidate_id").notNull(),
+  election: varchar("election", { length: 50 }).notNull(),
+  votes: integer("votes").default(0).notNull(),
+  donations: bigint("donations", { mode: "number" }).default(0).notNull(),
+  snapshotAt: timestamp("snapshot_at").defaultNow().notNull(),
+});
+
 // Transaction history table
 export const transactionHistory = pgTable("transaction_history", {
   id: serial("id").primaryKey(),

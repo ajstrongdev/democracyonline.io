@@ -1,9 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
 import { db } from "@/db";
-import { stocks, sharePriceHistory, companies } from "@/db/schema";
+import {
+  stocks,
+  sharePriceHistory,
+  companies,
+  candidates,
+  elections,
+  candidateSnapshots,
+} from "@/db/schema";
 import { env } from "@/env";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -106,10 +113,66 @@ export const Route = createFileRoute("/api/hourly-advance")({
             }
           }
 
+          // Process candidate votes and donations per hour for elections in voting phase
+          const votingElections = await db
+            .select({ election: elections.election })
+            .from(elections)
+            .where(eq(elections.status, "Voting"));
+
+          let candidatesProcessed = 0;
+
+          for (const election of votingElections) {
+            const electionCandidates = await db
+              .select({
+                id: candidates.id,
+                election: candidates.election,
+                votes: candidates.votes,
+                donations: candidates.donations,
+                votesPerHour: candidates.votesPerHour,
+                donationsPerHour: candidates.donationsPerHour,
+              })
+              .from(candidates)
+              .where(eq(candidates.election, election.election));
+
+            for (const candidate of electionCandidates) {
+              const votesPerHour = candidate.votesPerHour || 0;
+              const donationsPerHour = candidate.donationsPerHour || 0;
+
+              // Update candidate with hourly gains
+              if (votesPerHour > 0 || donationsPerHour > 0) {
+                await db
+                  .update(candidates)
+                  .set({
+                    votes: sql`${candidates.votes} + ${votesPerHour}`,
+                    donations: sql`${candidates.donations} + ${donationsPerHour}`,
+                  })
+                  .where(eq(candidates.id, candidate.id));
+
+                console.log(
+                  `Candidate ${candidate.id}: +${votesPerHour} votes, +$${donationsPerHour} donations`,
+                );
+              }
+
+              // Create snapshot for this candidate
+              await db.insert(candidateSnapshots).values({
+                candidateId: candidate.id,
+                election: candidate.election || election.election,
+                votes: (candidate.votes || 0) + votesPerHour,
+                donations: Number(candidate.donations || 0) + donationsPerHour,
+              });
+
+              candidatesProcessed++;
+            }
+          }
+
+          console.log(
+            `Processed ${candidatesProcessed} candidates across ${votingElections.length} voting elections`,
+          );
+
           return new Response(
             JSON.stringify({
               success: true,
-              message: `Updated ${allStocks.length} stock prices`,
+              message: `Updated ${allStocks.length} stock prices, processed ${candidatesProcessed} candidates`,
             }),
             {
               status: 200,

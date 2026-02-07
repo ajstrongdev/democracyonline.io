@@ -3,9 +3,12 @@ import { OAuth2Client } from "google-auth-library";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  candidateSnapshots,
   candidates,
+  candidatePurchases,
   elections,
   feed,
+  items,
   parties,
   partyStances,
   users,
@@ -13,6 +16,204 @@ import {
 import { env } from "@/env";
 
 const oAuth2Client = new OAuth2Client();
+
+async function seedCampaignItems() {
+  // Delete existing items and purchases
+  await db.delete(candidatePurchases);
+  await db.delete(items);
+
+  // Seed items - mix of vote and donation generators
+  const seedItems = [
+    // Donation generators
+    {
+      name: "Lemonade Stand",
+      description:
+        "A humble beginning. Sell lemonade to raise funds for your campaign.",
+      target: "Donations",
+      increaseAmount: 1,
+      baseCost: 10,
+      costMultiplier: 15,
+    },
+    {
+      name: "Bake Sale",
+      description: "Homemade cookies and cakes bring in the donations.",
+      target: "Donations",
+      increaseAmount: 3,
+      baseCost: 50,
+      costMultiplier: 18,
+    },
+    {
+      name: "Merchandise Booth",
+      description: "Sell campaign t-shirts, hats, and bumper stickers.",
+      target: "Donations",
+      increaseAmount: 8,
+      baseCost: 200,
+      costMultiplier: 20,
+    },
+    {
+      name: "Online Crowdfunding",
+      description: "Set up a crowdfunding page to reach donors nationwide.",
+      target: "Donations",
+      increaseAmount: 20,
+      baseCost: 500,
+      costMultiplier: 22,
+    },
+    {
+      name: "Fundraising Dinner",
+      description: "Host exclusive dinners for wealthy donors.",
+      target: "Donations",
+      increaseAmount: 50,
+      baseCost: 1500,
+      costMultiplier: 25,
+    },
+    {
+      name: "Corporate Sponsor",
+      description: "Partner with businesses who support your platform.",
+      target: "Donations",
+      increaseAmount: 150,
+      baseCost: 5000,
+      costMultiplier: 28,
+    },
+    {
+      name: "Super PAC Connection",
+      description:
+        "Connect with political action committees for major fundraising.",
+      target: "Donations",
+      increaseAmount: 400,
+      baseCost: 15000,
+      costMultiplier: 30,
+    },
+    {
+      name: "Billionaire Endorsement",
+      description: "Gain the backing of a wealthy tycoon.",
+      target: "Donations",
+      increaseAmount: 1000,
+      baseCost: 50000,
+      costMultiplier: 32,
+    },
+    // Vote generators
+    {
+      name: "Campaign Flyers",
+      description: "Hand out flyers in your neighborhood to spread the word.",
+      target: "Votes",
+      increaseAmount: 1,
+      baseCost: 15,
+      costMultiplier: 15,
+    },
+    {
+      name: "Door-to-Door Canvassing",
+      description: "Hire volunteers to knock on doors and talk to voters.",
+      target: "Votes",
+      increaseAmount: 3,
+      baseCost: 75,
+      costMultiplier: 18,
+    },
+    {
+      name: "Town Hall Meeting",
+      description: "Host public meetings to engage with citizens.",
+      target: "Votes",
+      increaseAmount: 8,
+      baseCost: 250,
+      costMultiplier: 20,
+    },
+    {
+      name: "Local Radio Ads",
+      description: "Run advertisements on local radio stations.",
+      target: "Votes",
+      increaseAmount: 20,
+      baseCost: 600,
+      costMultiplier: 22,
+    },
+    {
+      name: "Newspaper Endorsement",
+      description: "Secure endorsements from local newspapers.",
+      target: "Votes",
+      increaseAmount: 50,
+      baseCost: 1800,
+      costMultiplier: 25,
+    },
+    {
+      name: "TV Commercial",
+      description: "Air campaign commercials on local television.",
+      target: "Votes",
+      increaseAmount: 150,
+      baseCost: 6000,
+      costMultiplier: 28,
+    },
+    {
+      name: "Celebrity Endorsement",
+      description: "Get a famous celebrity to publicly support your campaign.",
+      target: "Votes",
+      increaseAmount: 400,
+      baseCost: 18000,
+      costMultiplier: 30,
+    },
+    {
+      name: "Viral Social Media Campaign",
+      description: "Launch a social media blitz that goes viral nationwide.",
+      target: "Votes",
+      increaseAmount: 1000,
+      baseCost: 60000,
+      costMultiplier: 32,
+    },
+    // High-tier items
+    {
+      name: "Political Rally",
+      description:
+        "Organize massive rallies that energize your base and attract media coverage.",
+      target: "Votes",
+      increaseAmount: 2500,
+      baseCost: 150000,
+      costMultiplier: 35,
+    },
+    {
+      name: "Debate Prep Team",
+      description:
+        "Hire expert coaches to dominate debates and win over undecided voters.",
+      target: "Votes",
+      increaseAmount: 5000,
+      baseCost: 400000,
+      costMultiplier: 38,
+    },
+    {
+      name: "National Media Tour",
+      description:
+        "Appear on major news networks and talk shows across the country.",
+      target: "Votes",
+      increaseAmount: 10000,
+      baseCost: 1000000,
+      costMultiplier: 40,
+    },
+    {
+      name: "International Charity Event",
+      description:
+        "Host a high-profile charity gala that attracts worldwide attention.",
+      target: "Donations",
+      increaseAmount: 2500,
+      baseCost: 200000,
+      costMultiplier: 35,
+    },
+    {
+      name: "Hedge Fund Alliance",
+      description: "Form partnerships with major financial institutions.",
+      target: "Donations",
+      increaseAmount: 5000,
+      baseCost: 500000,
+      costMultiplier: 38,
+    },
+    {
+      name: "Tech Industry Summit",
+      description:
+        "Court Silicon Valley billionaires with promises of innovation.",
+      target: "Donations",
+      increaseAmount: 10000,
+      baseCost: 1200000,
+      costMultiplier: 40,
+    },
+  ];
+
+  await db.insert(items).values(seedItems);
+}
 
 async function updateSenateSeats() {
   const candidatesCount = await db
@@ -96,6 +297,7 @@ export const Route = createFileRoute("/api/game-advance")({
                 .set({ daysLeft: sql`${elections.daysLeft} - 1` })
                 .where(eq(elections.election, "President"));
             } else {
+              await seedCampaignItems();
               await db
                 .update(elections)
                 .set({ status: "Voting", daysLeft: 5 })
@@ -160,7 +362,9 @@ export const Route = createFileRoute("/api/game-advance")({
               await db
                 .delete(candidates)
                 .where(eq(candidates.election, "President"));
-              // await db.delete(votes).where(eq(votes.election, "President"));
+              await db
+                .delete(candidateSnapshots)
+                .where(eq(candidateSnapshots.election, "President"));
               await db
                 .update(elections)
                 .set({ status: "Candidate", daysLeft: 5 })
@@ -195,6 +399,7 @@ export const Route = createFileRoute("/api/game-advance")({
                 .where(eq(elections.election, "Senate"));
             } else {
               await updateSenateSeats();
+              await seedCampaignItems();
               await db
                 .update(elections)
                 .set({ status: "Voting", daysLeft: 2 })
@@ -330,7 +535,9 @@ export const Route = createFileRoute("/api/game-advance")({
               await db
                 .delete(candidates)
                 .where(eq(candidates.election, "Senate"));
-              // await db.delete(votes).where(eq(votes.election, "Senate"));
+              await db
+                .delete(candidateSnapshots)
+                .where(eq(candidateSnapshots.election, "Senate"));
               await db
                 .update(elections)
                 .set({ status: "Candidate", daysLeft: 2 })

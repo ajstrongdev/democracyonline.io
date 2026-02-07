@@ -8,6 +8,8 @@ import {
   users,
   parties,
   transactionHistory,
+  donationHistory,
+  candidateSnapshots,
 } from "@/db/schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
 import { addFeedItem } from "@/lib/server/feed";
@@ -25,6 +27,7 @@ export type Candidate = {
   userId: number | null;
   election: string | null;
   votes: number | null;
+  donations: number | null;
   haswon: boolean | null;
   username: string;
   partyName: string | null;
@@ -67,6 +70,7 @@ export const getCandidates = createServerFn()
         userId: candidates.userId,
         election: candidates.election,
         votes: candidates.votes,
+        donations: candidates.donations,
         haswon: candidates.haswon,
         username: users.username,
         partyName: parties.name,
@@ -407,8 +411,76 @@ export const electionPageData = createServerFn()
     };
   });
 
-// TODO: Game advance logic for elections will be added separately
-// This includes:
-// - Candidate -> Voting phase transition (update seats, set days_left = 2)
-// - Voting -> Concluded phase transition (determine winners, update user roles)
-// - Concluded -> Candidate phase transition (reset candidates/votes for next cycle)
+export const donateToCandidate = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .inputValidator(
+    (data: { userId: number; candidateId: number; amount: number }) => data,
+  )
+  .handler(async ({ data }) => {
+    // Get candidate and associated user
+    const [candidate] = await db
+      .select({
+        id: candidates.id,
+        userId: candidates.userId,
+        election: candidates.election,
+        username: users.username,
+      })
+      .from(candidates)
+      .innerJoin(users, eq(candidates.userId, users.id))
+      .where(eq(candidates.id, data.candidateId))
+      .limit(1);
+
+    if (!candidate) {
+      throw new Error("Candidate not found");
+    }
+
+    if (data.amount <= 0) {
+      throw new Error("Donation amount must be greater than zero");
+    }
+
+    // Update candidate's user's money
+    if (candidate.userId === null) {
+      throw new Error("Candidate does not have a valid userId");
+    }
+    await db
+      .update(candidates)
+      .set({ donations: sql`${candidates.donations} + ${data.amount}` })
+      .where(eq(candidates.userId, candidate.userId));
+    await db
+      .update(users)
+      .set({ money: sql`${users.money} - ${data.amount}` })
+      .where(eq(users.id, data.userId));
+
+    // Add transaction history for donor
+    await db.insert(transactionHistory).values({
+      userId: data.userId,
+      description: `-$${data.amount} donated to ${candidate.username}'s campaign in the ${candidate.election} election`,
+    });
+    // Add transaction history for candidate
+    await db.insert(donationHistory).values({
+      candidateId: candidate.id,
+      amount: data.amount,
+    });
+
+    return { success: true };
+  });
+
+// Get campaign history (snapshots) for an election
+export const getCampaignHistory = createServerFn()
+  .inputValidator((data: { election: string }) => data)
+  .handler(async ({ data }) => {
+    const snapshots = await db
+      .select({
+        id: candidateSnapshots.id,
+        candidateId: candidateSnapshots.candidateId,
+        election: candidateSnapshots.election,
+        votes: candidateSnapshots.votes,
+        donations: candidateSnapshots.donations,
+        snapshotAt: candidateSnapshots.snapshotAt,
+      })
+      .from(candidateSnapshots)
+      .where(eq(candidateSnapshots.election, data.election))
+      .orderBy(candidateSnapshots.snapshotAt);
+
+    return snapshots;
+  });
