@@ -1,30 +1,29 @@
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import type { Candidate, VotingStatus } from "@/lib/server/elections";
 import { getCurrentUserInfo, getUserFullById } from "@/lib/server/users";
 import { getPartyById } from "@/lib/server/party";
 import {
-  electionPageData,
   declareCandidate,
+  electionPageData,
+  getUserVotingStatus,
   revokeCandidate,
   voteForCandidate,
-  getUserVotingStatus,
-  type Candidate,
-  type VotingStatus,
 } from "@/lib/server/elections";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import GenericSkeleton from "@/components/generic-skeleton";
 import { MessageDialog } from "@/components/message-dialog";
 import { CandidatesChart } from "@/components/candidates-chart";
 import ProtectedRoute from "@/components/auth/protected-route";
 
-export const Route = createFileRoute("/oval-office/elections")({
+export const Route = createFileRoute("/elections/senate")({
   loader: async () => {
     const userData = await getCurrentUserInfo();
     const { candidates, ...pageData } = await electionPageData({
-      data: { election: "President", userId: userData?.id },
+      data: { election: "Senate", userId: userData?.id },
     });
     const sortedCandidates = [...candidates].sort((a, b) => {
       // Group by party (nulls/Independent last), then sort alphabetically by username
@@ -54,7 +53,7 @@ function CandidateItem({
   candidate: Candidate;
   electionStatus: string;
   votesRemaining: number;
-  votedCandidateIds: number[];
+  votedCandidateIds: Array<number>;
   onVote: (candidateId: number) => void;
   isVoting: boolean;
 }) {
@@ -237,7 +236,7 @@ function RouteComponent() {
   const [votingStatus, setVotingStatus] = useState<VotingStatus | null>(
     initialVotingStatus,
   );
-  const [localCandidates, setLocalCandidates] = useState<Candidate[]>(
+  const [localCandidates, setLocalCandidates] = useState<Array<Candidate>>(
     candidates || [],
   );
 
@@ -256,7 +255,7 @@ function RouteComponent() {
     setIsSubmitting(true);
     try {
       const newCandidate = await declareCandidate({
-        data: { userId: userData.id, election: "President" },
+        data: { userId: userData.id, election: "Senate" },
       });
       setLocalCandidates((prev) => [
         ...prev,
@@ -280,7 +279,7 @@ function RouteComponent() {
     setIsSubmitting(true);
     try {
       await revokeCandidate({
-        data: { userId: userData.id, election: "President" },
+        data: { userId: userData.id, election: "Senate" },
       });
       setLocalCandidates((prev) =>
         prev.filter((c) => c.userId !== userData.id),
@@ -302,7 +301,7 @@ function RouteComponent() {
     setIsSubmitting(true);
     try {
       await voteForCandidate({
-        data: { userId: userData.id, candidateId, election: "President" },
+        data: { userId: userData.id, candidateId, election: "Senate" },
       });
 
       // Update local candidate votes
@@ -314,7 +313,7 @@ function RouteComponent() {
 
       // Refresh voting status
       const newVotingStatus = await getUserVotingStatus({
-        data: { userId: userData.id, election: "President" },
+        data: { userId: userData.id, election: "Senate" },
       });
       setVotingStatus(newVotingStatus);
 
@@ -331,10 +330,10 @@ function RouteComponent() {
       <div className="container mx-auto p-4">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold mb-4">Presidential Elections</h1>
+            <h1 className="text-3xl font-bold mb-4">Senate Elections</h1>
             <p className="text-muted-foreground mb-6">
               Participate in the democratic process by standing as a candidate
-              or voting in the Presidential elections.
+              or voting for in the Senate elections.
             </p>
           </div>
           {electionInfo && (
@@ -378,13 +377,12 @@ function RouteComponent() {
                   Elections are live!
                 </AlertTitle>
                 <AlertDescription>
-                  The Presidential elections are now in the voting phase. Cast
-                  your vote for your preferred candidate before the elections
-                  close.
+                  The Senate elections are now in the voting phase. Cast your
+                  votes for your preferred candidates before the elections
+                  close. There are {electionInfo.seats} seats available.
                   {votingStatus && (
                     <span className="block mt-2 font-semibold">
-                      You have {votesRemaining} of {maxVotes} vote
-                      {maxVotes !== 1 ? "s" : ""} remaining.
+                      You have {votesRemaining} of {maxVotes} votes remaining.
                     </span>
                   )}
                 </AlertDescription>
@@ -407,8 +405,8 @@ function RouteComponent() {
                   }
                 >
                   <>
-                    Stand as a candidate in the upcoming Presidential elections
-                    and lead the nation.
+                    Stand as a candidate in the upcoming Senate elections and
+                    become the voice of the people.
                     {!isAlreadyCandidate && !isACandidate && userData ? (
                       <Button
                         className="mt-4 md:mt-0"
@@ -442,8 +440,12 @@ function RouteComponent() {
                   Elections concluded
                 </AlertTitle>
                 <AlertDescription>
-                  The Presidential elections have concluded. Here are the final
-                  results. The winning candidate has been elected as President.
+                  The Senate elections have concluded. Here are the final
+                  results. The top{" "}
+                  {electionInfo.seats && electionInfo.seats > 1
+                    ? electionInfo.seats
+                    : 1}{" "}
+                  candidates have been elected to the Senate.
                 </AlertDescription>
               </Alert>
             )}
@@ -516,7 +518,7 @@ function RouteComponent() {
             <span className="text-left leading-relaxed">
               <span className="block">
                 <span className="font-semibold">Warning:</span> If you declare
-                your candidacy for the presidential election, you{" "}
+                your candidacy for the senate election, you{" "}
                 <span className="font-semibold">cannot</span> be a candidate for
                 any other elections during this cycle.
               </span>

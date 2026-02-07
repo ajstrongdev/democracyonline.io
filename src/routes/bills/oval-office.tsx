@@ -22,7 +22,7 @@ import { MessageDialog } from "@/components/message-dialog";
 import PartyLogo from "@/components/party-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
 
-export const Route = createFileRoute("/oval-office/bills")({
+export const Route = createFileRoute("/bills/oval-office")({
   loader: async () => {
     const userData = await getCurrentUserInfo();
     const pageData = await presidentialBillsPageData();

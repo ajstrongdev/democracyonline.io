@@ -67,54 +67,50 @@ const data = {
     },
     {
       title: "Bills",
-      url: "/bills",
       icon: Newspaper,
-    },
-    {
-      title: "House of Representatives",
-      icon: Building2,
       dropdown: [
         {
-          title: "Bills",
-          url: "/house-of-representatives/bills",
-          icon: Newspaper,
-        },
-      ],
-      url: "/house-of-representatives",
-    },
-    {
-      title: "Senate",
-      icon: Landmark,
-      dropdown: [
-        {
-          title: "Bills",
-          url: "/senate/bills",
+          title: "All Bills",
+          url: "/bills",
           icon: Newspaper,
         },
         {
-          title: "Elections",
-          url: "/senate/elections",
-          icon: ChartNoAxesCombined,
+          title: "House Chamber",
+          url: "/bills/house-of-representatives",
+          icon: Building2,
         },
-      ],
-      url: "/senate",
-    },
-    {
-      title: "Oval Office",
-      icon: Crown,
-      dropdown: [
         {
-          title: "Bills",
+          title: "Senate Chamber",
+          url: "/bills/senate",
+          icon: Landmark,
+        },
+        {
+          title: "Oval Office",
           url: "/oval-office/bills",
-          icon: Newspaper,
-        },
-        {
-          title: "Elections",
-          url: "/oval-office/elections",
-          icon: ChartNoAxesCombined,
+          icon: Crown,
         },
       ],
-      url: "/oval-office",
+    },
+    {
+      title: "Elections",
+      icon: ChartNoAxesCombined,
+      dropdown: [
+        {
+          title: "Campaign",
+          url: "/elections/campaign",
+          icon: User,
+        },
+        {
+          title: "Senate Elections",
+          url: "/elections/senate",
+          icon: Landmark,
+        },
+        {
+          title: "Presidential Elections",
+          url: "/elections/president",
+          icon: Crown,
+        },
+      ],
     },
   ],
 };
