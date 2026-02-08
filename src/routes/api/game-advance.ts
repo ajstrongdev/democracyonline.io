@@ -20,9 +20,13 @@ import { env } from "@/env";
 const oAuth2Client = new OAuth2Client();
 
 async function seedCampaignItems() {
-  // Delete existing items and purchases
-  await db.delete(candidatePurchases);
-  await db.delete(items);
+  // Check if items already exist
+  const existingItems = await db.select().from(items).limit(1);
+
+  if (existingItems.length > 0) {
+    // Items already seeded, do nothing
+    return;
+  }
 
   // Seed items - mix of vote and donation generators
   const seedItems = [
@@ -238,50 +242,50 @@ export const Route = createFileRoute("/api/game-advance")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        // const authHeader = request.headers.get("authorization");
+        const authHeader = request.headers.get("authorization");
 
-        // if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        //   console.error("Missing or invalid Authorization header");
-        //   return new Response(
-        //     JSON.stringify({ success: false, error: "Unauthorized" }),
-        //     { status: 401, headers: { "Content-Type": "application/json" } },
-        //   );
-        // }
-        // const token = authHeader.substring(7);
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          console.error("Missing or invalid Authorization header");
+          return new Response(
+            JSON.stringify({ success: false, error: "Unauthorized" }),
+            { status: 401, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        const token = authHeader.substring(7);
 
-        // try {
-        //   const ticket = await oAuth2Client.verifyIdToken({
-        //     idToken: token,
-        //     audience: env.SITE_URL || "https://democracyonline.io",
-        //   });
+        try {
+          const ticket = await oAuth2Client.verifyIdToken({
+            idToken: token,
+            audience: env.SITE_URL || "https://democracyonline.io",
+          });
 
-        //   const payload = ticket.getPayload();
+          const payload = ticket.getPayload();
 
-        //   const expectedEmailPattern =
-        //     /-scheduler@.*\.iam\.gserviceaccount\.com$/;
+          const expectedEmailPattern =
+            /-scheduler@.*\.iam\.gserviceaccount\.com$/;
 
-        //   if (!payload?.email || !expectedEmailPattern.test(payload.email)) {
-        //     console.error("Invalid service account:", payload?.email);
-        //     return new Response(
-        //       JSON.stringify({
-        //         success: false,
-        //         error: "Unauthorized - Invalid service account",
-        //       }),
-        //       { status: 401, headers: { "Content-Type": "application/json" } },
-        //     );
-        //   }
+          if (!payload?.email || !expectedEmailPattern.test(payload.email)) {
+            console.error("Invalid service account:", payload?.email);
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: "Unauthorized - Invalid service account",
+              }),
+              { status: 401, headers: { "Content-Type": "application/json" } },
+            );
+          }
 
-        //   console.log("Authenticated request from:", payload.email);
-        // } catch (error) {
-        //   console.error("Token validation failed:", error);
-        //   return new Response(
-        //     JSON.stringify({
-        //       success: false,
-        //       error: "Unauthorized - Invalid token",
-        //     }),
-        //     { status: 401, headers: { "Content-Type": "application/json" } },
-        //   );
-        // }
+          console.log("Authenticated request from:", payload.email);
+        } catch (error) {
+          console.error("Token validation failed:", error);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Unauthorized - Invalid token",
+            }),
+            { status: 401, headers: { "Content-Type": "application/json" } },
+          );
+        }
 
         try {
           const presElection = await db
@@ -302,7 +306,7 @@ export const Route = createFileRoute("/api/game-advance")({
               await seedCampaignItems();
               await db
                 .update(elections)
-                .set({ status: "Voting", daysLeft: 5 })
+                .set({ status: "Voting", daysLeft: 10 })
                 .where(eq(elections.election, "President"));
             }
           } else if (electionStatus === "Voting") {
@@ -351,7 +355,7 @@ export const Route = createFileRoute("/api/game-advance")({
 
               await db
                 .update(elections)
-                .set({ status: "Concluded", daysLeft: 4 })
+                .set({ status: "Concluded", daysLeft: 8 })
                 .where(eq(elections.election, "President"));
             }
           } else if (electionStatus === "Concluded") {
@@ -369,7 +373,7 @@ export const Route = createFileRoute("/api/game-advance")({
                 .where(eq(candidateSnapshots.election, "President"));
               await db
                 .update(elections)
-                .set({ status: "Candidate", daysLeft: 5 })
+                .set({ status: "Candidate", daysLeft: 10 })
                 .where(eq(elections.election, "President"));
             }
           }
@@ -404,7 +408,7 @@ export const Route = createFileRoute("/api/game-advance")({
               await seedCampaignItems();
               await db
                 .update(elections)
-                .set({ status: "Voting", daysLeft: 2 })
+                .set({ status: "Voting", daysLeft: 4 })
                 .where(eq(elections.election, "Senate"));
             }
           }
@@ -524,7 +528,7 @@ export const Route = createFileRoute("/api/game-advance")({
 
               await db
                 .update(elections)
-                .set({ status: "Concluded", daysLeft: 3 })
+                .set({ status: "Concluded", daysLeft: 6 })
                 .where(eq(elections.election, "Senate"));
             }
           } else if (electionStatus === "Concluded") {
@@ -542,7 +546,7 @@ export const Route = createFileRoute("/api/game-advance")({
                 .where(eq(candidateSnapshots.election, "Senate"));
               await db
                 .update(elections)
-                .set({ status: "Candidate", daysLeft: 2 })
+                .set({ status: "Candidate", daysLeft: 4 })
                 .where(eq(elections.election, "Senate"));
             }
           }

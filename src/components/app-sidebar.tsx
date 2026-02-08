@@ -4,6 +4,7 @@ import {
   Bell,
   Book,
   Building2,
+  Calendar,
   ChartNoAxesCombined,
   ChevronDown,
   Crown,
@@ -59,6 +60,11 @@ const data = {
       title: "Find Users",
       url: "/search",
       icon: Search,
+    },
+    {
+      title: "Calendar",
+      url: "/calendar",
+      icon: Calendar,
     },
     {
       title: "Political Parties",
