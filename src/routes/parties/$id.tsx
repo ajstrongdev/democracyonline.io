@@ -10,6 +10,7 @@ import {
   Pencil,
 } from "lucide-react";
 import {
+  becomePartyLeader,
   getPartyDetails,
   getPartyTransactions,
   joinParty,
@@ -75,6 +76,7 @@ function PartyPage() {
   } | null>(null);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [showBecomeLeaderDialog, setShowBecomeLeaderDialog] = useState(false);
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
@@ -318,8 +320,7 @@ function PartyPage() {
                           variant="outline"
                           className="w-full justify-start"
                           onClick={() => {
-                            // TODO: Implement become leader functionality
-                            alert("Become leader functionality coming soon");
+                            setShowBecomeLeaderDialog(true);
                           }}
                         >
                           <Crown className="mr-2 h-4 w-4" /> Become Party Leader
@@ -598,6 +599,38 @@ function PartyPage() {
               });
             }
             setShowJoinDialog(false);
+          }}
+        />
+        <MessageDialog
+          open={showBecomeLeaderDialog}
+          onOpenChange={setShowBecomeLeaderDialog}
+          title="Become Party Leader?"
+          description={
+            <span className="text-left leading-relaxed">
+              <span className="block">
+                Are you sure you want to become the leader of{" "}
+                <span className="font-semibold">
+                  {party?.name ?? "this party"}
+                </span>
+                ?
+              </span>
+            </span>
+          }
+          confirmText="Become Leader"
+          cancelText="Cancel"
+          confirmAriaLabel="Confirm become leader"
+          cancelAriaLabel="Cancel become leader"
+          onConfirm={async () => {
+            if (userInfo?.id) {
+              await becomePartyLeader({
+                data: { userId: userInfo.id, partyId: party.id },
+              });
+              navigate({
+                to: "/parties/$id",
+                params: { id: String(party.id) },
+              });
+            }
+            setShowBecomeLeaderDialog(false);
           }}
         />
         <MessageDialog
