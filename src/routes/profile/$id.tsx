@@ -8,6 +8,8 @@ import {
   History,
   UserCircle,
   XCircle,
+  Building2,
+  DollarSign,
 } from "lucide-react";
 import { useState } from "react";
 import {
@@ -16,6 +18,7 @@ import {
   getUserVotingHistory,
 } from "@/lib/server/users";
 import { getPartyById } from "@/lib/server/party";
+import { getUserCEOCompanies } from "@/lib/server/stocks";
 import {
   Card,
   CardContent,
@@ -73,10 +76,16 @@ export const Route = createFileRoute("/profile/$id")({
       data: { userId: targetUserId },
     });
 
+    // Get CEO companies
+    const ceoCompanies = await getUserCEOCompanies({
+      data: { userId: targetUserId },
+    });
+
     return {
       targetUser,
       party,
       allVotes,
+      ceoCompanies,
       currentUser,
       error: null,
     };
@@ -90,6 +99,7 @@ function ProfilePage() {
     targetUser,
     party,
     allVotes = [],
+    ceoCompanies = [],
     currentUser: currentUserLoaderData,
     error,
   } = Route.useLoaderData();
@@ -130,10 +140,10 @@ function ProfilePage() {
     setDisplayedVotes([...displayedVotes, ...nextBatch]);
     setCurrentOffset(currentOffset + 10);
   };
-  
+
   const withSoftHyphens = (text: string): string => {
-    return Array.from(text).join('\u00AD');
-  }
+    return Array.from(text).join("\u00AD");
+  };
 
   return (
     <ProtectedRoute>
@@ -282,6 +292,121 @@ function ProfilePage() {
             )}
           </CardContent>
         </Card>
+
+        {ceoCompanies.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="w-5 h-5" />
+                CEO of Companies
+              </CardTitle>
+              <CardDescription>
+                {targetUser.username} is the CEO of {ceoCompanies.length} compan
+                {ceoCompanies.length === 1 ? "y" : "ies"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 p-4 rounded-lg bg-muted/50 border-2 border-green-600/20">
+                <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                  Total Dividends from All Companies
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-green-600" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Per Hour</p>
+                      <p className="text-xl font-bold text-green-600">
+                        $
+                        {ceoCompanies
+                          .reduce((sum, c) => sum + c.hourlyDividend, 0)
+                          .toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-green-600" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Per Day</p>
+                      <p className="text-xl font-bold text-green-600">
+                        $
+                        {ceoCompanies
+                          .reduce((sum, c) => sum + c.dailyDividend, 0)
+                          .toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {ceoCompanies.map((company) => (
+                  <Link
+                    key={company.id}
+                    to="/companies/$id"
+                    params={{ id: String(company.id) }}
+                    className="block"
+                  >
+                    <div className="p-4 rounded-lg border hover:bg-accent/50 transition-colors">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold text-lg truncate">
+                              {company.name}
+                            </h3>
+                            <span className="text-xs px-2 py-0.5 bg-muted rounded font-mono">
+                              {company.symbol}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">
+                                Market Cap:
+                              </span>
+                              <span className="ml-2 font-medium">
+                                ${company.marketCap.toLocaleString()}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">
+                                Share Price:
+                              </span>
+                              <span className="ml-2 font-medium">
+                                ${company.stockPrice?.toLocaleString() || "N/A"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-4">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Hourly Dividend
+                            </p>
+                            <p className="font-bold text-green-600">
+                              ${company.hourlyDividend.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Daily Dividend
+                            </p>
+                            <p className="font-bold text-green-600">
+                              ${company.dailyDividend.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

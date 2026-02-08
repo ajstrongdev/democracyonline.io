@@ -648,3 +648,38 @@ export const getCompanyStakeholders = createServerFn()
 
     return stakeholdersWithPercentage;
   });
+
+export const getUserCEOCompanies = createServerFn()
+  .inputValidator((data: { userId: number }) => data)
+  .handler(async ({ data }) => {
+    const ceoCompanies = await db
+      .select({
+        id: companies.id,
+        name: companies.name,
+        symbol: companies.symbol,
+        logo: companies.logo,
+        color: companies.color,
+        capital: companies.capital,
+        issuedShares: companies.issuedShares,
+        stockPrice: stocks.price,
+      })
+      .from(companies)
+      .leftJoin(stocks, eq(stocks.companyId, companies.id))
+      .where(eq(companies.creatorId, data.userId));
+
+    // Calculate dividends for each company
+    const companiesWithDividends = ceoCompanies.map((company) => {
+      const marketCap = (company.stockPrice || 0) * (company.issuedShares || 0);
+      const hourlyDividend = Math.floor(marketCap * 0.01); // 1% per hour
+      const dailyDividend = hourlyDividend * 24;
+
+      return {
+        ...company,
+        marketCap,
+        hourlyDividend,
+        dailyDividend,
+      };
+    });
+
+    return companiesWithDividends;
+  });
