@@ -511,11 +511,6 @@ export const investInCompany = createServerFn()
       throw new Error("Company not found");
     }
 
-    // Check if user is the CEO (creator)
-    if (company.creatorId !== currentUser.id) {
-      throw new Error("Only the CEO can invest in the company");
-    }
-
     // Check if user has enough money
     if ((currentUser.money || 0) < data.investmentAmount) {
       throw new Error("Insufficient funds for investment");
@@ -525,6 +520,11 @@ export const investInCompany = createServerFn()
     const newShares = Math.floor(data.investmentAmount / 100);
     const newCapital = (company.capital || 0) + data.investmentAmount;
     const newTotalShares = (company.issuedShares || 0) + newShares;
+
+    // Validate retained shares
+    if (data.retainedShares > newShares) {
+      throw new Error("Cannot retain more shares than are being issued");
+    }
 
     // Update company
     await db
@@ -541,10 +541,41 @@ export const investInCompany = createServerFn()
       .set({ money: (currentUser.money || 0) - data.investmentAmount })
       .where(eq(users.id, currentUser.id));
 
+    // Add retained shares to CEO's holdings
+    if (data.retainedShares > 0) {
+      const existingShares = await db
+        .select()
+        .from(userShares)
+        .where(
+          and(
+            eq(userShares.userId, currentUser.id),
+            eq(userShares.companyId, company.id),
+          ),
+        )
+        .limit(1);
+
+      if (existingShares.length > 0) {
+        // Update existing holding
+        await db
+          .update(userShares)
+          .set({
+            quantity: existingShares[0].quantity + data.retainedShares,
+          })
+          .where(eq(userShares.id, existingShares[0].id));
+      } else {
+        // Create new holding
+        await db.insert(userShares).values({
+          userId: currentUser.id,
+          companyId: company.id,
+          quantity: data.retainedShares,
+        });
+      }
+    }
+
     // Record transaction
     await db.insert(transactionHistory).values({
       userId: currentUser.id,
-      description: `Invested $${data.investmentAmount.toLocaleString()} in ${company.name}, issued ${newShares} new shares`,
+      description: `Invested $${data.investmentAmount.toLocaleString()} in ${company.name}, issued ${newShares} new shares${data.retainedShares > 0 ? ` (retained ${data.retainedShares})` : ""}`,
     });
 
     return {
@@ -552,6 +583,7 @@ export const investInCompany = createServerFn()
       newShares,
       newTotalShares,
       newCapital,
+      retainedShares: data.retainedShares,
     };
   });
 

@@ -22,11 +22,12 @@ import {
   TrendingUp,
   ChevronUp,
   ChevronDown,
-  ArrowLeft,
   TrendingDown,
+  Wallet,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { BackButton } from "@/components/back-button";
 import {
   ChartContainer,
   ChartTooltip,
@@ -240,13 +241,9 @@ function MarketPage() {
   return (
     <ProtectedRoute>
       <div className="container mx-auto max-w-6xl px-4 py-8 space-y-8">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/companies">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            </Button>
+            <BackButton />
             <div>
               <h1 className="text-4xl font-bold">Stock Market</h1>
               <p className="text-muted-foreground mt-1">
@@ -254,12 +251,20 @@ function MarketPage() {
               </p>
             </div>
           </div>
-          <Button asChild>
-            <Link to="/companies/create">
-              <Building2 className="w-4 h-4 mr-2" />
-              Create Company
-            </Link>
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted">
+              <Wallet className="w-4 h-4 text-muted-foreground" />
+              <span className="font-semibold">
+                ${Number(user?.money || 0).toLocaleString()}
+              </span>
+            </div>
+            <Button asChild>
+              <Link to="/companies/create">
+                <Building2 className="w-4 h-4 mr-2" />
+                Create Company
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Share Price History Chart */}

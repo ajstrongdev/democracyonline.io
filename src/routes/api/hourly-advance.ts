@@ -21,44 +21,50 @@ export const Route = createFileRoute("/api/hourly-advance")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const authHeader = request.headers.get("authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          console.error("Missing or invalid Authorization header");
-          return new Response(
-            JSON.stringify({ success: false, error: "Unauthorized" }),
-            { status: 401, headers: { "Content-Type": "application/json" } },
-          );
-        }
-
-        const token = authHeader.substring(7);
-
-        try {
-          const ticket = await oAuth2Client.verifyIdToken({
-            idToken: token,
-            audience: env.SITE_URL || "https://democracyonline.io",
-          });
-
-          const payload = ticket.getPayload();
-
-          const expectedEmailPattern =
-            /-scheduler@.*\.iam\.gserviceaccount\.com$/;
-
-          if (!payload?.email || !expectedEmailPattern.test(payload.email)) {
-            console.error("Invalid service account:", payload?.email);
+        // Skip authentication in development mode
+        if (!env.IS_DEV) {
+          const authHeader = request.headers.get("authorization");
+          if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            console.error("Missing or invalid Authorization header");
             return new Response(
-              JSON.stringify({
-                success: false,
-                error: "Unauthorized - Invalid service account",
-              }),
-              { status: 403, headers: { "Content-Type": "application/json" } },
+              JSON.stringify({ success: false, error: "Unauthorized" }),
+              { status: 401, headers: { "Content-Type": "application/json" } },
             );
           }
-        } catch (error) {
-          console.error("Token verification failed:", error);
-          return new Response(
-            JSON.stringify({ success: false, error: "Unauthorized" }),
-            { status: 401, headers: { "Content-Type": "application/json" } },
-          );
+
+          const token = authHeader.substring(7);
+
+          try {
+            const ticket = await oAuth2Client.verifyIdToken({
+              idToken: token,
+              audience: env.SITE_URL || "https://democracyonline.io",
+            });
+
+            const payload = ticket.getPayload();
+
+            const expectedEmailPattern =
+              /-scheduler@.*\.iam\.gserviceaccount\.com$/;
+
+            if (!payload?.email || !expectedEmailPattern.test(payload.email)) {
+              console.error("Invalid service account:", payload?.email);
+              return new Response(
+                JSON.stringify({
+                  success: false,
+                  error: "Unauthorized - Invalid service account",
+                }),
+                {
+                  status: 403,
+                  headers: { "Content-Type": "application/json" },
+                },
+              );
+            }
+          } catch (error) {
+            console.error("Token verification failed:", error);
+            return new Response(
+              JSON.stringify({ success: false, error: "Unauthorized" }),
+              { status: 401, headers: { "Content-Type": "application/json" } },
+            );
+          }
         }
 
         try {

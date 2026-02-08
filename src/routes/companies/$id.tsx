@@ -36,6 +36,8 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { useState } from "react";
 import { toast } from "sonner";
+import * as LucideIcons from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/companies/$id")({
   loader: async ({ params }) => {
@@ -83,6 +85,12 @@ function CompanyDetailPage() {
       ? userData.money
       : 0;
 
+  let LogoIcon: LucideIcon | null = null;
+  if (company.logo) {
+    const iconsMap = LucideIcons as unknown as Record<string, LucideIcon>;
+    LogoIcon = iconsMap[company.logo] || null;
+  }
+
   const handleInvest = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsInvesting(true);
@@ -124,20 +132,21 @@ function CompanyDetailPage() {
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                 <div className="flex items-start gap-4 flex-1">
-                  {company.logo ? (
-                    <img
-                      src={company.logo}
-                      alt={company.name}
-                      className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl object-cover shadow-lg shrink-0"
-                    />
-                  ) : (
-                    <div
-                      className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl flex items-center justify-center text-white font-bold text-2xl sm:text-3xl shadow-lg shrink-0"
-                      style={{ backgroundColor: company.color || "#3b82f6" }}
-                    >
-                      {company.symbol.charAt(0)}
-                    </div>
-                  )}
+                  <div
+                    className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl flex items-center justify-center font-bold text-2xl sm:text-3xl shadow-lg shrink-0"
+                    style={{
+                      backgroundColor: company.color
+                        ? `${company.color}20`
+                        : "hsl(var(--primary) / 0.1)",
+                      color: company.color || "hsl(var(--primary))",
+                    }}
+                  >
+                    {LogoIcon ? (
+                      <LogoIcon className="w-10 h-10 sm:w-12 sm:h-12" />
+                    ) : (
+                      company.symbol.charAt(0)
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-xl sm:text-2xl lg:text-3xl mb-2">
                       {company.name}
