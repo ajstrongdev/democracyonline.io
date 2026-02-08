@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { db } from "@/db";
-import { users, parties, elections, bills } from "@/db/schema";
-import { eq, sql, and } from "drizzle-orm";
+import { users, parties, elections, bills, candidates } from "@/db/schema";
+import { eq, sql, and, desc } from "drizzle-orm";
 
 export const Route = createFileRoute("/api/bot")({
   server: {
@@ -251,10 +251,116 @@ export const Route = createFileRoute("/api/bot")({
               }
             }
 
+            case "candidates": {
+              const election = url.searchParams.get("election");
+
+              if (election) {
+                // Validate election parameter
+                if (!["President", "Senate", "House"].includes(election)) {
+                  return new Response(
+                    JSON.stringify({
+                      error: "Invalid election type",
+                      validElections: ["President", "Senate", "House"],
+                    }),
+                    {
+                      status: 400,
+                      headers: { "Content-Type": "application/json" },
+                    },
+                  );
+                }
+
+                // Get candidates for specific election
+                const electionCandidates = await db
+                  .select({
+                    id: candidates.id,
+                    userId: candidates.userId,
+                    username: users.username,
+                    election: candidates.election,
+                    votes: candidates.votes,
+                    donations: candidates.donations,
+                    votesPerHour: candidates.votesPerHour,
+                    donationsPerHour: candidates.donationsPerHour,
+                    partyId: users.partyId,
+                    partyName: parties.name,
+                    partyColor: parties.color,
+                  })
+                  .from(candidates)
+                  .leftJoin(users, eq(candidates.userId, users.id))
+                  .leftJoin(parties, eq(users.partyId, parties.id))
+                  .where(eq(candidates.election, election))
+                  .orderBy(desc(candidates.votes));
+
+                return new Response(JSON.stringify(electionCandidates), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                });
+              } else {
+                // Get all candidates across all elections
+                const allCandidates = await db
+                  .select({
+                    id: candidates.id,
+                    userId: candidates.userId,
+                    username: users.username,
+                    election: candidates.election,
+                    votes: candidates.votes,
+                    donations: candidates.donations,
+                    votesPerHour: candidates.votesPerHour,
+                    donationsPerHour: candidates.donationsPerHour,
+                    partyId: users.partyId,
+                    partyName: parties.name,
+                    partyColor: parties.color,
+                  })
+                  .from(candidates)
+                  .leftJoin(users, eq(candidates.userId, users.id))
+                  .leftJoin(parties, eq(users.partyId, parties.id))
+                  .orderBy(desc(candidates.votes));
+
+                return new Response(JSON.stringify(allCandidates), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                });
+              }
+            }
+
             case "game-state": {
               const electionStates = await db.select().from(elections);
 
-              return new Response(JSON.stringify(electionStates), {
+              // Fetch candidates for elections in Voting or Concluded status
+              const enrichedStates = await Promise.all(
+                electionStates.map(async (election) => {
+                  if (
+                    election.status === "Voting" ||
+                    election.status === "Concluded"
+                  ) {
+                    // Get candidates for this election with user and party info
+                    const electionCandidates = await db
+                      .select({
+                        id: candidates.id,
+                        userId: candidates.userId,
+                        username: users.username,
+                        election: candidates.election,
+                        votes: candidates.votes,
+                        donations: candidates.donations,
+                        partyId: users.partyId,
+                        partyName: parties.name,
+                        partyColor: parties.color,
+                      })
+                      .from(candidates)
+                      .leftJoin(users, eq(candidates.userId, users.id))
+                      .leftJoin(parties, eq(users.partyId, parties.id))
+                      .where(eq(candidates.election, election.election))
+                      .orderBy(desc(candidates.votes));
+
+                    return {
+                      ...election,
+                      candidates: electionCandidates,
+                    };
+                  }
+                  return election;
+                }),
+              );
+
+              return new Response(JSON.stringify(enrichedStates), {
                 status: 200,
                 headers: { "Content-Type": "application/json" },
               });
@@ -264,7 +370,13 @@ export const Route = createFileRoute("/api/bot")({
               return new Response(
                 JSON.stringify({
                   error: "Invalid endpoint",
-                  available: ["users", "parties", "bills", "game-state"],
+                  available: [
+                    "users",
+                    "parties",
+                    "bills",
+                    "candidates",
+                    "game-state",
+                  ],
                   usage: {
                     users:
                       "/api/bot?endpoint=users or /api/bot?endpoint=users&id=1",
@@ -272,6 +384,8 @@ export const Route = createFileRoute("/api/bot")({
                       "/api/bot?endpoint=parties or /api/bot?endpoint=parties&id=1",
                     bills:
                       "/api/bot?endpoint=bills or /api/bot?endpoint=bills&stage=House or /api/bot?endpoint=bills&stage=House&status=Voting",
+                    candidates:
+                      "/api/bot?endpoint=candidates or /api/bot?endpoint=candidates&election=President",
                     gameState: "/api/bot?endpoint=game-state",
                   },
                 }),
