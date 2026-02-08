@@ -367,8 +367,13 @@ export const getTopRichestUsers = createServerFn().handler(async () => {
 });
 
 export const getUserTransactionHistory = createServerFn()
-  .inputValidator((data: { userId: number }) => data)
+  .inputValidator(
+    (data: { userId: number; offset?: number; limit?: number }) => data,
+  )
   .handler(async ({ data }) => {
+    const limit = data.limit || 10;
+    const offset = data.offset || 0;
+
     const transactions = await db
       .select({
         id: transactionHistory.id,
@@ -378,7 +383,8 @@ export const getUserTransactionHistory = createServerFn()
       .from(transactionHistory)
       .where(eq(transactionHistory.userId, data.userId))
       .orderBy(desc(transactionHistory.createdAt))
-      .limit(50);
+      .limit(limit)
+      .offset(offset);
 
     return transactions;
   });

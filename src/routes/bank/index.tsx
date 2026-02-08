@@ -77,7 +77,7 @@ export const Route = createFileRoute("/bank/")({
     ) {
       try {
         transactions = await getUserTransactionHistory({
-          data: { userId: userData.id },
+          data: { userId: userData.id, limit: 10, offset: 0 },
         });
       } catch (error) {
         console.error("Failed to fetch transaction history:", error);
@@ -247,13 +247,42 @@ function RouteComponent() {
   const {
     userData,
     richestUsers,
-    transactions,
+    transactions: initialTransactions,
     companiesList,
     userHoldings,
     priceHistory,
   } = Route.useLoaderData();
   const user = useUserData(userData);
   const navigate = useNavigate();
+
+  const [transactions, setTransactions] = useState(initialTransactions);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(initialTransactions.length === 10);
+
+  const loadMoreTransactions = async () => {
+    if (
+      !userData ||
+      typeof userData !== "object" ||
+      !("id" in userData) ||
+      !userData.id
+    )
+      return;
+
+    setIsLoadingMore(true);
+    try {
+      const moreTransactions = await getUserTransactionHistory({
+        data: { userId: userData.id, limit: 10, offset: transactions.length },
+      });
+
+      setTransactions([...transactions, ...moreTransactions]);
+      setHasMore(moreTransactions.length === 10);
+    } catch (error) {
+      console.error("Failed to load more transactions:", error);
+      toast.error("Failed to load more transactions");
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   // Calculate available shares to purchase for each company
   // availableShares: [{...company, available: issuedShares - total user shares for that company}]
@@ -373,6 +402,16 @@ function RouteComponent() {
                         </div>
                       </div>
                     ))}
+                    {hasMore && (
+                      <Button
+                        onClick={loadMoreTransactions}
+                        disabled={isLoadingMore}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        {isLoadingMore ? "Loading..." : "Load More"}
+                      </Button>
+                    )}
                   </div>
                 )}
               </CardContent>

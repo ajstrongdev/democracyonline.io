@@ -365,6 +365,21 @@ export const Route = createFileRoute("/api/game-advance")({
                 .set({ daysLeft: sql`${elections.daysLeft} - 1` })
                 .where(eq(elections.election, "President"));
             } else {
+              // Get all Presidential candidate IDs before deletion
+              const presidentialCandidates = await db
+                .select({ id: candidates.id })
+                .from(candidates)
+                .where(eq(candidates.election, "President"));
+
+              const candidateIds = presidentialCandidates.map((c) => c.id);
+
+              // Delete purchases for these candidates
+              if (candidateIds.length > 0) {
+                await db
+                  .delete(candidatePurchases)
+                  .where(inArray(candidatePurchases.candidateId, candidateIds));
+              }
+
               await db
                 .delete(candidates)
                 .where(eq(candidates.election, "President"));
@@ -538,6 +553,21 @@ export const Route = createFileRoute("/api/game-advance")({
                 .set({ daysLeft: sql`${elections.daysLeft} - 1` })
                 .where(eq(elections.election, "Senate"));
             } else {
+              // Get all Senate candidate IDs before deletion
+              const senateCandidates = await db
+                .select({ id: candidates.id })
+                .from(candidates)
+                .where(eq(candidates.election, "Senate"));
+
+              const candidateIds = senateCandidates.map((c) => c.id);
+
+              // Delete purchases for these candidates
+              if (candidateIds.length > 0) {
+                await db
+                  .delete(candidatePurchases)
+                  .where(inArray(candidatePurchases.candidateId, candidateIds));
+              }
+
               await db
                 .delete(candidates)
                 .where(eq(candidates.election, "Senate"));

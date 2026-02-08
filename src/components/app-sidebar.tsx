@@ -92,7 +92,7 @@ const data = {
         },
         {
           title: "Oval Office",
-          url: "/oval-office/bills",
+          url: "/bills/oval-office",
           icon: Crown,
         },
       ],
