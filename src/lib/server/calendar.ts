@@ -22,8 +22,15 @@ function getNextAdvanceTime(daysLeft: number): Date {
     0,
   );
 
+  // If today's advance time hasn't passed yet and daysLeft is 0, use today
+  if (daysLeft === 0 && now < todayAdvance) {
+    return todayAdvance;
+  }
+
+  // Otherwise calculate based on daysLeft
   let daysToAdd = daysLeft;
-  if (now >= todayAdvance) {
+  if (now >= todayAdvance && daysLeft > 0) {
+    // Today's advance has passed, so countdown to next occurrence
     daysToAdd = daysLeft - 1;
   }
 

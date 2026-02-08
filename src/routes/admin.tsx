@@ -13,6 +13,8 @@ import AccessTokenManager from "@/components/admin/access-token-manager";
 import GenericSkeleton from "@/components/generic-skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -70,6 +72,9 @@ function RouteComponent() {
     bills: boolean;
     hourly: boolean;
   }>({ game: false, bills: false, hourly: false });
+  const [gameAdvanceCount, setGameAdvanceCount] = useState(1);
+  const [billAdvanceCount, setBillAdvanceCount] = useState(1);
+  const [hourlyAdvanceCount, setHourlyAdvanceCount] = useState(1);
 
   useEffect(() => {
     if (authLoading) return;
@@ -134,12 +139,26 @@ function RouteComponent() {
   const runGameAdvance = async () => {
     setAdvanceLoading({ ...advanceLoading, game: true });
     try {
-      const response = await fetch("/api/game-advance");
-      const data = await response.json();
-      if (data.success) {
-        toast.success("Game advance completed successfully");
-      } else {
-        toast.error(`Game advance failed: ${data.error || "Unknown error"}`);
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < gameAdvanceCount; i++) {
+        const response = await fetch("/api/game-advance");
+        const data = await response.json();
+        if (data.success) {
+          successCount++;
+        } else {
+          failCount++;
+          toast.error(
+            `Game advance ${i + 1} failed: ${data.error || "Unknown error"}`,
+          );
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(
+          `Game advance completed ${successCount} time(s) successfully`,
+        );
       }
     } catch (error) {
       toast.error(`Error running game advance: ${error}`);
@@ -151,12 +170,26 @@ function RouteComponent() {
   const runBillAdvance = async () => {
     setAdvanceLoading({ ...advanceLoading, bills: true });
     try {
-      const response = await fetch("/api/bill-advance");
-      const data = await response.json();
-      if (data.success) {
-        toast.success("Bill advance completed successfully");
-      } else {
-        toast.error(`Bill advance failed: ${data.error || "Unknown error"}`);
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < billAdvanceCount; i++) {
+        const response = await fetch("/api/bill-advance");
+        const data = await response.json();
+        if (data.success) {
+          successCount++;
+        } else {
+          failCount++;
+          toast.error(
+            `Bill advance ${i + 1} failed: ${data.error || "Unknown error"}`,
+          );
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(
+          `Bill advance completed ${successCount} time(s) successfully`,
+        );
       }
     } catch (error) {
       toast.error(`Error running bill advance: ${error}`);
@@ -168,12 +201,26 @@ function RouteComponent() {
   const runHourlyAdvance = async () => {
     setAdvanceLoading({ ...advanceLoading, hourly: true });
     try {
-      const response = await fetch("/api/hourly-advance");
-      const data = await response.json();
-      if (data.success) {
-        toast.success(data.message || "Hourly advance completed successfully");
-      } else {
-        toast.error(`Hourly advance failed: ${data.error || "Unknown error"}`);
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < hourlyAdvanceCount; i++) {
+        const response = await fetch("/api/hourly-advance");
+        const data = await response.json();
+        if (data.success) {
+          successCount++;
+        } else {
+          failCount++;
+          toast.error(
+            `Hourly advance ${i + 1} failed: ${data.error || "Unknown error"}`,
+          );
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(
+          `Hourly advance completed ${successCount} time(s) successfully`,
+        );
       }
     } catch (error) {
       toast.error(`Error running hourly advance: ${error}`);
@@ -193,91 +240,149 @@ function RouteComponent() {
 
       <div className="mb-6 p-4 border rounded-lg bg-card">
         <h2 className="text-xl font-semibold mb-4">Manual Advance Triggers</h2>
-        <div className="flex flex-wrap gap-3">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                disabled={advanceLoading.game}
-                className="flex items-center gap-2"
-              >
-                <Gamepad2 className="w-4 h-4" />
-                {advanceLoading.game ? "Running..." : "Run Game Advance"}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Run Game Advance?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will advance the game state (elections, party fees,
-                  inactive users). Are you sure you want to continue?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={runGameAdvance}>
-                  Confirm
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-3">
+            <Label htmlFor="game-count">Game Advance</Label>
+            <Input
+              id="game-count"
+              type="number"
+              min={1}
+              max={100}
+              value={gameAdvanceCount}
+              onChange={(e) =>
+                setGameAdvanceCount(Math.max(1, parseInt(e.target.value) || 1))
+              }
+              className="w-full"
+            />
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={advanceLoading.game}
+                  className="w-full flex items-center gap-2"
+                >
+                  <Gamepad2 className="w-4 h-4" />
+                  {advanceLoading.game
+                    ? "Running..."
+                    : `Run ${gameAdvanceCount}x`}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Run Game Advance {gameAdvanceCount} time(s)?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will advance the game state (elections, party fees,
+                    inactive users) {gameAdvanceCount} time(s). Are you sure you
+                    want to continue?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={runGameAdvance}>
+                    Confirm
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                disabled={advanceLoading.bills}
-                className="flex items-center gap-2"
-              >
-                <FileText className="w-4 h-4" />
-                {advanceLoading.bills ? "Running..." : "Run Bill Advance"}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Run Bill Advance?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will advance bills through voting stages. Are you sure
-                  you want to continue?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={runBillAdvance}>
-                  Confirm
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <div className="space-y-3">
+            <Label htmlFor="bill-count">Bill Advance</Label>
+            <Input
+              id="bill-count"
+              type="number"
+              min={1}
+              max={100}
+              value={billAdvanceCount}
+              onChange={(e) =>
+                setBillAdvanceCount(Math.max(1, parseInt(e.target.value) || 1))
+              }
+              className="w-full"
+            />
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={advanceLoading.bills}
+                  className="w-full flex items-center gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  {advanceLoading.bills
+                    ? "Running..."
+                    : `Run ${billAdvanceCount}x`}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Run Bill Advance {billAdvanceCount} time(s)?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will advance bills through voting stages{" "}
+                    {billAdvanceCount} time(s). Are you sure you want to
+                    continue?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={runBillAdvance}>
+                    Confirm
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                disabled={advanceLoading.hourly}
-                className="flex items-center gap-2"
-              >
-                <Clock className="w-4 h-4" />
-                {advanceLoading.hourly ? "Running..." : "Run Hourly Advance"}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Run Hourly Advance?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will advance stock prices, pay dividends, update
-                  campaigns, and record snapshots. Are you sure you want to
-                  continue?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={runHourlyAdvance}>
-                  Confirm
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <div className="space-y-3">
+            <Label htmlFor="hourly-count">Hourly Advance</Label>
+            <Input
+              id="hourly-count"
+              type="number"
+              min={1}
+              max={100}
+              value={hourlyAdvanceCount}
+              onChange={(e) =>
+                setHourlyAdvanceCount(
+                  Math.max(1, parseInt(e.target.value) || 1),
+                )
+              }
+              className="w-full"
+            />
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={advanceLoading.hourly}
+                  className="w-full flex items-center gap-2"
+                >
+                  <Clock className="w-4 h-4" />
+                  {advanceLoading.hourly
+                    ? "Running..."
+                    : `Run ${hourlyAdvanceCount}x`}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Run Hourly Advance {hourlyAdvanceCount} time(s)?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will advance stock prices, pay dividends, update
+                    campaigns, and record snapshots {hourlyAdvanceCount}{" "}
+                    time(s). Are you sure you want to continue?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={runHourlyAdvance}>
+                    Confirm
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </div>
 

@@ -275,7 +275,7 @@ function CandidateItem({
                 onValueChange={(value) =>
                   setDonationAmount(value[0].toString())
                 }
-                max={Math.min(currentUserMoney || 0, 10000)}
+                max={currentUserMoney || 0}
                 step={10}
                 disabled={isDonating || !currentUserId}
                 className="flex-1"
