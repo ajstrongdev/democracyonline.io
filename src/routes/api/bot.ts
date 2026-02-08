@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { db } from "@/db";
-import { users, parties, elections } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { users, parties, elections, bills } from "@/db/schema";
+import { eq, sql, and } from "drizzle-orm";
 
 export const Route = createFileRoute("/api/bot")({
   server: {
@@ -170,6 +170,87 @@ export const Route = createFileRoute("/api/bot")({
               }
             }
 
+            case "bills": {
+              const stage = url.searchParams.get("stage");
+              const status = url.searchParams.get("status");
+
+              // Validate stage parameter if provided
+              if (stage && !["House", "Senate", "Presidency"].includes(stage)) {
+                return new Response(
+                  JSON.stringify({
+                    error: "Invalid stage",
+                    validStages: ["House", "Senate", "Presidency"],
+                  }),
+                  {
+                    status: 400,
+                    headers: { "Content-Type": "application/json" },
+                  },
+                );
+              }
+
+              if (stage || status) {
+                // Build where conditions
+                const conditions = [];
+                if (stage) {
+                  conditions.push(eq(bills.stage, stage));
+                }
+                if (status) {
+                  conditions.push(eq(bills.status, status));
+                }
+
+                const filteredBills = await db
+                  .select({
+                    id: bills.id,
+                    status: bills.status,
+                    stage: bills.stage,
+                    title: bills.title,
+                    creatorId: bills.creatorId,
+                    content: bills.content,
+                    createdAt: bills.createdAt,
+                    pool: bills.pool,
+                    creatorUsername: users.username,
+                  })
+                  .from(bills)
+                  .leftJoin(users, eq(bills.creatorId, users.id))
+                  .where(
+                    conditions.length > 1 ? and(...conditions) : conditions[0],
+                  );
+
+                return new Response(JSON.stringify(filteredBills), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                });
+              } else {
+                // Return all bills grouped by stage
+                const allBills = await db
+                  .select({
+                    id: bills.id,
+                    status: bills.status,
+                    stage: bills.stage,
+                    title: bills.title,
+                    creatorId: bills.creatorId,
+                    content: bills.content,
+                    createdAt: bills.createdAt,
+                    pool: bills.pool,
+                    creatorUsername: users.username,
+                  })
+                  .from(bills)
+                  .leftJoin(users, eq(bills.creatorId, users.id));
+
+                // Group by stage
+                const grouped = {
+                  House: allBills.filter((b) => b.stage === "House"),
+                  Senate: allBills.filter((b) => b.stage === "Senate"),
+                  Presidency: allBills.filter((b) => b.stage === "Presidency"),
+                };
+
+                return new Response(JSON.stringify(grouped), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                });
+              }
+            }
+
             case "game-state": {
               const electionStates = await db.select().from(elections);
 
@@ -183,12 +264,14 @@ export const Route = createFileRoute("/api/bot")({
               return new Response(
                 JSON.stringify({
                   error: "Invalid endpoint",
-                  available: ["users", "parties", "game-state"],
+                  available: ["users", "parties", "bills", "game-state"],
                   usage: {
                     users:
                       "/api/bot?endpoint=users or /api/bot?endpoint=users&id=1",
                     parties:
                       "/api/bot?endpoint=parties or /api/bot?endpoint=parties&id=1",
+                    bills:
+                      "/api/bot?endpoint=bills or /api/bot?endpoint=bills&stage=House or /api/bot?endpoint=bills&stage=House&status=Voting",
                     gameState: "/api/bot?endpoint=game-state",
                   },
                 }),

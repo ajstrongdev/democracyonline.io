@@ -169,6 +169,135 @@ GET /api/bot?endpoint=parties&id=5
 
 ---
 
+### Get Bills
+
+Retrieve information about bills in the legislative process.
+
+#### Get All Bills (Grouped by Stage)
+
+```
+GET /api/bot?endpoint=bills
+```
+
+**Response:**
+
+```json
+{
+  "House": [
+    {
+      "id": 1,
+      "status": "Voting",
+      "stage": "House",
+      "title": "Infrastructure Investment Act",
+      "creatorId": 5,
+      "content": "A comprehensive bill to improve national infrastructure...",
+      "createdAt": "2026-02-01T10:30:00.000Z",
+      "pool": 1,
+      "creatorUsername": "john_doe"
+    }
+  ],
+  "Senate": [
+    {
+      "id": 2,
+      "status": "Voting",
+      "stage": "Senate",
+      "title": "Healthcare Reform Bill",
+      "creatorId": 12,
+      "content": "Reforms to the national healthcare system...",
+      "createdAt": "2026-01-28T14:20:00.000Z",
+      "pool": 1,
+      "creatorUsername": "jane_smith"
+    }
+  ],
+  "Presidency": [
+    {
+      "id": 3,
+      "status": "Awaiting Signature",
+      "stage": "Presidency",
+      "title": "Education Funding Act",
+      "creatorId": 8,
+      "content": "Increases funding for public education...",
+      "createdAt": "2026-01-25T09:15:00.000Z",
+      "pool": 1,
+      "creatorUsername": "alex_johnson"
+    }
+  ]
+}
+```
+
+#### Get Bills by Stage
+
+```
+GET /api/bot?endpoint=bills&stage=House
+```
+
+**Parameters:**
+
+- `stage` (string) - Legislative stage (`House`, `Senate`, or `Presidency`)
+
+**Response:**
+
+```json
+[
+  {
+    "id": 1,
+    "status": "Voting",
+    "stage": "House",
+    "title": "Infrastructure Investment Act",
+    "creatorId": 5,
+    "content": "A comprehensive bill to improve national infrastructure...",
+    "createdAt": "2026-02-01T10:30:00.000Z",
+    "pool": 1,
+    "creatorUsername": "john_doe"
+  }
+]
+```
+
+#### Get Bills by Stage and Status
+
+```
+GET /api/bot?endpoint=bills&stage=House&status=Voting
+```
+
+**Parameters:**
+
+- `stage` (string, optional) - Legislative stage (`House`, `Senate`, or `Presidency`)
+- `status` (string, optional) - Bill status (e.g., `Queued`, `Voting`, `Awaiting Signature`)
+
+Both parameters can be used independently or together to filter bills.
+
+**Response:**
+
+```json
+[
+  {
+    "id": 1,
+    "status": "Voting",
+    "stage": "House",
+    "title": "Infrastructure Investment Act",
+    "creatorId": 5,
+    "content": "A comprehensive bill to improve national infrastructure...",
+    "createdAt": "2026-02-01T10:30:00.000Z",
+    "pool": 1,
+    "creatorUsername": "john_doe"
+  }
+]
+```
+
+**Bill Fields:**
+
+- `id` - Unique bill identifier
+- `status` - Current status (`Queued`, `Voting`, `Awaiting Signature`, etc.)
+- `stage` - Legislative stage (`House`, `Senate`, `Presidency`)
+- `title` - Bill title
+- `creatorId` - ID of user who created the bill
+- `content` - Full text of the bill
+- `createdAt` - Timestamp of bill creation
+- `pool` - Bill pool number
+- `creatorUsername` - Username of bill creator
+
+---
+
 ### Get Game State
 
 Retrieve current election states for game update posts.
@@ -235,6 +364,15 @@ GET /api/bot?endpoint=game-state
 }
 ```
 
+### Invalid Stage
+
+```json
+{
+  "error": "Invalid stage",
+  "validStages": ["House", "Senate", "Presidency"]
+}
+```
+
 ### Not Found
 
 ```json
@@ -283,6 +421,30 @@ curl "https://democracyonline.io/api/bot?endpoint=parties&id=5"
 curl "https://democracyonline.io/api/bot?endpoint=game-state"
 ```
 
+### Get All Bills
+
+```bash
+curl "https://democracyonline.io/api/bot?endpoint=bills"
+```
+
+### Get Bills in House
+
+```bash
+curl "https://democracyonline.io/api/bot?endpoint=bills&stage=House"
+```
+
+### Get Bills in House that are Voting
+
+```bash
+curl "https://democracyonline.io/api/bot?endpoint=bills&stage=House&status=Voting"
+```
+
+### Get All Bills with Voting Status
+
+```bash
+curl "https://democracyonline.io/api/bot?endpoint=bills&status=Voting"
+```
+
 ## Use Cases
 
 ### Game Update Posts
@@ -296,6 +458,10 @@ Use `users` endpoint with ID to display detailed user information in Discord.
 ### Party Information
 
 Use `parties` endpoint to show party details, member lists, and recruitment information.
+
+### Legislative Tracking
+
+Use `bills` endpoint to track bills moving through the legislative process and display voting information.
 
 ## Implementation
 
