@@ -55,8 +55,11 @@ function CompaniesPage() {
       ) : (
         <div className="space-y-4">
           {companies.map((company) => {
+            // Calculate market cap based on owned shares, not issued shares
+            const totalOwnedShares =
+              (company.issuedShares || 0) - (company.availableShares || 0);
             const marketCap = company.stockPrice
-              ? company.stockPrice * (company.issuedShares || 0)
+              ? company.stockPrice * totalOwnedShares
               : 0;
 
             const companyHistory = priceHistory.filter(

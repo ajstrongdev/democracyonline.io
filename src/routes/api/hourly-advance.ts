@@ -91,25 +91,18 @@ export const Route = createFileRoute("/api/hourly-advance")({
             const bought = stock.broughtToday || 0;
             const sold = stock.soldToday || 0;
             const currentPrice = stock.price;
-            const issuedShares = stock.issuedShares || 0;
-            const capital = stock.capital || 0;
 
-            // Calculate book value (fundamental value based on capital)
-            const bookValue =
-              issuedShares > 0
-                ? Math.floor(capital / issuedShares)
-                : currentPrice;
+            // Simple price adjustment based purely on demand
+            // +$1 per share bought, -$1 per share sold
+            let priceChange = bought - sold;
 
-            const demandPressure = bought - sold;
+            // Natural decay: if no trading activity, reduce price by 1%
+            if (bought === 0 && sold === 0) {
+              const decay = Math.ceil(currentPrice * 0.01);
+              priceChange = -decay;
+            }
 
-            const marketCap = currentPrice * issuedShares;
-            const hourlyDividend = Math.floor(marketCap * 0.01);
-            const dividendBonus = Math.floor(hourlyDividend / 1000);
-
-            const targetPrice = Math.floor(
-              bookValue * 0.7 + currentPrice * 0.3,
-            );
-            let newPrice = targetPrice + demandPressure + dividendBonus;
+            let newPrice = currentPrice + priceChange;
 
             // Ensure price doesn't go below $10 minimum
             const MIN_PRICE = 10;
@@ -131,9 +124,9 @@ export const Route = createFileRoute("/api/hourly-advance")({
               })
               .where(eq(stocks.id, stock.id));
 
-            if (newPrice !== currentPrice) {
+            if (priceChange !== 0) {
               console.log(
-                `${stock.companySymbol}: $${currentPrice} → $${newPrice} | Book: $${bookValue}, Demand: ${demandPressure > 0 ? "+" : ""}${demandPressure}, Div Bonus: +${dividendBonus}`,
+                `${stock.companySymbol}: $${currentPrice} → $${newPrice} (${priceChange > 0 ? "+" : ""}${priceChange}) | Bought: ${bought}, Sold: ${sold}${bought === 0 && sold === 0 ? " [DECAY]" : ""}`,
               );
             }
           }
@@ -188,7 +181,17 @@ export const Route = createFileRoute("/api/hourly-advance")({
                 .limit(1);
 
               if (company && company.creatorId) {
-                const marketCap = stock.price * (stock.issuedShares || 0);
+                // Calculate market cap based on owned shares
+                const allHoldings = await db
+                  .select({ quantity: userShares.quantity })
+                  .from(userShares)
+                  .where(eq(userShares.companyId, company.id));
+
+                const totalOwnedShares = allHoldings.reduce(
+                  (sum, h) => sum + (h.quantity || 0),
+                  0,
+                );
+                const marketCap = stock.price * totalOwnedShares;
                 const dividend = Math.floor(marketCap * 0.01); // 1% of market cap
 
                 if (dividend > 0) {

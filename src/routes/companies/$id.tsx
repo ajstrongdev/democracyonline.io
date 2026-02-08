@@ -77,7 +77,7 @@ function CompanyDetailPage() {
   }
 
   const marketCap = company.stockPrice
-    ? company.stockPrice * (company.issuedShares || 0)
+    ? company.stockPrice * (company.totalOwnedShares || 0)
     : 0;
 
   const minInvestment = sharePrice;
@@ -325,7 +325,7 @@ function CompanyDetailPage() {
         </Card>
 
         {/* Company Stats */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
@@ -363,13 +363,29 @@ function CompanyDetailPage() {
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
                 <CardTitle className="text-sm font-medium">
-                  Total Shares
+                  Issued Shares
                 </CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {company.issuedShares?.toLocaleString() || 0}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">
+                  Owned Shares
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {company.totalOwnedShares?.toLocaleString() || 0}
               </div>
             </CardContent>
           </Card>

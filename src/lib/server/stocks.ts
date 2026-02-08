@@ -36,7 +36,6 @@ export const getCompanies = createServerFn().handler(async () => {
     .leftJoin(stocks, eq(stocks.companyId, companies.id))
     .leftJoin(users, eq(companies.creatorId, users.id));
 
-  // Calculate available shares for each company by summing all user holdings
   const companiesWithAvailability = await Promise.all(
     companiesWithStocks.map(async (company) => {
       const allHoldings = await db
@@ -201,7 +200,20 @@ export const getCompanyById = createServerFn()
       .where(eq(companies.id, data.companyId))
       .limit(1);
 
-    return company || null;
+    if (!company) return null;
+
+    // Calculate total shares owned by all users
+    const allHoldings = await db
+      .select({ quantity: userShares.quantity })
+      .from(userShares)
+      .where(eq(userShares.companyId, company.id));
+
+    const totalOwnedShares = allHoldings.reduce(
+      (sum, h) => sum + (h.quantity || 0),
+      0,
+    );
+
+    return { ...company, totalOwnedShares };
   });
 
 export const updateCompany = createServerFn()
@@ -696,19 +708,31 @@ export const getUserCEOCompanies = createServerFn()
       .leftJoin(stocks, eq(stocks.companyId, companies.id))
       .where(eq(companies.creatorId, data.userId));
 
-    // Calculate dividends for each company
-    const companiesWithDividends = ceoCompanies.map((company) => {
-      const marketCap = (company.stockPrice || 0) * (company.issuedShares || 0);
-      const hourlyDividend = Math.floor(marketCap * 0.01); // 1% per hour
-      const dailyDividend = hourlyDividend * 24;
+    // Calculate dividends for each company based on owned shares
+    const companiesWithDividends = await Promise.all(
+      ceoCompanies.map(async (company) => {
+        // Get total shares owned by all users
+        const allHoldings = await db
+          .select({ quantity: userShares.quantity })
+          .from(userShares)
+          .where(eq(userShares.companyId, company.id));
 
-      return {
-        ...company,
-        marketCap,
-        hourlyDividend,
-        dailyDividend,
-      };
-    });
+        const totalOwnedShares = allHoldings.reduce(
+          (sum, h) => sum + (h.quantity || 0),
+          0,
+        );
+        const marketCap = (company.stockPrice || 0) * totalOwnedShares;
+        const hourlyDividend = Math.floor(marketCap * 0.01); // 1% per hour
+        const dailyDividend = hourlyDividend * 24;
+
+        return {
+          ...company,
+          marketCap,
+          hourlyDividend,
+          dailyDividend,
+        };
+      }),
+    );
 
     return companiesWithDividends;
   });
