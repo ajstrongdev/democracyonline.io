@@ -487,10 +487,6 @@ export const investInCompany = createServerFn()
       throw new Error("Unauthorized");
     }
 
-    if (data.investmentAmount <= 0 || data.investmentAmount < 100) {
-      throw new Error("Investment must be at least $100");
-    }
-
     const [currentUser] = await db
       .select()
       .from(users)
@@ -511,13 +507,29 @@ export const investInCompany = createServerFn()
       throw new Error("Company not found");
     }
 
+    const [stock] = await db
+      .select()
+      .from(stocks)
+      .where(eq(stocks.companyId, company.id))
+      .limit(1);
+
+    if (!stock) {
+      throw new Error("Stock not found for company");
+    }
+
+    const sharePrice = stock.price;
+
+    if (data.investmentAmount < sharePrice) {
+      throw new Error(`Investment must be at least $${sharePrice} (1 share)`);
+    }
+
     // Check if user has enough money
     if ((currentUser.money || 0) < data.investmentAmount) {
       throw new Error("Insufficient funds for investment");
     }
 
-    // Calculate new shares to issue: 1 share per $100
-    const newShares = Math.floor(data.investmentAmount / 100);
+    // Calculate new shares to issue: 1 share per share price
+    const newShares = Math.floor(data.investmentAmount / sharePrice);
     const newCapital = (company.capital || 0) + data.investmentAmount;
     const newTotalShares = (company.issuedShares || 0) + newShares;
 
@@ -572,6 +584,19 @@ export const investInCompany = createServerFn()
       }
     }
 
+    // Recalculate and update share price based on new capital and shares
+    const newSharePrice = Math.floor(newCapital / newTotalShares);
+    await db
+      .update(stocks)
+      .set({ price: newSharePrice })
+      .where(eq(stocks.id, stock.id));
+
+    // Log price change in history
+    await db.insert(sharePriceHistory).values({
+      stockId: stock.id,
+      price: newSharePrice,
+    });
+
     // Record transaction
     await db.insert(transactionHistory).values({
       userId: currentUser.id,
@@ -583,6 +608,7 @@ export const investInCompany = createServerFn()
       newShares,
       newTotalShares,
       newCapital,
+      newSharePrice,
       retainedShares: data.retainedShares,
     };
   });

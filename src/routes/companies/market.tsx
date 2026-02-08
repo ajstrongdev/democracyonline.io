@@ -567,17 +567,21 @@ function MarketPage() {
                             {companyHistory.length > 1 && (
                               <div
                                 className={`text-xs flex items-center gap-1 ${
-                                  priceChange >= 0
-                                    ? "text-green-600"
-                                    : "text-red-600"
+                                  priceChange === 0
+                                    ? "text-muted-foreground"
+                                    : priceChange > 0
+                                      ? "text-green-600"
+                                      : "text-red-600"
                                 }`}
                               >
-                                {priceChange >= 0 ? (
+                                {priceChange === 0 ? (
+                                  <TrendingUp className="h-3 w-3" />
+                                ) : priceChange > 0 ? (
                                   <TrendingUp className="h-3 w-3" />
                                 ) : (
                                   <TrendingDown className="h-3 w-3" />
                                 )}
-                                {priceChange >= 0 ? "+" : ""}
+                                {priceChange > 0 ? "+" : ""}
                                 {priceChange.toFixed(2)}% (24h)
                               </div>
                             )}

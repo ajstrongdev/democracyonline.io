@@ -34,6 +34,7 @@ import {
   PiggyBank,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as LucideIcons from "lucide-react";
@@ -53,7 +54,8 @@ export const Route = createFileRoute("/companies/$id")({
 function CompanyDetailPage() {
   const { company, stakeholders, userData } = Route.useLoaderData();
   const router = useRouter();
-  const [investmentAmount, setInvestmentAmount] = useState(100);
+  const sharePrice = company?.stockPrice || 100;
+  const [investmentAmount, setInvestmentAmount] = useState(sharePrice);
   const [retainedShares, setRetainedShares] = useState(0);
   const [isInvesting, setIsInvesting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -78,7 +80,8 @@ function CompanyDetailPage() {
     ? company.stockPrice * (company.issuedShares || 0)
     : 0;
 
-  const maxShares = Math.floor(investmentAmount / 100);
+  const minInvestment = sharePrice;
+  const maxShares = Math.floor(investmentAmount / sharePrice);
   const availableShares = maxShares - retainedShares;
   const userMoney =
     userData && typeof userData === "object" && "money" in userData
@@ -194,24 +197,36 @@ function CompanyDetailPage() {
                             ${userMoney?.toLocaleString() || 0}
                           </div>
                         </div>
-                        <div>
-                          <Label htmlFor="amount">Investment Amount</Label>
-                          <Input
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="amount">Investment Amount</Label>
+                            <span className="text-lg font-medium">
+                              ${investmentAmount.toLocaleString()}
+                            </span>
+                          </div>
+                          <Slider
                             id="amount"
-                            type="number"
-                            min={100}
-                            step={100}
-                            value={investmentAmount}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value) || 100;
-                              setInvestmentAmount(val);
+                            min={minInvestment}
+                            max={Math.min(
+                              userMoney || minInvestment,
+                              minInvestment * 1000,
+                            )}
+                            step={sharePrice}
+                            value={[investmentAmount]}
+                            onValueChange={(value) => {
+                              setInvestmentAmount(value[0]);
                               setRetainedShares(
-                                Math.min(retainedShares, Math.floor(val / 100)),
+                                Math.min(
+                                  retainedShares,
+                                  Math.floor(value[0] / sharePrice),
+                                ),
                               );
                             }}
+                            className="w-full"
                           />
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Will issue {maxShares} shares (1 share per $100)
+                          <p className="text-sm text-muted-foreground">
+                            Will issue {maxShares} shares (1 share per $
+                            {sharePrice.toLocaleString()})
                           </p>
                         </div>
                         <div>

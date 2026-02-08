@@ -150,17 +150,21 @@ function CompaniesPage() {
                             {chartData.length > 1 && (
                               <div
                                 className={`text-sm flex items-center gap-1 ${
-                                  priceChange >= 0
-                                    ? "text-green-600"
-                                    : "text-red-600"
+                                  priceChange === 0
+                                    ? "text-muted-foreground"
+                                    : priceChange > 0
+                                      ? "text-green-600"
+                                      : "text-red-600"
                                 }`}
                               >
-                                {priceChange >= 0 ? (
+                                {priceChange === 0 ? (
+                                  <TrendingUp className="h-4 w-4" />
+                                ) : priceChange > 0 ? (
                                   <TrendingUp className="h-4 w-4" />
                                 ) : (
                                   <TrendingDown className="h-4 w-4" />
                                 )}
-                                {priceChange >= 0 ? "+" : ""}
+                                {priceChange > 0 ? "+" : ""}
                                 {priceChange.toFixed(2)}% (24h)
                               </div>
                             )}
@@ -209,7 +213,11 @@ function CompaniesPage() {
                                 type="monotone"
                                 dataKey="price"
                                 stroke={
-                                  priceChange >= 0 ? "#16a34a" : "#dc2626"
+                                  priceChange === 0
+                                    ? "#9ca3af"
+                                    : priceChange > 0
+                                      ? "#16a34a"
+                                      : "#dc2626"
                                 }
                                 strokeWidth={2}
                                 dot={false}
