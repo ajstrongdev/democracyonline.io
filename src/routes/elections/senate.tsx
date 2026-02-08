@@ -696,8 +696,8 @@ function RouteComponent() {
           <>
             {/* Voting Phase Alert */}
             {electionInfo.status === "Voting" && (
-              <Alert className="mb-6 bg-card">
-                <AlertTitle className="font-bold">
+              <Alert className="mb-6 border-blue-500/50 bg-blue-500/10">
+                <AlertTitle className="font-bold text-blue-600 dark:text-blue-400">
                   Elections are live!
                 </AlertTitle>
                 <AlertDescription>
