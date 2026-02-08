@@ -227,15 +227,10 @@ function MarketPage() {
   );
 
   const availableShares = companiesList
-    .map((company) => {
-      const totalUserShares = userHoldings
-        .filter((share) => share.companyId === company.id)
-        .reduce((sum, share) => sum + (share.quantity || 0), 0);
-      return {
-        ...company,
-        available: (company.issuedShares || 0) - totalUserShares,
-      };
-    })
+    .map((company) => ({
+      ...company,
+      available: company.availableShares ?? 0,
+    }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return (

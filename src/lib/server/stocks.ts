@@ -36,7 +36,25 @@ export const getCompanies = createServerFn().handler(async () => {
     .leftJoin(stocks, eq(stocks.companyId, companies.id))
     .leftJoin(users, eq(companies.creatorId, users.id));
 
-  return companiesWithStocks;
+  // Calculate available shares for each company by summing all user holdings
+  const companiesWithAvailability = await Promise.all(
+    companiesWithStocks.map(async (company) => {
+      const allHoldings = await db
+        .select({ quantity: userShares.quantity })
+        .from(userShares)
+        .where(eq(userShares.companyId, company.id));
+
+      const totalOwned = allHoldings.reduce(
+        (sum, h) => sum + (h.quantity || 0),
+        0,
+      );
+      const available = (company.issuedShares || 0) - totalOwned;
+
+      return { ...company, availableShares: available };
+    }),
+  );
+
+  return companiesWithAvailability;
 });
 
 export const getSharePriceHistory = createServerFn().handler(async () => {
