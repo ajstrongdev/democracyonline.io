@@ -227,6 +227,7 @@ export const companies = pgTable("companies", {
   description: text("description"),
   capital: bigint("capital", { mode: "number" }).default(0),
   issuedShares: bigint("issued_shares", { mode: "number" }).default(0),
+  creatorId: integer("creator_id"),
   logo: varchar("logo", { length: 100 }),
   color: varchar("color", { length: 7 }).default("#3b82f6"),
   createdAt: timestamp("created_at").defaultNow(),

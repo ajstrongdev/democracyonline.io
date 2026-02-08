@@ -26,7 +26,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { icons } from "@/lib/utils/logo-helper";
 
-export const Route = createFileRoute("/bank/create")({
+export const Route = createFileRoute("/companies/create")({
   loader: async () => {
     const userData = await getCurrentUserInfo();
     return { userData };

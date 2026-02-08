@@ -712,7 +712,7 @@ function RouteComponent() {
                     <CardTitle>Listed Companies</CardTitle>
                   </div>
                   <Button asChild>
-                    <Link to="/bank/create">
+                    <Link to="/companies/create">
                       <Plus className="w-4 h-4 mr-2" />
                       Create Company
                     </Link>

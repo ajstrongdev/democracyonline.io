@@ -8,9 +8,12 @@ import {
   candidates,
   elections,
   candidateSnapshots,
+  users,
+  transactionHistory,
+  userShares,
 } from "@/db/schema";
 import { env } from "@/env";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, desc } from "drizzle-orm";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -113,6 +116,81 @@ export const Route = createFileRoute("/api/hourly-advance")({
             }
           }
 
+          // Update company CEOs to whoever has the most shares
+          for (const stock of allStocks) {
+            if (stock.companyId) {
+              const [company] = await db
+                .select()
+                .from(companies)
+                .where(eq(companies.id, stock.companyId))
+                .limit(1);
+
+              if (company) {
+                // Find the shareholder with the most shares
+                const [topShareholder] = await db
+                  .select({
+                    userId: userShares.userId,
+                    quantity: userShares.quantity,
+                  })
+                  .from(userShares)
+                  .where(eq(userShares.companyId, company.id))
+                  .orderBy(desc(userShares.quantity))
+                  .limit(1);
+
+                // Update CEO if there's a shareholder and they're different from current CEO
+                if (
+                  topShareholder &&
+                  topShareholder.userId !== company.creatorId
+                ) {
+                  await db
+                    .update(companies)
+                    .set({ creatorId: topShareholder.userId })
+                    .where(eq(companies.id, company.id));
+
+                  console.log(
+                    `Updated CEO of ${company.name} to user ${topShareholder.userId} with ${topShareholder.quantity} shares`,
+                  );
+                }
+              }
+            }
+          }
+
+          // Pay dividends to company CEOs (1% of market cap per hour)
+          let dividendsPaid = 0;
+          for (const stock of allStocks) {
+            if (stock.companyId) {
+              const [company] = await db
+                .select()
+                .from(companies)
+                .where(eq(companies.id, stock.companyId))
+                .limit(1);
+
+              if (company && company.creatorId) {
+                const marketCap = stock.price * (stock.issuedShares || 0);
+                const dividend = Math.floor(marketCap * 0.01); // 1% of market cap
+
+                if (dividend > 0) {
+                  // Pay dividend to CEO
+                  await db
+                    .update(users)
+                    .set({ money: sql`${users.money} + ${dividend}` })
+                    .where(eq(users.id, company.creatorId));
+
+                  // Record transaction
+                  await db.insert(transactionHistory).values({
+                    userId: company.creatorId,
+                    description: `Dividend from ${company.name}: $${dividend.toLocaleString()} (Market Cap: $${marketCap.toLocaleString()})`,
+                  });
+
+                  dividendsPaid += dividend;
+                  console.log(
+                    `Paid $${dividend} dividend to CEO of ${stock.companySymbol} (Market Cap: $${marketCap})`,
+                  );
+                }
+              }
+            }
+          }
+
           // Process candidate votes and donations per hour for elections in voting phase
           const votingElections = await db
             .select({ election: elections.election })
@@ -172,7 +250,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
           return new Response(
             JSON.stringify({
               success: true,
-              message: `Updated ${allStocks.length} stock prices, processed ${candidatesProcessed} candidates`,
+              message: `Updated ${allStocks.length} stock prices, paid $${dividendsPaid} in dividends, processed ${candidatesProcessed} candidates`,
             }),
             {
               status: 200,

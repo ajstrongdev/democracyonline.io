@@ -24,6 +24,8 @@ export const getCompanies = createServerFn().handler(async () => {
       description: companies.description,
       capital: companies.capital,
       issuedShares: companies.issuedShares,
+      creatorId: companies.creatorId,
+      creatorUsername: users.username,
       logo: companies.logo,
       color: companies.color,
       createdAt: companies.createdAt,
@@ -31,7 +33,8 @@ export const getCompanies = createServerFn().handler(async () => {
       stockPrice: stocks.price,
     })
     .from(companies)
-    .leftJoin(stocks, eq(stocks.companyId, companies.id));
+    .leftJoin(stocks, eq(stocks.companyId, companies.id))
+    .leftJoin(users, eq(companies.creatorId, users.id));
 
   return companiesWithStocks;
 });
@@ -104,6 +107,7 @@ export const createCompany = createServerFn({ method: "POST" })
         description: data.description || null,
         capital: data.capital,
         issuedShares: issuedShares,
+        creatorId: currentUser.id,
         logo: data.logo || null,
         color: data.color || "#3b82f6",
       })
@@ -269,8 +273,9 @@ export const getUserShares = createServerFn()
 
 export const buyShares = createServerFn()
   .middleware([requireAuthMiddleware])
-  .inputValidator((data: { companyId: number }) => data)
+  .inputValidator((data: { companyId: number; quantity?: number }) => data)
   .handler(async ({ context, data }) => {
+    const quantity = data.quantity || 1;
     if (!context.user?.email) {
       throw new Error("Unauthorized");
     }
@@ -306,8 +311,11 @@ export const buyShares = createServerFn()
     }
 
     const sharePrice = stock.price;
-    if ((currentUser.money || 0) < sharePrice) {
-      throw new Error("Insufficient funds to buy share");
+    const totalCost = sharePrice * quantity;
+    if ((currentUser.money || 0) < totalCost) {
+      throw new Error(
+        `Insufficient funds to buy ${quantity} share${quantity > 1 ? "s" : ""}`,
+      );
     }
 
     // Check if shares are available
@@ -321,20 +329,21 @@ export const buyShares = createServerFn()
       0,
     );
 
-    if (
-      company.issuedShares == null ||
-      totalSharesOwned >= company.issuedShares
-    ) {
-      throw new Error("No shares available for purchase");
+    const availableShares = (company.issuedShares || 0) - totalSharesOwned;
+
+    if (availableShares < quantity) {
+      throw new Error(
+        `Only ${availableShares} share${availableShares !== 1 ? "s" : ""} available for purchase`,
+      );
     }
 
     // Deduct money from user
     await db
       .update(users)
-      .set({ money: (currentUser.money || 0) - sharePrice })
+      .set({ money: (currentUser.money || 0) - totalCost })
       .where(eq(users.id, currentUser.id));
 
-    // Add share to userShares
+    // Add shares to userShares
     const [existingShare] = await db
       .select()
       .from(userShares)
@@ -349,26 +358,26 @@ export const buyShares = createServerFn()
     if (existingShare) {
       await db
         .update(userShares)
-        .set({ quantity: existingShare.quantity + 1 })
+        .set({ quantity: existingShare.quantity + quantity })
         .where(eq(userShares.id, existingShare.id));
     } else {
       await db.insert(userShares).values({
         userId: currentUser.id,
         companyId: company.id,
-        quantity: 1,
+        quantity: quantity,
       });
     }
 
     // Update stocks tracking
     await db
       .update(stocks)
-      .set({ broughtToday: (stock?.broughtToday || 0) + 1 })
+      .set({ broughtToday: (stock?.broughtToday || 0) + quantity })
       .where(eq(stocks.id, stock.id));
 
     // Update transaction history
     await db.insert(transactionHistory).values({
       userId: currentUser.id,
-      description: `Bought 1 share of ${company.name} (${company.symbol}) for $${sharePrice.toLocaleString()}`,
+      description: `Bought ${quantity} share${quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) for $${totalCost.toLocaleString()}`,
     });
   });
 
@@ -461,4 +470,123 @@ export const sellShares = createServerFn()
     });
 
     return { success: true };
+  });
+
+// CEO investment to issue more shares
+export const investInCompany = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .inputValidator(
+    (data: {
+      companyId: number;
+      investmentAmount: number;
+      retainedShares: number;
+    }) => data,
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user?.email) {
+      throw new Error("Unauthorized");
+    }
+
+    if (data.investmentAmount <= 0 || data.investmentAmount < 100) {
+      throw new Error("Investment must be at least $100");
+    }
+
+    const [currentUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1);
+
+    if (!currentUser) {
+      throw new Error("User not found");
+    }
+
+    const [company] = await db
+      .select()
+      .from(companies)
+      .where(eq(companies.id, data.companyId))
+      .limit(1);
+
+    if (!company) {
+      throw new Error("Company not found");
+    }
+
+    // Check if user is the CEO (creator)
+    if (company.creatorId !== currentUser.id) {
+      throw new Error("Only the CEO can invest in the company");
+    }
+
+    // Check if user has enough money
+    if ((currentUser.money || 0) < data.investmentAmount) {
+      throw new Error("Insufficient funds for investment");
+    }
+
+    // Calculate new shares to issue: 1 share per $100
+    const newShares = Math.floor(data.investmentAmount / 100);
+    const newCapital = (company.capital || 0) + data.investmentAmount;
+    const newTotalShares = (company.issuedShares || 0) + newShares;
+
+    // Update company
+    await db
+      .update(companies)
+      .set({
+        capital: newCapital,
+        issuedShares: newTotalShares,
+      })
+      .where(eq(companies.id, company.id));
+
+    // Deduct money from CEO
+    await db
+      .update(users)
+      .set({ money: (currentUser.money || 0) - data.investmentAmount })
+      .where(eq(users.id, currentUser.id));
+
+    // Record transaction
+    await db.insert(transactionHistory).values({
+      userId: currentUser.id,
+      description: `Invested $${data.investmentAmount.toLocaleString()} in ${company.name}, issued ${newShares} new shares`,
+    });
+
+    return {
+      success: true,
+      newShares,
+      newTotalShares,
+      newCapital,
+    };
+  });
+
+export const getCompanyStakeholders = createServerFn()
+  .inputValidator((data: { companyId: number }) => data)
+  .handler(async ({ data }) => {
+    const [company] = await db
+      .select()
+      .from(companies)
+      .where(eq(companies.id, data.companyId))
+      .limit(1);
+
+    if (!company) {
+      throw new Error("Company not found");
+    }
+
+    const stakeholders = await db
+      .select({
+        userId: users.id,
+        username: users.username,
+        shares: userShares.quantity,
+      })
+      .from(userShares)
+      .innerJoin(users, eq(userShares.userId, users.id))
+      .where(eq(userShares.companyId, data.companyId));
+
+    // Calculate percentages
+    const totalShares = company.issuedShares || 0;
+    const stakeholdersWithPercentage = stakeholders.map((s) => ({
+      ...s,
+      percentage: totalShares > 0 ? (s.shares / totalShares) * 100 : 0,
+    }));
+
+    // Sort by shares owned (descending)
+    stakeholdersWithPercentage.sort((a, b) => b.shares - a.shares);
+
+    return stakeholdersWithPercentage;
   });

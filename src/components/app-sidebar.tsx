@@ -52,6 +52,11 @@ const data = {
       icon: Banknote,
     },
     {
+      title: "Companies",
+      url: "/companies",
+      icon: Building2,
+    },
+    {
       title: "Feed",
       url: "/feed",
       icon: Bell,

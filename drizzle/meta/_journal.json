@@ -57,6 +57,13 @@
       "when": 1770507793480,
       "tag": "0007_steep_spencer_smythe",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1770567725635,
+      "tag": "0008_typical_mac_gargan",
+      "breakpoints": true
     }
   ]
 }
