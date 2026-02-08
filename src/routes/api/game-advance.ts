@@ -333,36 +333,48 @@ export const Route = createFileRoute("/api/game-advance")({
                 .where(eq(candidates.election, "President"))
                 .orderBy(desc(candidates.votes));
 
-              let winner = candidatesRes[0];
-
-              const topVotes = winner.votes || 0;
-              const tiedCandidates = candidatesRes.filter(
-                (c) => c.votes === topVotes,
-              );
-
-              if (tiedCandidates.length > 1) {
-                const randomIndex = Math.floor(
-                  Math.random() * tiedCandidates.length,
+              // Check if there are any candidates
+              if (candidatesRes.length === 0) {
+                console.log(
+                  "No presidential candidates found, skipping election conclusion",
                 );
-                winner = tiedCandidates[randomIndex];
-              }
-
-              if (winner.userId) {
+                // Skip to concluded with no winner
                 await db
-                  .update(users)
-                  .set({ role: "President" })
-                  .where(eq(users.id, winner.userId));
+                  .update(elections)
+                  .set({ status: "Concluded", daysLeft: 8 })
+                  .where(eq(elections.election, "President"));
+              } else {
+                let winner = candidatesRes[0];
 
-                await db.insert(feed).values({
-                  userId: winner.userId,
-                  content: `has been elected as the President!`,
-                });
+                const topVotes = winner.votes || 0;
+                const tiedCandidates = candidatesRes.filter(
+                  (c) => c.votes === topVotes,
+                );
+
+                if (tiedCandidates.length > 1) {
+                  const randomIndex = Math.floor(
+                    Math.random() * tiedCandidates.length,
+                  );
+                  winner = tiedCandidates[randomIndex];
+                }
+
+                if (winner.userId) {
+                  await db
+                    .update(users)
+                    .set({ role: "President" })
+                    .where(eq(users.id, winner.userId));
+
+                  await db.insert(feed).values({
+                    userId: winner.userId,
+                    content: `has been elected as the President!`,
+                  });
+                }
+
+                await db
+                  .update(elections)
+                  .set({ status: "Concluded", daysLeft: 8 })
+                  .where(eq(elections.election, "President"));
               }
-
-              await db
-                .update(elections)
-                .set({ status: "Concluded", daysLeft: 8 })
-                .where(eq(elections.election, "President"));
             }
           } else if (electionStatus === "Concluded") {
             if (daysLeft && daysLeft > 1) {
@@ -686,12 +698,12 @@ export const Route = createFileRoute("/api/game-advance")({
           await db
             .update(users)
             .set({ isActive: true })
-            .where(sql`${users.lastActivity} < 7`);
+            .where(sql`${users.lastActivity} < 14`);
 
           await db
             .update(users)
             .set({ isActive: false })
-            .where(sql`${users.lastActivity} >= 7`);
+            .where(sql`${users.lastActivity} >= 14`);
 
           const inactiveUsers = await db
             .select({ id: users.id, partyId: users.partyId })

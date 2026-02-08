@@ -31,6 +31,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Label,
+  YAxis,
 } from "recharts";
 import { TrendingUp, DollarSign, Users, PieChartIcon } from "lucide-react";
 
@@ -85,6 +86,7 @@ function CandidateItem({
   totalVotes: number;
   seatsAvailable?: number;
 }) {
+  const router = useRouter();
   const [candidateUser, setCandidateUser] = useState<Awaited<
     ReturnType<typeof getUserFullById>
   > | null>(null);
@@ -147,6 +149,8 @@ function CandidateItem({
         `Donated $${amount} to ${candidateUser?.username}'s campaign!`,
       );
       setDonationAmount("");
+      // Reload the page to update balances
+      router.invalidate();
     } catch (error) {
       console.error("Error donating:", error);
       toast.error("Failed to donate. Please try again.");
@@ -425,13 +429,17 @@ function CampaignGraphs({
 
         {/* Votes Graph */}
         <TabsContent value="votes" className="mt-6">
-          <Card className="overflow-hidden">
+          <Card>
             <CardContent className="pt-6">
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart
                   data={votesData}
-                  margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                  margin={{ top: 40, right: 40, left: 40, bottom: 40 }}
                 >
+                  <YAxis
+                    domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.35)]}
+                    hide
+                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "hsl(var(--popover))",
@@ -452,6 +460,7 @@ function CampaignGraphs({
                       dataKey={candidate.username}
                       stroke={candidateColors[candidate.id]}
                       strokeWidth={3}
+                      strokeLinecap="round"
                       dot={false}
                       animationDuration={300}
                     />
@@ -464,7 +473,7 @@ function CampaignGraphs({
 
         {/* Votes Distribution Pie Chart */}
         <TabsContent value="distribution" className="mt-6">
-          <Card className="overflow-hidden">
+          <Card>
             <CardContent className="pt-6">
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
@@ -539,13 +548,17 @@ function CampaignGraphs({
 
         {/* Donations Graph */}
         <TabsContent value="funds" className="mt-6">
-          <Card className="overflow-hidden">
+          <Card>
             <CardContent className="pt-6">
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={400}>
                 <LineChart
                   data={donationsData}
-                  margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                  margin={{ top: 40, right: 40, left: 40, bottom: 40 }}
                 >
+                  <YAxis
+                    domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.35)]}
+                    hide
+                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "hsl(var(--popover))",
@@ -566,6 +579,7 @@ function CampaignGraphs({
                       dataKey={candidate.username}
                       stroke={candidateColors[candidate.id]}
                       strokeWidth={3}
+                      strokeLinecap="round"
                       dot={false}
                       animationDuration={300}
                     />

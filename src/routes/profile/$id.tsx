@@ -10,6 +10,7 @@ import {
   XCircle,
   Building2,
   DollarSign,
+  Users,
 } from "lucide-react";
 import { useState } from "react";
 import {
@@ -27,6 +28,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PartyLogo from "@/components/party-logo";
 import { getLastSeenText } from "@/lib/constants";
 import { useUserData } from "@/lib/hooks/use-user-data";
@@ -133,7 +135,6 @@ function ProfilePage() {
   }
 
   const isOwnProfile = currentUser?.id === targetUser.id;
-  const partyColor = party?.color || "#6b7280";
 
   const loadMoreVotes = () => {
     const nextBatch = allVotes.slice(currentOffset, currentOffset + 10);
@@ -147,346 +148,410 @@ function ProfilePage() {
 
   return (
     <ProtectedRoute>
-      <div className="p-8 space-y-6">
-        <Card
-          className="relative overflow-hidden border-0 border-t-[6px] sm:border-t-0 sm:border-l-[6px]"
-          style={{ borderColor: partyColor }}
-        >
-          <CardHeader className="sm:pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start sm:gap-4 w-full sm:w-auto">
-                {party ? (
-                  <PartyLogo party_id={party.id} size={64} />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-2xl font-bold">
-                    I
-                  </div>
-                )}
-                <div className="flex flex-col items-center sm:items-start w-full sm:w-auto">
-                  <CardTitle className="text-3xl mb-2 text-center sm:text-left">
-                    {withSoftHyphens(targetUser.username)}'s Profile
-                  </CardTitle>
-                  <div className="flex flex-col sm:flex-row sm:flex-wrap items-center sm:items-center gap-3 text-sm w-full">
-                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-medium w-full sm:w-auto text-center">
-                      {targetUser.role || "Representative"}
-                    </span>
-                    {party && targetUser.id === party.leaderId && (
-                      <span className="px-3 py-1 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-full font-medium flex items-center justify-center gap-1 w-full sm:w-auto">
-                        <Crown className="w-4 h-4" />
-                        Party Leader
-                      </span>
-                    )}
-                    {targetUser.lastActivity !== null &&
-                      targetUser.lastActivity > 15 && (
-                        <span className="px-3 py-1 bg-red-500/10 text-red-600 dark:text-red-400 rounded-full font-medium w-full sm:w-auto text-center">
-                          Inactive
-                        </span>
-                      )}
-                    <span className="flex items-center justify-center gap-1 text-muted-foreground w-full sm:w-auto">
-                      <Clock className="w-4 h-4" />
-                      Last seen: {getLastSeenText(targetUser.lastActivity)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              {isOwnProfile && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full sm:w-auto"
-                  onClick={() => navigate({ to: "/settings" })}
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit Profile
-                </Button>
+      <div className="container mx-auto p-4 max-w-6xl space-y-6">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div
+              className="p-3 rounded-lg"
+              style={{
+                backgroundColor: party?.color
+                  ? `${party.color}20`
+                  : "hsl(var(--primary) / 0.1)",
+              }}
+            >
+              {party ? (
+                <PartyLogo party_id={party.id} size={32} />
+              ) : (
+                <UserCircle className="w-8 h-8 text-primary" />
               )}
             </div>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserCircle className="w-5 h-5" />
-              About This User
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
             <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">
-                Political Leaning
-              </p>
-              <p className="text-base">
-                {targetUser.politicalLeaning || "Not specified"}
+              <h1 className="text-3xl font-bold">
+                {withSoftHyphens(targetUser.username)}
+              </h1>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span>{targetUser.role || "Representative"}</span>
+                <span>•</span>
+                <div className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span className="text-sm">
+                    {getLastSeenText(targetUser.lastActivity)}
+                  </span>
+                </div>
+                {party && targetUser.id === party.leaderId && (
+                  <>
+                    <span>•</span>
+                    <div className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
+                      <Crown className="w-3.5 h-3.5" />
+                      <span className="text-sm font-medium">Party Leader</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          {isOwnProfile && (
+            <Button
+              variant="outline"
+              onClick={() => navigate({ to: "/settings" })}
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Profile
+            </Button>
+          )}
+        </div>
+
+        {targetUser.lastActivity !== null && targetUser.lastActivity > 14 && (
+          <div className="mb-6 px-4 py-3 rounded-lg border-l-4 border-red-500 bg-red-500/10 flex items-center gap-3">
+            <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                This user is currently inactive
               </p>
             </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">
-                Bio
-              </p>
-              <p className="text-base whitespace-pre-wrap">
-                {targetUser.bio || "No bio provided."}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Handshake className="w-5 h-5" />
-              Party Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {party ? (
-              <>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Party
-                  </p>
-                  <p className="text-base">{party.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Party Leaning
-                  </p>
-                  <p className="text-base">
-                    {party.leaning || "Not specified"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Party Color
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="size-4 rounded-full"
-                      style={{ backgroundColor: party.color }}
-                    />
-                    <span className="text-base font-mono">{party.color}</span>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Party Description
-                  </p>
-                  <p className="text-base whitespace-pre-wrap">
-                    {party.bio || "No description available."}
-                  </p>
-                </div>
-                <Button
-                  className="mt-4"
-                  onClick={() =>
-                    navigate({
-                      to: "/parties/$id",
-                      params: { id: String(party.id) },
-                    })
-                  }
-                >
-                  View Party Page
-                </Button>
-              </>
-            ) : (
-              <p className="text-muted-foreground">Independent</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {ceoCompanies.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Building2 className="w-5 h-5" />
-                CEO of Companies
+                <UserCircle className="w-5 h-5" />
+                About This User
               </CardTitle>
-              <CardDescription>
-                {targetUser.username} is the CEO of {ceoCompanies.length} compan
-                {ceoCompanies.length === 1 ? "y" : "ies"}
-              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="mb-4 p-4 rounded-lg bg-muted/50 border-2 border-green-600/20">
-                <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                  Total Dividends from All Companies
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-green-600" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Per Hour</p>
-                      <p className="text-xl font-bold text-green-600">
-                        $
-                        {ceoCompanies
-                          .reduce((sum, c) => sum + c.hourlyDividend, 0)
-                          .toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-green-600" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Per Day</p>
-                      <p className="text-xl font-bold text-green-600">
-                        $
-                        {ceoCompanies
-                          .reduce((sum, c) => sum + c.dailyDividend, 0)
-                          .toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">
+                  Political Leaning
+                </p>
+                <p className="text-base font-semibold">
+                  {targetUser.politicalLeaning || "Not specified"}
+                </p>
               </div>
-              <div className="space-y-3">
-                {ceoCompanies.map((company) => (
-                  <Link
-                    key={company.id}
-                    to="/companies/$id"
-                    params={{ id: String(company.id) }}
-                    className="block"
-                  >
-                    <div className="p-4 rounded-lg border hover:bg-accent/50 transition-colors">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="font-semibold text-lg truncate">
-                              {company.name}
-                            </h3>
-                            <span className="text-xs px-2 py-0.5 bg-muted rounded font-mono">
-                              {company.symbol}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">
-                                Market Cap:
-                              </span>
-                              <span className="ml-2 font-medium">
-                                ${company.marketCap.toLocaleString()}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">
-                                Share Price:
-                              </span>
-                              <span className="ml-2 font-medium">
-                                ${company.stockPrice?.toLocaleString() || "N/A"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-4">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              Hourly Dividend
-                            </p>
-                            <p className="font-bold text-green-600">
-                              ${company.hourlyDividend.toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="w-4 h-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              Daily Dividend
-                            </p>
-                            <p className="font-bold text-green-600">
-                              ${company.dailyDividend.toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">
+                  Bio
+                </p>
+                <p className="text-base whitespace-pre-wrap leading-relaxed">
+                  {targetUser.bio || "No bio provided."}
+                </p>
               </div>
             </CardContent>
           </Card>
-        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <History className="w-5 h-5" />
-              Voting History
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {allVotes.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                No voting history available.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {displayedVotes.map((vote) => (
-                  <div
-                    key={vote.id}
-                    className="p-4 py-8 border rounded-lg hover:shadow transition"
-                  >
-                    <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-medium mb-1">
-                          Bill #{vote.billId}: {vote.billTitle}
-                        </h3>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span
-                            className={`flex items-center gap-1 text-sm font-medium ${
-                              vote.voteYes
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-red-600 dark:text-red-400"
-                            }`}
-                          >
-                            {vote.voteYes ? (
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                            ) : (
-                              <XCircle className="w-3.5 h-3.5" />
-                            )}
-                            {vote.voteYes ? "For" : "Against"}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            •
-                          </span>
-                          <span className="text-sm text-muted-foreground capitalize">
-                            {vote.stage}
-                          </span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Status: {vote.billStatus}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Handshake className="w-5 h-5" />
+                Party Affiliation
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {party ? (
+                <>
+                  <div className="flex items-start gap-4 p-4 rounded-lg border-2 bg-muted/30">
+                    <PartyLogo party_id={party.id} size={56} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-bold text-xl truncate">
+                          {party.name}
+                        </p>
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium shrink-0">
+                          <Users className="w-3 h-3" />
+                          <span>Member</span>
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        asChild
-                      >
-                        <Link
-                          to="/bills/$id"
-                          params={{ id: String(vote.billId) }}
-                        >
-                          View Bill
-                        </Link>
-                      </Button>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {party.leaning || "Not specified"}
+                      </p>
                     </div>
                   </div>
-                ))}
-                {hasMoreVotes && (
+                  {party.bio && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-2">
+                        Party Description
+                      </p>
+                      <p className="text-sm text-muted-foreground line-clamp-3">
+                        {party.bio}
+                      </p>
+                    </div>
+                  )}
                   <Button
-                    variant="outline"
                     className="w-full"
-                    onClick={loadMoreVotes}
+                    onClick={() =>
+                      navigate({
+                        to: "/parties/$id",
+                        params: { id: String(party.id) },
+                      })
+                    }
                   >
-                    Load More
+                    View Party Page
                   </Button>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <Handshake className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                  <p className="text-muted-foreground font-medium">
+                    Independent
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Not affiliated with any party
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs defaultValue="companies" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="companies" className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              Companies {ceoCompanies.length > 0 && `(${ceoCompanies.length})`}
+            </TabsTrigger>
+            <TabsTrigger value="votes" className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              Voting History {allVotes.length > 0 && `(${allVotes.length})`}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="companies">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-primary" />
+                  <CardTitle>Companies</CardTitle>
+                </div>
+                <CardDescription>
+                  {ceoCompanies.length > 0
+                    ? `${targetUser.username} leads ${ceoCompanies.length} compan${ceoCompanies.length === 1 ? "y" : "ies"}`
+                    : "Not currently a CEO"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {ceoCompanies.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Building2 className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                    <p className="text-muted-foreground font-medium">
+                      No companies owned
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-6 p-6 rounded-lg bg-linear-to-br from-green-500/10 to-green-600/5 border-2 border-green-500/20">
+                      <h3 className="text-sm font-medium text-muted-foreground mb-4">
+                        Total Dividends from All Companies
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 bg-green-500/10 rounded-lg">
+                            <Clock className="w-6 h-6 text-green-600 dark:text-green-400" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Per Hour
+                            </p>
+                            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                              $
+                              {ceoCompanies
+                                .reduce((sum, c) => sum + c.hourlyDividend, 0)
+                                .toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 bg-green-500/10 rounded-lg">
+                            <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Per Day
+                            </p>
+                            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                              $
+                              {ceoCompanies
+                                .reduce((sum, c) => sum + c.dailyDividend, 0)
+                                .toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {ceoCompanies.map((company) => (
+                        <Link
+                          key={company.id}
+                          to="/companies/$id"
+                          params={{ id: String(company.id) }}
+                          className="block"
+                        >
+                          <div className="p-4 rounded-lg border-2 hover:bg-accent/50 transition-colors">
+                            <div className="flex items-start justify-between gap-4 mb-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="font-bold text-lg truncate">
+                                    {company.name}
+                                  </h3>
+                                  <span className="text-xs px-2 py-1 bg-muted rounded font-mono font-medium">
+                                    {company.symbol}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                  <div>
+                                    <span className="text-muted-foreground font-medium">
+                                      Market Cap
+                                    </span>
+                                    <p className="font-bold">
+                                      ${company.marketCap.toLocaleString()}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground font-medium">
+                                      Share Price
+                                    </span>
+                                    <p className="font-bold">
+                                      $
+                                      {company.stockPrice?.toLocaleString() ||
+                                        "N/A"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="pt-3 border-t grid grid-cols-2 gap-4">
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-muted-foreground" />
+                                <div>
+                                  <p className="text-xs text-muted-foreground">
+                                    Hourly Dividend
+                                  </p>
+                                  <p className="font-bold text-green-600 dark:text-green-400">
+                                    ${company.hourlyDividend.toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="w-4 h-4 text-muted-foreground" />
+                                <div>
+                                  <p className="text-xs text-muted-foreground">
+                                    Daily Dividend
+                                  </p>
+                                  <p className="font-bold text-green-600 dark:text-green-400">
+                                    ${company.dailyDividend.toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </>
                 )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="votes">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <History className="w-5 h-5 text-primary" />
+                  <CardTitle>Voting History</CardTitle>
+                </div>
+                <CardDescription>
+                  {allVotes.length > 0
+                    ? `${allVotes.length} vote${allVotes.length === 1 ? "" : "s"} cast`
+                    : "No votes yet"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {allVotes.length === 0 ? (
+                  <div className="text-center py-12">
+                    <History className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                    <p className="text-muted-foreground font-medium">
+                      No voting history available
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Votes will appear here once cast
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {displayedVotes.map((vote) => (
+                      <div
+                        key={vote.id}
+                        className="p-4 border-2 rounded-lg hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <Link
+                              to="/bills/$id"
+                              params={{ id: String(vote.billId) }}
+                              className="hover:underline"
+                            >
+                              <h3 className="text-lg font-bold mb-2">
+                                Bill #{vote.billId}: {vote.billTitle}
+                              </h3>
+                            </Link>
+                            <div className="flex flex-wrap items-center gap-3 mb-2">
+                              <span
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold ${
+                                  vote.voteYes
+                                    ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                    : "bg-red-500/10 text-red-600 dark:text-red-400"
+                                }`}
+                              >
+                                {vote.voteYes ? (
+                                  <CheckCircle2 className="w-4 h-4" />
+                                ) : (
+                                  <XCircle className="w-4 h-4" />
+                                )}
+                                Voted {vote.voteYes ? "For" : "Against"}
+                              </span>
+                              <span className="px-3 py-1 bg-muted rounded-full text-sm font-medium capitalize">
+                                {vote.stage}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Status:{" "}
+                              <span className="font-medium">
+                                {vote.billStatus}
+                              </span>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            asChild
+                          >
+                            <Link
+                              to="/bills/$id"
+                              params={{ id: String(vote.billId) }}
+                            >
+                              View Bill
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {hasMoreVotes && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={loadMoreVotes}
+                      >
+                        Load More
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </ProtectedRoute>
   );
