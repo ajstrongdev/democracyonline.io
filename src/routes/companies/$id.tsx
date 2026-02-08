@@ -81,7 +81,13 @@ function CompanyDetailPage() {
     : 0;
 
   const minInvestment = sharePrice;
-  const maxShares = Math.floor(investmentAmount / sharePrice);
+  // Calculate shares based on proportional ownership: (investment * currentShares) / currentCapital
+  const currentCapital = company.capital || 0;
+  const currentShares = company.issuedShares || 0;
+  const maxShares =
+    currentCapital > 0 && currentShares > 0
+      ? Math.floor((investmentAmount * currentShares) / currentCapital)
+      : Math.floor(investmentAmount / sharePrice);
   const availableShares = maxShares - retainedShares;
   const userMoney =
     userData && typeof userData === "object" && "money" in userData
@@ -215,18 +221,22 @@ function CompanyDetailPage() {
                             value={[investmentAmount]}
                             onValueChange={(value) => {
                               setInvestmentAmount(value[0]);
+                              const newMaxShares =
+                                currentCapital > 0 && currentShares > 0
+                                  ? Math.floor(
+                                      (value[0] * currentShares) /
+                                        currentCapital,
+                                    )
+                                  : Math.floor(value[0] / sharePrice);
                               setRetainedShares(
-                                Math.min(
-                                  retainedShares,
-                                  Math.floor(value[0] / sharePrice),
-                                ),
+                                Math.min(retainedShares, newMaxShares),
                               );
                             }}
                             className="w-full"
                           />
                           <p className="text-sm text-muted-foreground">
-                            Will issue {maxShares} shares (1 share per $
-                            {sharePrice.toLocaleString()})
+                            Will issue {maxShares} shares based on proportional
+                            ownership
                           </p>
                         </div>
                         <div>

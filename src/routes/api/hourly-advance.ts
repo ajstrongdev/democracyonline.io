@@ -76,6 +76,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
               broughtToday: stocks.broughtToday,
               soldToday: stocks.soldToday,
               issuedShares: companies.issuedShares,
+              capital: companies.capital,
               companyName: companies.name,
               companySymbol: companies.symbol,
             })
@@ -90,10 +91,25 @@ export const Route = createFileRoute("/api/hourly-advance")({
             const bought = stock.broughtToday || 0;
             const sold = stock.soldToday || 0;
             const currentPrice = stock.price;
+            const issuedShares = stock.issuedShares || 0;
+            const capital = stock.capital || 0;
 
-            // Simple price adjustment: +$1 per share bought, -$1 per share sold
-            const priceChange = bought - sold;
-            let newPrice = currentPrice + priceChange;
+            // Calculate book value (fundamental value based on capital)
+            const bookValue =
+              issuedShares > 0
+                ? Math.floor(capital / issuedShares)
+                : currentPrice;
+
+            const demandPressure = bought - sold;
+
+            const marketCap = currentPrice * issuedShares;
+            const hourlyDividend = Math.floor(marketCap * 0.01);
+            const dividendBonus = Math.floor(hourlyDividend / 1000);
+
+            const targetPrice = Math.floor(
+              bookValue * 0.7 + currentPrice * 0.3,
+            );
+            let newPrice = targetPrice + demandPressure + dividendBonus;
 
             // Ensure price doesn't go below $10 minimum
             const MIN_PRICE = 10;
@@ -115,9 +131,9 @@ export const Route = createFileRoute("/api/hourly-advance")({
               })
               .where(eq(stocks.id, stock.id));
 
-            if (priceChange !== 0) {
+            if (newPrice !== currentPrice) {
               console.log(
-                `${stock.companySymbol}: $${currentPrice} → $${newPrice} (${priceChange > 0 ? "+" : ""}${priceChange}) | Bought: ${bought}, Sold: ${sold}`,
+                `${stock.companySymbol}: $${currentPrice} → $${newPrice} | Book: $${bookValue}, Demand: ${demandPressure > 0 ? "+" : ""}${demandPressure}, Div Bonus: +${dividendBonus}`,
               );
             }
           }

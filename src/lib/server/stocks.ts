@@ -517,7 +517,13 @@ export const investInCompany = createServerFn()
       throw new Error("Stock not found for company");
     }
 
+    const currentCapital = company.capital || 0;
+    const currentShares = company.issuedShares || 0;
     const sharePrice = stock.price;
+
+    if (currentCapital === 0 || currentShares === 0) {
+      throw new Error("Company must have initial capital and shares");
+    }
 
     if (data.investmentAmount < sharePrice) {
       throw new Error(`Investment must be at least $${sharePrice} (1 share)`);
@@ -528,10 +534,15 @@ export const investInCompany = createServerFn()
       throw new Error("Insufficient funds for investment");
     }
 
-    // Calculate new shares to issue: 1 share per share price
-    const newShares = Math.floor(data.investmentAmount / sharePrice);
-    const newCapital = (company.capital || 0) + data.investmentAmount;
-    const newTotalShares = (company.issuedShares || 0) + newShares;
+    // Calculate new shares based on proportional ownership
+    // If investor puts in I into company worth C, they should own I/(C+I) of the company
+    // New shares for investor = (I * S) / C where S is current shares
+    // This maintains the share price: C/S = (C+I)/(S+newShares)
+    const newShares = Math.floor(
+      (data.investmentAmount * currentShares) / currentCapital,
+    );
+    const newCapital = currentCapital + data.investmentAmount;
+    const newTotalShares = currentShares + newShares;
 
     // Validate retained shares
     if (data.retainedShares > newShares) {
@@ -584,7 +595,7 @@ export const investInCompany = createServerFn()
       }
     }
 
-    // Recalculate and update share price based on new capital and shares
+    // Recalculate share price (should remain the same with correct formula)
     const newSharePrice = Math.floor(newCapital / newTotalShares);
     await db
       .update(stocks)
