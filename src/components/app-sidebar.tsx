@@ -15,7 +15,9 @@ import {
   Newspaper,
   Search,
   Shield,
+  TrendingUp,
   User,
+  Wallet,
 } from "lucide-react";
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { ModeToggle } from "./theme-toggle";
@@ -47,16 +49,6 @@ const data = {
       icon: User,
     },
     {
-      title: "Bank",
-      url: "/bank",
-      icon: Banknote,
-    },
-    {
-      title: "Companies",
-      url: "/companies",
-      icon: Building2,
-    },
-    {
       title: "Feed",
       url: "/feed",
       icon: Bell,
@@ -75,6 +67,27 @@ const data = {
       title: "Political Parties",
       icon: Handshake,
       url: "/parties",
+    },
+    {
+      title: "Finances",
+      icon: Wallet,
+      dropdown: [
+        {
+          title: "Bank",
+          url: "/bank",
+          icon: Banknote,
+        },
+        {
+          title: "Companies",
+          url: "/companies",
+          icon: Building2,
+        },
+        {
+          title: "Stock Market",
+          url: "/companies/market",
+          icon: TrendingUp,
+        },
+      ],
     },
     {
       title: "Bills",

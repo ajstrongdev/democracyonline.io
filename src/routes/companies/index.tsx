@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Building2, TrendingUp, TrendingDown } from "lucide-react";
 import { Line, LineChart, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import * as LucideIcons from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/companies/")({
   component: CompaniesPage,
@@ -84,6 +86,15 @@ function CompaniesPage() {
               priceChange = ((newPrice - oldPrice) / oldPrice) * 100;
             }
 
+            let LogoIcon: LucideIcon | null = null;
+            if (company.logo) {
+              const iconsMap = LucideIcons as unknown as Record<
+                string,
+                LucideIcon
+              >;
+              LogoIcon = iconsMap[company.logo] || null;
+            }
+
             return (
               <Link
                 key={company.id}
@@ -96,22 +107,21 @@ function CompaniesPage() {
                     <div className="flex flex-col lg:flex-row gap-6">
                       <div className="flex-1">
                         <div className="flex items-start gap-4 mb-4">
-                          {company.logo ? (
-                            <img
-                              src={company.logo}
-                              alt={company.name}
-                              className="h-16 w-16 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div
-                              className="h-16 w-16 rounded-lg flex items-center justify-center text-white font-bold text-2xl"
-                              style={{
-                                backgroundColor: company.color || "#3b82f6",
-                              }}
-                            >
-                              {company.symbol.charAt(0)}
-                            </div>
-                          )}
+                          <div
+                            className="h-16 w-16 rounded-lg flex items-center justify-center font-bold text-2xl"
+                            style={{
+                              backgroundColor: company.color
+                                ? `${company.color}20`
+                                : "hsl(var(--primary) / 0.1)",
+                              color: company.color || "hsl(var(--primary))",
+                            }}
+                          >
+                            {LogoIcon ? (
+                              <LogoIcon className="w-8 h-8" />
+                            ) : (
+                              company.symbol.charAt(0)
+                            )}
+                          </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <h3 className="text-2xl font-bold">
