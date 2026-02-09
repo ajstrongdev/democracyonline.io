@@ -462,7 +462,7 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
-        name  = "SERVER_URL"
+        name  = "SITE_URL"
         value = local.custom_domain_enabled ? "https://${var.custom_domain}" : ""
       }
 
