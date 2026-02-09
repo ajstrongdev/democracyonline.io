@@ -108,6 +108,12 @@ variable "firebase_admin_private_key" {
   sensitive   = true
 }
 
+variable "is_dev" {
+  description = "Whether to disable auth checks on API endpoints (TEMPORARY - security risk)"
+  type        = string
+  default     = "false"
+}
+
 variable "cloud_run_cpu" {
   description = "CPU allocation for Cloud Run"
   type        = string
