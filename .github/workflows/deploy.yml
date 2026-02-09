@@ -43,34 +43,42 @@ jobs:
             service_name: odr-dev
             artifact_repo: odr-dev-docker
 
-    if: >-
-      (github.event_name == 'push' && github.ref_name == matrix.branch) ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == matrix.target_env &&
-        (github.event.inputs.target_env != 'prod' || github.event.inputs.ref == 'master' || github.event.inputs.ref == 'refs/heads/master'))
-
     permissions:
       contents: read
       id-token: write # Required for Workload Identity Federation
 
     steps:
+      - name: Check deployment criteria
+        id: gate
+        if: >-
+          (github.event_name == 'push' && github.ref_name == matrix.branch) ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == matrix.target_env &&
+            (github.event.inputs.target_env != 'prod' || github.event.inputs.ref == 'master' || github.event.inputs.ref == 'refs/heads/master'))
+        run: echo "run=true" >> "$GITHUB_OUTPUT"
+
       - name: Checkout code
+        if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
 
       - name: Authenticate to Google Cloud
+        if: steps.gate.outputs.run == 'true'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
+        if: steps.gate.outputs.run == 'true'
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker for Artifact Registry
+        if: steps.gate.outputs.run == 'true'
         run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
 
       - name: Fetch Firebase credentials from Secret Manager
+        if: steps.gate.outputs.run == 'true'
         id: secrets
         run: |
           for secret in api-key auth-domain project-id storage-bucket messaging-sender-id app-id measurement-id; do
@@ -94,6 +102,7 @@ jobs:
           echo "${DELIMITER}" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
+        if: steps.gate.outputs.run == 'true'
         env:
           DOCKER_BUILDKIT: 1
         run: |
@@ -122,11 +131,13 @@ jobs:
           rm -f /tmp/firebase_project_id /tmp/firebase_client_email /tmp/firebase_private_key
 
       - name: Push Docker image to Artifact Registry
+        if: steps.gate.outputs.run == 'true'
         run: |
           docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ matrix.artifact_repo }}/${{ matrix.service_name }}:${{ github.sha }}
           docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ matrix.artifact_repo }}/${{ matrix.service_name }}:latest
 
       - name: Deploy to Cloud Run
+        if: steps.gate.outputs.run == 'true'
         run: |
           gcloud run deploy ${{ matrix.service_name }} \
             --image ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ matrix.artifact_repo }}/${{ matrix.service_name }}:${{ github.sha }} \
@@ -135,6 +146,7 @@ jobs:
             --quiet
 
       - name: Get Cloud Run URL
+        if: steps.gate.outputs.run == 'true'
         run: |
           SERVICE_URL=$(gcloud run services describe ${{ matrix.service_name }} \
             --region ${{ env.GCP_REGION }} \
@@ -143,6 +155,7 @@ jobs:
           echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_ENV
 
       - name: Deployment summary
+        if: steps.gate.outputs.run == 'true'
         run: |
           echo "## 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
