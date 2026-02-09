@@ -5,6 +5,7 @@ region     = "europe-west2"
 # Application Configuration
 app_name    = "odr"
 environment = "production"
+name_suffix = "" # e.g., "dev" to create odr-dev resources
 
 # Database Configuration
 db_tier = "db-f1-micro" # Use db-g1-small for better performance
@@ -27,6 +28,7 @@ firebase_measurement_id        = "G-XXXXXXXXXX"
 firebase_admin_project_id      = "your-firebase-project-id"
 firebase_admin_client_email    = "firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com"
 firebase_admin_private_key     = "-----BEGIN PRIVATE KEY-----\nYOUR-PRIVATE-KEY-HERE\n-----END PRIVATE KEY-----\n"
+manage_firebase_secrets        = true
 
 # Cloud Run Configuration
 cloud_run_cpu           = "1"
@@ -41,3 +43,9 @@ admin_emails = "admin@example.com,admin2@example.com"  # Comma-separated list of
 # Leave empty ("") to skip load balancer setup
 # Example: "example.com" or "www.example.com"
 custom_domain = ""
+enable_custom_domain = false
+
+# Cloud Scheduler Configuration
+game_advance_schedule  = "0 20 * * *"
+bill_advance_schedule  = "0 4,12,20 * * *"
+hourly_advance_schedule = "0 * * * *"
