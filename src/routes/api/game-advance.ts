@@ -444,9 +444,7 @@ export const Route = createFileRoute("/api/game-advance")({
                 .set({ status: "Voting", daysLeft: 4 })
                 .where(eq(elections.election, "Senate"));
             }
-          }
-
-          if (electionStatus === "Voting") {
+          } else if (electionStatus === "Voting") {
             if (daysLeft && daysLeft > 1) {
               await db
                 .update(elections)
