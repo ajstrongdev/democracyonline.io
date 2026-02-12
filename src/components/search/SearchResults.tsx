@@ -78,7 +78,7 @@ export function SearchResults({
                       <h3 className="text-xl font-semibold wrap-break-word">
                         {user.username}
                       </h3>
-                      {user.lastActivity !== null && user.lastActivity > 7 && (
+                      {user.lastActivity !== null && user.lastActivity > 14 && (
                         <Badge variant="secondary" className="text-xs shrink-0">
                           Inactive
                         </Badge>

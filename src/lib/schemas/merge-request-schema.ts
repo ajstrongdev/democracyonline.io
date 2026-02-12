@@ -7,6 +7,10 @@ export const MergedPartyDataSchema = z.object({
   bio: z.string().min(1, "Party bio is required"),
   leaning: z.string(),
   logo: z.string().nullable().optional(),
+  membership_fee: z
+    .number()
+    .min(0, "Membership fee cannot be negative")
+    .default(0),
 });
 
 // Schema for a single stance value

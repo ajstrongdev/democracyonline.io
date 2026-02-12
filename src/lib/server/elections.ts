@@ -1,7 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, sql, not, like } from "drizzle-orm";
 import { db } from "@/db";
-import { elections, candidates, votes, users, parties } from "@/db/schema";
+import {
+  elections,
+  candidates,
+  votes,
+  users,
+  parties,
+  transactionHistory,
+  donationHistory,
+  candidateSnapshots,
+} from "@/db/schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
 import { addFeedItem } from "@/lib/server/feed";
 
@@ -18,6 +27,7 @@ export type Candidate = {
   userId: number | null;
   election: string | null;
   votes: number | null;
+  donations: number | null;
   haswon: boolean | null;
   username: string;
   partyName: string | null;
@@ -60,6 +70,7 @@ export const getCandidates = createServerFn()
         userId: candidates.userId,
         election: candidates.election,
         votes: candidates.votes,
+        donations: candidates.donations,
         haswon: candidates.haswon,
         username: users.username,
         partyName: parties.name,
@@ -153,6 +164,17 @@ export const voteForCandidate = createServerFn({ method: "POST" })
     (data: { userId: number; candidateId: number; election: string }) => data,
   )
   .handler(async ({ data }) => {
+    // Get the candidate to verify they're in the specified election
+    const [candidate] = await db
+      .select({ election: candidates.election })
+      .from(candidates)
+      .where(eq(candidates.id, data.candidateId))
+      .limit(1);
+
+    if (!candidate || candidate.election !== data.election) {
+      throw new Error("Candidate not found in this election");
+    }
+
     // Get election info to find max votes (seats)
     const [electionInfo] = await db
       .select({ seats: elections.seats })
@@ -166,12 +188,26 @@ export const voteForCandidate = createServerFn({ method: "POST" })
 
     const maxVotes = electionInfo.seats || 1;
 
-    // Check how many votes the user has already cast
+    // Get all candidates in this election
+    const electionCandidates = await db
+      .select({ id: candidates.id })
+      .from(candidates)
+      .where(eq(candidates.election, data.election));
+
+    const candidateIds = electionCandidates.map((c) => c.id);
+
+    // Check how many votes the user has already cast in this election
     const existingVotes = await db
       .select({ count: sql<number>`count(*)` })
       .from(votes)
       .where(
-        and(eq(votes.userId, data.userId), eq(votes.election, data.election)),
+        and(
+          eq(votes.userId, data.userId),
+          sql`${votes.candidateId} IN (${sql.join(
+            candidateIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`,
+        ),
       );
 
     const votesUsed = Number(existingVotes[0]?.count || 0);
@@ -189,7 +225,6 @@ export const voteForCandidate = createServerFn({ method: "POST" })
       .where(
         and(
           eq(votes.userId, data.userId),
-          eq(votes.election, data.election),
           eq(votes.candidateId, data.candidateId),
         ),
       )
@@ -202,7 +237,7 @@ export const voteForCandidate = createServerFn({ method: "POST" })
     // Insert vote
     await db.insert(votes).values({
       userId: data.userId,
-      election: data.election,
+      voteType: data.election,
       candidateId: data.candidateId,
     });
 
@@ -211,6 +246,26 @@ export const voteForCandidate = createServerFn({ method: "POST" })
       .update(candidates)
       .set({ votes: sql`${candidates.votes} + 1` })
       .where(eq(candidates.id, data.candidateId));
+
+    // Reward user with $500
+    await db
+      .update(users)
+      .set({ money: sql`${users.money} + 500` })
+      .where(eq(users.id, data.userId));
+
+    // Get candidate name for transaction
+    const [candidateUser] = await db
+      .select({ username: users.username })
+      .from(candidates)
+      .innerJoin(users, eq(candidates.userId, users.id))
+      .where(eq(candidates.id, data.candidateId))
+      .limit(1);
+
+    // Add transaction history
+    await db.insert(transactionHistory).values({
+      userId: data.userId,
+      description: `+$500 for voting for ${candidateUser?.username || "candidate"} in ${data.election} election`,
+    });
 
     return { success: true };
   });
@@ -239,12 +294,36 @@ export const getUserVotingStatus = createServerFn()
 
     const maxVotes = electionInfo.seats || 1;
 
-    // Count user's votes
+    // Get all candidates in this election
+    const electionCandidates = await db
+      .select({ id: candidates.id })
+      .from(candidates)
+      .where(eq(candidates.election, data.election));
+
+    const candidateIds = electionCandidates.map((c) => c.id);
+
+    if (candidateIds.length === 0) {
+      return {
+        hasVoted: false,
+        votesUsed: 0,
+        maxVotes,
+        votesRemaining: maxVotes,
+        votedCandidateIds: [],
+      };
+    }
+
+    // Count user's votes in this election
     const voteCount = await db
       .select({ count: sql<number>`count(*)` })
       .from(votes)
       .where(
-        and(eq(votes.userId, data.userId), eq(votes.election, data.election)),
+        and(
+          eq(votes.userId, data.userId),
+          sql`${votes.candidateId} IN (${sql.join(
+            candidateIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`,
+        ),
       );
 
     const votesUsed = Number(voteCount[0]?.count || 0);
@@ -254,7 +333,13 @@ export const getUserVotingStatus = createServerFn()
       .select({ candidateId: votes.candidateId })
       .from(votes)
       .where(
-        and(eq(votes.userId, data.userId), eq(votes.election, data.election)),
+        and(
+          eq(votes.userId, data.userId),
+          sql`${votes.candidateId} IN (${sql.join(
+            candidateIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`,
+        ),
       );
 
     const votedCandidateIds = votedFor
@@ -326,8 +411,76 @@ export const electionPageData = createServerFn()
     };
   });
 
-// TODO: Game advance logic for elections will be added separately
-// This includes:
-// - Candidate -> Voting phase transition (update seats, set days_left = 2)
-// - Voting -> Concluded phase transition (determine winners, update user roles)
-// - Concluded -> Candidate phase transition (reset candidates/votes for next cycle)
+export const donateToCandidate = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .inputValidator(
+    (data: { userId: number; candidateId: number; amount: number }) => data,
+  )
+  .handler(async ({ data }) => {
+    // Get candidate and associated user
+    const [candidate] = await db
+      .select({
+        id: candidates.id,
+        userId: candidates.userId,
+        election: candidates.election,
+        username: users.username,
+      })
+      .from(candidates)
+      .innerJoin(users, eq(candidates.userId, users.id))
+      .where(eq(candidates.id, data.candidateId))
+      .limit(1);
+
+    if (!candidate) {
+      throw new Error("Candidate not found");
+    }
+
+    if (data.amount <= 0) {
+      throw new Error("Donation amount must be greater than zero");
+    }
+
+    // Update candidate's user's money
+    if (candidate.userId === null) {
+      throw new Error("Candidate does not have a valid userId");
+    }
+    await db
+      .update(candidates)
+      .set({ donations: sql`${candidates.donations} + ${data.amount}` })
+      .where(eq(candidates.userId, candidate.userId));
+    await db
+      .update(users)
+      .set({ money: sql`${users.money} - ${data.amount}` })
+      .where(eq(users.id, data.userId));
+
+    // Add transaction history for donor
+    await db.insert(transactionHistory).values({
+      userId: data.userId,
+      description: `-$${data.amount} donated to ${candidate.username}'s campaign in the ${candidate.election} election`,
+    });
+    // Add transaction history for candidate
+    await db.insert(donationHistory).values({
+      candidateId: candidate.id,
+      amount: data.amount,
+    });
+
+    return { success: true };
+  });
+
+// Get campaign history (snapshots) for an election
+export const getCampaignHistory = createServerFn()
+  .inputValidator((data: { election: string }) => data)
+  .handler(async ({ data }) => {
+    const snapshots = await db
+      .select({
+        id: candidateSnapshots.id,
+        candidateId: candidateSnapshots.candidateId,
+        election: candidateSnapshots.election,
+        votes: candidateSnapshots.votes,
+        donations: candidateSnapshots.donations,
+        snapshotAt: candidateSnapshots.snapshotAt,
+      })
+      .from(candidateSnapshots)
+      .where(eq(candidateSnapshots.election, data.election))
+      .orderBy(candidateSnapshots.snapshotAt);
+
+    return snapshots;
+  });

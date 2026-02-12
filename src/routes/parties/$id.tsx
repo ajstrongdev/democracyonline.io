@@ -2,18 +2,27 @@ import { useState } from "react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeftRight,
+  Banknote,
   Crown,
   DoorOpen,
   Handshake,
   MessageSquare,
   Pencil,
 } from "lucide-react";
-import { getPartyDetails, joinParty, leaveParty } from "@/lib/server/party";
+import {
+  becomePartyLeader,
+  getPartyDetails,
+  getPartyTransactions,
+  joinParty,
+  leaveParty,
+  withdrawPartyFunds,
+} from "@/lib/server/party";
 import { getMergeRequestCount } from "@/lib/server/party-merge";
 import { getCurrentUserInfo } from "@/lib/server/users";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import PartyLogo from "@/components/party-logo";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { MessageDialog } from "@/components/message-dialog";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
@@ -27,7 +36,7 @@ export const Route = createFileRoute("/parties/$id")({
 
     const userInfo = await getCurrentUserInfo();
 
-    const [partyDetails, mergeRequestCount] = await Promise.all([
+    const [partyDetails, mergeRequestCount, transactions] = await Promise.all([
       getPartyDetails({
         data: {
           partyId,
@@ -35,12 +44,14 @@ export const Route = createFileRoute("/parties/$id")({
         },
       }),
       getMergeRequestCount({ data: { partyId } }),
+      getPartyTransactions({ data: { partyId, limit: 20 } }),
     ]);
 
     return {
       ...partyDetails,
       userInfo,
       mergeRequestCount,
+      transactions,
     };
   },
   gcTime: 0, // Force loader to refetch on client hydration
@@ -54,6 +65,7 @@ function PartyPage() {
     members,
     userInfo: loaderUserInfo,
     mergeRequestCount,
+    transactions,
   } = Route.useLoaderData();
   const userInfo = useUserData(loaderUserInfo);
   const navigate = useNavigate();
@@ -64,6 +76,10 @@ function PartyPage() {
   } | null>(null);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [showBecomeLeaderDialog, setShowBecomeLeaderDialog] = useState(false);
+  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
 
   // Hack: Determine membership status client-side since direct navigation caused the loader to return incomplete data.
   const membershipStatus = {
@@ -74,6 +90,35 @@ function PartyPage() {
   const kickMember = (member: { id: number; username: string }) => {
     setSelectedMember({ id: member.id, username: member.username });
     setShowKickDialog(true);
+  };
+
+  const handleWithdraw = async () => {
+    setWithdrawError(null);
+    const amount = Number(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setWithdrawError("Please enter a valid amount greater than 0");
+      return;
+    }
+    if (amount > (party?.money ?? 0)) {
+      setWithdrawError("Insufficient funds to withdraw");
+      return;
+    }
+    try {
+      await withdrawPartyFunds({
+        data: { partyId: party!.id, amount },
+      });
+      setShowWithdrawDialog(false);
+      setWithdrawAmount("");
+      // Refresh the page to show updated balance
+      navigate({
+        to: "/parties/$id",
+        params: { id: String(party!.id) },
+      });
+    } catch (error) {
+      setWithdrawError(
+        error instanceof Error ? error.message : "Failed to withdraw funds",
+      );
+    }
   };
 
   if (!party) {
@@ -131,6 +176,24 @@ function PartyPage() {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Members:</span>
                       <span className="font-medium">{members.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Membership Fee:
+                      </span>
+                      <span className="font-medium">
+                        {(party.partySubs ?? 0) === 0
+                          ? "Free"
+                          : `$${party.partySubs}/day`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Party Treasury:
+                      </span>
+                      <span className="font-medium text-green-600">
+                        ${party.money ?? 0}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">
@@ -224,6 +287,14 @@ function PartyPage() {
                         </Button>
                         <Button
                           variant="outline"
+                          className="w-full justify-start"
+                          onClick={() => setShowWithdrawDialog(true)}
+                          disabled={(party.money ?? 0) === 0}
+                        >
+                          <Banknote className="mr-2 h-4 w-4" /> Withdraw Funds
+                        </Button>
+                        <Button
+                          variant="outline"
                           className="w-full justify-start relative"
                           onClick={() => {
                             navigate({
@@ -249,8 +320,7 @@ function PartyPage() {
                           variant="outline"
                           className="w-full justify-start"
                           onClick={() => {
-                            // TODO: Implement become leader functionality
-                            alert("Become leader functionality coming soon");
+                            setShowBecomeLeaderDialog(true);
                           }}
                         >
                           <Crown className="mr-2 h-4 w-4" /> Become Party Leader
@@ -397,6 +467,45 @@ function PartyPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Party Transaction History - Only visible to leaders */}
+          {membershipStatus.isLeader && transactions.length > 0 && (
+            <Card>
+              <CardHeader>
+                <h2 className="text-2xl font-semibold text-foreground">
+                  Transaction History
+                </h2>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {transactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="flex justify-between items-center p-3 border rounded-lg"
+                    >
+                      <div>
+                        <p className="text-sm text-foreground">
+                          {tx.description}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {tx.createdAt
+                            ? new Date(tx.createdAt).toLocaleDateString()
+                            : "Unknown date"}
+                        </p>
+                      </div>
+                      <span
+                        className={`font-medium ${
+                          tx.amount >= 0 ? "text-green-600" : "text-red-600"
+                        }`}
+                      >
+                        {tx.amount >= 0 ? "+" : ""}${tx.amount}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
         <MessageDialog
           open={showKickDialog}
@@ -491,6 +600,77 @@ function PartyPage() {
             }
             setShowJoinDialog(false);
           }}
+        />
+        <MessageDialog
+          open={showBecomeLeaderDialog}
+          onOpenChange={setShowBecomeLeaderDialog}
+          title="Become Party Leader?"
+          description={
+            <span className="text-left leading-relaxed">
+              <span className="block">
+                Are you sure you want to become the leader of{" "}
+                <span className="font-semibold">
+                  {party?.name ?? "this party"}
+                </span>
+                ?
+              </span>
+            </span>
+          }
+          confirmText="Become Leader"
+          cancelText="Cancel"
+          confirmAriaLabel="Confirm become leader"
+          cancelAriaLabel="Cancel become leader"
+          onConfirm={async () => {
+            if (userInfo?.id) {
+              await becomePartyLeader({
+                data: { userId: userInfo.id, partyId: party.id },
+              });
+              navigate({
+                to: "/parties/$id",
+                params: { id: String(party.id) },
+              });
+            }
+            setShowBecomeLeaderDialog(false);
+          }}
+        />
+        <MessageDialog
+          open={showWithdrawDialog}
+          onOpenChange={(open) => {
+            setShowWithdrawDialog(open);
+            if (!open) {
+              setWithdrawAmount("");
+              setWithdrawError(null);
+            }
+          }}
+          title="Withdraw Party Funds"
+          description={
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Party Balance:{" "}
+                <span className="font-semibold text-green-600">
+                  ${party?.money ?? 0}
+                </span>
+              </p>
+              <div className="space-y-2">
+                <Input
+                  type="number"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="Enter amount to withdraw"
+                  min={1}
+                  max={party?.money ?? 0}
+                />
+                {withdrawError && (
+                  <p className="text-sm text-red-500">{withdrawError}</p>
+                )}
+              </div>
+            </div>
+          }
+          confirmText="Withdraw"
+          cancelText="Cancel"
+          confirmAriaLabel="Confirm withdrawal"
+          cancelAriaLabel="Cancel withdrawal"
+          onConfirm={handleWithdraw}
         />
       </div>
     </ProtectedRoute>

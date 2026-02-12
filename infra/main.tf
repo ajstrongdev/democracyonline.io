@@ -28,6 +28,131 @@ provider "google" {
 # ============================================
 
 locals {
+  resource_name          = var.name_suffix != "" ? "${var.app_name}-${var.name_suffix}" : var.app_name
+  firebase_secret_prefix = var.app_name
+  custom_domain_enabled  = var.enable_custom_domain && length(trimspace(var.custom_domain)) > 0
+  load_balancer_ip       = local.custom_domain_enabled ? google_compute_global_address.default[0].address : ""
+
+  firebase_secret_ids = {
+    for key in keys(local.firebase_secrets) : key => (
+      var.manage_firebase_secrets
+      ? google_secret_manager_secret.firebase[key].secret_id
+      : data.google_secret_manager_secret.firebase_existing[key].secret_id
+    )
+  }
+
+  firebase_admin_secret_ids = {
+    for key in keys(local.firebase_admin_secrets) : key => (
+      var.manage_firebase_secrets
+      ? google_secret_manager_secret.firebase_admin[key].secret_id
+      : data.google_secret_manager_secret.firebase_admin_existing[key].secret_id
+    )
+  }
+
+  secret_iam_targets = merge(
+    { db_connection_string = google_secret_manager_secret.db_connection_string.secret_id },
+    { for key, id in local.firebase_secret_ids : "firebase-${key}" => id },
+    { for key, id in local.firebase_admin_secret_ids : "firebase-admin-${key}" => id }
+  )
+
+  next_steps_custom_domain = <<-EOT
+
+   ============================================
+   Infrastructure deployed successfully! 🎉
+   ============================================
+
+   Custom Domain: https://${var.custom_domain}
+  Load Balancer IP: ${local.load_balancer_ip}
+
+   Note: Cloud Run default URL is disabled for security.
+   Access only via: https://${var.custom_domain}
+
+   Next steps:
+
+   1. Build and push your Docker image:
+
+     gcloud auth configure-docker ${var.region}-docker.pkg.dev
+
+     docker build -t ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${local.resource_name}:latest .
+
+     docker push ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${local.resource_name}:latest
+
+   2. Deploy to Cloud Run:
+
+     gcloud run deploy ${local.resource_name} \
+      --image ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${local.resource_name}:latest \
+      --region ${var.region}
+
+   3. Your database is secured with Cloud SQL Proxy:
+     Connection: ${google_sql_database_instance.postgres.connection_name}
+     Database: ${var.db_name}
+     User: ${var.db_user}
+
+     Connection string is stored in Secret Manager.
+     Cloud Run connects via Cloud SQL Proxy (automatic SSL/TLS).
+     Public IP: ${google_sql_database_instance.postgres.public_ip_address}
+     (Only accessible via Cloud SQL Proxy authentication)
+
+   4. Configure your DNS:
+
+     Add an A record in your DNS provider pointing to:
+    ${local.load_balancer_ip}
+
+     Example DNS record:
+     Type: A
+     Name: ${var.custom_domain == "www.${replace(var.custom_domain, "www.", "")}" ? "www" : "@"}
+    Value: ${local.load_balancer_ip}
+     TTL: 300
+
+     SSL Certificate Status: Provisioning (may take up to 15 minutes)
+     The certificate will automatically provision once DNS is configured.
+
+     Security: Cloud Run service is only accessible via the load balancer.
+     Direct access to Cloud Run URL is disabled.
+
+   ============================================
+  EOT
+
+  next_steps_cloud_run = <<-EOT
+
+   ============================================
+   Infrastructure deployed successfully! 🎉
+   ============================================
+
+   Cloud Run URL: ${google_cloud_run_v2_service.app.uri}
+
+   Note: Custom domain and load balancer are disabled.
+   Access via Cloud Run default URL.
+
+   Next steps:
+
+   1. Build and push your Docker image:
+
+     gcloud auth configure-docker ${var.region}-docker.pkg.dev
+
+     docker build -t ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${local.resource_name}:latest .
+
+     docker push ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${local.resource_name}:latest
+
+   2. Deploy to Cloud Run:
+
+     gcloud run deploy ${local.resource_name} \
+      --image ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${local.resource_name}:latest \
+      --region ${var.region}
+
+   3. Your database is secured with Cloud SQL Proxy:
+     Connection: ${google_sql_database_instance.postgres.connection_name}
+     Database: ${var.db_name}
+     User: ${var.db_user}
+
+     Connection string is stored in Secret Manager.
+     Cloud Run connects via Cloud SQL Proxy (automatic SSL/TLS).
+     Public IP: ${google_sql_database_instance.postgres.public_ip_address}
+     (Only accessible via Cloud SQL Proxy authentication)
+
+   ============================================
+  EOT
+
   # Firebase secrets mapping
   firebase_secrets = {
     api-key             = var.firebase_api_key
@@ -46,12 +171,6 @@ locals {
     admin-private-key  = var.firebase_admin_private_key
   }
 
-  # All secret IDs for IAM binding
-  all_secret_ids = concat(
-    ["${var.app_name}-db-connection-string"],
-    [for key, _ in local.firebase_secrets : "${var.app_name}-firebase-${key}"],
-    [for key, _ in local.firebase_admin_secrets : "${var.app_name}-firebase-${key}"]
-  )
 }
 
 # ============================================
@@ -83,8 +202,8 @@ resource "google_project_service" "required_apis" {
 
 resource "google_artifact_registry_repository" "docker_repo" {
   location      = var.region
-  repository_id = "${var.app_name}-docker"
-  description   = "Docker repository for ${var.app_name}"
+  repository_id = "${local.resource_name}-docker"
+  description   = "Docker repository for ${local.resource_name}"
   format        = "DOCKER"
 
   depends_on = [google_project_service.required_apis]
@@ -101,7 +220,7 @@ resource "random_password" "db_password" {
 }
 
 resource "google_sql_database_instance" "postgres" {
-  name                = "${var.app_name}-postgres-${var.environment}"
+  name                = "${local.resource_name}-postgres-${var.environment}"
   database_version    = "POSTGRES_15"
   region              = var.region
   deletion_protection = false
@@ -162,7 +281,7 @@ resource "google_sql_user" "user" {
 # - Google-managed certificates (no manual cert management needed)
 # - IAM authentication supported (using Cloud Run service account)
 resource "google_secret_manager_secret" "db_connection_string" {
-  secret_id = "${var.app_name}-db-connection-string"
+  secret_id = "${local.resource_name}-db-connection-string"
 
   replication {
     auto {}
@@ -178,9 +297,9 @@ resource "google_secret_manager_secret_version" "db_connection_string" {
 
 # Firebase secrets (using for_each to reduce duplication)
 resource "google_secret_manager_secret" "firebase" {
-  for_each = local.firebase_secrets
+  for_each = var.manage_firebase_secrets ? local.firebase_secrets : {}
 
-  secret_id = "${var.app_name}-firebase-${each.key}"
+  secret_id = "${local.firebase_secret_prefix}-firebase-${each.key}"
 
   replication {
     auto {}
@@ -190,7 +309,7 @@ resource "google_secret_manager_secret" "firebase" {
 }
 
 resource "google_secret_manager_secret_version" "firebase" {
-  for_each = local.firebase_secrets
+  for_each = var.manage_firebase_secrets ? local.firebase_secrets : {}
 
   secret      = google_secret_manager_secret.firebase[each.key].id
   secret_data = each.value
@@ -198,9 +317,9 @@ resource "google_secret_manager_secret_version" "firebase" {
 
 # Firebase Admin SDK secrets
 resource "google_secret_manager_secret" "firebase_admin" {
-  for_each = local.firebase_admin_secrets
+  for_each = var.manage_firebase_secrets ? local.firebase_admin_secrets : {}
 
-  secret_id = "${var.app_name}-firebase-${each.key}"
+  secret_id = "${local.firebase_secret_prefix}-firebase-${each.key}"
 
   replication {
     auto {}
@@ -210,10 +329,19 @@ resource "google_secret_manager_secret" "firebase_admin" {
 }
 
 resource "google_secret_manager_secret_version" "firebase_admin" {
-  for_each = local.firebase_admin_secrets
-
+  for_each    = var.manage_firebase_secrets ? local.firebase_admin_secrets : {}
   secret      = google_secret_manager_secret.firebase_admin[each.key].id
   secret_data = each.value
+}
+
+data "google_secret_manager_secret" "firebase_existing" {
+  for_each  = var.manage_firebase_secrets ? {} : local.firebase_secrets
+  secret_id = "${local.firebase_secret_prefix}-firebase-${each.key}"
+}
+
+data "google_secret_manager_secret" "firebase_admin_existing" {
+  for_each  = var.manage_firebase_secrets ? {} : local.firebase_admin_secrets
+  secret_id = "${local.firebase_secret_prefix}-firebase-${each.key}"
 }
 
 # ============================================
@@ -221,25 +349,19 @@ resource "google_secret_manager_secret_version" "firebase_admin" {
 # ============================================
 
 resource "google_service_account" "cloud_run_sa" {
-  account_id   = "${var.app_name}-cloud-run"
-  display_name = "Service Account for ${var.app_name} Cloud Run"
+  account_id   = "${local.resource_name}-cloud-run"
+  display_name = "Service Account for ${local.resource_name} Cloud Run"
 
   depends_on = [google_project_service.required_apis]
 }
 
 # Grant Cloud Run SA access to all secrets
 resource "google_secret_manager_secret_iam_member" "cloud_run_secret_access" {
-  for_each = toset(local.all_secret_ids)
+  for_each = local.secret_iam_targets
 
   secret_id = each.value
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.cloud_run_sa.email}"
-
-  depends_on = [
-    google_secret_manager_secret.db_connection_string,
-    google_secret_manager_secret.firebase,
-    google_secret_manager_secret.firebase_admin,
-  ]
 }
 
 resource "google_project_iam_member" "cloud_run_sql_client" {
@@ -255,10 +377,10 @@ resource "google_project_iam_member" "cloud_run_trace_agent" {
 }
 
 resource "google_cloud_run_v2_service" "app" {
-  name                 = var.app_name
+  name                 = local.resource_name
   location             = var.region
-  ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
-  default_uri_disabled = true
+  ingress              = local.custom_domain_enabled ? "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER" : "INGRESS_TRAFFIC_ALL"
+  default_uri_disabled = local.custom_domain_enabled
   deletion_protection  = false
 
   template {
@@ -298,7 +420,7 @@ resource "google_cloud_run_v2_service" "app" {
         name = "FIREBASE_PROJECT_ID"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.firebase_admin["admin-project-id"].secret_id
+            secret  = local.firebase_admin_secret_ids["admin-project-id"]
             version = "latest"
           }
         }
@@ -308,7 +430,7 @@ resource "google_cloud_run_v2_service" "app" {
         name = "FIREBASE_CLIENT_EMAIL"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.firebase_admin["admin-client-email"].secret_id
+            secret  = local.firebase_admin_secret_ids["admin-client-email"]
             version = "latest"
           }
         }
@@ -318,7 +440,7 @@ resource "google_cloud_run_v2_service" "app" {
         name = "FIREBASE_PRIVATE_KEY"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.firebase_admin["admin-private-key"].secret_id
+            secret  = local.firebase_admin_secret_ids["admin-private-key"]
             version = "latest"
           }
         }
@@ -335,8 +457,13 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
-        name  = "SERVER_URL"
-        value = "https://${var.custom_domain}"
+        name  = "IS_DEV"
+        value = var.is_dev
+      }
+
+      env {
+        name  = "SITE_URL"
+        value = local.custom_domain_enabled ? "https://${var.custom_domain}" : ""
       }
 
       # Client-side Firebase configuration (VITE_* variables)
@@ -346,7 +473,7 @@ resource "google_cloud_run_v2_service" "app" {
         name = "VITE_FIREBASE_API_KEY"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.firebase["api-key"].secret_id
+            secret  = local.firebase_secret_ids["api-key"]
             version = "latest"
           }
         }
@@ -356,7 +483,7 @@ resource "google_cloud_run_v2_service" "app" {
         name = "VITE_FIREBASE_AUTH_DOMAIN"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.firebase["auth-domain"].secret_id
+            secret  = local.firebase_secret_ids["auth-domain"]
             version = "latest"
           }
         }
@@ -366,7 +493,7 @@ resource "google_cloud_run_v2_service" "app" {
         name = "VITE_FIREBASE_PROJECT_ID"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.firebase["project-id"].secret_id
+            secret  = local.firebase_secret_ids["project-id"]
             version = "latest"
           }
         }
@@ -376,7 +503,7 @@ resource "google_cloud_run_v2_service" "app" {
         name = "VITE_FIREBASE_STORAGE_BUCKET"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.firebase["storage-bucket"].secret_id
+            secret  = local.firebase_secret_ids["storage-bucket"]
             version = "latest"
           }
         }
@@ -386,7 +513,7 @@ resource "google_cloud_run_v2_service" "app" {
         name = "VITE_FIREBASE_MESSAGING_SENDER_ID"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.firebase["messaging-sender-id"].secret_id
+            secret  = local.firebase_secret_ids["messaging-sender-id"]
             version = "latest"
           }
         }
@@ -396,7 +523,7 @@ resource "google_cloud_run_v2_service" "app" {
         name = "VITE_FIREBASE_APP_ID"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.firebase["app-id"].secret_id
+            secret  = local.firebase_secret_ids["app-id"]
             version = "latest"
           }
         }
@@ -406,7 +533,7 @@ resource "google_cloud_run_v2_service" "app" {
         name = "VITE_FIREBASE_MEASUREMENT_ID"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.firebase["measurement-id"].secret_id
+            secret  = local.firebase_secret_ids["measurement-id"]
             version = "latest"
           }
         }
@@ -433,6 +560,7 @@ resource "google_cloud_run_v2_service" "app" {
   depends_on = [
     google_project_service.required_apis,
     google_secret_manager_secret_version.db_connection_string,
+    google_secret_manager_secret_iam_member.cloud_run_secret_access,
   ]
 }
 
@@ -450,8 +578,8 @@ resource "google_cloud_run_v2_service_iam_member" "public_access" {
 
 # Service account for Cloud Scheduler
 resource "google_service_account" "scheduler_sa" {
-  account_id   = "${var.app_name}-scheduler"
-  display_name = "Service Account for ${var.app_name} Cloud Scheduler"
+  account_id   = "${local.resource_name}-scheduler"
+  display_name = "Service Account for ${local.resource_name} Cloud Scheduler"
 
   depends_on = [google_project_service.required_apis]
 }
@@ -466,9 +594,9 @@ resource "google_cloud_run_v2_service_iam_member" "scheduler_invoker" {
 
 # Cloud Scheduler job to hit game-advance endpoint once per day at 8pm UTC
 resource "google_cloud_scheduler_job" "game_advance" {
-  name             = "${var.app_name}-game-advance"
+  name             = "${local.resource_name}-game-advance"
   description      = "Trigger game advancement daily at 8pm UTC"
-  schedule         = "0 20 * * *"
+  schedule         = var.game_advance_schedule
   time_zone        = "UTC"
   attempt_deadline = "320s"
   region           = var.region
@@ -479,11 +607,11 @@ resource "google_cloud_scheduler_job" "game_advance" {
 
   http_target {
     http_method = "GET"
-    uri         = "https://${var.custom_domain}/api/game-advance"
+    uri         = "${local.custom_domain_enabled ? "https://${var.custom_domain}" : google_cloud_run_v2_service.app.uri}/api/game-advance"
 
     oidc_token {
       service_account_email = google_service_account.scheduler_sa.email
-      audience              = "https://${var.custom_domain}"
+      audience              = local.custom_domain_enabled ? "https://${var.custom_domain}" : google_cloud_run_v2_service.app.uri
     }
   }
 
@@ -495,9 +623,9 @@ resource "google_cloud_scheduler_job" "game_advance" {
 
 # bill-advance runs 4am/12pm/8pm UTC daily.
 resource "google_cloud_scheduler_job" "bill_advance" {
-  name             = "${var.app_name}-bill-advance"
+  name             = "${local.resource_name}-bill-advance"
   description      = "Trigger bill advancement at 4am, 12pm, and 8pm UTC"
-  schedule         = "0 4,12,20 * * *"
+  schedule         = var.bill_advance_schedule
   time_zone        = "UTC"
   attempt_deadline = "320s"
   region           = var.region
@@ -508,11 +636,42 @@ resource "google_cloud_scheduler_job" "bill_advance" {
 
   http_target {
     http_method = "GET"
-    uri         = "https://${var.custom_domain}/api/bill-advance"
+    uri         = "${local.custom_domain_enabled ? "https://${var.custom_domain}" : google_cloud_run_v2_service.app.uri}/api/bill-advance"
 
     oidc_token {
       service_account_email = google_service_account.scheduler_sa.email
-      audience              = "https://${var.custom_domain}"
+      audience              = local.custom_domain_enabled ? "https://${var.custom_domain}" : google_cloud_run_v2_service.app.uri
+    }
+  }
+
+
+
+  depends_on = [
+    google_project_service.required_apis,
+    google_cloud_run_v2_service.app,
+  ]
+}
+
+# Hourly step for stock market and other stuff
+resource "google_cloud_scheduler_job" "hourly_advance" {
+  name             = "${local.resource_name}-hourly-advance"
+  description      = "Trigger hourly advancement at the top of every hour"
+  schedule         = var.hourly_advance_schedule
+  time_zone        = "UTC"
+  attempt_deadline = "320s"
+  region           = var.region
+
+  retry_config {
+    retry_count = 3
+  }
+
+  http_target {
+    http_method = "GET"
+    uri         = "${local.custom_domain_enabled ? "https://${var.custom_domain}" : google_cloud_run_v2_service.app.uri}/api/hourly-advance"
+
+    oidc_token {
+      service_account_email = google_service_account.scheduler_sa.email
+      audience              = local.custom_domain_enabled ? "https://${var.custom_domain}" : google_cloud_run_v2_service.app.uri
     }
   }
 
@@ -529,14 +688,16 @@ resource "google_cloud_scheduler_job" "bill_advance" {
 
 # Reserve a static IP address for the load balancer
 resource "google_compute_global_address" "default" {
-  name = "${var.app_name}-lb-ip"
+  count = local.custom_domain_enabled ? 1 : 0
+  name  = "${local.resource_name}-lb-ip"
 
   depends_on = [google_project_service.required_apis]
 }
 
 # Create a Network Endpoint Group (NEG) for Cloud Run
 resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
-  name                  = "${var.app_name}-neg"
+  count                 = local.custom_domain_enabled ? 1 : 0
+  name                  = "${local.resource_name}-neg"
   network_endpoint_type = "SERVERLESS"
   region                = var.region
 
@@ -549,14 +710,15 @@ resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
 
 # Backend service for the load balancer
 resource "google_compute_backend_service" "default" {
-  name                  = "${var.app_name}-backend-v2"
+  count                 = local.custom_domain_enabled ? 1 : 0
+  name                  = "${local.resource_name}-backend-v2"
   protocol              = "HTTP"
   port_name             = "http"
   timeout_sec           = 30
   load_balancing_scheme = "EXTERNAL_MANAGED"
 
   backend {
-    group = google_compute_region_network_endpoint_group.cloudrun_neg.id
+    group = google_compute_region_network_endpoint_group.cloudrun_neg[0].id
   }
 
   log_config {
@@ -569,15 +731,17 @@ resource "google_compute_backend_service" "default" {
 
 # URL map for routing
 resource "google_compute_url_map" "default" {
-  name            = "${var.app_name}-url-map-v2"
-  default_service = google_compute_backend_service.default.id
+  count           = local.custom_domain_enabled ? 1 : 0
+  name            = "${local.resource_name}-url-map-v2"
+  default_service = google_compute_backend_service.default[0].id
 
   depends_on = [google_project_service.required_apis]
 }
 
 # Managed SSL certificate
 resource "google_compute_managed_ssl_certificate" "default" {
-  name = "${var.app_name}-ssl-cert"
+  count = local.custom_domain_enabled ? 1 : 0
+  name  = "${local.resource_name}-ssl-cert"
 
   managed {
     domains = [var.custom_domain]
@@ -592,19 +756,21 @@ resource "google_compute_managed_ssl_certificate" "default" {
 
 # HTTPS proxy
 resource "google_compute_target_https_proxy" "default" {
-  name             = "${var.app_name}-https-proxy-v2"
-  url_map          = google_compute_url_map.default.id
-  ssl_certificates = [google_compute_managed_ssl_certificate.default.id]
+  count            = local.custom_domain_enabled ? 1 : 0
+  name             = "${local.resource_name}-https-proxy-v2"
+  url_map          = google_compute_url_map.default[0].id
+  ssl_certificates = [google_compute_managed_ssl_certificate.default[0].id]
 
   depends_on = [google_project_service.required_apis]
 }
 
 # HTTPS forwarding rule
 resource "google_compute_global_forwarding_rule" "https" {
-  name                  = "${var.app_name}-https-forwarding-rule-v2"
-  target                = google_compute_target_https_proxy.default.id
+  count                 = local.custom_domain_enabled ? 1 : 0
+  name                  = "${local.resource_name}-https-forwarding-rule-v2"
+  target                = google_compute_target_https_proxy.default[0].id
   port_range            = "443"
-  ip_address            = google_compute_global_address.default.address
+  ip_address            = google_compute_global_address.default[0].address
   load_balancing_scheme = "EXTERNAL_MANAGED"
 
   depends_on = [google_project_service.required_apis]
@@ -612,7 +778,8 @@ resource "google_compute_global_forwarding_rule" "https" {
 
 # HTTP to HTTPS redirect
 resource "google_compute_url_map" "https_redirect" {
-  name = "${var.app_name}-https-redirect-v2"
+  count = local.custom_domain_enabled ? 1 : 0
+  name  = "${local.resource_name}-https-redirect-v2"
 
   default_url_redirect {
     https_redirect         = true
@@ -625,18 +792,20 @@ resource "google_compute_url_map" "https_redirect" {
 
 # HTTP proxy for redirect
 resource "google_compute_target_http_proxy" "https_redirect" {
-  name    = "${var.app_name}-http-proxy-v2"
-  url_map = google_compute_url_map.https_redirect.id
+  count   = local.custom_domain_enabled ? 1 : 0
+  name    = "${local.resource_name}-http-proxy-v2"
+  url_map = google_compute_url_map.https_redirect[0].id
 
   depends_on = [google_project_service.required_apis]
 }
 
 # HTTP forwarding rule for redirect
 resource "google_compute_global_forwarding_rule" "http" {
-  name                  = "${var.app_name}-http-forwarding-rule-v2"
-  target                = google_compute_target_http_proxy.https_redirect.id
+  count                 = local.custom_domain_enabled ? 1 : 0
+  name                  = "${local.resource_name}-http-forwarding-rule-v2"
+  target                = google_compute_target_http_proxy.https_redirect[0].id
   port_range            = "80"
-  ip_address            = google_compute_global_address.default.address
+  ip_address            = google_compute_global_address.default[0].address
   load_balancing_scheme = "EXTERNAL_MANAGED"
 
   depends_on = [google_project_service.required_apis]
@@ -686,78 +855,27 @@ output "bill_scheduler_job_name" {
   value       = google_cloud_scheduler_job.bill_advance.name
 }
 
+output "hourly_scheduler_job_name" {
+  description = "The name of the Cloud Scheduler job for hourly advancement"
+  value       = google_cloud_scheduler_job.hourly_advance.name
+}
+
 output "load_balancer_ip" {
   description = "The static IP address of the load balancer"
-  value       = google_compute_global_address.default.address
+  value       = local.custom_domain_enabled ? google_compute_global_address.default[0].address : null
 }
 
 output "custom_domain" {
   description = "The custom domain configured for the application"
-  value       = var.custom_domain
+  value       = local.custom_domain_enabled ? var.custom_domain : null
 }
 
 output "ssl_certificate_status" {
   description = "The status of the managed SSL certificate"
-  value       = google_compute_managed_ssl_certificate.default.managed[0].domains
+  value       = local.custom_domain_enabled ? google_compute_managed_ssl_certificate.default[0].managed[0].domains : []
 }
 
 output "next_steps" {
   description = "Next steps to deploy your application"
-  value       = <<-EOT
-
-    ============================================
-    Infrastructure deployed successfully! 🎉
-    ============================================
-
-    Custom Domain: https://${var.custom_domain}
-    Load Balancer IP: ${google_compute_global_address.default.address}
-
-    Note: Cloud Run default URL is disabled for security.
-    Access only via: https://${var.custom_domain}
-
-    Next steps:
-
-    1. Build and push your Docker image:
-
-       gcloud auth configure-docker ${var.region}-docker.pkg.dev
-
-       docker build -t ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${var.app_name}:latest .
-
-       docker push ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${var.app_name}:latest
-
-    2. Deploy to Cloud Run:
-
-       gcloud run deploy ${var.app_name} \
-         --image ${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}/${var.app_name}:latest \
-         --region ${var.region}
-
-    3. Your database is secured with Cloud SQL Proxy:
-       Connection: ${google_sql_database_instance.postgres.connection_name}
-       Database: ${var.db_name}
-       User: ${var.db_user}
-
-       Connection string is stored in Secret Manager.
-       Cloud Run connects via Cloud SQL Proxy (automatic SSL/TLS).
-       Public IP: ${google_sql_database_instance.postgres.public_ip_address}
-       (Only accessible via Cloud SQL Proxy authentication)
-
-    4. Configure your DNS:
-
-       Add an A record in your DNS provider pointing to:
-       ${google_compute_global_address.default.address}
-
-       Example DNS record:
-       Type: A
-       Name: ${var.custom_domain == "www.${replace(var.custom_domain, "www.", "")}" ? "www" : "@"}
-       Value: ${google_compute_global_address.default.address}
-       TTL: 300
-
-       SSL Certificate Status: Provisioning (may take up to 15 minutes)
-       The certificate will automatically provision once DNS is configured.
-
-       Security: Cloud Run service is only accessible via the load balancer.
-       Direct access to Cloud Run URL is disabled.
-
-    ============================================
-  EOT
+  value       = local.custom_domain_enabled ? local.next_steps_custom_domain : local.next_steps_cloud_run
 }

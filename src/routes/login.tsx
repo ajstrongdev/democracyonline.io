@@ -25,7 +25,7 @@ function LoginPage() {
           onSubmit: error,
         });
       } else if (user) {
-        navigate({ to: "/" });
+        navigate({ to: "/profile" });
       }
     },
   });

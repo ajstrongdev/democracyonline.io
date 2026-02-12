@@ -3,65 +3,106 @@ name: CD - Deploy to GCP
 on:
   push:
     branches:
+      - develop
       - master
 
   workflow_dispatch: # Allow manual trigger
+    inputs:
+      ref:
+        description: "Git ref (branch, tag, or SHA) to deploy"
+        required: true
+        default: "develop"
+      target_env:
+        description: "Target environment to deploy"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
 
 env:
   GCP_PROJECT_ID: onlinedemocraticrepublic
   GCP_REGION: europe-west2
-  SERVICE_NAME: odr
-  ARTIFACT_REPO: odr-docker
+  FIREBASE_SECRET_PREFIX: odr
 
 jobs:
   deploy:
     name: Build and Deploy to Cloud Run
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - branch: master
+            target_env: prod
+            service_name: odr
+            artifact_repo: odr-docker
+          - branch: develop
+            target_env: dev
+            service_name: odr-dev
+            artifact_repo: odr-dev-docker
 
     permissions:
       contents: read
       id-token: write # Required for Workload Identity Federation
 
     steps:
+      - name: Check deployment criteria
+        id: gate
+        if: >-
+          (github.event_name == 'push' && github.ref_name == matrix.branch) ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == matrix.target_env &&
+            (github.event.inputs.target_env != 'prod' || github.event.inputs.ref == 'master' || github.event.inputs.ref == 'refs/heads/master'))
+        run: echo "run=true" >> "$GITHUB_OUTPUT"
+
       - name: Checkout code
+        if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
 
       - name: Authenticate to Google Cloud
+        if: steps.gate.outputs.run == 'true'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
+        if: steps.gate.outputs.run == 'true'
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker for Artifact Registry
+        if: steps.gate.outputs.run == 'true'
         run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
 
       - name: Fetch Firebase credentials from Secret Manager
+        if: steps.gate.outputs.run == 'true'
         id: secrets
         run: |
           for secret in api-key auth-domain project-id storage-bucket messaging-sender-id app-id measurement-id; do
             var_name=$(echo "FIREBASE_${secret}" | tr '[:lower:]-' '[:upper:]_')
-            value=$(gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-${secret}")
+            value=$(gcloud secrets versions access latest --secret="${{ env.FIREBASE_SECRET_PREFIX }}-firebase-${secret}")
             echo "${var_name}=${value}" >> $GITHUB_OUTPUT
           done
 
           # Fetch Firebase Admin SDK credentials
           for secret in admin-project-id admin-client-email; do
             var_name=$(echo "FIREBASE_${secret}" | tr '[:lower:]-' '[:upper:]_')
-            value=$(gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-${secret}")
+            value=$(gcloud secrets versions access latest --secret="${{ env.FIREBASE_SECRET_PREFIX }}-firebase-${secret}")
             echo "${var_name}=${value}" >> $GITHUB_OUTPUT
           done
 
           # Handle multiline private key with unique delimiter
           DELIMITER=$(openssl rand -hex 16)
           echo "FIREBASE_ADMIN_PRIVATE_KEY<<${DELIMITER}" >> $GITHUB_OUTPUT
-          gcloud secrets versions access latest --secret="${{ env.SERVICE_NAME }}-firebase-admin-private-key" >> $GITHUB_OUTPUT
+          gcloud secrets versions access latest --secret="${{ env.FIREBASE_SECRET_PREFIX }}-firebase-admin-private-key" >> $GITHUB_OUTPUT
           echo "" >> $GITHUB_OUTPUT
           echo "${DELIMITER}" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
+        if: steps.gate.outputs.run == 'true'
         env:
           DOCKER_BUILDKIT: 1
         run: |
@@ -82,39 +123,43 @@ jobs:
             --build-arg VITE_FIREBASE_MESSAGING_SENDER_ID="${{ steps.secrets.outputs.FIREBASE_MESSAGING_SENDER_ID }}" \
             --build-arg VITE_FIREBASE_APP_ID="${{ steps.secrets.outputs.FIREBASE_APP_ID }}" \
             --build-arg VITE_FIREBASE_MEASUREMENT_ID="${{ steps.secrets.outputs.FIREBASE_MEASUREMENT_ID }}" \
-            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
-            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ matrix.artifact_repo }}/${{ matrix.service_name }}:${{ github.sha }} \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ matrix.artifact_repo }}/${{ matrix.service_name }}:latest \
             .
 
           # Clean up temporary secret files
           rm -f /tmp/firebase_project_id /tmp/firebase_client_email /tmp/firebase_private_key
 
       - name: Push Docker image to Artifact Registry
+        if: steps.gate.outputs.run == 'true'
         run: |
-          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
-          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:latest
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ matrix.artifact_repo }}/${{ matrix.service_name }}:${{ github.sha }}
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ matrix.artifact_repo }}/${{ matrix.service_name }}:latest
 
       - name: Deploy to Cloud Run
+        if: steps.gate.outputs.run == 'true'
         run: |
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+          gcloud run deploy ${{ matrix.service_name }} \
+            --image ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ matrix.artifact_repo }}/${{ matrix.service_name }}:${{ github.sha }} \
             --region ${{ env.GCP_REGION }} \
             --platform managed \
             --quiet
 
       - name: Get Cloud Run URL
+        if: steps.gate.outputs.run == 'true'
         run: |
-          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+          SERVICE_URL=$(gcloud run services describe ${{ matrix.service_name }} \
             --region ${{ env.GCP_REGION }} \
             --format 'value(status.url)')
           echo "🚀 Deployed to: $SERVICE_URL"
           echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_ENV
 
       - name: Deployment summary
+        if: steps.gate.outputs.run == 'true'
         run: |
           echo "## 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Service**: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: ${{ matrix.service_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Region**: ${{ env.GCP_REGION }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **URL**: ${{ env.SERVICE_URL }}" >> $GITHUB_STEP_SUMMARY

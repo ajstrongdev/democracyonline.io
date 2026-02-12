@@ -15,6 +15,12 @@ variable "app_name" {
   default     = "odr"
 }
 
+variable "name_suffix" {
+  description = "Optional suffix appended to app_name for environment-specific resources (e.g., dev)"
+  type        = string
+  default     = ""
+}
+
 variable "environment" {
   description = "Environment name"
   type        = string
@@ -78,6 +84,12 @@ variable "firebase_measurement_id" {
   type        = string
 }
 
+variable "manage_firebase_secrets" {
+  description = "Whether Terraform should create Firebase secrets in Secret Manager"
+  type        = bool
+  default     = true
+}
+
 # Firebase Admin SDK Variables
 variable "firebase_admin_project_id" {
   description = "Firebase Admin SDK Project ID"
@@ -94,6 +106,12 @@ variable "firebase_admin_private_key" {
   description = "Firebase Admin SDK Private Key"
   type        = string
   sensitive   = true
+}
+
+variable "is_dev" {
+  description = "Whether to disable auth checks on API endpoints (TEMPORARY - security risk)"
+  type        = string
+  default     = "false"
 }
 
 variable "cloud_run_cpu" {
@@ -130,4 +148,28 @@ variable "custom_domain" {
   description = "Custom domain for the application (e.g., example.com or www.example.com)"
   type        = string
   default     = "democracyonline.io"
+}
+
+variable "enable_custom_domain" {
+  description = "Whether to provision custom domain and load balancer resources"
+  type        = bool
+  default     = true
+}
+
+variable "game_advance_schedule" {
+  description = "Cron schedule for game advance Cloud Scheduler job"
+  type        = string
+  default     = "0 20 * * *"
+}
+
+variable "bill_advance_schedule" {
+  description = "Cron schedule for bill advance Cloud Scheduler job"
+  type        = string
+  default     = "0 4,12,20 * * *"
+}
+
+variable "hourly_advance_schedule" {
+  description = "Cron schedule for hourly advance Cloud Scheduler job"
+  type        = string
+  default     = "0 * * * *"
 }

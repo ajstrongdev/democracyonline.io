@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
   isActive: boolean("is_active").default(true),
   lastActivity: bigint("last_activity", { mode: "number" }).default(0),
+  money: bigint("money", { mode: "number" }).default(100),
 });
 
 // Parties table
@@ -38,6 +39,8 @@ export const parties = pgTable("parties", {
   leaning: varchar("leaning", { length: 25 }),
   logo: varchar("logo", { length: 100 }),
   discord: varchar("discord", { length: 255 }),
+  partySubs: bigint("party_subs", { mode: "number" }).default(0),
+  money: bigint("money", { mode: "number" }).default(0),
 });
 
 // Political stances table
@@ -65,6 +68,7 @@ export const mergeRequest = pgTable("merge_request", {
   createdAt: timestamp("created_at").defaultNow(),
   leaning: varchar("leaning", { length: 25 }).notNull(),
   logo: varchar("logo", { length: 100 }),
+  partySubs: bigint("party_subs", { mode: "number" }).default(0),
 });
 
 // Merge request stances table
@@ -148,6 +152,9 @@ export const candidates = pgTable(
     userId: integer("user_id"),
     election: varchar("election", { length: 50 }),
     votes: integer("votes").default(0),
+    votesPerHour: integer("votes_per_hour").default(0),
+    donationsPerHour: integer("donations_per_hour").default(0),
+    donations: bigint("donations", { mode: "number" }).default(0),
     haswon: boolean("haswon"),
   },
   (table) => ({
@@ -155,23 +162,119 @@ export const candidates = pgTable(
   }),
 );
 
-// Votes table
-export const votes = pgTable(
-  "votes",
+export const donationHistory = pgTable("donation_history", {
+  id: serial("id").primaryKey(),
+  candidateId: integer("candidate_id"),
+  amount: bigint("amount", { mode: "number" }).notNull(),
+  donator: integer("donator"),
+  donatedAt: timestamp("donated_at").defaultNow(),
+});
+
+// Candidate snapshot table for hourly tracking
+export const candidateSnapshots = pgTable("candidate_snapshots", {
+  id: serial("id").primaryKey(),
+  candidateId: integer("candidate_id").notNull(),
+  election: varchar("election", { length: 50 }).notNull(),
+  votes: integer("votes").default(0).notNull(),
+  donations: bigint("donations", { mode: "number" }).default(0).notNull(),
+  snapshotAt: timestamp("snapshot_at").defaultNow().notNull(),
+});
+
+// Transaction history table
+export const transactionHistory = pgTable("transaction_history", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id"),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Party transaction history table
+export const partyTransactionHistory = pgTable("party_transaction_history", {
+  id: serial("id").primaryKey(),
+  partyId: integer("party_id").notNull(),
+  amount: bigint("amount", { mode: "number" }).notNull(),
+  description: text("description").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Items table
+export const items = pgTable("items", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description").notNull(),
+  target: varchar("target", { length: 50 }).notNull(), // Donations or Votes per hour
+  increaseAmount: bigint("increase_amount", { mode: "number" }).notNull(),
+  baseCost: bigint("base_cost", { mode: "number" }).notNull(),
+  costMultiplier: bigint("cost_multiplier", { mode: "number" })
+    .default(30)
+    .notNull(),
+});
+
+// Candidate purchases
+export const candidatePurchases = pgTable("candidate_purchases", {
+  id: serial("id").primaryKey(),
+  candidateId: integer("candidate_id").notNull(),
+  itemId: integer("item_id").notNull(),
+  quantity: bigint("quantity", { mode: "number" }).default(0).notNull(),
+  purchasedAt: timestamp("purchased_at").defaultNow(),
+});
+
+// Companies table
+export const companies = pgTable("companies", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  symbol: varchar("symbol", { length: 10 }).notNull().unique(),
+  description: text("description"),
+  capital: bigint("capital", { mode: "number" }).default(0),
+  issuedShares: bigint("issued_shares", { mode: "number" }).default(0),
+  creatorId: integer("creator_id"),
+  logo: varchar("logo", { length: 100 }),
+  color: varchar("color", { length: 7 }).default("#3b82f6"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Stock market table
+export const stocks = pgTable("stocks", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").references(() => companies.id),
+  price: bigint("price", { mode: "number" }).notNull(),
+  broughtToday: bigint("brought_today", { mode: "number" }).default(0),
+  soldToday: bigint("sold_today", { mode: "number" }).default(0),
+});
+
+// User shares (holdings) table
+export const userShares = pgTable(
+  "user_shares",
   {
     id: serial("id").primaryKey(),
-    userId: integer("user_id"),
-    election: varchar("election", { length: 50 }),
-    candidateId: integer("candidate_id"),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    companyId: integer("company_id")
+      .notNull()
+      .references(() => companies.id),
+    quantity: bigint("quantity", { mode: "number" }).default(0).notNull(),
+    acquiredAt: timestamp("acquired_at").defaultNow(),
   },
   (table) => ({
-    userIdElectionCandidateIdUnique: unique().on(
-      table.userId,
-      table.election,
-      table.candidateId,
-    ),
+    userCompanyUnique: unique().on(table.userId, table.companyId),
   }),
 );
+
+export const sharePriceHistory = pgTable("share_price_history", {
+  id: serial("id").primaryKey(),
+  stockId: integer("stock_id"),
+  price: bigint("price", { mode: "number" }).notNull(),
+  recordedAt: timestamp("recorded_at").defaultNow(),
+});
+
+// Remove this later
+export const votes = pgTable("votes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id"),
+  voteType: varchar("vote_type", { length: 50 }).notNull(),
+  candidateId: integer("candidate_id"),
+});
 
 // Senate election table
 export const senateElection = pgTable("senate_election", {
@@ -228,7 +331,6 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   }),
   bills: many(bills),
   candidates: many(candidates),
-  votes: many(votes),
   chats: many(chats),
   feed: many(feed),
   billVotesHouse: many(billVotesHouse),
@@ -247,7 +349,18 @@ export const partiesRelations = relations(parties, ({ one, many }) => ({
   receivedNotifications: many(partyNotifications, {
     relationName: "receiverParty",
   }),
+  transactionHistory: many(partyTransactionHistory),
 }));
+
+export const partyTransactionHistoryRelations = relations(
+  partyTransactionHistory,
+  ({ one }) => ({
+    party: one(parties, {
+      fields: [partyTransactionHistory.partyId],
+      references: [parties.id],
+    }),
+  }),
+);
 
 export const billsRelations = relations(bills, ({ one, many }) => ({
   creator: one(users, {
@@ -307,27 +420,11 @@ export const candidatesRelations = relations(candidates, ({ one, many }) => ({
     fields: [candidates.election],
     references: [elections.election],
   }),
-  votes: many(votes),
-}));
-
-export const votesRelations = relations(votes, ({ one }) => ({
-  user: one(users, {
-    fields: [votes.userId],
-    references: [users.id],
-  }),
-  candidate: one(candidates, {
-    fields: [votes.candidateId],
-    references: [candidates.id],
-  }),
-  election: one(elections, {
-    fields: [votes.election],
-    references: [elections.election],
-  }),
+  purchases: many(candidatePurchases),
 }));
 
 export const electionsRelations = relations(elections, ({ many }) => ({
   candidates: many(candidates),
-  votes: many(votes),
 }));
 
 export const partyStancesRelations = relations(partyStances, ({ one }) => ({
@@ -401,3 +498,21 @@ export const feedRelations = relations(feed, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const itemsRelations = relations(items, ({ many }) => ({
+  purchases: many(candidatePurchases),
+}));
+
+export const candidatePurchasesRelations = relations(
+  candidatePurchases,
+  ({ one }) => ({
+    candidate: one(candidates, {
+      fields: [candidatePurchases.candidateId],
+      references: [candidates.id],
+    }),
+    item: one(items, {
+      fields: [candidatePurchases.itemId],
+      references: [items.id],
+    }),
+  }),
+);

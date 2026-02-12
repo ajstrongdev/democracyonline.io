@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setCookie } from "@tanstack/react-start/server";
-import { eq, getTableColumns, sql } from "drizzle-orm";
+import { eq, getTableColumns, sql, desc } from "drizzle-orm";
 import { z } from "zod";
 import {
   accessTokens,
@@ -9,6 +9,7 @@ import {
   billVotesSenate,
   bills,
   users,
+  transactionHistory,
 } from "@/db/schema";
 import { db } from "@/db";
 import { getAdminAuth } from "@/lib/firebase-admin";
@@ -342,3 +343,119 @@ export const deleteSessionCookie = createServerFn({ method: "POST" }).handler(
     return { success: true };
   },
 );
+
+export const getTopRichestUsers = createServerFn().handler(async () => {
+  try {
+    const richestUsers = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        money: users.money,
+        partyId: users.partyId,
+        politicalLeaning: users.politicalLeaning,
+      })
+      .from(users)
+      .where(sql`${users.username} NOT LIKE 'Banned User%'`)
+      .orderBy(sql`${users.money} DESC NULLS LAST`)
+      .limit(10);
+
+    return richestUsers;
+  } catch (error) {
+    console.error("Error fetching richest users:", error);
+    throw new Error("Failed to fetch richest users");
+  }
+});
+
+export const getUserTransactionHistory = createServerFn()
+  .inputValidator(
+    (data: { userId: number; offset?: number; limit?: number }) => data,
+  )
+  .handler(async ({ data }) => {
+    const limit = data.limit || 10;
+    const offset = data.offset || 0;
+
+    const transactions = await db
+      .select({
+        id: transactionHistory.id,
+        description: transactionHistory.description,
+        createdAt: transactionHistory.createdAt,
+      })
+      .from(transactionHistory)
+      .where(eq(transactionHistory.userId, data.userId))
+      .orderBy(desc(transactionHistory.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return transactions;
+  });
+
+export const transferMoney = createServerFn({ method: "POST" })
+  .middleware([requireAuthMiddleware])
+  .inputValidator(
+    z.object({
+      recipientUsername: z.string().min(1, "Recipient username is required"),
+      amount: z.number().positive("Amount must be positive"),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user?.email) {
+      throw new Error("Unauthorized");
+    }
+
+    const [sender] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1);
+
+    if (!sender) {
+      throw new Error("Sender not found");
+    }
+
+    if ((sender.money || 0) < data.amount) {
+      throw new Error("Insufficient funds");
+    }
+
+    const [recipient] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, data.recipientUsername))
+      .limit(1);
+
+    if (!recipient) {
+      throw new Error("Recipient not found");
+    }
+
+    if (sender.id === recipient.id) {
+      throw new Error("Cannot transfer money to yourself");
+    }
+
+    // Deduct from sender
+    await db
+      .update(users)
+      .set({ money: (sender.money || 0) - data.amount })
+      .where(eq(users.id, sender.id));
+
+    // Add to recipient
+    await db
+      .update(users)
+      .set({ money: (recipient.money || 0) + data.amount })
+      .where(eq(users.id, recipient.id));
+
+    // Log transaction for sender
+    await db.insert(transactionHistory).values({
+      userId: sender.id,
+      description: `Sent $${data.amount.toLocaleString()} to ${recipient.username}`,
+    });
+
+    // Log transaction for recipient
+    await db.insert(transactionHistory).values({
+      userId: recipient.id,
+      description: `Received $${data.amount.toLocaleString()} from ${sender.username}`,
+    });
+
+    return {
+      success: true,
+      newBalance: (sender.money || 0) - data.amount,
+    };
+  });

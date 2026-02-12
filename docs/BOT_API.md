@@ -169,12 +169,143 @@ GET /api/bot?endpoint=parties&id=5
 
 ---
 
-### Get Game State
+### Get Bills
 
-Retrieve current election states for game update posts.
+Retrieve information about bills in the legislative process.
+
+#### Get All Bills (Grouped by Stage)
 
 ```
-GET /api/bot?endpoint=game-state
+GET /api/bot?endpoint=bills
+```
+
+**Response:**
+
+```json
+{
+  "House": [
+    {
+      "id": 1,
+      "status": "Voting",
+      "stage": "House",
+      "title": "Infrastructure Investment Act",
+      "creatorId": 5,
+      "content": "A comprehensive bill to improve national infrastructure...",
+      "createdAt": "2026-02-01T10:30:00.000Z",
+      "pool": 1,
+      "creatorUsername": "john_doe"
+    }
+  ],
+  "Senate": [
+    {
+      "id": 2,
+      "status": "Voting",
+      "stage": "Senate",
+      "title": "Healthcare Reform Bill",
+      "creatorId": 12,
+      "content": "Reforms to the national healthcare system...",
+      "createdAt": "2026-01-28T14:20:00.000Z",
+      "pool": 1,
+      "creatorUsername": "jane_smith"
+    }
+  ],
+  "Presidency": [
+    {
+      "id": 3,
+      "status": "Awaiting Signature",
+      "stage": "Presidency",
+      "title": "Education Funding Act",
+      "creatorId": 8,
+      "content": "Increases funding for public education...",
+      "createdAt": "2026-01-25T09:15:00.000Z",
+      "pool": 1,
+      "creatorUsername": "alex_johnson"
+    }
+  ]
+}
+```
+
+#### Get Bills by Stage
+
+```
+GET /api/bot?endpoint=bills&stage=House
+```
+
+**Parameters:**
+
+- `stage` (string) - Legislative stage (`House`, `Senate`, or `Presidency`)
+
+**Response:**
+
+```json
+[
+  {
+    "id": 1,
+    "status": "Voting",
+    "stage": "House",
+    "title": "Infrastructure Investment Act",
+    "creatorId": 5,
+    "content": "A comprehensive bill to improve national infrastructure...",
+    "createdAt": "2026-02-01T10:30:00.000Z",
+    "pool": 1,
+    "creatorUsername": "john_doe"
+  }
+]
+```
+
+#### Get Bills by Stage and Status
+
+```
+GET /api/bot?endpoint=bills&stage=House&status=Voting
+```
+
+**Parameters:**
+
+- `stage` (string, optional) - Legislative stage (`House`, `Senate`, or `Presidency`)
+- `status` (string, optional) - Bill status (e.g., `Queued`, `Voting`, `Awaiting Signature`)
+
+Both parameters can be used independently or together to filter bills.
+
+**Response:**
+
+```json
+[
+  {
+    "id": 1,
+    "status": "Voting",
+    "stage": "House",
+    "title": "Infrastructure Investment Act",
+    "creatorId": 5,
+    "content": "A comprehensive bill to improve national infrastructure...",
+    "createdAt": "2026-02-01T10:30:00.000Z",
+    "pool": 1,
+    "creatorUsername": "john_doe"
+  }
+]
+```
+
+**Bill Fields:**
+
+- `id` - Unique bill identifier
+- `status` - Current status (`Queued`, `Voting`, `Awaiting Signature`, etc.)
+- `stage` - Legislative stage (`House`, `Senate`, `Presidency`)
+- `title` - Bill title
+- `creatorId` - ID of user who created the bill
+- `content` - Full text of the bill
+- `createdAt` - Timestamp of bill creation
+- `pool` - Bill pool number
+- `creatorUsername` - Username of bill creator
+
+---
+
+### Get Candidates
+
+Retrieve information about election candidates with their vote counts and campaign statistics.
+
+#### Get All Candidates
+
+```
+GET /api/bot?endpoint=candidates
 ```
 
 **Response:**
@@ -182,22 +313,142 @@ GET /api/bot?endpoint=game-state
 ```json
 [
   {
+    "id": 15,
+    "userId": 42,
+    "username": "john_doe",
+    "election": "President",
+    "votes": 1250,
+    "donations": 50000,
+    "votesPerHour": 45,
+    "donationsPerHour": 1200,
+    "partyId": 5,
+    "partyName": "Progressive Party",
+    "partyColor": "#3B82F6"
+  },
+  {
+    "id": 22,
+    "userId": 38,
+    "username": "jane_smith",
+    "election": "Senate",
+    "votes": 890,
+    "donations": 35000,
+    "votesPerHour": 32,
+    "donationsPerHour": 950,
+    "partyId": null,
+    "partyName": null,
+    "partyColor": null
+  }
+]
+```
+
+#### Get Candidates for Specific Election
+
+```
+GET /api/bot?endpoint=candidates&election=President
+```
+
+**Parameters:**
+
+- `election` (string) - Election type (`President`, `Senate`, or `House`)
+
+**Response:**
+
+```json
+[
+  {
+    "id": 15,
+    "userId": 42,
+    "username": "john_doe",
+    "election": "President",
+    "votes": 1250,
+    "donations": 50000,
+    "votesPerHour": 45,
+    "donationsPerHour": 1200,
+    "partyId": 5,
+    "partyName": "Progressive Party",
+    "partyColor": "#3B82F6"
+  },
+  {
+    "id": 16,
+    "userId": 38,
+    "username": "jane_smith",
+    "election": "President",
+    "votes": 980,
+    "donations": 42000,
+    "votesPerHour": 38,
+    "donationsPerHour": 1100,
+    "partyId": null,
+    "partyName": null,
+    "partyColor": null
+  }
+]
+```
+
+**Candidate Fields:**
+
+- `id` - Candidate ID
+- `userId` - User ID of the candidate
+- `username` - Candidate's username
+- `election` - Election type (`President`, `Senate`, `House`)
+- `votes` - Current vote count
+- `donations` - Total campaign donations received
+- `votesPerHour` - Rate of votes gained per hour
+- `donationsPerHour` - Rate of donations gained per hour
+- `partyId` - ID of candidate's party (null if independent)
+- `partyName` - Name of candidate's party (null if independent)
+- `partyColor` - Hex color of candidate's party (null if independent)
+
+Candidates are sorted by vote count in descending order (highest votes first).
+
+---
+
+### Get Game State
+
+Retrieve current election states for game update posts. When elections are in `Voting` or `Concluded` status, candidate information with vote counts is included.
+
+```
+GET /api/bot?endpoint=game-state
+```
+
+**Response (with candidates for Voting/Concluded elections):**
+
+```json
+[
+  {
     "election": "President",
     "status": "Voting",
     "seats": null,
-    "daysLeft": 3
+    "daysLeft": 3,
+    "candidates": [
+      {
+        "id": 15,
+        "userId": 42,
+        "username": "john_doe",
+        "election": "President",
+        "votes": 1250,
+        "donations": 50000,
+        "partyId": 5,
+        "partyName": "Progressive Party",
+        "partyColor": "#3B82F6"
+      },
+      {
+        "id": 16,
+        "userId": 38,
+        "username": "jane_smith",
+        "election": "President",
+        "votes": 980,
+        "donations": 42000,
+        "partyId": null,
+        "partyName": null,
+        "partyColor": null
+      }
+    ]
   },
   {
     "election": "Senate",
-    "status": "Candidacy",
+    "status": "Candidate",
     "seats": 10,
     "daysLeft": 5
-  },
-  {
-    "election": "House",
-    "status": "Results",
-    "seats": null,
-    "daysLeft": 0
   }
 ]
 ```
@@ -205,9 +456,24 @@ GET /api/bot?endpoint=game-state
 **Election State Fields:**
 
 - `election` - Election type (`President`, `Senate`, `House`)
-- `status` - Current phase (`Candidacy`, `Voting`, `Results`, etc.)
+- `status` - Current phase (`Candidate`, `Voting`, `Concluded`, etc.)
 - `seats` - Number of available seats (primarily for Senate)
 - `daysLeft` - Days remaining in current phase
+- `candidates` - Array of candidate objects (only present when status is `Voting` or `Concluded`)
+
+**Candidate Fields (when included):**
+
+- `id` - Candidate ID
+- `userId` - User ID of the candidate
+- `username` - Candidate's username
+- `election` - Election type
+- `votes` - Current vote count
+- `donations` - Total campaign donations received
+- `partyId` - ID of candidate's party (null if independent)
+- `partyName` - Name of candidate's party (null if independent)
+- `partyColor` - Hex color of candidate's party (null if independent)
+
+Candidates are sorted by vote count in descending order (highest votes first).
 
 ---
 
@@ -232,6 +498,24 @@ GET /api/bot?endpoint=game-state
 ```json
 {
   "error": "Invalid user ID"
+}
+```
+
+### Invalid Stage
+
+```json
+{
+  "error": "Invalid stage",
+  "validStages": ["House", "Senate", "Presidency"]
+}
+```
+
+### Invalid Election
+
+```json
+{
+  "error": "Invalid election type",
+  "validElections": ["President", "Senate", "House"]
 }
 ```
 
@@ -283,6 +567,42 @@ curl "https://democracyonline.io/api/bot?endpoint=parties&id=5"
 curl "https://democracyonline.io/api/bot?endpoint=game-state"
 ```
 
+### Get All Bills
+
+```bash
+curl "https://democracyonline.io/api/bot?endpoint=bills"
+```
+
+### Get Bills in House
+
+```bash
+curl "https://democracyonline.io/api/bot?endpoint=bills&stage=House"
+```
+
+### Get Bills in House that are Voting
+
+```bash
+curl "https://democracyonline.io/api/bot?endpoint=bills&stage=House&status=Voting"
+```
+
+### Get All Bills with Voting Status
+
+```bash
+curl "https://democracyonline.io/api/bot?endpoint=bills&status=Voting"
+```
+
+### Get Presidential Candidates
+
+```bash
+curl "https://democracyonline.io/api/bot?endpoint=candidates&election=President"
+```
+
+### Get All Candidates
+
+```bash
+curl "https://democracyonline.io/api/bot?endpoint=candidates"
+```
+
 ## Use Cases
 
 ### Game Update Posts
@@ -296,6 +616,14 @@ Use `users` endpoint with ID to display detailed user information in Discord.
 ### Party Information
 
 Use `parties` endpoint to show party details, member lists, and recruitment information.
+
+### Legislative Tracking
+
+Use `bills` endpoint to track bills moving through the legislative process and display voting information.
+
+### Election Results
+
+Use `candidates` endpoint to display election leaderboards and track campaign progress with real-time vote and donation statistics.
 
 ## Implementation
 

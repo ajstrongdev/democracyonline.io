@@ -1,7 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { bills, billVotesSenate, users, parties } from "@/db/schema";
+import {
+  bills,
+  billVotesSenate,
+  users,
+  parties,
+  transactionHistory,
+} from "@/db/schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
 import { addFeedItem } from "@/lib/server/feed";
 
@@ -179,6 +185,18 @@ export const voteOnSenateBill = createServerFn({ method: "POST" })
       billId: data.billId,
       voterId: data.userId,
       voteYes: data.voteYes,
+    });
+
+    // Reward user with $500
+    await db
+      .update(users)
+      .set({ money: sql`${users.money} + 500` })
+      .where(eq(users.id, data.userId));
+
+    // Add transaction history
+    await db.insert(transactionHistory).values({
+      userId: data.userId,
+      description: `+$500 for voting ${data.voteYes ? "FOR" : "AGAINST"} Bill #${data.billId} in the Senate`,
     });
 
     // Add feed item

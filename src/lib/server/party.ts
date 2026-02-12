@@ -3,8 +3,9 @@ import { eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   parties,
-  partyNotifications,
   partyStances,
+  partyNotifications,
+  partyTransactionHistory,
   politicalStances,
   users,
 } from "@/db/schema";
@@ -165,6 +166,7 @@ export const createParty = createServerFn()
           logo: party.logo,
           discord: party.discord,
           leaning: party.leaning,
+          partySubs: party.membership_fee ?? 0,
         })
         .returning();
 
@@ -228,6 +230,7 @@ export const updateParty = createServerFn()
           logo: partyData.logo,
           discord: partyData.discord,
           leaning: partyData.leaning,
+          partySubs: partyData.membership_fee ?? 0,
         })
         .where(eq(parties.id, partyData.id));
 
@@ -423,4 +426,85 @@ export const getPartiesByIds = createServerFn()
       console.error("Error fetching parties:", error);
       throw new Error("Failed to fetch parties");
     }
+  });
+
+// Get party transaction history
+export const getPartyTransactions = createServerFn()
+  .inputValidator((data: { partyId: number; limit?: number }) => data)
+  .handler(async ({ data }) => {
+    const transactions = await db
+      .select()
+      .from(partyTransactionHistory)
+      .where(eq(partyTransactionHistory.partyId, data.partyId))
+      .orderBy(sql`${partyTransactionHistory.createdAt} DESC`)
+      .limit(data.limit ?? 50);
+    return transactions;
+  });
+
+// Withdraw party funds (leader only)
+export const withdrawPartyFunds = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .inputValidator((data: { partyId: number; amount: number }) => data)
+  .handler(async ({ data, context }) => {
+    if (!context.user?.email) {
+      throw new Error("Authentication required");
+    }
+
+    if (data.amount <= 0) {
+      throw new Error("Amount must be greater than 0");
+    }
+
+    // Get the current user
+    const [currentUser] = await db
+      .select({ id: users.id, money: users.money })
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1);
+
+    if (!currentUser) {
+      throw new Error("User not found");
+    }
+
+    // Check if user is party leader
+    const [party] = await db
+      .select({
+        leaderId: parties.leaderId,
+        money: parties.money,
+        name: parties.name,
+      })
+      .from(parties)
+      .where(eq(parties.id, data.partyId))
+      .limit(1);
+
+    if (!party || party.leaderId !== currentUser.id) {
+      throw new Error("Only the party leader can withdraw funds");
+    }
+
+    if ((party.money ?? 0) < data.amount) {
+      throw new Error("Insufficient party funds");
+    }
+
+    // Perform the withdrawal in a transaction
+    await db.transaction(async (tx) => {
+      // Deduct from party
+      await tx
+        .update(parties)
+        .set({ money: sql`${parties.money} - ${data.amount}` })
+        .where(eq(parties.id, data.partyId));
+
+      // Add to user
+      await tx
+        .update(users)
+        .set({ money: sql`${users.money} + ${data.amount}` })
+        .where(eq(users.id, currentUser.id));
+
+      // Record transaction
+      await tx.insert(partyTransactionHistory).values({
+        partyId: data.partyId,
+        amount: -data.amount,
+        description: `Leader withdrawal to personal account`,
+      });
+    });
+
+    return true;
   });
