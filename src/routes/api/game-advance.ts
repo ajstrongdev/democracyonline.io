@@ -242,6 +242,7 @@ export const Route = createFileRoute("/api/game-advance")({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        console.log("[game-advance] Handler started");
         // Skip authentication in development mode
         if (!env.IS_DEV) {
           const authHeader = request.headers.get("authorization");
@@ -293,6 +294,7 @@ export const Route = createFileRoute("/api/game-advance")({
           }
         }
 
+        console.log("[game-advance] Starting presidential election processing");
         try {
           const presElection = await db
             .select()
@@ -301,6 +303,9 @@ export const Route = createFileRoute("/api/game-advance")({
 
           const electionStatus = presElection[0]?.status;
           const daysLeft = presElection[0]?.daysLeft;
+          console.log(
+            `[game-advance] Presidential status: ${electionStatus}, days left: ${daysLeft}`,
+          );
 
           if (electionStatus === "Candidate") {
             if (daysLeft && daysLeft > 1) {
@@ -422,6 +427,7 @@ export const Route = createFileRoute("/api/game-advance")({
         }
 
         try {
+          console.log("[game-advance] Starting senate election processing");
           const senateElection = await db
             .select()
             .from(elections)
@@ -429,6 +435,9 @@ export const Route = createFileRoute("/api/game-advance")({
 
           const electionStatus = senateElection[0]?.status;
           const daysLeft = senateElection[0]?.daysLeft;
+          console.log(
+            `[game-advance] Senate status: ${electionStatus}, days left: ${daysLeft}`,
+          );
 
           if (electionStatus === "Candidate") {
             if (daysLeft && daysLeft > 1) {
@@ -599,6 +608,7 @@ export const Route = createFileRoute("/api/game-advance")({
 
           // Process daily party membership fees
           // Get all parties with membership fees > 0
+          console.log("[game-advance] Processing party membership fees");
           const partiesWithFees = await db
             .select({
               id: parties.id,
@@ -607,6 +617,9 @@ export const Route = createFileRoute("/api/game-advance")({
             })
             .from(parties)
             .where(gt(parties.partySubs, 0));
+          console.log(
+            `[game-advance] Found ${partiesWithFees.length} parties with fees`,
+          );
 
           for (const party of partiesWithFees) {
             // Get all members of this party (excluding the leader)
@@ -688,6 +701,7 @@ export const Route = createFileRoute("/api/game-advance")({
             }
           }
 
+          console.log("[game-advance] Updating user activity");
           await db
             .update(users)
             .set({ lastActivity: sql`${users.lastActivity} + 1` });
@@ -766,12 +780,17 @@ export const Route = createFileRoute("/api/game-advance")({
               .where(inArray(parties.id, emptyPartyIdList));
           }
 
+          console.log("[game-advance] Game advance completed successfully");
           return new Response(JSON.stringify({ success: true }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });
         } catch (error) {
-          console.error("Error handling senate election status:", error);
+          console.error("[game-advance] Error in game-advance:", error);
+          console.error(
+            "[game-advance] Error stack:",
+            error instanceof Error ? error.stack : "No stack trace",
+          );
           return new Response(
             JSON.stringify({
               success: false,
