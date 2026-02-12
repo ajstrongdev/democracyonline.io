@@ -8,6 +8,62 @@
       "when": 1769376425571,
       "tag": "0000_marvelous_grandmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1769382357251,
+      "tag": "0001_supreme_tony_stark",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769783158244,
+      "tag": "0002_cool_silk_fever",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1769784115263,
+      "tag": "0003_magical_stingray",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1770485959829,
+      "tag": "0004_dear_meteorite",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1770500819660,
+      "tag": "0005_wise_marten_broadcloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1770768000000,
+      "tag": "0006_party_membership_fees",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1770507793480,
+      "tag": "0007_steep_spencer_smythe",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1770567725635,
+      "tag": "0008_typical_mac_gargan",
+      "breakpoints": true
     }
   ]
 }

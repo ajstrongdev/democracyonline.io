@@ -1,8 +1,10 @@
 import * as React from "react";
 import {
+  Banknote,
   Bell,
   Book,
   Building2,
+  Calendar,
   ChartNoAxesCombined,
   ChevronDown,
   Crown,
@@ -13,7 +15,9 @@ import {
   Newspaper,
   Search,
   Shield,
+  TrendingUp,
   User,
+  Wallet,
 } from "lucide-react";
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { ModeToggle } from "./theme-toggle";
@@ -55,60 +59,82 @@ const data = {
       icon: Search,
     },
     {
+      title: "Calendar",
+      url: "/calendar",
+      icon: Calendar,
+    },
+    {
       title: "Political Parties",
       icon: Handshake,
       url: "/parties",
     },
     {
+      title: "Finances",
+      icon: Wallet,
+      dropdown: [
+        {
+          title: "Bank",
+          url: "/bank",
+          icon: Banknote,
+        },
+        {
+          title: "Companies",
+          url: "/companies",
+          icon: Building2,
+        },
+        {
+          title: "Stock Market",
+          url: "/companies/market",
+          icon: TrendingUp,
+        },
+      ],
+    },
+    {
       title: "Bills",
-      url: "/bills",
       icon: Newspaper,
-    },
-    {
-      title: "House of Representatives",
-      icon: Building2,
       dropdown: [
         {
-          title: "Bills",
-          url: "/house-of-representatives/bills",
-          icon: Newspaper,
-        },
-      ],
-      url: "/house-of-representatives",
-    },
-    {
-      title: "Senate",
-      icon: Landmark,
-      dropdown: [
-        {
-          title: "Bills",
-          url: "/senate/bills",
+          title: "All Bills",
+          url: "/bills",
           icon: Newspaper,
         },
         {
-          title: "Elections",
-          url: "/senate/elections",
-          icon: ChartNoAxesCombined,
+          title: "House Chamber",
+          url: "/bills/house-of-representatives",
+          icon: Building2,
+        },
+        {
+          title: "Senate Chamber",
+          url: "/bills/senate",
+          icon: Landmark,
+        },
+        {
+          title: "Oval Office",
+          url: "/bills/oval-office",
+          icon: Crown,
         },
       ],
-      url: "/senate",
     },
     {
-      title: "Oval Office",
-      icon: Crown,
+      title: "Elections",
+      icon: ChartNoAxesCombined,
       dropdown: [
         {
-          title: "Bills",
-          url: "/oval-office/bills",
-          icon: Newspaper,
+          title: "Campaign",
+          url: "/elections/campaign",
+          icon: User,
         },
         {
-          title: "Elections",
-          url: "/oval-office/elections",
-          icon: ChartNoAxesCombined,
+          title: "Senate Elections",
+          url: "/elections/senate",
+          icon: Landmark,
+        },
+        {
+          title: "Presidential Elections",
+          url: "/elections/president",
+          icon: Crown,
         },
       ],
-      url: "/oval-office",
     },
   ],
 };

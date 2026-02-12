@@ -6,6 +6,10 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
+    IS_DEV: z
+      .string()
+      .default("false")
+      .transform((val) => val === "true"),
     ADMIN_EMAILS: z
       .string()
       .optional()
@@ -20,9 +24,15 @@ export const env = createEnv({
     FIREBASE_CLIENT_EMAIL: z.email().endsWith("iam.gserviceaccount.com"),
     FIREBASE_PRIVATE_KEY: z
       .string()
-      .startsWith("-----BEGIN PRIVATE KEY-----\n")
-      .endsWith("-----END PRIVATE KEY-----\n")
-      .transform((key) => key.replace(/\\n/gm, "\n")),
+      .transform((key) => key.replaceAll(/\\n/gm, "\n"))
+      .refine((key) => key.startsWith("-----BEGIN PRIVATE KEY-----\n"), {
+        message:
+          "FIREBASE_PRIVATE_KEY must start with '-----BEGIN PRIVATE KEY-----'",
+      })
+      .refine((key) => key.endsWith("-----END PRIVATE KEY-----\n"), {
+        message:
+          "FIREBASE_PRIVATE_KEY must end with '-----END PRIVATE KEY-----'",
+      }),
     FIREBASE_PROJECT_ID: z.string().min(1),
     SITE_URL: z.url().default("http://localhost:3000"),
   },
@@ -50,6 +60,7 @@ export const env = createEnv({
   runtimeEnv: {
     // Server-side variables from process.env
     NODE_ENV: process.env.NODE_ENV,
+    IS_DEV: process.env.IS_DEV,
     ADMIN_EMAILS: process.env.ADMIN_EMAILS,
     DATABASE_URL: process.env.DATABASE_URL,
     FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
@@ -81,4 +92,12 @@ export const env = createEnv({
    * explicitly specify this option as true.
    */
   emptyStringAsUndefined: true,
+
+  onValidationError: (issues) => {
+    console.error(
+      "❌ Invalid environment variables:",
+      JSON.stringify(issues, null, 2),
+    );
+    throw new Error("Invalid environment variables");
+  },
 });

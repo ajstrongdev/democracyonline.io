@@ -470,6 +470,7 @@ function CreateRequestTab({
       name: "",
       color: "#ff0000",
       bio: "",
+      membership_fee: 0,
     },
     onSubmit: async ({ value }) => {
       setSubmitError(null);
@@ -494,6 +495,7 @@ function CreateRequestTab({
               bio: value.bio,
               leaning: leanings[leaning[0]],
               logo: selectedLogo,
+              membership_fee: value.membership_fee,
             },
             stances: stanceEntries.map(([id, val]) => ({
               stanceId: Number(id),
@@ -673,6 +675,51 @@ function CreateRequestTab({
                   onChange={(e) => field.handleChange(e.target.value)}
                   placeholder="Brief description of the merged party"
                   className="min-h-20"
+                />
+                {field.state.meta.errors.length > 0 && (
+                  <span className="text-sm text-red-500">
+                    {field.state.meta.errors.join(", ")}
+                  </span>
+                )}
+              </div>
+            )}
+          </form.Field>
+
+          {/* Membership Fee */}
+          <form.Field
+            name="membership_fee"
+            validators={{
+              onChange: ({ value }) => {
+                if (value < 0) {
+                  return "Membership fee cannot be negative";
+                }
+                return undefined;
+              },
+            }}
+          >
+            {(field) => (
+              <div className="grid grid-cols-1 gap-2">
+                <Label
+                  htmlFor={field.name}
+                  className="text-lg font-medium text-foreground"
+                >
+                  Daily Membership Fee
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Members who cannot afford the daily fee will be removed from
+                  the party. Set to 0 for free membership.
+                </p>
+                <Input
+                  type="number"
+                  id={field.name}
+                  name={field.name}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) =>
+                    field.handleChange(Number(e.target.value) || 0)
+                  }
+                  placeholder="0"
+                  min={0}
                 />
                 {field.state.meta.errors.length > 0 && (
                   <span className="text-sm text-red-500">

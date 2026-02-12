@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Filter,
   Pencil,
+  Search,
   User,
   X,
   XCircle,
@@ -14,6 +15,7 @@ import { getCurrentUserInfo } from "@/lib/server/users";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import ProtectedRoute from "@/components/auth/protected-route";
 
 export const Route = createFileRoute("/bills/")({
@@ -30,6 +32,7 @@ type creatorFilter = "all" | "mine";
 function RouteComponent() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [creatorFilter, setCreatorFilter] = useState<creatorFilter>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   // Hack: get user data client side for direct nav
   const { bills, userData: loaderUserData } = Route.useLoaderData();
   const userData = useUserData(loaderUserData);
@@ -43,9 +46,14 @@ function RouteComponent() {
       const matchesCreator =
         creatorFilter === "all" ||
         (creatorFilter === "mine" && userData?.id === bill.creatorId);
-      return matchesStatus && matchesCreator;
+      const matchesSearch =
+        searchQuery === "" ||
+        bill.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        bill.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        bill.creator?.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesStatus && matchesCreator && matchesSearch;
     });
-  }, [bills, statusFilter, creatorFilter, userData]);
+  }, [bills, statusFilter, creatorFilter, searchQuery, userData]);
 
   return (
     <ProtectedRoute>
@@ -59,7 +67,17 @@ function RouteComponent() {
             <Link to="/bills/create">Create New Bill</Link>
           </Button>
         </div>
-        <div className="mb-6">
+        <div className="mb-6 space-y-4">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search bills by title, content, or creator..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4"
+            />
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => {
