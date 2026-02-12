@@ -547,7 +547,9 @@ function MarketPage() {
                           </div>
                           {company.description && (
                             <p className="text-sm text-muted-foreground truncate">
-                              {company.description}
+                              {company.description.length > 100
+                                ? `${company.description.substring(0, 100)}...`
+                                : company.description}
                             </p>
                           )}
                         </div>
