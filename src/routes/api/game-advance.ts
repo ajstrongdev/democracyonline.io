@@ -538,7 +538,7 @@ export const Route = createFileRoute("/api/game-advance")({
                         sql`${users.role} NOT IN ('President', 'Senator')`,
                         winnerIds.length > 0
                           ? sql`${users.id} <> ALL(ARRAY[${sql.join(
-                              winnerIds.map((id) => sql`${id}`),
+                              winnerIds.map((id) => sql`${id}::integer`),
                               sql`, `,
                             )}])`
                           : undefined,

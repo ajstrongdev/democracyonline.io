@@ -7,4 +7,4 @@ import { env } from "@/env.ts";
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
 });
-export const db = drizzle(pool, { schema });
+export const db = drizzle(pool, { schema, logger: true });
