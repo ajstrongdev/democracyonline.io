@@ -135,8 +135,10 @@ function CompaniesPage() {
                               </Badge>
                             </div>
                             {company.description && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {company.description}
+                              <p className="text-sm text-muted-foreground mt-1 break-all overflow-hidden">
+                                {company.description.length > 200
+                                  ? company.description.slice(0, 200) + "…"
+                                  : company.description}
                               </p>
                             )}
                           </div>

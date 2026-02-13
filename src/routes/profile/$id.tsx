@@ -19,7 +19,10 @@ import {
   getUserVotingHistory,
 } from "@/lib/server/users";
 import { getPartyById } from "@/lib/server/party";
-import { getUserCEOCompanies } from "@/lib/server/stocks";
+import {
+  getUserCEOCompanies,
+  getUserDividendCompanies,
+} from "@/lib/server/stocks";
 import {
   Card,
   CardContent,
@@ -83,11 +86,17 @@ export const Route = createFileRoute("/profile/$id")({
       data: { userId: targetUserId },
     });
 
+    // Get dividend companies (all shares held)
+    const dividendCompanies = await getUserDividendCompanies({
+      data: { userId: targetUserId },
+    });
+
     return {
       targetUser,
       party,
       allVotes,
       ceoCompanies,
+      dividendCompanies,
       currentUser,
       error: null,
     };
@@ -102,6 +111,7 @@ function ProfilePage() {
     party,
     allVotes = [],
     ceoCompanies = [],
+    dividendCompanies = [],
     currentUser: currentUserLoaderData,
     error,
   } = Route.useLoaderData();
@@ -308,7 +318,8 @@ function ProfilePage() {
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="companies" className="flex items-center gap-2">
               <Building2 className="w-4 h-4" />
-              Companies {ceoCompanies.length > 0 && `(${ceoCompanies.length})`}
+              Portfolio{" "}
+              {dividendCompanies.length > 0 && `(${dividendCompanies.length})`}
             </TabsTrigger>
             <TabsTrigger value="votes" className="flex items-center gap-2">
               <History className="w-4 h-4" />
@@ -321,27 +332,27 @@ function ProfilePage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Building2 className="w-5 h-5 text-primary" />
-                  <CardTitle>Companies</CardTitle>
+                  <CardTitle>Investment Portfolio</CardTitle>
                 </div>
                 <CardDescription>
-                  {ceoCompanies.length > 0
-                    ? `${targetUser.username} leads ${ceoCompanies.length} compan${ceoCompanies.length === 1 ? "y" : "ies"}`
-                    : "Not currently a CEO"}
+                  {dividendCompanies.length > 0
+                    ? `${targetUser.username} holds shares in ${dividendCompanies.length} compan${dividendCompanies.length === 1 ? "y" : "ies"}`
+                    : "No shares held"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {ceoCompanies.length === 0 ? (
+                {dividendCompanies.length === 0 ? (
                   <div className="text-center py-12">
                     <Building2 className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
                     <p className="text-muted-foreground font-medium">
-                      No companies owned
+                      No shares held
                     </p>
                   </div>
                 ) : (
                   <>
                     <div className="mb-6 p-6 rounded-lg bg-linear-to-br from-green-500/10 to-green-600/5 border-2 border-green-500/20">
                       <h3 className="text-sm font-medium text-muted-foreground mb-4">
-                        Total Dividends from All Companies
+                        Total Dividends from All Holdings
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div className="flex items-center gap-3">
@@ -354,7 +365,7 @@ function ProfilePage() {
                             </p>
                             <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                               $
-                              {ceoCompanies
+                              {dividendCompanies
                                 .reduce((sum, c) => sum + c.hourlyDividend, 0)
                                 .toLocaleString()}
                             </p>
@@ -370,7 +381,7 @@ function ProfilePage() {
                             </p>
                             <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                               $
-                              {ceoCompanies
+                              {dividendCompanies
                                 .reduce((sum, c) => sum + c.dailyDividend, 0)
                                 .toLocaleString()}
                             </p>
@@ -379,7 +390,7 @@ function ProfilePage() {
                       </div>
                     </div>
                     <div className="space-y-3">
-                      {ceoCompanies.map((company) => (
+                      {dividendCompanies.map((company) => (
                         <Link
                           key={company.id}
                           to="/companies/$id"
@@ -396,14 +407,28 @@ function ProfilePage() {
                                   <span className="text-xs px-2 py-1 bg-muted rounded font-mono font-medium">
                                     {company.symbol}
                                   </span>
+                                  {company.isCEO && (
+                                    <span className="text-xs px-2 py-1 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-full font-medium flex items-center gap-1">
+                                      <Crown className="w-3 h-3" />
+                                      CEO
+                                    </span>
+                                  )}
                                 </div>
-                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                                   <div>
                                     <span className="text-muted-foreground font-medium">
-                                      Market Cap
+                                      Shares
                                     </span>
                                     <p className="font-bold">
-                                      ${company.marketCap.toLocaleString()}
+                                      {company.sharesOwned.toLocaleString()}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground font-medium">
+                                      Ownership
+                                    </span>
+                                    <p className="font-bold">
+                                      {(company.ownershipPct * 100).toFixed(1)}%
                                     </p>
                                   </div>
                                   <div>
@@ -414,6 +439,14 @@ function ProfilePage() {
                                       $
                                       {company.stockPrice?.toLocaleString() ||
                                         "N/A"}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground font-medium">
+                                      Market Cap
+                                    </span>
+                                    <p className="font-bold">
+                                      ${company.marketCap.toLocaleString()}
                                     </p>
                                   </div>
                                 </div>
