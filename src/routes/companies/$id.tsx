@@ -32,9 +32,9 @@ import {
   ArrowLeft,
   Wallet,
   PiggyBank,
+  Edit,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { Slider } from "@/components/ui/slider";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as LucideIcons from "lucide-react";
@@ -55,7 +55,7 @@ function CompanyDetailPage() {
   const { company, stakeholders, userData } = Route.useLoaderData();
   const router = useRouter();
   const sharePrice = company?.stockPrice || 100;
-  const [investmentAmount, setInvestmentAmount] = useState(sharePrice);
+  const [sharesToIssue, setSharesToIssue] = useState(1);
   const [retainedShares, setRetainedShares] = useState(0);
   const [isInvesting, setIsInvesting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -80,19 +80,25 @@ function CompanyDetailPage() {
     ? company.stockPrice * (company.totalOwnedShares || 0)
     : 0;
 
-  const minInvestment = sharePrice;
-  // Calculate shares based on proportional ownership: (investment * currentShares) / currentCapital
-  const currentCapital = company.capital || 0;
-  const currentShares = company.issuedShares || 0;
-  const maxShares =
-    currentCapital > 0 && currentShares > 0
-      ? Math.floor((investmentAmount * currentShares) / currentCapital)
-      : Math.floor(investmentAmount / sharePrice);
-  const availableShares = maxShares - retainedShares;
+  const investmentAmount = sharesToIssue * sharePrice;
+  const maxAffordableShares = Math.max(
+    1,
+    Math.floor(
+      ((userData && typeof userData === "object" && "money" in userData
+        ? Number(userData.money)
+        : 0) || 0) / sharePrice,
+    ),
+  );
+  const availableShares = sharesToIssue - retainedShares;
   const userMoney =
     userData && typeof userData === "object" && "money" in userData
       ? userData.money
       : 0;
+  const currentUserId =
+    userData && typeof userData === "object" && "id" in userData
+      ? (userData as any).id
+      : null;
+  const isCEO = currentUserId != null && currentUserId === company.ceoId;
 
   let LogoIcon: LucideIcon | null = null;
   if (company.logo) {
@@ -114,7 +120,7 @@ function CompanyDetailPage() {
       });
 
       toast.success(
-        `Successfully invested $${investmentAmount.toLocaleString()}! Issued ${result.newShares} shares (${retainedShares} retained, ${availableShares} available)`,
+        `Successfully invested $${investmentAmount.toLocaleString()}! Issued ${result.newShares} shares at $${sharePrice}/share (${retainedShares} retained, ${availableShares} available)`,
       );
       setDialogOpen(false);
       router.invalidate();
@@ -177,6 +183,22 @@ function CompanyDetailPage() {
                   </div>
                 </div>
                 <div className="flex flex-row gap-2 w-full sm:w-auto">
+                  {isCEO && (
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="gap-2 flex-1 sm:flex-initial"
+                      asChild
+                    >
+                      <Link
+                        to="/companies/edit/$id"
+                        params={{ id: String(company.id) }}
+                      >
+                        <Edit className="h-4 w-4" />
+                        Edit
+                      </Link>
+                    </Button>
+                  )}
                   <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
                       <Button
@@ -203,60 +225,49 @@ function CompanyDetailPage() {
                             ${userMoney?.toLocaleString() || 0}
                           </div>
                         </div>
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor="amount">Investment Amount</Label>
-                            <span className="text-lg font-medium">
-                              ${investmentAmount.toLocaleString()}
-                            </span>
-                          </div>
-                          <Slider
-                            id="amount"
-                            min={minInvestment}
-                            max={Math.min(
-                              userMoney || minInvestment,
-                              minInvestment * 1000,
-                            )}
-                            step={sharePrice}
-                            value={[investmentAmount]}
-                            onValueChange={(value) => {
-                              setInvestmentAmount(value[0]);
-                              const newMaxShares =
-                                currentCapital > 0 && currentShares > 0
-                                  ? Math.floor(
-                                      (value[0] * currentShares) /
-                                        currentCapital,
-                                    )
-                                  : Math.floor(value[0] / sharePrice);
-                              setRetainedShares(
-                                Math.min(retainedShares, newMaxShares),
+                        <div className="space-y-2">
+                          <Label htmlFor="sharesToIssue">Shares to Issue</Label>
+                          <Input
+                            id="sharesToIssue"
+                            type="number"
+                            min={1}
+                            max={maxAffordableShares}
+                            value={sharesToIssue}
+                            onChange={(e) => {
+                              const val = Math.max(
+                                1,
+                                Math.min(
+                                  parseInt(e.target.value) || 1,
+                                  maxAffordableShares,
+                                ),
                               );
+                              setSharesToIssue(val);
+                              setRetainedShares(Math.min(retainedShares, val));
                             }}
-                            className="w-full"
                           />
                           <p className="text-sm text-muted-foreground">
-                            Will issue {maxShares} shares based on proportional
-                            ownership
+                            ${sharePrice.toLocaleString()} per share &middot;
+                            Total cost: ${investmentAmount.toLocaleString()}
                           </p>
                         </div>
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="retained">Shares to Retain</Label>
                           <Input
                             id="retained"
                             type="number"
                             min={0}
-                            max={maxShares}
+                            max={sharesToIssue}
                             value={retainedShares}
                             onChange={(e) =>
                               setRetainedShares(
                                 Math.min(
                                   parseInt(e.target.value) || 0,
-                                  maxShares,
+                                  sharesToIssue,
                                 ),
                               )
                             }
                           />
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-sm text-muted-foreground">
                             {availableShares} shares will be available for
                             trading
                           </p>
@@ -274,7 +285,15 @@ function CompanyDetailPage() {
                             <span className="text-muted-foreground">
                               Shares Issued:
                             </span>
-                            <span className="font-medium">{maxShares}</span>
+                            <span className="font-medium">{sharesToIssue}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              Price per Share:
+                            </span>
+                            <span className="font-medium">
+                              ${sharePrice.toLocaleString()}
+                            </span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">
@@ -316,8 +335,10 @@ function CompanyDetailPage() {
                 </div>
               </div>
               {company.description && (
-                <CardDescription className="text-sm sm:text-base">
-                  {company.description}
+                <CardDescription className="text-sm sm:text-base break-all">
+                  {company.description.length > 400
+                    ? company.description.slice(0, 400) + "…"
+                    : company.description}
                 </CardDescription>
               )}
             </div>

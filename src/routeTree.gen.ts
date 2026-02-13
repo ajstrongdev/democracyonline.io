@@ -42,6 +42,7 @@ import { Route as ApiBotRouteImport } from './routes/api/bot'
 import { Route as ApiBillAdvanceRouteImport } from './routes/api/bill-advance'
 import { Route as PartiesMergeIdRouteImport } from './routes/parties/merge/$id'
 import { Route as PartiesManageIdRouteImport } from './routes/parties/manage/$id'
+import { Route as CompaniesEditIdRouteImport } from './routes/companies/edit/$id'
 import { Route as BillsEditIdRouteImport } from './routes/bills/edit/$id'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -210,6 +211,11 @@ const PartiesManageIdRoute = PartiesManageIdRouteImport.update({
   path: '/parties/manage/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompaniesEditIdRoute = CompaniesEditIdRouteImport.update({
+  id: '/companies/edit/$id',
+  path: '/companies/edit/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BillsEditIdRoute = BillsEditIdRouteImport.update({
   id: '/bills/edit/$id',
   path: '/bills/edit/$id',
@@ -249,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/parties': typeof PartiesIndexRoute
   '/profile': typeof ProfileIndexRoute
   '/bills/edit/$id': typeof BillsEditIdRoute
+  '/companies/edit/$id': typeof CompaniesEditIdRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
   '/parties/merge/$id': typeof PartiesMergeIdRoute
 }
@@ -285,6 +292,7 @@ export interface FileRoutesByTo {
   '/parties': typeof PartiesIndexRoute
   '/profile': typeof ProfileIndexRoute
   '/bills/edit/$id': typeof BillsEditIdRoute
+  '/companies/edit/$id': typeof CompaniesEditIdRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
   '/parties/merge/$id': typeof PartiesMergeIdRoute
 }
@@ -322,6 +330,7 @@ export interface FileRoutesById {
   '/parties/': typeof PartiesIndexRoute
   '/profile/': typeof ProfileIndexRoute
   '/bills/edit/$id': typeof BillsEditIdRoute
+  '/companies/edit/$id': typeof CompaniesEditIdRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
   '/parties/merge/$id': typeof PartiesMergeIdRoute
 }
@@ -360,6 +369,7 @@ export interface FileRouteTypes {
     | '/parties'
     | '/profile'
     | '/bills/edit/$id'
+    | '/companies/edit/$id'
     | '/parties/manage/$id'
     | '/parties/merge/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -396,6 +406,7 @@ export interface FileRouteTypes {
     | '/parties'
     | '/profile'
     | '/bills/edit/$id'
+    | '/companies/edit/$id'
     | '/parties/manage/$id'
     | '/parties/merge/$id'
   id:
@@ -432,6 +443,7 @@ export interface FileRouteTypes {
     | '/parties/'
     | '/profile/'
     | '/bills/edit/$id'
+    | '/companies/edit/$id'
     | '/parties/manage/$id'
     | '/parties/merge/$id'
   fileRoutesById: FileRoutesById
@@ -469,6 +481,7 @@ export interface RootRouteChildren {
   PartiesIndexRoute: typeof PartiesIndexRoute
   ProfileIndexRoute: typeof ProfileIndexRoute
   BillsEditIdRoute: typeof BillsEditIdRoute
+  CompaniesEditIdRoute: typeof CompaniesEditIdRoute
   PartiesManageIdRoute: typeof PartiesManageIdRoute
   PartiesMergeIdRoute: typeof PartiesMergeIdRoute
 }
@@ -706,6 +719,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartiesManageIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/companies/edit/$id': {
+      id: '/companies/edit/$id'
+      path: '/companies/edit/$id'
+      fullPath: '/companies/edit/$id'
+      preLoaderRoute: typeof CompaniesEditIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/bills/edit/$id': {
       id: '/bills/edit/$id'
       path: '/bills/edit/$id'
@@ -749,6 +769,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartiesIndexRoute: PartiesIndexRoute,
   ProfileIndexRoute: ProfileIndexRoute,
   BillsEditIdRoute: BillsEditIdRoute,
+  CompaniesEditIdRoute: CompaniesEditIdRoute,
   PartiesManageIdRoute: PartiesManageIdRoute,
   PartiesMergeIdRoute: PartiesMergeIdRoute,
 }

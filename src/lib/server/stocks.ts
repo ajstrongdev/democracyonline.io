@@ -15,6 +15,17 @@ import {
   UpdateCompanySchema,
 } from "@/lib/schemas/stock-schema";
 
+// Helper: find the CEO of a company (top shareholder by shares)
+async function getCompanyCEOId(companyId: number): Promise<number | null> {
+  const [topHolder] = await db
+    .select({ userId: userShares.userId })
+    .from(userShares)
+    .where(eq(userShares.companyId, companyId))
+    .orderBy(desc(userShares.quantity))
+    .limit(1);
+  return topHolder?.userId ?? null;
+}
+
 export const getCompanies = createServerFn().handler(async () => {
   const companiesWithStocks = await db
     .select({
@@ -25,7 +36,6 @@ export const getCompanies = createServerFn().handler(async () => {
       capital: companies.capital,
       issuedShares: companies.issuedShares,
       creatorId: companies.creatorId,
-      creatorUsername: users.username,
       logo: companies.logo,
       color: companies.color,
       createdAt: companies.createdAt,
@@ -33,13 +43,12 @@ export const getCompanies = createServerFn().handler(async () => {
       stockPrice: stocks.price,
     })
     .from(companies)
-    .leftJoin(stocks, eq(stocks.companyId, companies.id))
-    .leftJoin(users, eq(companies.creatorId, users.id));
+    .leftJoin(stocks, eq(stocks.companyId, companies.id));
 
   const companiesWithAvailability = await Promise.all(
     companiesWithStocks.map(async (company) => {
       const allHoldings = await db
-        .select({ quantity: userShares.quantity })
+        .select({ userId: userShares.userId, quantity: userShares.quantity })
         .from(userShares)
         .where(eq(userShares.companyId, company.id));
 
@@ -49,7 +58,21 @@ export const getCompanies = createServerFn().handler(async () => {
       );
       const available = (company.issuedShares || 0) - totalOwned;
 
-      return { ...company, availableShares: available };
+      // CEO = top shareholder
+      const topHolder = allHoldings.sort(
+        (a, b) => (b.quantity || 0) - (a.quantity || 0),
+      )[0];
+      let creatorUsername: string | null = null;
+      if (topHolder) {
+        const [ceoUser] = await db
+          .select({ username: users.username })
+          .from(users)
+          .where(eq(users.id, topHolder.userId))
+          .limit(1);
+        creatorUsername = ceoUser?.username || null;
+      }
+
+      return { ...company, availableShares: available, creatorUsername };
     }),
   );
 
@@ -193,6 +216,7 @@ export const getCompanyById = createServerFn()
         logo: companies.logo,
         color: companies.color,
         createdAt: companies.createdAt,
+        creatorId: companies.creatorId,
         stockPrice: stocks.price,
       })
       .from(companies)
@@ -213,7 +237,10 @@ export const getCompanyById = createServerFn()
       0,
     );
 
-    return { ...company, totalOwnedShares };
+    // CEO = top shareholder
+    const ceoId = await getCompanyCEOId(company.id);
+
+    return { ...company, totalOwnedShares, ceoId };
   });
 
 export const updateCompany = createServerFn()
@@ -234,20 +261,15 @@ export const updateCompany = createServerFn()
       throw new Error("User not found");
     }
 
-    // Check if user owns shares in this company (has control)
-    const [ownership] = await db
-      .select({ quantity: userShares.quantity })
-      .from(userShares)
-      .where(
-        and(
-          eq(userShares.userId, currentUser.id),
-          eq(userShares.companyId, data.companyId),
-        ),
-      )
-      .limit(1);
+    // Check if user is the CEO (top shareholder) of this company
+    const ceoId = await getCompanyCEOId(data.companyId);
 
-    if (!ownership || (ownership.quantity || 0) === 0) {
-      throw new Error("Only shareholders can update the company");
+    if (!ceoId) {
+      throw new Error("Company has no shareholders");
+    }
+
+    if (ceoId !== currentUser.id) {
+      throw new Error("Only the CEO can edit the company");
     }
 
     await db
@@ -551,8 +573,8 @@ export const investInCompany = createServerFn()
     const currentShares = company.issuedShares || 0;
     const sharePrice = stock.price;
 
-    if (currentCapital === 0 || currentShares === 0) {
-      throw new Error("Company must have initial capital and shares");
+    if (sharePrice <= 0) {
+      throw new Error("Invalid share price");
     }
 
     if (data.investmentAmount < sharePrice) {
@@ -564,14 +586,10 @@ export const investInCompany = createServerFn()
       throw new Error("Insufficient funds for investment");
     }
 
-    // Calculate new shares based on proportional ownership
-    // If investor puts in I into company worth C, they should own I/(C+I) of the company
-    // New shares for investor = (I * S) / C where S is current shares
-    // This maintains the share price: C/S = (C+I)/(S+newShares)
-    const newShares = Math.floor(
-      (data.investmentAmount * currentShares) / currentCapital,
-    );
-    const newCapital = currentCapital + data.investmentAmount;
+    // Issue new shares at the current share price — no dilution, price stays the same
+    const newShares = Math.floor(data.investmentAmount / sharePrice);
+    const actualCost = newShares * sharePrice;
+    const newCapital = currentCapital + actualCost;
     const newTotalShares = currentShares + newShares;
 
     // Validate retained shares
@@ -588,10 +606,10 @@ export const investInCompany = createServerFn()
       })
       .where(eq(companies.id, company.id));
 
-    // Deduct money from CEO
+    // Deduct money from investor (only the amount that buys whole shares)
     await db
       .update(users)
-      .set({ money: (currentUser.money || 0) - data.investmentAmount })
+      .set({ money: (currentUser.money || 0) - actualCost })
       .where(eq(users.id, currentUser.id));
 
     // Add retained shares to CEO's holdings
@@ -625,14 +643,10 @@ export const investInCompany = createServerFn()
       }
     }
 
-    // Recalculate share price (should remain the same with correct formula)
-    const newSharePrice = Math.floor(newCapital / newTotalShares);
-    await db
-      .update(stocks)
-      .set({ price: newSharePrice })
-      .where(eq(stocks.id, stock.id));
+    // Share price stays the same — no dilution
+    const newSharePrice = sharePrice;
 
-    // Log price change in history
+    // Log price in history (unchanged, but records the event)
     await db.insert(sharePriceHistory).values({
       stockId: stock.id,
       price: newSharePrice,
@@ -641,7 +655,7 @@ export const investInCompany = createServerFn()
     // Record transaction
     await db.insert(transactionHistory).values({
       userId: currentUser.id,
-      description: `Invested $${data.investmentAmount.toLocaleString()} in ${company.name}, issued ${newShares} new shares${data.retainedShares > 0 ? ` (retained ${data.retainedShares})` : ""}`,
+      description: `Invested $${actualCost.toLocaleString()} in ${company.name}, issued ${newShares} new shares${data.retainedShares > 0 ? ` (retained ${data.retainedShares})` : ""}`,
     });
 
     return {
@@ -693,25 +707,76 @@ export const getCompanyStakeholders = createServerFn()
 export const getUserCEOCompanies = createServerFn()
   .inputValidator((data: { userId: number }) => data)
   .handler(async ({ data }) => {
-    const ceoCompanies = await db
-      .select({
-        id: companies.id,
-        name: companies.name,
-        symbol: companies.symbol,
-        logo: companies.logo,
-        color: companies.color,
-        capital: companies.capital,
-        issuedShares: companies.issuedShares,
-        stockPrice: stocks.price,
-      })
-      .from(companies)
-      .leftJoin(stocks, eq(stocks.companyId, companies.id))
-      .where(eq(companies.creatorId, data.userId));
+    // Get all companies where this user holds shares
+    const userHoldings = await db
+      .select({ companyId: userShares.companyId })
+      .from(userShares)
+      .where(eq(userShares.userId, data.userId));
 
-    // Calculate dividends for each company based on owned shares
-    const companiesWithDividends = await Promise.all(
-      ceoCompanies.map(async (company) => {
-        // Get total shares owned by all users
+    // Filter to companies where this user is the top shareholder (CEO)
+    const ceoCompanies = [];
+    for (const holding of userHoldings) {
+      const ceoId = await getCompanyCEOId(holding.companyId);
+      if (ceoId === data.userId) {
+        const [company] = await db
+          .select({
+            id: companies.id,
+            name: companies.name,
+            symbol: companies.symbol,
+            logo: companies.logo,
+            color: companies.color,
+            capital: companies.capital,
+            issuedShares: companies.issuedShares,
+            stockPrice: stocks.price,
+          })
+          .from(companies)
+          .leftJoin(stocks, eq(stocks.companyId, companies.id))
+          .where(eq(companies.id, holding.companyId))
+          .limit(1);
+        if (company) ceoCompanies.push(company);
+      }
+    }
+
+    return ceoCompanies;
+  });
+
+// Get all companies a user holds shares in with dividend breakdown
+export const getUserDividendCompanies = createServerFn()
+  .inputValidator((data: { userId: number }) => data)
+  .handler(async ({ data }) => {
+    // Get all shares held by this user
+    const holdings = await db
+      .select({
+        companyId: userShares.companyId,
+        quantity: userShares.quantity,
+      })
+      .from(userShares)
+      .where(eq(userShares.userId, data.userId));
+
+    if (holdings.length === 0) return [];
+
+    const result = await Promise.all(
+      holdings.map(async (holding) => {
+        const [company] = await db
+          .select({
+            id: companies.id,
+            name: companies.name,
+            symbol: companies.symbol,
+            logo: companies.logo,
+            color: companies.color,
+            capital: companies.capital,
+            issuedShares: companies.issuedShares,
+            creatorId: companies.creatorId,
+            stockPrice: stocks.price,
+          })
+          .from(companies)
+          .leftJoin(stocks, eq(stocks.companyId, companies.id))
+          .where(eq(companies.id, holding.companyId))
+          .limit(1);
+
+        if (!company) return null;
+
+        // Get total owned shares across all users
         const allHoldings = await db
           .select({ quantity: userShares.quantity })
           .from(userShares)
@@ -721,18 +786,27 @@ export const getUserCEOCompanies = createServerFn()
           (sum, h) => sum + (h.quantity || 0),
           0,
         );
+
+        const userShares_ = holding.quantity || 0;
+        const ownershipPct =
+          totalOwnedShares > 0 ? userShares_ / totalOwnedShares : 0;
         const marketCap = (company.stockPrice || 0) * totalOwnedShares;
-        const hourlyDividend = Math.floor(marketCap * 0.01); // 1% per hour
+        // ownership% × 10% of market cap
+        const hourlyDividend = Math.floor(ownershipPct * 0.1 * marketCap);
         const dailyDividend = hourlyDividend * 24;
 
         return {
           ...company,
+          sharesOwned: userShares_,
+          totalOwnedShares,
+          ownershipPct,
           marketCap,
           hourlyDividend,
           dailyDividend,
+          isCEO: (await getCompanyCEOId(company.id)) === data.userId,
         };
       }),
     );
 
-    return companiesWithDividends;
+    return result.filter(Boolean) as NonNullable<(typeof result)[number]>[];
   });

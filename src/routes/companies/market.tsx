@@ -91,13 +91,10 @@ function HoldingItem({ holding }: { holding: any }) {
   }
 
   return (
-    <div
-      key={holding.id}
-      className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-lg border bg-card"
-    >
-      <div className="flex items-center gap-4 w-full sm:w-auto">
+    <div key={holding.id} className="p-4 rounded-lg border bg-card space-y-3">
+      <div className="flex items-center gap-3">
         <div
-          className="flex items-center justify-center w-10 h-10 rounded-lg font-bold text-sm"
+          className="flex items-center justify-center w-10 h-10 rounded-lg font-bold text-sm shrink-0"
           style={{
             backgroundColor: holding.companyColor
               ? `${holding.companyColor}20`
@@ -114,7 +111,7 @@ function HoldingItem({ holding }: { holding: any }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold truncate">{holding.companyName}</h3>
-            <span className="text-xs px-2 py-0.5 bg-muted rounded font-mono">
+            <span className="text-xs px-2 py-0.5 bg-muted rounded font-mono shrink-0">
               {holding.companySymbol}
             </span>
           </div>
@@ -127,19 +124,20 @@ function HoldingItem({ holding }: { holding: any }) {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto sm:ml-auto">
-        <div className="flex flex-col items-start sm:items-end">
-          <span className="text-lg font-bold">
-            {(holding.quantity || 0).toLocaleString()}
-          </span>
-          <span className="text-xs text-muted-foreground">Shares</span>
-        </div>
-        <div className="flex flex-col items-start sm:items-end">
-          <span className="text-lg font-bold flex items-center gap-1">
-            <span className="text-muted-foreground text-base">$</span>
-            {(holding.stockPrice || 0).toLocaleString()}
-          </span>
-          <span className="text-xs text-muted-foreground">Share Price</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex gap-4">
+          <div className="flex flex-col">
+            <span className="text-lg font-bold">
+              {(holding.quantity || 0).toLocaleString()}
+            </span>
+            <span className="text-xs text-muted-foreground">Shares</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-lg font-bold">
+              ${(holding.stockPrice || 0).toLocaleString()}
+            </span>
+            <span className="text-xs text-muted-foreground">Price</span>
+          </div>
         </div>
         <form
           className="flex items-center gap-2"
@@ -209,7 +207,7 @@ function HoldingItem({ holding }: { holding: any }) {
             size="sm"
             disabled={isSelling || (holding.quantity || 0) < 1}
           >
-            {isSelling ? "Selling..." : "Sell"}
+            {isSelling ? "..." : "Sell"}
           </Button>
         </form>
       </div>
@@ -225,6 +223,21 @@ function MarketPage() {
   const [buyQuantities, setBuyQuantities] = useState<Record<number, number>>(
     {},
   );
+  const [hiddenCompanies, setHiddenCompanies] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const toggleCompanyVisibility = (symbol: string) => {
+    setHiddenCompanies((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(symbol)) {
+        newSet.delete(symbol);
+      } else {
+        newSet.add(symbol);
+      }
+      return newSet;
+    });
+  };
 
   const availableShares = companiesList
     .map((company) => ({
@@ -235,25 +248,25 @@ function MarketPage() {
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto max-w-6xl px-4 py-8 space-y-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="container mx-auto max-w-6xl px-4 py-8 space-y-8 overflow-x-hidden">
+        <div className="space-y-4">
           <div className="flex items-center gap-4">
             <BackButton />
-            <div>
-              <h1 className="text-4xl font-bold">Stock Market</h1>
-              <p className="text-muted-foreground mt-1">
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-4xl font-bold">Stock Market</h1>
+              <p className="text-sm text-muted-foreground mt-1">
                 Trade shares and manage your portfolio
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted">
-              <Wallet className="w-4 h-4 text-muted-foreground" />
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
+              <Wallet className="w-4 h-4 text-muted-foreground shrink-0" />
               <span className="font-semibold">
                 ${Number(user?.money || 0).toLocaleString()}
               </span>
             </div>
-            <Button asChild>
+            <Button asChild size="sm">
               <Link to="/companies/create">
                 <Building2 className="w-4 h-4 mr-2" />
                 Create Company
@@ -294,10 +307,9 @@ function MarketPage() {
                     }),
                   ),
                 }}
-                className="h-[400px] w-full"
+                className="h-[300px] sm:h-[400px] w-full"
               >
                 <LineChart
-                  width={800}
                   height={400}
                   data={(() => {
                     const now = Date.now();
@@ -373,25 +385,25 @@ function MarketPage() {
                     }}
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  {Array.from(
-                    new Set(priceHistory.map((h) => h.companySymbol)),
-                  ).map((symbol) => {
-                    const company = priceHistory.find(
-                      (h) => h.companySymbol === symbol,
-                    );
-                    const color = company?.companyColor || "#3b82f6";
-                    return (
-                      <Line
-                        key={symbol}
-                        type="monotone"
-                        dataKey={symbol}
-                        stroke={color}
-                        strokeWidth={2}
-                        dot={false}
-                        connectNulls
-                      />
-                    );
-                  })}
+                  {Array.from(new Set(priceHistory.map((h) => h.companySymbol)))
+                    .filter((symbol) => !hiddenCompanies.has(symbol))
+                    .map((symbol) => {
+                      const company = priceHistory.find(
+                        (h) => h.companySymbol === symbol,
+                      );
+                      const color = company?.companyColor || "#3b82f6";
+                      return (
+                        <Line
+                          key={symbol}
+                          type="monotone"
+                          dataKey={symbol}
+                          stroke={color}
+                          strokeWidth={2}
+                          dot={false}
+                          connectNulls
+                        />
+                      );
+                    })}
                 </LineChart>
               </ChartContainer>
               <div className="flex flex-wrap gap-4 mt-4 justify-center">
@@ -402,22 +414,28 @@ function MarketPage() {
                     (h) => h.companySymbol === symbol,
                   );
                   const color = company?.companyColor || "#3b82f6";
+                  const isHidden = hiddenCompanies.has(symbol);
                   return (
-                    <div
+                    <button
                       key={symbol}
-                      className="flex items-center gap-2 text-sm"
+                      onClick={() => toggleCompanyVisibility(symbol)}
+                      className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-md transition-all hover:bg-muted/50 ${
+                        isHidden ? "opacity-40 line-through" : ""
+                      }`}
+                      title={isHidden ? "Click to show" : "Click to hide"}
                     >
                       <div
-                        className="w-4 h-4 rounded-full"
+                        className="w-4 h-4 rounded-full transition-opacity"
                         style={{
                           backgroundColor: color,
+                          opacity: isHidden ? 0.3 : 1,
                         }}
                       />
                       <span className="font-medium">{symbol}</span>
                       <span className="text-muted-foreground">
                         {company?.companyName}
                       </span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -511,18 +529,26 @@ function MarketPage() {
                     priceChange = ((newPrice - oldPrice) / oldPrice) * 100;
                   }
 
+                  const maxAffordable =
+                    company.stockPrice && company.stockPrice > 0
+                      ? Math.floor(
+                          Number(user?.money || 0) / company.stockPrice,
+                        )
+                      : 0;
+                  const maxBuyable = Math.min(company.available, maxAffordable);
+
                   return (
                     <div
                       key={company.id}
-                      className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-lg border bg-card"
+                      className="p-4 rounded-lg border bg-card space-y-3"
                     >
                       <Link
                         to="/companies/$id"
                         params={{ id: String(company.id) }}
-                        className="flex items-center gap-4 w-full sm:w-auto hover:opacity-80 transition-opacity"
+                        className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                       >
                         <div
-                          className="flex items-center justify-center w-12 h-12 rounded-lg font-bold shrink-0"
+                          className="flex items-center justify-center w-10 h-10 rounded-lg font-bold shrink-0"
                           style={{
                             backgroundColor: company.color
                               ? `${company.color}20`
@@ -531,7 +557,7 @@ function MarketPage() {
                           }}
                         >
                           {LogoIcon ? (
-                            <LogoIcon className="w-6 h-6" />
+                            <LogoIcon className="w-5 h-5" />
                           ) : (
                             company.symbol.slice(0, 2)
                           )}
@@ -541,177 +567,172 @@ function MarketPage() {
                             <h3 className="font-semibold truncate">
                               {company.name}
                             </h3>
-                            <span className="text-xs px-2 py-0.5 bg-muted rounded font-mono">
+                            <span className="text-xs px-2 py-0.5 bg-muted rounded font-mono shrink-0">
                               {company.symbol}
                             </span>
                           </div>
                           {company.description && (
                             <p className="text-sm text-muted-foreground truncate">
-                              {company.description.length > 100
-                                ? `${company.description.substring(0, 100)}...`
+                              {company.description.length > 80
+                                ? `${company.description.substring(0, 80)}...`
                                 : company.description}
                             </p>
                           )}
                         </div>
                       </Link>
 
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto sm:ml-auto">
-                        <div className="grid grid-cols-3 gap-3 sm:flex sm:gap-4">
-                          <div className="flex flex-col items-center sm:items-end">
-                            <span className="text-lg sm:text-xl font-bold">
-                              ${company.stockPrice?.toLocaleString() ?? "N/A"}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="flex flex-col items-center">
+                          <span className="text-lg font-bold">
+                            ${company.stockPrice?.toLocaleString() ?? "N/A"}
+                          </span>
+                          {companyHistory.length > 1 ? (
+                            <div
+                              className={`text-xs flex items-center gap-0.5 ${
+                                priceChange === 0
+                                  ? "text-muted-foreground"
+                                  : priceChange > 0
+                                    ? "text-green-600"
+                                    : "text-red-600"
+                              }`}
+                            >
+                              {priceChange > 0 ? (
+                                <TrendingUp className="h-3 w-3" />
+                              ) : priceChange < 0 ? (
+                                <TrendingDown className="h-3 w-3" />
+                              ) : (
+                                <TrendingUp className="h-3 w-3" />
+                              )}
+                              {priceChange > 0 ? "+" : ""}
+                              {priceChange.toFixed(1)}%
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              Price
                             </span>
-                            {companyHistory.length > 1 && (
-                              <div
-                                className={`text-xs flex items-center gap-1 ${
-                                  priceChange === 0
-                                    ? "text-muted-foreground"
-                                    : priceChange > 0
-                                      ? "text-green-600"
-                                      : "text-red-600"
-                                }`}
-                              >
-                                {priceChange === 0 ? (
-                                  <TrendingUp className="h-3 w-3" />
-                                ) : priceChange > 0 ? (
-                                  <TrendingUp className="h-3 w-3" />
-                                ) : (
-                                  <TrendingDown className="h-3 w-3" />
-                                )}
-                                {priceChange > 0 ? "+" : ""}
-                                {priceChange.toFixed(2)}% (24h)
-                              </div>
-                            )}
-                            {companyHistory.length <= 1 && (
-                              <span className="text-xs text-muted-foreground text-center sm:text-right">
-                                Price
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex flex-col items-center sm:items-end">
-                            <span className="text-lg sm:text-lg font-semibold">
-                              {Number(company.available).toLocaleString()}
-                            </span>
-                            <span className="text-xs text-muted-foreground text-center sm:text-right">
-                              Available
-                            </span>
-                          </div>
-
-                          <div className="flex flex-col items-center sm:items-end">
-                            <span className="text-lg sm:text-lg font-semibold">
-                              {Number(company.issuedShares).toLocaleString()}
-                            </span>
-                            <span className="text-xs text-muted-foreground text-center sm:text-right">
-                              Total
-                            </span>
-                          </div>
+                          )}
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center border rounded overflow-hidden bg-background">
-                            <input
-                              type="number"
-                              min={1}
-                              max={company.available}
-                              value={buyQuantities[company.id] || 1}
-                              onChange={(e) =>
+                        <div className="flex flex-col items-center">
+                          <span className="text-lg font-semibold">
+                            {Number(company.available).toLocaleString()}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            Available
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col items-center">
+                          <span className="text-lg font-semibold">
+                            {Number(company.issuedShares).toLocaleString()}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            Total
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center border rounded overflow-hidden bg-background">
+                          <input
+                            type="number"
+                            min={1}
+                            max={maxBuyable}
+                            value={buyQuantities[company.id] || 1}
+                            onChange={(e) =>
+                              setBuyQuantities({
+                                ...buyQuantities,
+                                [company.id]: Math.max(
+                                  1,
+                                  Math.min(Number(e.target.value), maxBuyable),
+                                ),
+                              })
+                            }
+                            className="w-14 px-2 py-1.5 text-sm text-center bg-background text-foreground border-0 focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            disabled={maxBuyable <= 0}
+                          />
+                          <div className="flex flex-col border-l">
+                            <button
+                              type="button"
+                              onClick={() =>
                                 setBuyQuantities({
                                   ...buyQuantities,
-                                  [company.id]: Math.max(
-                                    1,
-                                    Math.min(
-                                      Number(e.target.value),
-                                      company.available,
-                                    ),
+                                  [company.id]: Math.min(
+                                    (buyQuantities[company.id] || 1) + 1,
+                                    maxBuyable,
                                   ),
                                 })
                               }
-                              className="w-14 px-2 py-1.5 text-sm text-center bg-background text-foreground border-0 focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              disabled={company.available <= 0}
-                            />
-                            <div className="flex flex-col border-l">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setBuyQuantities({
-                                    ...buyQuantities,
-                                    [company.id]: Math.min(
-                                      (buyQuantities[company.id] || 1) + 1,
-                                      company.available,
-                                    ),
-                                  })
-                                }
-                                disabled={
-                                  company.available <= 0 ||
-                                  (buyQuantities[company.id] || 1) >=
-                                    company.available
-                                }
-                                className="px-1 py-0.5 hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                              >
-                                <ChevronUp className="w-3 h-3" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setBuyQuantities({
-                                    ...buyQuantities,
-                                    [company.id]: Math.max(
-                                      (buyQuantities[company.id] || 1) - 1,
-                                      1,
-                                    ),
-                                  })
-                                }
-                                disabled={
-                                  company.available <= 0 ||
-                                  (buyQuantities[company.id] || 1) <= 1
-                                }
-                                className="px-1 py-0.5 hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border-t"
-                              >
-                                <ChevronDown className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={company.available <= 0}
-                            className="w-full sm:w-auto"
-                            onClick={async (e) => {
-                              e.preventDefault();
-                              const quantity = buyQuantities[company.id] || 1;
-                              const totalCost =
-                                (company.stockPrice || 0) * quantity;
-
-                              if (Number(user?.money) < totalCost) {
-                                toast.error(
-                                  `Insufficient funds. Need $${totalCost.toLocaleString()} to buy ${quantity} share${quantity > 1 ? "s" : ""}.`,
-                                );
-                                return;
+                              disabled={
+                                maxBuyable <= 0 ||
+                                (buyQuantities[company.id] || 1) >= maxBuyable
                               }
-
-                              await buyShares({
-                                data: { companyId: company.id, quantity },
-                              })
-                                .then(() => {
-                                  toast.success(
-                                    `Bought ${quantity} share${quantity > 1 ? "s" : ""} of ${company.symbol} for $${totalCost.toLocaleString()}`,
-                                  );
-                                  navigate({ to: "/companies/market" });
+                              className="px-1 py-0.5 hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <ChevronUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setBuyQuantities({
+                                  ...buyQuantities,
+                                  [company.id]: Math.max(
+                                    (buyQuantities[company.id] || 1) - 1,
+                                    1,
+                                  ),
                                 })
-                                .catch((err) => {
-                                  toast.error(
-                                    err?.message || "Failed to buy shares.",
-                                  );
-                                });
-                            }}
-                          >
-                            {company.available <= 0
-                              ? "Sold Out"
-                              : `Buy ($${((company.stockPrice || 0) * (buyQuantities[company.id] || 1)).toLocaleString()})`}
-                          </Button>
+                              }
+                              disabled={
+                                maxBuyable <= 0 ||
+                                (buyQuantities[company.id] || 1) <= 1
+                              }
+                              className="px-1 py-0.5 hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border-t"
+                            >
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={maxBuyable <= 0}
+                          className="flex-1"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const quantity = buyQuantities[company.id] || 1;
+                            const totalCost =
+                              (company.stockPrice || 0) * quantity;
+
+                            if (Number(user?.money) < totalCost) {
+                              toast.error(
+                                `Insufficient funds. Need $${totalCost.toLocaleString()}.`,
+                              );
+                              return;
+                            }
+
+                            await buyShares({
+                              data: { companyId: company.id, quantity },
+                            })
+                              .then(() => {
+                                toast.success(
+                                  `Bought ${quantity} share${quantity > 1 ? "s" : ""} of ${company.symbol} for $${totalCost.toLocaleString()}`,
+                                );
+                                navigate({ to: "/companies/market" });
+                              })
+                              .catch((err) => {
+                                toast.error(
+                                  err?.message || "Failed to buy shares.",
+                                );
+                              });
+                          }}
+                        >
+                          {company.available <= 0
+                            ? "Sold Out"
+                            : maxBuyable <= 0
+                              ? "No Funds"
+                              : `Buy · $${((company.stockPrice || 0) * (buyQuantities[company.id] || 1)).toLocaleString()}`}
+                        </Button>
                       </div>
                     </div>
                   );
