@@ -170,49 +170,56 @@ export const Route = createFileRoute("/api/hourly-advance")({
             }
           }
 
-          // Pay dividends to company CEOs (1% of market cap per hour)
+          // Pay dividends to ALL shareholders proportionally
+          // Ownership% × 10% of market cap per hour
+          // e.g., 75% ownership = 7.5% of market cap, 100% = 10%, 1% = 0.1%
           let dividendsPaid = 0;
           for (const stock of allStocks) {
             if (stock.companyId) {
-              const [company] = await db
-                .select()
-                .from(companies)
-                .where(eq(companies.id, stock.companyId))
-                .limit(1);
+              // Get all shareholders for this company
+              const allHoldings = await db
+                .select({
+                  userId: userShares.userId,
+                  quantity: userShares.quantity,
+                })
+                .from(userShares)
+                .where(eq(userShares.companyId, stock.companyId));
 
-              if (company && company.creatorId) {
-                // Calculate market cap based on owned shares
-                const allHoldings = await db
-                  .select({ quantity: userShares.quantity })
-                  .from(userShares)
-                  .where(eq(userShares.companyId, company.id));
+              const totalOwnedShares = allHoldings.reduce(
+                (sum, h) => sum + (h.quantity || 0),
+                0,
+              );
 
-                const totalOwnedShares = allHoldings.reduce(
-                  (sum, h) => sum + (h.quantity || 0),
-                  0,
-                );
-                const marketCap = stock.price * totalOwnedShares;
-                const dividend = Math.floor(marketCap * 0.01); // 1% of market cap
+              if (totalOwnedShares <= 0) continue;
+
+              const marketCap = stock.price * totalOwnedShares;
+
+              for (const holding of allHoldings) {
+                const qty = holding.quantity || 0;
+                if (qty <= 0) continue;
+
+                const ownershipPct = qty / totalOwnedShares;
+                // ownership% × 10% of market cap
+                const dividend = Math.floor(ownershipPct * 0.1 * marketCap);
 
                 if (dividend > 0) {
-                  // Pay dividend to CEO
                   await db
                     .update(users)
                     .set({ money: sql`${users.money} + ${dividend}` })
-                    .where(eq(users.id, company.creatorId));
+                    .where(eq(users.id, holding.userId));
 
-                  // Record transaction
                   await db.insert(transactionHistory).values({
-                    userId: company.creatorId,
-                    description: `Dividend from ${company.name}: $${dividend.toLocaleString()} (Market Cap: $${marketCap.toLocaleString()})`,
+                    userId: holding.userId,
+                    description: `Dividend from ${stock.companySymbol}: $${dividend.toLocaleString()} (${(ownershipPct * 100).toFixed(1)}% ownership, Market Cap: $${marketCap.toLocaleString()})`,
                   });
 
                   dividendsPaid += dividend;
-                  console.log(
-                    `Paid $${dividend} dividend to CEO of ${stock.companySymbol} (Market Cap: $${marketCap})`,
-                  );
                 }
               }
+
+              console.log(
+                `${stock.companySymbol}: Paid dividends to ${allHoldings.length} shareholders (Market Cap: $${marketCap})`,
+              );
             }
           }
 

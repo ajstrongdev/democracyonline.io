@@ -13,7 +13,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import {
   Building2,
   ArrowLeft,
@@ -41,7 +40,7 @@ function CreateCompanyPage() {
   const [companyName, setCompanyName] = useState("");
   const [companySymbol, setCompanySymbol] = useState("");
   const [companyDescription, setCompanyDescription] = useState("");
-  const [companyCapital, setCompanyCapital] = useState(1000);
+  const [companyCapital, setCompanyCapital] = useState(100);
   const [retainedSharesPercent, setRetainedSharesPercent] = useState(50);
   const [selectedLogo, setSelectedLogo] = useState<string | null>(null);
   const [companyColor, setCompanyColor] = useState("#3b82f6");
@@ -178,8 +177,14 @@ function CreateCompanyPage() {
                   id="company-description"
                   placeholder="What does your company do?"
                   value={companyDescription}
-                  onChange={(e) => setCompanyDescription(e.target.value)}
+                  onChange={(e) =>
+                    setCompanyDescription(e.target.value.slice(0, 300))
+                  }
+                  maxLength={300}
                 />
+                <p className="text-sm text-muted-foreground text-right">
+                  {companyDescription.length}/300
+                </p>
               </div>
 
               {/* Company Color */}
@@ -237,63 +242,71 @@ function CreateCompanyPage() {
                 </div>
               </div>
 
-              {/* Startup Capital Slider */}
+              {/* Startup Capital */}
               <div className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4" />
-                      Startup Capital
-                    </Label>
-                    <span className="text-lg font-bold">
-                      ${companyCapital.toLocaleString()}
-                    </span>
-                  </div>
-                  <Slider
-                    value={[companyCapital]}
-                    onValueChange={(value) =>
-                      setCompanyCapital(
-                        Math.max(100, Math.floor(value[0] / 100) * 100),
-                      )
-                    }
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="startup-capital"
+                    className="flex items-center gap-2"
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    Startup Capital
+                  </Label>
+                  <Input
+                    id="startup-capital"
+                    type="number"
                     min={100}
                     max={maxCapital}
                     step={100}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>$100</span>
-                    <span>Max: ${maxCapital.toLocaleString()}</span>
-                  </div>
-                </div>
-
-                {/* Retained Shares Slider */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-2">
-                      <PieChart className="w-4 h-4" />
-                      Shares to Retain
-                    </Label>
-                    <span className="text-lg font-bold">
-                      {retainedSharesPercent}% ({retainedShares} shares)
-                    </span>
-                  </div>
-                  <Slider
-                    value={[safeRetainedPercent]}
-                    onValueChange={(value) =>
-                      setRetainedSharesPercent(
-                        Math.max(0, Math.min(100, value[0])),
+                    value={companyCapital}
+                    onChange={(e) =>
+                      setCompanyCapital(
+                        Math.max(
+                          100,
+                          Math.min(
+                            Math.floor(Number(e.target.value) / 100) * 100,
+                            maxCapital,
+                          ),
+                        ),
                       )
                     }
-                    min={0}
-                    max={100}
-                    step={5}
-                    className="w-full"
                   />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>0% (all available)</span>
-                    <span>100% (keep all)</span>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    $100 per share &middot; {totalShares} shares will be issued
+                    &middot; Max: ${maxCapital.toLocaleString()}
+                  </p>
+                </div>
+
+                {/* Shares to Retain */}
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="retained-shares"
+                    className="flex items-center gap-2"
+                  >
+                    <PieChart className="w-4 h-4" />
+                    Shares to Retain
+                  </Label>
+                  <Input
+                    id="retained-shares"
+                    type="number"
+                    min={0}
+                    max={totalShares}
+                    value={retainedShares}
+                    onChange={(e) => {
+                      const val = Math.max(
+                        0,
+                        Math.min(parseInt(e.target.value) || 0, totalShares),
+                      );
+                      setRetainedSharesPercent(
+                        totalShares > 0
+                          ? Math.round((val / totalShares) * 100)
+                          : 0,
+                      );
+                    }}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    {availableShares} shares will be available for trading
+                  </p>
                 </div>
               </div>
 
