@@ -42,6 +42,30 @@ export type VotingStatus = {
   votedCandidateIds: number[];
 };
 
+const getAuthenticatedUserId = async (email?: string) => {
+  if (!email) {
+    throw new Error("Authentication required");
+  }
+
+  const [currentUser] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(sql`lower(${users.email})`, sql`lower(${email})`))
+    .limit(1);
+
+  if (!currentUser) {
+    throw new Error("User not found");
+  }
+
+  return currentUser.id;
+};
+
+const rejectForgedUserId = (providedUserId: number | undefined, userId: number) => {
+  if (providedUserId !== undefined && providedUserId !== userId) {
+    throw new Error("You can only perform election actions as your own account");
+  }
+};
+
 // Get election info by election type (Senate or President)
 export const getElectionInfo = createServerFn()
   .inputValidator((data: { election: string }) => data)
@@ -92,13 +116,16 @@ export const getCandidates = createServerFn()
 // Declare candidacy for an election
 export const declareCandidate = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
-  .inputValidator((data: { userId: number; election: string }) => data)
-  .handler(async ({ data }) => {
+  .inputValidator((data: { userId?: number; election: string }) => data)
+  .handler(async ({ data, context }) => {
+    const authenticatedUserId = await getAuthenticatedUserId(context.user?.email);
+    rejectForgedUserId(data.userId, authenticatedUserId);
+
     // Check if user is already a candidate in any election
     const existingCandidacy = await db
       .select({ id: candidates.id })
       .from(candidates)
-      .where(eq(candidates.userId, data.userId))
+      .where(eq(candidates.userId, authenticatedUserId))
       .limit(1);
 
     if (existingCandidacy.length > 0) {
@@ -111,7 +138,7 @@ export const declareCandidate = createServerFn({ method: "POST" })
     const [newCandidate] = await db
       .insert(candidates)
       .values({
-        userId: data.userId,
+        userId: authenticatedUserId,
         election: data.election,
       })
       .returning();
@@ -119,7 +146,7 @@ export const declareCandidate = createServerFn({ method: "POST" })
     // Add feed item
     await addFeedItem({
       data: {
-        userId: data.userId,
+        userId: authenticatedUserId,
         content: `Is running as a candidate for the ${data.election}.`,
       },
     });
@@ -130,13 +157,16 @@ export const declareCandidate = createServerFn({ method: "POST" })
 // Revoke candidacy
 export const revokeCandidate = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
-  .inputValidator((data: { userId: number; election: string }) => data)
-  .handler(async ({ data }) => {
+  .inputValidator((data: { userId?: number; election: string }) => data)
+  .handler(async ({ data, context }) => {
+    const authenticatedUserId = await getAuthenticatedUserId(context.user?.email);
+    rejectForgedUserId(data.userId, authenticatedUserId);
+
     const result = await db
       .delete(candidates)
       .where(
         and(
-          eq(candidates.userId, data.userId),
+          eq(candidates.userId, authenticatedUserId),
           eq(candidates.election, data.election),
         ),
       )
@@ -149,7 +179,7 @@ export const revokeCandidate = createServerFn({ method: "POST" })
     // Add feed item
     await addFeedItem({
       data: {
-        userId: data.userId,
+        userId: authenticatedUserId,
         content: `Is no longer running as a candidate for the ${data.election}.`,
       },
     });
@@ -161,9 +191,12 @@ export const revokeCandidate = createServerFn({ method: "POST" })
 export const voteForCandidate = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
   .inputValidator(
-    (data: { userId: number; candidateId: number; election: string }) => data,
+    (data: { userId?: number; candidateId: number; election: string }) => data,
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const authenticatedUserId = await getAuthenticatedUserId(context.user?.email);
+    rejectForgedUserId(data.userId, authenticatedUserId);
+
     // Get the candidate to verify they're in the specified election
     const [candidate] = await db
       .select({ election: candidates.election })
@@ -202,7 +235,7 @@ export const voteForCandidate = createServerFn({ method: "POST" })
       .from(votes)
       .where(
         and(
-          eq(votes.userId, data.userId),
+          eq(votes.userId, authenticatedUserId),
           sql`${votes.candidateId} IN (${sql.join(
             candidateIds.map((id) => sql`${id}`),
             sql`, `,
@@ -224,7 +257,7 @@ export const voteForCandidate = createServerFn({ method: "POST" })
       .from(votes)
       .where(
         and(
-          eq(votes.userId, data.userId),
+          eq(votes.userId, authenticatedUserId),
           eq(votes.candidateId, data.candidateId),
         ),
       )
@@ -236,7 +269,7 @@ export const voteForCandidate = createServerFn({ method: "POST" })
 
     // Insert vote
     await db.insert(votes).values({
-      userId: data.userId,
+      userId: authenticatedUserId,
       voteType: data.election,
       candidateId: data.candidateId,
     });
@@ -251,7 +284,7 @@ export const voteForCandidate = createServerFn({ method: "POST" })
     await db
       .update(users)
       .set({ money: sql`${users.money} + 500` })
-      .where(eq(users.id, data.userId));
+      .where(eq(users.id, authenticatedUserId));
 
     // Get candidate name for transaction
     const [candidateUser] = await db
@@ -263,7 +296,7 @@ export const voteForCandidate = createServerFn({ method: "POST" })
 
     // Add transaction history
     await db.insert(transactionHistory).values({
-      userId: data.userId,
+      userId: authenticatedUserId,
       description: `+$500 for voting for ${candidateUser?.username || "candidate"} in ${data.election} election`,
     });
 
@@ -414,9 +447,12 @@ export const electionPageData = createServerFn()
 export const donateToCandidate = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator(
-    (data: { userId: number; candidateId: number; amount: number }) => data,
+    (data: { userId?: number; candidateId: number; amount: number }) => data,
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const authenticatedUserId = await getAuthenticatedUserId(context.user?.email);
+    rejectForgedUserId(data.userId, authenticatedUserId);
+
     // Get candidate and associated user
     const [candidate] = await db
       .select({
@@ -449,11 +485,11 @@ export const donateToCandidate = createServerFn()
     await db
       .update(users)
       .set({ money: sql`${users.money} - ${data.amount}` })
-      .where(eq(users.id, data.userId));
+      .where(eq(users.id, authenticatedUserId));
 
     // Add transaction history for donor
     await db.insert(transactionHistory).values({
-      userId: data.userId,
+      userId: authenticatedUserId,
       description: `-$${data.amount} donated to ${candidate.username}'s campaign in the ${candidate.election} election`,
     });
     // Add transaction history for candidate

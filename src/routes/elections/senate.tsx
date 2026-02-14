@@ -143,7 +143,7 @@ function CandidateItem({
     setIsDonating(true);
     try {
       await donateToCandidate({
-        data: { userId: currentUserId, candidateId: candidate.id, amount },
+        data: { candidateId: candidate.id, amount },
       });
       toast.success(
         `Donated $${amount} to ${candidateUser?.username}'s campaign!`,
@@ -622,7 +622,7 @@ function RouteComponent() {
     setIsSubmitting(true);
     try {
       const newCandidate = await declareCandidate({
-        data: { userId: userData.id, election: "Senate" },
+        data: { election: "Senate" },
       });
       setLocalCandidates((prev) => [
         ...prev,
@@ -646,7 +646,7 @@ function RouteComponent() {
     setIsSubmitting(true);
     try {
       await revokeCandidate({
-        data: { userId: userData.id, election: "Senate" },
+        data: { election: "Senate" },
       });
       setLocalCandidates((prev) =>
         prev.filter((c) => c.userId !== userData.id),
