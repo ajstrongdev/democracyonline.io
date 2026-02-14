@@ -453,52 +453,68 @@ export const donateToCandidate = createServerFn()
     const authenticatedUserId = await getAuthenticatedUserId(context.user?.email);
     rejectForgedUserId(data.userId, authenticatedUserId);
 
-    // Get candidate and associated user
-    const [candidate] = await db
-      .select({
-        id: candidates.id,
-        userId: candidates.userId,
-        election: candidates.election,
-        username: users.username,
-      })
-      .from(candidates)
-      .innerJoin(users, eq(candidates.userId, users.id))
-      .where(eq(candidates.id, data.candidateId))
-      .limit(1);
-
-    if (!candidate) {
-      throw new Error("Candidate not found");
-    }
-
     if (data.amount <= 0) {
       throw new Error("Donation amount must be greater than zero");
     }
 
-    // Update candidate's user's money
-    if (candidate.userId === null) {
-      throw new Error("Candidate does not have a valid userId");
-    }
-    await db
-      .update(candidates)
-      .set({ donations: sql`${candidates.donations} + ${data.amount}` })
-      .where(eq(candidates.userId, candidate.userId));
-    await db
-      .update(users)
-      .set({ money: sql`${users.money} - ${data.amount}` })
-      .where(eq(users.id, authenticatedUserId));
+    return db.transaction(async (tx) => {
+      const [candidate] = await tx
+        .select({
+          id: candidates.id,
+          userId: candidates.userId,
+          election: candidates.election,
+          username: users.username,
+        })
+        .from(candidates)
+        .innerJoin(users, eq(candidates.userId, users.id))
+        .where(eq(candidates.id, data.candidateId))
+        .limit(1);
 
-    // Add transaction history for donor
-    await db.insert(transactionHistory).values({
-      userId: authenticatedUserId,
-      description: `-$${data.amount} donated to ${candidate.username}'s campaign in the ${candidate.election} election`,
-    });
-    // Add transaction history for candidate
-    await db.insert(donationHistory).values({
-      candidateId: candidate.id,
-      amount: data.amount,
-    });
+      if (!candidate) {
+        throw new Error("Candidate not found");
+      }
 
-    return { success: true };
+      if (candidate.userId === null) {
+        throw new Error("Candidate does not have a valid userId");
+      }
+
+      const donorDebited = await tx
+        .update(users)
+        .set({ money: sql`${users.money} - ${data.amount}` })
+        .where(
+          and(
+            eq(users.id, authenticatedUserId),
+            sql`${users.money} >= ${data.amount}`,
+          ),
+        )
+        .returning({ id: users.id });
+
+      if (donorDebited.length === 0) {
+        throw new Error("Insufficient funds for donation");
+      }
+
+      const updatedCandidates = await tx
+        .update(candidates)
+        .set({ donations: sql`COALESCE(${candidates.donations}, 0) + ${data.amount}` })
+        .where(eq(candidates.id, candidate.id))
+        .returning({ id: candidates.id });
+
+      if (updatedCandidates.length === 0) {
+        throw new Error("Candidate not found");
+      }
+
+      await tx.insert(transactionHistory).values({
+        userId: authenticatedUserId,
+        description: `-$${data.amount} donated to ${candidate.username}'s campaign in the ${candidate.election} election`,
+      });
+
+      await tx.insert(donationHistory).values({
+        candidateId: candidate.id,
+        amount: data.amount,
+      });
+
+      return { success: true };
+    });
   });
 
 // Get campaign history (snapshots) for an election

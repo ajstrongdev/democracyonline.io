@@ -402,60 +402,64 @@ export const transferMoney = createServerFn({ method: "POST" })
       throw new Error("Unauthorized");
     }
 
-    const [sender] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, context.user.email))
-      .limit(1);
+    return db.transaction(async (tx) => {
+      const [sender] = await tx
+        .select({ id: users.id, username: users.username })
+        .from(users)
+        .where(eq(users.email, context.user.email))
+        .limit(1);
 
-    if (!sender) {
-      throw new Error("Sender not found");
-    }
+      if (!sender) {
+        throw new Error("Sender not found");
+      }
 
-    if ((sender.money || 0) < data.amount) {
-      throw new Error("Insufficient funds");
-    }
+      const [recipient] = await tx
+        .select({ id: users.id, username: users.username })
+        .from(users)
+        .where(eq(users.username, data.recipientUsername))
+        .limit(1);
 
-    const [recipient] = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, data.recipientUsername))
-      .limit(1);
+      if (!recipient) {
+        throw new Error("Recipient not found");
+      }
 
-    if (!recipient) {
-      throw new Error("Recipient not found");
-    }
+      if (sender.id === recipient.id) {
+        throw new Error("Cannot transfer money to yourself");
+      }
 
-    if (sender.id === recipient.id) {
-      throw new Error("Cannot transfer money to yourself");
-    }
+      const debitedSender = await tx
+        .update(users)
+        .set({ money: sql`${users.money} - ${data.amount}` })
+        .where(and(eq(users.id, sender.id), sql`${users.money} >= ${data.amount}`))
+        .returning({ id: users.id, money: users.money });
 
-    // Deduct from sender
-    await db
-      .update(users)
-      .set({ money: (sender.money || 0) - data.amount })
-      .where(eq(users.id, sender.id));
+      if (debitedSender.length === 0) {
+        throw new Error("Insufficient funds");
+      }
 
-    // Add to recipient
-    await db
-      .update(users)
-      .set({ money: (recipient.money || 0) + data.amount })
-      .where(eq(users.id, recipient.id));
+      const creditedRecipient = await tx
+        .update(users)
+        .set({ money: sql`${users.money} + ${data.amount}` })
+        .where(eq(users.id, recipient.id))
+        .returning({ id: users.id });
 
-    // Log transaction for sender
-    await db.insert(transactionHistory).values({
-      userId: sender.id,
-      description: `Sent $${data.amount.toLocaleString()} to ${recipient.username}`,
+      if (creditedRecipient.length === 0) {
+        throw new Error("Recipient not found");
+      }
+
+      await tx.insert(transactionHistory).values({
+        userId: sender.id,
+        description: `Sent $${data.amount.toLocaleString()} to ${recipient.username}`,
+      });
+
+      await tx.insert(transactionHistory).values({
+        userId: recipient.id,
+        description: `Received $${data.amount.toLocaleString()} from ${sender.username}`,
+      });
+
+      return {
+        success: true,
+        newBalance: Number(debitedSender[0].money || 0),
+      };
     });
-
-    // Log transaction for recipient
-    await db.insert(transactionHistory).values({
-      userId: recipient.id,
-      description: `Received $${data.amount.toLocaleString()} from ${sender.username}`,
-    });
-
-    return {
-      success: true,
-      newBalance: (sender.money || 0) - data.amount,
-    };
   });

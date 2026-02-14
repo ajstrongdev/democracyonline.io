@@ -9,7 +9,7 @@ import {
   sharePriceHistory,
 } from "@/db/schema";
 import { requireAuthMiddleware } from "@/middleware";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import {
   CreateCompanySchema,
   UpdateCompanySchema,
@@ -328,6 +328,10 @@ export const buyShares = createServerFn()
   .inputValidator((data: { companyId: number; quantity?: number }) => data)
   .handler(async ({ context, data }) => {
     const quantity = data.quantity || 1;
+    if (quantity <= 0) {
+      throw new Error("Quantity must be greater than zero");
+    }
+
     if (!context.user?.email) {
       throw new Error("Unauthorized");
     }
@@ -342,94 +346,88 @@ export const buyShares = createServerFn()
       throw new Error("User not found");
     }
 
-    const [company] = await db
-      .select()
-      .from(companies)
-      .where(eq(companies.id, data.companyId))
-      .limit(1);
+    await db.transaction(async (tx) => {
+      const [company] = await tx
+        .select()
+        .from(companies)
+        .where(eq(companies.id, data.companyId))
+        .limit(1);
 
-    if (!company) {
-      throw new Error("Company not found");
-    }
+      if (!company) {
+        throw new Error("Company not found");
+      }
 
-    const [stock] = await db
-      .select()
-      .from(stocks)
-      .where(eq(stocks.companyId, company.id))
-      .limit(1);
-
-    if (!stock) {
-      throw new Error("Stock not found for company");
-    }
-
-    const sharePrice = stock.price;
-    const totalCost = sharePrice * quantity;
-    if ((currentUser.money || 0) < totalCost) {
-      throw new Error(
-        `Insufficient funds to buy ${quantity} share${quantity > 1 ? "s" : ""}`,
+      await tx.execute(
+        sql`SELECT id FROM companies WHERE id = ${company.id} FOR UPDATE`,
       );
-    }
 
-    // Check if shares are available
-    const allUserShares = await db
-      .select()
-      .from(userShares)
-      .where(eq(userShares.companyId, company.id));
+      const [stock] = await tx
+        .select()
+        .from(stocks)
+        .where(eq(stocks.companyId, company.id))
+        .limit(1);
 
-    const totalSharesOwned = allUserShares.reduce(
-      (sum, share) => sum + (share.quantity || 0),
-      0,
-    );
+      if (!stock) {
+        throw new Error("Stock not found for company");
+      }
 
-    const availableShares = (company.issuedShares || 0) - totalSharesOwned;
+      const sharePrice = stock.price;
+      const totalCost = sharePrice * quantity;
 
-    if (availableShares < quantity) {
-      throw new Error(
-        `Only ${availableShares} share${availableShares !== 1 ? "s" : ""} available for purchase`,
-      );
-    }
+      const [sharesAggregate] = await tx
+        .select({ totalOwned: sql<number>`COALESCE(SUM(${userShares.quantity}), 0)` })
+        .from(userShares)
+        .where(eq(userShares.companyId, company.id));
 
-    // Deduct money from user
-    await db
-      .update(users)
-      .set({ money: (currentUser.money || 0) - totalCost })
-      .where(eq(users.id, currentUser.id));
+      const totalSharesOwned = Number(sharesAggregate?.totalOwned || 0);
+      const availableShares = Number(company.issuedShares || 0) - totalSharesOwned;
 
-    // Add shares to userShares
-    const [existingShare] = await db
-      .select()
-      .from(userShares)
-      .where(
-        and(
-          eq(userShares.userId, currentUser.id),
-          eq(userShares.companyId, company.id),
-        ),
-      )
-      .limit(1);
+      if (availableShares < quantity) {
+        throw new Error(
+          `Only ${availableShares} share${availableShares !== 1 ? "s" : ""} available for purchase`,
+        );
+      }
 
-    if (existingShare) {
-      await db
-        .update(userShares)
-        .set({ quantity: existingShare.quantity + quantity })
-        .where(eq(userShares.id, existingShare.id));
-    } else {
-      await db.insert(userShares).values({
+      const deductedRows = await tx
+        .update(users)
+        .set({ money: sql`${users.money} - ${totalCost}` })
+        .where(
+          and(
+            eq(users.id, currentUser.id),
+            sql`${users.money} >= ${totalCost}`,
+          ),
+        )
+        .returning({ id: users.id });
+
+      if (deductedRows.length === 0) {
+        throw new Error(
+          `Insufficient funds to buy ${quantity} share${quantity > 1 ? "s" : ""}`,
+        );
+      }
+
+      await tx
+        .insert(userShares)
+        .values({
+          userId: currentUser.id,
+          companyId: company.id,
+          quantity,
+        })
+        .onConflictDoUpdate({
+          target: [userShares.userId, userShares.companyId],
+          set: {
+            quantity: sql`${userShares.quantity} + ${quantity}`,
+          },
+        });
+
+      await tx
+        .update(stocks)
+        .set({ broughtToday: sql`COALESCE(${stocks.broughtToday}, 0) + ${quantity}` })
+        .where(eq(stocks.id, stock.id));
+
+      await tx.insert(transactionHistory).values({
         userId: currentUser.id,
-        companyId: company.id,
-        quantity: quantity,
+        description: `Bought ${quantity} share${quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) for $${totalCost.toLocaleString()}`,
       });
-    }
-
-    // Update stocks tracking
-    await db
-      .update(stocks)
-      .set({ broughtToday: (stock?.broughtToday || 0) + quantity })
-      .where(eq(stocks.id, stock.id));
-
-    // Update transaction history
-    await db.insert(transactionHistory).values({
-      userId: currentUser.id,
-      description: `Bought ${quantity} share${quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) for $${totalCost.toLocaleString()}`,
     });
   });
 
@@ -452,76 +450,76 @@ export const sellShares = createServerFn()
       throw new Error("User not found");
     }
 
-    const [company] = await db
-      .select()
-      .from(companies)
-      .where(eq(companies.id, data.companyId))
-      .limit(1);
-
-    if (!company) {
-      throw new Error("Company not found");
-    }
-
-    const [stock] = await db
-      .select()
-      .from(stocks)
-      .where(eq(stocks.companyId, company.id))
-      .limit(1);
-
-    if (!stock) {
-      throw new Error("Stock not found for company");
-    }
-
-    const [userShare] = await db
-      .select()
-      .from(userShares)
-      .where(
-        and(
-          eq(userShares.userId, currentUser.id),
-          eq(userShares.companyId, company.id),
-        ),
-      )
-      .limit(1);
-
-    if (
-      !userShare ||
-      userShare.quantity < data.quantity ||
-      data.quantity <= 0
-    ) {
+    if (data.quantity <= 0) {
       throw new Error("Not enough shares to sell");
     }
 
-    const totalValue = stock.price * data.quantity;
+    return db.transaction(async (tx) => {
+      const [company] = await tx
+        .select()
+        .from(companies)
+        .where(eq(companies.id, data.companyId))
+        .limit(1);
 
-    // Update user balance
-    await db
-      .update(users)
-      .set({ money: (currentUser.money || 0) + totalValue })
-      .where(eq(users.id, currentUser.id));
+      if (!company) {
+        throw new Error("Company not found");
+      }
 
-    // Update or delete userShares
-    if (userShare.quantity === data.quantity) {
-      await db.delete(userShares).where(eq(userShares.id, userShare.id));
-    } else {
-      await db
+      await tx.execute(
+        sql`SELECT id FROM companies WHERE id = ${company.id} FOR UPDATE`,
+      );
+
+      const [stock] = await tx
+        .select()
+        .from(stocks)
+        .where(eq(stocks.companyId, company.id))
+        .limit(1);
+
+      if (!stock) {
+        throw new Error("Stock not found for company");
+      }
+
+      const updatedShareRows = await tx
         .update(userShares)
-        .set({ quantity: userShare.quantity - data.quantity })
-        .where(eq(userShares.id, userShare.id));
-    }
+        .set({ quantity: sql`${userShares.quantity} - ${data.quantity}` })
+        .where(
+          and(
+            eq(userShares.userId, currentUser.id),
+            eq(userShares.companyId, company.id),
+            sql`${userShares.quantity} >= ${data.quantity}`,
+          ),
+        )
+        .returning({ id: userShares.id, quantity: userShares.quantity });
 
-    // Update stocks tracking
-    await db
-      .update(stocks)
-      .set({ soldToday: (stock?.soldToday || 0) + data.quantity })
-      .where(eq(stocks.id, stock.id));
+      if (updatedShareRows.length === 0) {
+        throw new Error("Not enough shares to sell");
+      }
 
-    // Update transaction history
-    await db.insert(transactionHistory).values({
-      userId: currentUser.id,
-      description: `Sold ${data.quantity} share${data.quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) for $${totalValue.toLocaleString()}`,
+      const updatedShare = updatedShareRows[0];
+
+      if (updatedShare.quantity === 0) {
+        await tx.delete(userShares).where(eq(userShares.id, updatedShare.id));
+      }
+
+      const totalValue = stock.price * data.quantity;
+
+      await tx
+        .update(users)
+        .set({ money: sql`${users.money} + ${totalValue}` })
+        .where(eq(users.id, currentUser.id));
+
+      await tx
+        .update(stocks)
+        .set({ soldToday: sql`COALESCE(${stocks.soldToday}, 0) + ${data.quantity}` })
+        .where(eq(stocks.id, stock.id));
+
+      await tx.insert(transactionHistory).values({
+        userId: currentUser.id,
+        description: `Sold ${data.quantity} share${data.quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) for $${totalValue.toLocaleString()}`,
+      });
+
+      return { success: true };
     });
-
-    return { success: true };
   });
 
 // CEO investment to issue more shares
@@ -549,129 +547,126 @@ export const investInCompany = createServerFn()
       throw new Error("User not found");
     }
 
-    const [company] = await db
-      .select()
-      .from(companies)
-      .where(eq(companies.id, data.companyId))
-      .limit(1);
-
-    if (!company) {
-      throw new Error("Company not found");
-    }
-
-    const [stock] = await db
-      .select()
-      .from(stocks)
-      .where(eq(stocks.companyId, company.id))
-      .limit(1);
-
-    if (!stock) {
-      throw new Error("Stock not found for company");
-    }
-
-    // Only the CEO (top shareholder) can issue new shares
-    const ceoId = await getCompanyCEOId(company.id);
-    if (ceoId !== currentUser.id) {
-      throw new Error("Only the CEO can invest to issue new shares");
-    }
-
-    const currentCapital = company.capital || 0;
-    const currentShares = company.issuedShares || 0;
-    const sharePrice = stock.price;
-
-    if (sharePrice <= 0) {
-      throw new Error("Invalid share price");
-    }
-
-    if (data.investmentAmount < sharePrice) {
-      throw new Error(`Investment must be at least $${sharePrice} (1 share)`);
-    }
-
-    // Check if user has enough money
-    if ((currentUser.money || 0) < data.investmentAmount) {
-      throw new Error("Insufficient funds for investment");
-    }
-
-    // Issue new shares at the current share price — no dilution, price stays the same
-    const newShares = Math.floor(data.investmentAmount / sharePrice);
-    const actualCost = newShares * sharePrice;
-    const newCapital = currentCapital + actualCost;
-    const newTotalShares = currentShares + newShares;
-
-    // Validate retained shares
-    if (data.retainedShares > newShares) {
-      throw new Error("Cannot retain more shares than are being issued");
-    }
-
-    // Update company
-    await db
-      .update(companies)
-      .set({
-        capital: newCapital,
-        issuedShares: newTotalShares,
-      })
-      .where(eq(companies.id, company.id));
-
-    // Deduct money from investor (only the amount that buys whole shares)
-    await db
-      .update(users)
-      .set({ money: (currentUser.money || 0) - actualCost })
-      .where(eq(users.id, currentUser.id));
-
-    // Add retained shares to CEO's holdings
-    if (data.retainedShares > 0) {
-      const existingShares = await db
+    return db.transaction(async (tx) => {
+      const [company] = await tx
         .select()
-        .from(userShares)
-        .where(
-          and(
-            eq(userShares.userId, currentUser.id),
-            eq(userShares.companyId, company.id),
-          ),
-        )
+        .from(companies)
+        .where(eq(companies.id, data.companyId))
         .limit(1);
 
-      if (existingShares.length > 0) {
-        // Update existing holding
-        await db
-          .update(userShares)
-          .set({
-            quantity: existingShares[0].quantity + data.retainedShares,
-          })
-          .where(eq(userShares.id, existingShares[0].id));
-      } else {
-        // Create new holding
-        await db.insert(userShares).values({
-          userId: currentUser.id,
-          companyId: company.id,
-          quantity: data.retainedShares,
-        });
+      if (!company) {
+        throw new Error("Company not found");
       }
-    }
 
-    // Share price stays the same — no dilution
-    const newSharePrice = sharePrice;
+      await tx.execute(
+        sql`SELECT id FROM companies WHERE id = ${company.id} FOR UPDATE`,
+      );
 
-    // Log price in history (unchanged, but records the event)
-    await db.insert(sharePriceHistory).values({
-      stockId: stock.id,
-      price: newSharePrice,
+      const [stock] = await tx
+        .select()
+        .from(stocks)
+        .where(eq(stocks.companyId, company.id))
+        .limit(1);
+
+      if (!stock) {
+        throw new Error("Stock not found for company");
+      }
+
+      const [topHolder] = await tx
+        .select({ userId: userShares.userId })
+        .from(userShares)
+        .where(eq(userShares.companyId, company.id))
+        .orderBy(desc(userShares.quantity))
+        .limit(1);
+
+      if (topHolder?.userId !== currentUser.id) {
+        throw new Error("Only the CEO can invest to issue new shares");
+      }
+
+      const currentCapital = Number(company.capital || 0);
+      const currentShares = Number(company.issuedShares || 0);
+      const sharePrice = Number(stock.price);
+
+      if (sharePrice <= 0) {
+        throw new Error("Invalid share price");
+      }
+
+      if (data.investmentAmount < sharePrice) {
+        throw new Error(`Investment must be at least $${sharePrice} (1 share)`);
+      }
+
+      const newShares = Math.floor(data.investmentAmount / sharePrice);
+      const actualCost = newShares * sharePrice;
+
+      if (data.retainedShares > newShares) {
+        throw new Error("Cannot retain more shares than are being issued");
+      }
+
+      if (data.retainedShares < 0) {
+        throw new Error("Retained shares cannot be negative");
+      }
+
+      const deductedRows = await tx
+        .update(users)
+        .set({ money: sql`${users.money} - ${actualCost}` })
+        .where(
+          and(
+            eq(users.id, currentUser.id),
+            sql`${users.money} >= ${actualCost}`,
+          ),
+        )
+        .returning({ id: users.id });
+
+      if (deductedRows.length === 0) {
+        throw new Error("Insufficient funds for investment");
+      }
+
+      const newCapital = currentCapital + actualCost;
+      const newTotalShares = currentShares + newShares;
+
+      await tx
+        .update(companies)
+        .set({
+          capital: newCapital,
+          issuedShares: newTotalShares,
+        })
+        .where(eq(companies.id, company.id));
+
+      if (data.retainedShares > 0) {
+        await tx
+          .insert(userShares)
+          .values({
+            userId: currentUser.id,
+            companyId: company.id,
+            quantity: data.retainedShares,
+          })
+          .onConflictDoUpdate({
+            target: [userShares.userId, userShares.companyId],
+            set: {
+              quantity: sql`${userShares.quantity} + ${data.retainedShares}`,
+            },
+          });
+      }
+
+      await tx.insert(sharePriceHistory).values({
+        stockId: stock.id,
+        price: sharePrice,
+      });
+
+      await tx.insert(transactionHistory).values({
+        userId: currentUser.id,
+        description: `Invested $${actualCost.toLocaleString()} in ${company.name}, issued ${newShares} new shares${data.retainedShares > 0 ? ` (retained ${data.retainedShares})` : ""}`,
+      });
+
+      return {
+        success: true,
+        newShares,
+        newTotalShares,
+        newCapital,
+        newSharePrice: sharePrice,
+        retainedShares: data.retainedShares,
+      };
     });
-
-    // Record transaction
-    await db.insert(transactionHistory).values({
-      userId: currentUser.id,
-      description: `Invested $${actualCost.toLocaleString()} in ${company.name}, issued ${newShares} new shares${data.retainedShares > 0 ? ` (retained ${data.retainedShares})` : ""}`,
-    });
-
-    return {
-      success: true,
-      newShares,
-      newTotalShares,
-      newCapital,
-      newSharePrice,
-      retainedShares: data.retainedShares,
-    };
   });
 
 export const getCompanyStakeholders = createServerFn()
@@ -796,7 +791,7 @@ export const getUserDividendCompanies = createServerFn()
         const userShares_ = holding.quantity || 0;
         const issuedShares = company.issuedShares || 0;
         const ownershipPct = issuedShares > 0 ? userShares_ / issuedShares : 0;
-        const marketCap = (company.stockPrice || 0) * totalOwnedShares;
+        const marketCap = (company.stockPrice || 0) * issuedShares;
         // ownership% × 10% of market cap
         const hourlyDividend = Math.floor(ownershipPct * 0.1 * marketCap);
         const dailyDividend = hourlyDividend * 24;
