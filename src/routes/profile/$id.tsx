@@ -110,7 +110,6 @@ function ProfilePage() {
     targetUser,
     party,
     allVotes = [],
-    ceoCompanies = [],
     dividendCompanies = [],
     currentUser: currentUserLoaderData,
     error,

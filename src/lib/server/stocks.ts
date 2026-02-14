@@ -569,6 +569,12 @@ export const investInCompany = createServerFn()
       throw new Error("Stock not found for company");
     }
 
+    // Only the CEO (top shareholder) can issue new shares
+    const ceoId = await getCompanyCEOId(company.id);
+    if (ceoId !== currentUser.id) {
+      throw new Error("Only the CEO can invest to issue new shares");
+    }
+
     const currentCapital = company.capital || 0;
     const currentShares = company.issuedShares || 0;
     const sharePrice = stock.price;
