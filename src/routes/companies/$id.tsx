@@ -184,146 +184,155 @@ function CompanyDetailPage() {
                 </div>
                 <div className="flex flex-row gap-2 w-full sm:w-auto">
                   {isCEO && (
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="gap-2 flex-1 sm:flex-initial"
-                      asChild
-                    >
-                      <Link
-                        to="/companies/edit/$id"
-                        params={{ id: String(company.id) }}
-                      >
-                        <Edit className="h-4 w-4" />
-                        Edit
-                      </Link>
-                    </Button>
-                  )}
-                  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogTrigger asChild>
+                    <>
                       <Button
+                        variant="outline"
                         size="lg"
                         className="gap-2 flex-1 sm:flex-initial"
+                        asChild
                       >
-                        <PiggyBank className="h-5 w-5" />
-                        Invest
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Invest in {company.name}</DialogTitle>
-                        <DialogDescription>
-                          Invest money to issue new shares. You can choose how
-                          many shares to retain for yourself.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <form onSubmit={handleInvest} className="space-y-4">
-                        <div>
-                          <Label>Your Balance</Label>
-                          <div className="flex items-center gap-2 text-lg font-bold">
-                            <Wallet className="h-4 w-4 text-muted-foreground" />
-                            ${userMoney?.toLocaleString() || 0}
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="sharesToIssue">Shares to Issue</Label>
-                          <Input
-                            id="sharesToIssue"
-                            type="number"
-                            min={1}
-                            max={maxAffordableShares}
-                            value={sharesToIssue}
-                            onChange={(e) => {
-                              const val = Math.max(
-                                1,
-                                Math.min(
-                                  parseInt(e.target.value) || 1,
-                                  maxAffordableShares,
-                                ),
-                              );
-                              setSharesToIssue(val);
-                              setRetainedShares(Math.min(retainedShares, val));
-                            }}
-                          />
-                          <p className="text-sm text-muted-foreground">
-                            ${sharePrice.toLocaleString()} per share &middot;
-                            Total cost: ${investmentAmount.toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="retained">Shares to Retain</Label>
-                          <Input
-                            id="retained"
-                            type="number"
-                            min={0}
-                            max={sharesToIssue}
-                            value={retainedShares}
-                            onChange={(e) =>
-                              setRetainedShares(
-                                Math.min(
-                                  parseInt(e.target.value) || 0,
-                                  sharesToIssue,
-                                ),
-                              )
-                            }
-                          />
-                          <p className="text-sm text-muted-foreground">
-                            {availableShares} shares will be available for
-                            trading
-                          </p>
-                        </div>
-                        <div className="rounded-lg bg-muted p-4 space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">
-                              Investment:
-                            </span>
-                            <span className="font-medium">
-                              ${investmentAmount.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">
-                              Shares Issued:
-                            </span>
-                            <span className="font-medium">{sharesToIssue}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">
-                              Price per Share:
-                            </span>
-                            <span className="font-medium">
-                              ${sharePrice.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">
-                              You Keep:
-                            </span>
-                            <span className="font-medium">
-                              {retainedShares}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">
-                              Available to Buy:
-                            </span>
-                            <span className="font-medium">
-                              {availableShares}
-                            </span>
-                          </div>
-                        </div>
-                        <Button
-                          type="submit"
-                          disabled={isInvesting}
-                          className="w-full"
+                        <Link
+                          to="/companies/edit/$id"
+                          params={{ id: String(company.id) }}
                         >
-                          {isInvesting
-                            ? "Investing..."
-                            : `Invest $${investmentAmount.toLocaleString()}`}
-                        </Button>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
+                          <Edit className="h-4 w-4" />
+                          Edit
+                        </Link>
+                      </Button>
+                      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button
+                            size="lg"
+                            className="gap-2 flex-1 sm:flex-initial"
+                          >
+                            <PiggyBank className="h-5 w-5" />
+                            Invest
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Invest in {company.name}</DialogTitle>
+                            <DialogDescription>
+                              Invest money to issue new shares. You can choose
+                              how many shares to retain for yourself.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <form onSubmit={handleInvest} className="space-y-4">
+                            <div>
+                              <Label>Your Balance</Label>
+                              <div className="flex items-center gap-2 text-lg font-bold">
+                                <Wallet className="h-4 w-4 text-muted-foreground" />
+                                ${userMoney?.toLocaleString() || 0}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="sharesToIssue">
+                                Shares to Issue
+                              </Label>
+                              <Input
+                                id="sharesToIssue"
+                                type="number"
+                                min={1}
+                                max={maxAffordableShares}
+                                value={sharesToIssue}
+                                onChange={(e) => {
+                                  const val = Math.max(
+                                    1,
+                                    Math.min(
+                                      parseInt(e.target.value) || 1,
+                                      maxAffordableShares,
+                                    ),
+                                  );
+                                  setSharesToIssue(val);
+                                  setRetainedShares(
+                                    Math.min(retainedShares, val),
+                                  );
+                                }}
+                              />
+                              <p className="text-sm text-muted-foreground">
+                                ${sharePrice.toLocaleString()} per share
+                                &middot; Total cost: $
+                                {investmentAmount.toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="retained">Shares to Retain</Label>
+                              <Input
+                                id="retained"
+                                type="number"
+                                min={0}
+                                max={sharesToIssue}
+                                value={retainedShares}
+                                onChange={(e) =>
+                                  setRetainedShares(
+                                    Math.min(
+                                      parseInt(e.target.value) || 0,
+                                      sharesToIssue,
+                                    ),
+                                  )
+                                }
+                              />
+                              <p className="text-sm text-muted-foreground">
+                                {availableShares} shares will be available for
+                                trading
+                              </p>
+                            </div>
+                            <div className="rounded-lg bg-muted p-4 space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  Investment:
+                                </span>
+                                <span className="font-medium">
+                                  ${investmentAmount.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  Shares Issued:
+                                </span>
+                                <span className="font-medium">
+                                  {sharesToIssue}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  Price per Share:
+                                </span>
+                                <span className="font-medium">
+                                  ${sharePrice.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  You Keep:
+                                </span>
+                                <span className="font-medium">
+                                  {retainedShares}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  Available to Buy:
+                                </span>
+                                <span className="font-medium">
+                                  {availableShares}
+                                </span>
+                              </div>
+                            </div>
+                            <Button
+                              type="submit"
+                              disabled={isInvesting}
+                              className="w-full"
+                            >
+                              {isInvesting
+                                ? "Investing..."
+                                : `Invest $${investmentAmount.toLocaleString()}`}
+                            </Button>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                    </>
+                  )}
                   <Button
                     variant="outline"
                     size="lg"
