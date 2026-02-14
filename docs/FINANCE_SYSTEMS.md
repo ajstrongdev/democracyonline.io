@@ -311,12 +311,18 @@ Example B (no trades decay):
 
 ### Hourly share inflation
 
-- Every company gets +1 issued share each hourly run:
-  - `issuedShares = issuedShares + 1`
+- Issuance policy is now environment-driven (feature-flagged), not always unconditional.
+- In `legacy-hourly` mode:
+  - every company gets `+1` issued share each hourly run.
+- In `event-conditional` mode:
+  - unconditional hourly minting is disabled.
+  - shares are minted only on configured issuance events (investment, optional buy-pressure trigger) with guardrails.
 
 Example:
 
-- If `issuedShares = 120` at hour `t`, it becomes `121` at `t + 1h` (before any additional trades/investments in that run).
+- If `issuedShares = 120` at hour `t`:
+  - `legacy-hourly`: becomes `121` at `t + 1h`
+  - `event-conditional`: remains `120` unless an issuance trigger occurs.
 
 ### Company dissolution
 
@@ -332,22 +338,16 @@ Example:
 
 ## 5) Market Cap and Dividend Display
 
-Current usage is not fully uniform:
+This branch standardizes market cap calculation to the issued-share definition used by payout logic:
 
-- Dividend engine (`hourly-advance`) uses:
+- Canonical definition:
   - `marketCap = price * issuedShares`
-- User dividend preview (`getUserDividendCompanies`) uses same definition.
-- Some company pages still display market cap from **owned shares**:
-  - `marketCap = price * totalOwnedShares`
+- Dividend engine and dividend previews use this definition.
+- Company-market surfaces were aligned to reduce payout/display drift.
 
-This means visible market cap in UI may differ from the cap used to pay dividends.
+Implementation intent:
 
-Example mismatch:
-
-- `price = 100`, `issuedShares = 500`, `totalOwnedShares = 300`
-- Dividend engine cap: `100 * 500 = 50,000`
-- UI cap (owned-shares variant): `100 * 300 = 30,000`
-- A player can see a `20,000` gap between display and payout model inputs.
+- Players should see market-cap values that match the values used by dividend and KPI processors.
 
 ---
 
@@ -380,132 +380,44 @@ Example gap:
 
 ---
 
-## Exploit / Glaring Issue Analysis
+## Exploit / Glaring Issue Analysis (Post-Branch Status)
 
 Severity uses: **Critical / High / Medium / Low**.
 
-## Critical
+### Resolved in this branch
 
-### 1) Broken authorization on election money actions
+1. **Critical — election money auth binding**
+  - Status: **Resolved**.
+  - Money-sensitive election actions are now bound to authenticated identity from server context rather than trusting client-supplied identity.
 
-Several election server mutations accept `userId` in input but do not enforce that it matches authenticated user identity.
+2. **Critical — TOCTOU/race risks on wallet/share mutation paths**
+  - Status: **Resolved (core paths)**.
+  - Key finance mutations were moved to transactional/atomic patterns to prevent stale read-then-write overspend behavior.
 
-Affected patterns include:
+3. **High — market-cap inconsistency between payout and display**
+  - Status: **Resolved**.
+  - Canonical market-cap definition (`price * issuedShares`) is now the expected basis across finance engine and aligned surfaces.
 
-- candidate declaration/revocation
-- candidate voting (+500 reward path)
-- candidate donation (wallet deduction path)
+4. **High — retained-share schema/runtime mismatch**
+  - Status: **Resolved**.
+  - Validation and runtime issuance rules are aligned.
 
-Impact:
+5. **High/Medium — unbounded and fractional money input risk**
+  - Status: **Resolved**.
+  - Shared finance validators enforce integer + capped values; DB-level CHECK constraints add defense in depth.
 
-- Attacker can potentially perform actions on behalf of other users.
-- Most severe: drain another user wallet via unauthorized donation requests.
+6. **High — cron endpoint dev-bypass risk**
+  - Status: **Resolved**.
+  - Dev bypass removed; scheduler token + bearer/OIDC checks are required for non-local calls.
 
-Conceptual example:
+### Remaining / ongoing risks
 
-- If a request can submit another user's ID and server-side identity binding is missing, the target user's wallet may be charged for an action they never initiated.
+1. **Medium — issuance policy tuning and KPI drift**
+  - Event-conditional issuance is implemented and feature-flagged, but KPI monitoring/rollout discipline remains important.
 
-Recommended fix:
-
-- Resolve authenticated user from middleware context server-side.
-- Ignore client-provided `userId` for authorization decisions.
-- Reject if acting user and target user mismatch (except explicit admin flows).
-
-### 2) TOCTOU / race conditions on wallet and share updates
-
-Many money/share updates follow read-then-write with non-atomic arithmetic.
-
-Examples:
-
-- transfer, buy, sell, invest, create company
-
-Impact:
-
-- Concurrent requests can overspend or produce stale-write outcomes.
-- Potential balance integrity issues under high concurrency.
-
-Conceptual example:
-
-- Two near-simultaneous buy requests both read the same pre-update balance, both pass checks, and both write updates, resulting in effective overspend.
-
-Recommended fix:
-
-- Use DB transactions + atomic SQL arithmetic with guard conditions.
-- Prefer statements like `UPDATE ... SET money = money - x WHERE id = ? AND money >= x` and verify affected row count.
-
-## High
-
-### 3) Market cap inconsistency across payout vs UI display
-
-- Dividends use `price * issuedShares`.
-- Some company UI views show `price * totalOwnedShares`.
-
-Impact:
-
-- Players see different “market cap” than the engine uses for payouts.
-- Can be perceived as payout bug or manipulation.
-
-Conceptual example:
-
-- A user sees lower UI market cap but receives dividends aligned to higher issued-share cap, causing trust/confusion issues even when payout math is internally consistent.
-
-Recommended fix:
-
-- Standardize on a single market cap definition (preferably one canonical helper shared by server + UI).
-
-### 4) Schema/runtime mismatch for retained share validation
-
-- `CreateCompanySchema` validates retained shares against `floor(capital / 50)`.
-- Runtime issuance is `floor(capital / 100)`.
-
-Impact:
-
-- Inputs can pass schema but fail at runtime; confusing behavior and error churn.
-
-Conceptual example:
-
-- A retained-share value passes schema limits derived from `/50` but is rejected later when runtime issuance is computed with `/100`.
-
-Recommended fix:
-
-- Align schema formula to runtime issuance formula.
-
-### 5) Unbounded monetary parameters (no hard caps)
-
-Examples:
-
-- party membership fee
-- transfers/donations amounts (positive check exists, but no max cap)
-
-Impact:
-
-- Griefing/accidental extreme values can destabilize economy or party membership.
-
-Conceptual example:
-
-- An excessively large party fee can eject most members on the next daily sweep, even if set unintentionally.
-
-Recommended fix:
-
-- Add domain caps + integer constraints to all money inputs.
-
-## Medium
-
-### 6) Fractional money input acceptance risk
-
-Some inputs are `z.number().positive()` without integer enforcement.
-
-Impact:
-
-- Potential precision/casting inconsistencies with bigint-backed monetary columns.
-
-Conceptual example:
-
-- Input such as `19.99` may be rounded or rejected inconsistently across paths, creating mismatched expectations versus integer wallet storage.
-
-Recommended fix:
-
-- Enforce integer-only money (`z.number().int().positive()`) and centralize currency type helpers.
+2. **Low/Medium — transaction-history parity gaps**
+  - Some wallet/ledger mirror semantics are still asymmetric by design (for example, party-ledger vs user-wallet mirroring).
+  - This is mainly auditability/UX clarity risk, not a core integrity break.
 
 ### PR4 Implementation Notes (Issue #229)
 
@@ -649,11 +561,10 @@ Environment expectations:
 
 ## Hardening Priority (Suggested)
 
-1. **Fix election auth binding to context user** (Critical)
-2. **Make wallet/share writes atomic and transactional** (Critical)
-3. **Standardize market cap definition everywhere** (High)
-4. **Align stock schema retained-share validation** (High)
-5. **Add integer + max constraints to all money inputs** (High/Medium)
+1. **Monitor event-conditional issuance KPIs and keep rollback-ready**
+2. **Close remaining transaction-history parity gaps**
+3. **Keep finance invariants covered with tests for new mutation paths**
+4. **Periodically audit cron auth configuration in deployed environments**
 
 ---
 
