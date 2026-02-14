@@ -186,10 +186,14 @@ export const Route = createFileRoute("/api/hourly-advance")({
                 .where(eq(userShares.companyId, stock.companyId));
 
               const issuedShares = stock.issuedShares || 0;
+              const totalOwnedShares = allHoldings.reduce(
+                (sum, h) => sum + (h.quantity || 0),
+                0,
+              );
 
               if (issuedShares <= 0) continue;
 
-              const marketCap = stock.price * issuedShares;
+              const marketCap = stock.price * totalOwnedShares;
 
               for (const holding of allHoldings) {
                 const qty = holding.quantity || 0;
