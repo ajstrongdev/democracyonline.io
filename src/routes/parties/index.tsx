@@ -11,7 +11,6 @@ import {
 } from "recharts";
 import { Suspense } from "react";
 import { Crown, Handshake, TrendingUp, Users } from "lucide-react";
-import type { User } from "firebase/auth";
 import type { ChartConfig } from "@/components/ui/chart";
 import {
   Card,
@@ -38,7 +37,7 @@ export const Route = createFileRoute("/parties/")({
   loader: async ({ context }) => {
     const userInfo = await getCurrentUserInfo();
 
-    const email = (context.auth.user as User | null)?.email || "";
+    const email = (context.auth.user)?.email || "";
 
     const partyData = await partyPageData({
       data: { email },

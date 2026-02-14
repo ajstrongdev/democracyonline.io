@@ -1,87 +1,9 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Landmark,
-  Crown,
-  FileText,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { CalendarData, CalendarEvent } from "@/lib/server/calendar";
-
-// Countdown timer component
-function CountdownTimer({
-  targetDate,
-  label,
-  icon: Icon,
-  color,
-}: {
-  targetDate: Date;
-  label: string;
-  icon: any;
-  color: string;
-}) {
-  const [timeRemaining, setTimeRemaining] = useState<string>("");
-
-  useEffect(() => {
-    const updateCountdown = () => {
-      const now = new Date();
-      const diff = targetDate.getTime() - now.getTime();
-
-      if (diff <= 0) {
-        setTimeRemaining("Now!");
-        return;
-      }
-
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor(
-        (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
-      );
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      if (days > 0) {
-        setTimeRemaining(`${days}d ${hours}h ${minutes}m ${seconds}s`);
-      } else if (hours > 0) {
-        setTimeRemaining(`${hours}h ${minutes}m ${seconds}s`);
-      } else if (minutes > 0) {
-        setTimeRemaining(`${minutes}m ${seconds}s`);
-      } else {
-        setTimeRemaining(`${seconds}s`);
-      }
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-
-    return () => clearInterval(interval);
-  }, [targetDate]);
-
-  return (
-    <Card className={`border-l-4 ${color}`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <Icon className="h-5 w-5" />
-          <CardTitle className="text-sm font-semibold">{label}</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-xl font-bold font-mono">{timeRemaining}</div>
-        <p className="text-xs text-muted-foreground mt-1">
-          {targetDate.toLocaleString(undefined, {
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-            timeZoneName: "short",
-          })}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
+import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 // Event type configuration
 const eventTypeConfig = {
@@ -161,7 +83,7 @@ export function CalendarView({ data }: { data: CalendarData }) {
   const startingDayOfWeek = firstDayOfMonth.getDay();
 
   // Create calendar grid
-  const calendarDays: (number | null)[] = [];
+  const calendarDays: Array<number | null> = [];
   for (let i = 0; i < startingDayOfWeek; i++) {
     calendarDays.push(null);
   }
@@ -170,7 +92,7 @@ export function CalendarView({ data }: { data: CalendarData }) {
   }
 
   // Group events by date (excluding bill events)
-  const eventsByDate = new Map<string, CalendarEvent[]>();
+  const eventsByDate = new Map<string, Array<CalendarEvent>>();
   calendarEvents.forEach((event) => {
     const dateKey = `${event.date.getFullYear()}-${event.date.getMonth()}-${event.date.getDate()}`;
     if (!eventsByDate.has(dateKey)) {

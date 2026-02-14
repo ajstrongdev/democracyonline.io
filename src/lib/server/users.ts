@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setCookie } from "@tanstack/react-start/server";
-import { eq, getTableColumns, sql, desc } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   accessTokens,
@@ -8,8 +8,8 @@ import {
   billVotesPresidential,
   billVotesSenate,
   bills,
-  users,
   transactionHistory,
+  users,
 } from "@/db/schema";
 import { db } from "@/db";
 import { getAdminAuth } from "@/lib/firebase-admin";
@@ -402,12 +402,13 @@ export const transferMoney = createServerFn({ method: "POST" })
     if (!context.user?.email) {
       throw new Error("Unauthorized");
     }
+    const senderEmail = context.user.email;
 
     return db.transaction(async (tx) => {
       const [sender] = await tx
         .select({ id: users.id, username: users.username })
         .from(users)
-        .where(eq(users.email, context.user.email))
+        .where(eq(users.email, senderEmail))
         .limit(1);
 
       if (!sender) {
