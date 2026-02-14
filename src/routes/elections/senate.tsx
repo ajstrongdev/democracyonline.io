@@ -1,16 +1,28 @@
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import {
+  Cell,
+  Label,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  YAxis,
+} from "recharts";
+import { DollarSign, PieChartIcon, TrendingUp, Users } from "lucide-react";
 import type { Candidate } from "@/lib/server/elections";
 import { getCurrentUserInfo, getUserFullById } from "@/lib/server/users";
 import { getPartyById } from "@/lib/server/party";
 import {
   declareCandidate,
-  electionPageData,
-  revokeCandidate,
   donateToCandidate,
+  electionPageData,
   getCampaignHistory,
+  revokeCandidate,
 } from "@/lib/server/elections";
-import { toast } from "sonner";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,18 +34,6 @@ import GenericSkeleton from "@/components/generic-skeleton";
 import { MessageDialog } from "@/components/message-dialog";
 import PartyLogo from "@/components/party-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
-import {
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-  Label,
-  YAxis,
-} from "recharts";
-import { TrendingUp, DollarSign, Users, PieChartIcon } from "lucide-react";
 
 export const Route = createFileRoute("/elections/senate")({
   loader: async () => {
@@ -307,7 +307,7 @@ function CampaignGraphs({
   candidates,
 }: {
   campaignHistory: Awaited<ReturnType<typeof getCampaignHistory>>;
-  candidates: Candidate[];
+  candidates: Array<Candidate>;
 }) {
   // Group snapshots by timestamp
   const timePoints = Array.from(

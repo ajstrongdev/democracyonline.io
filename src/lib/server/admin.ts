@@ -20,8 +20,8 @@ import {
   senateElection,
   sharePriceHistory,
   stocks,
-  users,
   userShares,
+  users,
   votes,
 } from "@/db/schema";
 
@@ -33,7 +33,7 @@ function isAdminEmail(email: string) {
 
 export const checkIsAdmin = createServerFn()
   .middleware([authMiddleware])
-  .handler(async ({ context }) => {
+  .handler(({ context }) => {
     const email = context.user?.email;
     console.log("[checkIsAdmin] User email from context:", email);
     console.log("[checkIsAdmin] ADMIN_EMAILS:", env.ADMIN_EMAILS);

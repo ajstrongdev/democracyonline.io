@@ -1,9 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate  } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { signIn } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,

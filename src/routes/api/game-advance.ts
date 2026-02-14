@@ -1,19 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
-import { and, desc, eq, inArray, sql, gt } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  candidatePurchases,
   candidateSnapshots,
   candidates,
-  candidatePurchases,
   elections,
   feed,
   items,
   parties,
   partyStances,
-  users,
   partyTransactionHistory,
   transactionHistory,
+  users,
 } from "@/db/schema";
 import { env } from "@/env";
 import { authorizeCronRequest } from "@/lib/server/cron-auth";
@@ -602,7 +602,7 @@ export const Route = createFileRoute("/api/game-advance")({
               );
 
             let totalFeesCollected = 0;
-            const ejectedMembers: string[] = [];
+            const ejectedMembers: Array<string> = [];
 
             for (const member of partyMembers) {
               const fee = party.partySubs ?? 0;

@@ -1,10 +1,24 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+  Briefcase,
+  Building2,
+  ChevronDown,
+  ChevronUp,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import * as LucideIcons from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { getCurrentUserInfo } from "@/lib/server/users";
 import {
+  buyShares,
   getCompanies,
   getSharePriceHistory,
   getUserShares,
-  buyShares,
 } from "@/lib/server/stocks";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import ProtectedRoute from "@/components/auth/protected-route";
@@ -16,26 +30,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Building2,
-  Briefcase,
-  TrendingUp,
-  ChevronUp,
-  ChevronDown,
-  TrendingDown,
-  Wallet,
-} from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
 import { BackButton } from "@/components/back-button";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Line, LineChart, XAxis, YAxis, CartesianGrid } from "recharts";
-import * as LucideIcons from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/companies/market")({
   loader: async () => {

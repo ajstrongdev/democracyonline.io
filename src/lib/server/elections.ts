@@ -1,16 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, sql, not, like } from "drizzle-orm";
+import { and, eq, like, not, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
-  elections,
+  candidateSnapshots,
   candidates,
-  votes,
-  users,
+  donationHistory,
+  elections,
   parties,
   transactionHistory,
-  donationHistory,
-  candidateSnapshots,
+  users,
+  votes,
 } from "@/db/schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
 import { addFeedItem } from "@/lib/server/feed";
@@ -41,7 +41,7 @@ export type VotingStatus = {
   votesUsed: number;
   maxVotes: number;
   votesRemaining: number;
-  votedCandidateIds: number[];
+  votedCandidateIds: Array<number>;
 };
 
 const getAuthenticatedUserId = async (email?: string) => {

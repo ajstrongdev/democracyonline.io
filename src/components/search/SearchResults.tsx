@@ -1,4 +1,4 @@
-import { User, Handshake, Users } from "lucide-react";
+import { Handshake, User, Users } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

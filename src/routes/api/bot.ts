@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { users, parties, elections, bills, candidates } from "@/db/schema";
-import { eq, sql, and, desc } from "drizzle-orm";
+import { bills, candidates, elections, parties, users } from "@/db/schema";
 
 export const Route = createFileRoute("/api/bot")({
   server: {

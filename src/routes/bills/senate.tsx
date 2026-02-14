@@ -1,22 +1,23 @@
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
+import type {SenateBill, Senator} from "@/lib/server/senate-bills";
 import { getCurrentUserInfo } from "@/lib/server/users";
 import {
-  senateBillsPageData,
+  
+  
   canVoteOnSenateBill,
   hasVotedOnSenateBill,
-  voteOnSenateBill,
-  type SenateBill,
-  type Senator,
+  senateBillsPageData,
+  voteOnSenateBill
 } from "@/lib/server/senate-bills";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardHeader,
   CardContent,
   CardFooter,
+  CardHeader,
 } from "@/components/ui/card";
 import { MessageDialog } from "@/components/message-dialog";
 import PartyLogo from "@/components/party-logo";
@@ -77,7 +78,7 @@ function RouteComponent() {
       Promise.all(
         bills.map(async (bill: BillWithVotes) => {
           const hasVoted = await hasVotedOnSenateBill({
-            data: { userId: userData.id!, billId: bill.id },
+            data: { userId: userData.id, billId: bill.id },
           });
           return { billId: bill.id, hasVoted };
         }),

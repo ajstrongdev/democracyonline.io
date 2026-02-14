@@ -1,18 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   companies,
   financeKpiSnapshots,
   shareIssuanceEvents,
+  sharePriceHistory,
   stocks,
-  users,
   transactionHistory,
   userShares,
-  sharePriceHistory,
+  users,
 } from "@/db/schema";
 import { requireAuthMiddleware } from "@/middleware";
-import { eq, and, desc, sql } from "drizzle-orm";
 import {
   CreateCompanySchema,
   UpdateCompanySchema,
@@ -923,5 +923,5 @@ export const getUserDividendCompanies = createServerFn()
       }),
     );
 
-    return result.filter(Boolean) as NonNullable<(typeof result)[number]>[];
+    return result.filter(Boolean) as Array<NonNullable<(typeof result)[number]>>;
   });

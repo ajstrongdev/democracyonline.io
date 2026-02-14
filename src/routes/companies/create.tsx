@@ -1,4 +1,13 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+  ArrowLeft,
+  Building2,
+  DollarSign,
+  PieChart,
+  TrendingUp,
+} from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { getCurrentUserInfo } from "@/lib/server/users";
 import { createCompany } from "@/lib/server/stocks";
 import { useUserData } from "@/lib/hooks/use-user-data";
@@ -13,16 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Building2,
-  ArrowLeft,
-  DollarSign,
-  PieChart,
-  TrendingUp,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { toast } from "sonner";
 import { icons } from "@/lib/utils/logo-helper";
 
 export const Route = createFileRoute("/companies/create")({

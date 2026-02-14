@@ -24,7 +24,7 @@ import {
   Hammer,
   Handshake,
   Heart,
-  Infinity,
+  Infinity as InfinityIcon,
   Key,
   Landmark,
   Languages,
@@ -102,7 +102,7 @@ export const icons: Array<{ name: string; Icon: LucideIcon }> = [
   { name: "Mountain", Icon: Mountain },
   { name: "Wind", Icon: Wind },
 
-  { name: "Infinity", Icon: Infinity },
+  { name: "Infinity", Icon: InfinityIcon },
   { name: "Book", Icon: Book },
   { name: "Lightbulb", Icon: Lightbulb },
   { name: "Palette", Icon: Palette },

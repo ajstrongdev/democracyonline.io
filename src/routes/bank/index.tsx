@@ -1,5 +1,15 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import {
+  ArrowRightLeft,
+  Clock,
+  Crown,
+  Landmark,
+  Send,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
+import { toast } from "sonner";
 import {
   getCurrentUserInfo,
   getTopRichestUsers,
@@ -16,18 +26,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Landmark,
-  Wallet,
-  Clock,
-  TrendingUp,
-  Crown,
-  ArrowRightLeft,
-  Send,
-} from "lucide-react";
 import PartyLogo from "@/components/party-logo";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/bank/")({
   loader: async () => {

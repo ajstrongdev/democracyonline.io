@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { requireAuthMiddleware } from "@/middleware";
-import { eq } from "drizzle-orm";
 
 export const getBankBalance = createServerFn()
   .middleware([requireAuthMiddleware])
