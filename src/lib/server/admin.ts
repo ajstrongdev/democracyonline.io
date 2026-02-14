@@ -13,11 +13,15 @@ import {
   bills,
   candidates,
   chats,
+  companies,
   feed,
   parties,
   presidentialElection,
   senateElection,
+  sharePriceHistory,
+  stocks,
   users,
+  userShares,
   votes,
 } from "@/db/schema";
 
@@ -265,3 +269,33 @@ export const deleteAccessToken = createServerFn({ method: "POST" })
       return { success: true };
     },
   );
+
+export const resetEconomy = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    const email = context.user?.email;
+    if (!email || !isAdminEmail(email)) {
+      throw new Error("Unauthorized");
+    }
+
+    // Delete share price history
+    await db.delete(sharePriceHistory);
+
+    // Delete all user share holdings
+    await db.delete(userShares);
+
+    // Delete all stock entries
+    await db.delete(stocks);
+
+    // Delete all companies
+    await db.delete(companies);
+
+    // Reset all players' money to $2500
+    await db.update(users).set({ money: 2500 });
+
+    return {
+      success: true,
+      message:
+        "Economy reset: all companies, shares, and price history deleted. All players given $2,500.",
+    };
+  });

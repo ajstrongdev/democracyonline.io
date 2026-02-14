@@ -11,6 +11,7 @@ import {
   users,
   transactionHistory,
   userShares,
+  feed,
 } from "@/db/schema";
 import { env } from "@/env";
 import { eq, sql, desc } from "drizzle-orm";
@@ -131,6 +132,22 @@ export const Route = createFileRoute("/api/hourly-advance")({
             }
           }
 
+          // Issue one new share per company each hour
+          for (const stock of allStocks) {
+            if (stock.companyId) {
+              await db
+                .update(companies)
+                .set({
+                  issuedShares: sql`${companies.issuedShares} + 1`,
+                })
+                .where(eq(companies.id, stock.companyId));
+
+              console.log(
+                `${stock.companySymbol}: Issued 1 new share (total: ${(stock.issuedShares || 0) + 1})`,
+              );
+            }
+          }
+
           // Update company CEOs to whoever has the most shares
           for (const stock of allStocks) {
             if (stock.companyId) {
@@ -170,11 +187,49 @@ export const Route = createFileRoute("/api/hourly-advance")({
             }
           }
 
+          // Dissolve companies with no shareholders
+          const dissolvedCompanies: string[] = [];
+          for (const stock of allStocks) {
+            if (stock.companyId) {
+              const holders = await db
+                .select({ userId: userShares.userId })
+                .from(userShares)
+                .where(eq(userShares.companyId, stock.companyId))
+                .limit(1);
+
+              if (holders.length === 0) {
+                // Remove price history, stock entry, then company
+                await db
+                  .delete(sharePriceHistory)
+                  .where(eq(sharePriceHistory.stockId, stock.id));
+                await db.delete(stocks).where(eq(stocks.id, stock.id));
+                await db
+                  .delete(companies)
+                  .where(eq(companies.id, stock.companyId));
+
+                // Log to the public feed
+                await db.insert(feed).values({
+                  content: `${stock.companyName} (${stock.companySymbol}) has been dissolved due to having no shareholders.`,
+                });
+
+                dissolvedCompanies.push(stock.companySymbol);
+                console.log(
+                  `${stock.companySymbol}: Dissolved — no shareholders remaining`,
+                );
+              }
+            }
+          }
+
+          // Filter out dissolved companies before paying dividends
+          const activeStocks = allStocks.filter(
+            (s) => !dissolvedCompanies.includes(s.companySymbol),
+          );
+
           // Pay dividends to ALL shareholders proportionally
           // Ownership% × 10% of market cap per hour
           // e.g., 75% ownership = 7.5% of market cap, 100% = 10%, 1% = 0.1%
           let dividendsPaid = 0;
-          for (const stock of allStocks) {
+          for (const stock of activeStocks) {
             if (stock.companyId) {
               // Get all shareholders for this company
               const allHoldings = await db
