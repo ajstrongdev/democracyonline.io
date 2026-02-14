@@ -6,10 +6,6 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
-    IS_DEV: z
-      .string()
-      .default("false")
-      .transform((val) => val === "true"),
     ADMIN_EMAILS: z
       .string()
       .optional()
@@ -86,7 +82,6 @@ export const env = createEnv({
   runtimeEnv: {
     // Server-side variables from process.env
     NODE_ENV: process.env.NODE_ENV,
-    IS_DEV: process.env.IS_DEV,
     ADMIN_EMAILS: process.env.ADMIN_EMAILS,
     DATABASE_URL: process.env.DATABASE_URL,
     FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,

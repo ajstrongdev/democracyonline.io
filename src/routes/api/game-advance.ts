@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { env } from "@/env";
 import { authorizeCronRequest } from "@/lib/server/cron-auth";
+import { getAdminAuth } from "@/lib/firebase-admin";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -254,6 +255,10 @@ export const Route = createFileRoute("/api/game-advance")({
             });
 
             return { email: ticket.getPayload()?.email };
+          },
+          verifyAdminIdToken: async ({ idToken }) => {
+            const decoded = await getAdminAuth().verifyIdToken(idToken);
+            return { email: decoded.email };
           },
         });
 

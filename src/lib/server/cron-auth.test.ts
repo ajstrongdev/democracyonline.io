@@ -6,6 +6,7 @@ const defaultEnv = {
   SITE_URL: "https://democracyonline.io",
   CRON_SCHEDULER_TOKEN: "prod-token",
   CRON_LOCAL_TOKEN: "local-token",
+  ADMIN_EMAILS: ["admin@example.com"],
 };
 
 describe("authorizeCronRequest", () => {
@@ -116,5 +117,71 @@ describe("authorizeCronRequest", () => {
     });
 
     expect(result?.status).toBe(401);
+  });
+
+  it("accepts explicit admin-trigger requests with a valid admin token", async () => {
+    const request = new Request(
+      "https://democracyonline.io/api/hourly-advance",
+      {
+        headers: {
+          "x-admin-cron-trigger": "1",
+          authorization: "Bearer admin-token",
+        },
+      },
+    );
+
+    const result = await authorizeCronRequest({
+      request,
+      env: defaultEnv,
+      verifySchedulerIdToken: vi.fn(),
+      verifyAdminIdToken: vi.fn(async () => ({
+        email: "admin@example.com",
+      })),
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("accepts explicit admin-trigger requests on localhost with a valid admin token", async () => {
+    const request = new Request("http://localhost:3000/api/hourly-advance", {
+      headers: {
+        "x-admin-cron-trigger": "1",
+        authorization: "Bearer admin-token",
+      },
+    });
+
+    const result = await authorizeCronRequest({
+      request,
+      env: defaultEnv,
+      verifySchedulerIdToken: vi.fn(),
+      verifyAdminIdToken: vi.fn(async () => ({
+        email: "admin@example.com",
+      })),
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("rejects explicit admin-trigger requests for non-admin users", async () => {
+    const request = new Request(
+      "https://democracyonline.io/api/hourly-advance",
+      {
+        headers: {
+          "x-admin-cron-trigger": "1",
+          authorization: "Bearer admin-token",
+        },
+      },
+    );
+
+    const result = await authorizeCronRequest({
+      request,
+      env: defaultEnv,
+      verifySchedulerIdToken: vi.fn(),
+      verifyAdminIdToken: vi.fn(async () => ({
+        email: "not-admin@example.com",
+      })),
+    });
+
+    expect(result?.status).toBe(403);
   });
 });

@@ -457,8 +457,13 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
-        name  = "IS_DEV"
-        value = var.is_dev
+        name  = "CRON_SCHEDULER_TOKEN"
+        value = var.cron_scheduler_token
+      }
+
+      env {
+        name  = "CRON_LOCAL_TOKEN"
+        value = var.cron_local_token
       }
 
       env {
@@ -609,6 +614,10 @@ resource "google_cloud_scheduler_job" "game_advance" {
     http_method = "GET"
     uri         = "${local.custom_domain_enabled ? "https://${var.custom_domain}" : google_cloud_run_v2_service.app.uri}/api/game-advance"
 
+    headers = {
+      "x-scheduler-token" = var.cron_scheduler_token
+    }
+
     oidc_token {
       service_account_email = google_service_account.scheduler_sa.email
       audience              = local.custom_domain_enabled ? "https://${var.custom_domain}" : google_cloud_run_v2_service.app.uri
@@ -637,6 +646,10 @@ resource "google_cloud_scheduler_job" "bill_advance" {
   http_target {
     http_method = "GET"
     uri         = "${local.custom_domain_enabled ? "https://${var.custom_domain}" : google_cloud_run_v2_service.app.uri}/api/bill-advance"
+
+    headers = {
+      "x-scheduler-token" = var.cron_scheduler_token
+    }
 
     oidc_token {
       service_account_email = google_service_account.scheduler_sa.email
@@ -668,6 +681,10 @@ resource "google_cloud_scheduler_job" "hourly_advance" {
   http_target {
     http_method = "GET"
     uri         = "${local.custom_domain_enabled ? "https://${var.custom_domain}" : google_cloud_run_v2_service.app.uri}/api/hourly-advance"
+
+    headers = {
+      "x-scheduler-token" = var.cron_scheduler_token
+    }
 
     oidc_token {
       service_account_email = google_service_account.scheduler_sa.email

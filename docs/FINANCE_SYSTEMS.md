@@ -531,15 +531,15 @@ PR6 implementation notes (issue #232):
   - `finance_kpi_snapshots` for time-series dividend/market-cap snapshots.
 - Added migration: `drizzle/0010_event_conditional_share_issuance.sql`.
 
-### 8) Dev-mode bypass on critical cron endpoints
+### 8) Historical dev-mode bypass on critical cron endpoints
 
-`hourly-advance` skips auth when `IS_DEV` is true.
+Previously, `hourly-advance` could skip auth when `IS_DEV` was true.
 
-Impact:
+Previous impact:
 
 - If misconfigured in non-dev environment, endpoint can be abused.
 
-Conceptual example:
+Conceptual example (before fix):
 
 - If `IS_DEV` is mistakenly enabled in a shared environment, unauthenticated calls could trigger sensitive economy ticks.
 
@@ -552,6 +552,7 @@ PR5 implementation notes:
 - Added shared cron auth guard in `src/lib/server/cron-auth.ts` and applied it to:
   - `src/routes/api/hourly-advance.ts`
   - `src/routes/api/game-advance.ts`
+  - `src/routes/api/bill-advance.ts`
 - Removed `IS_DEV` bypass for these endpoints.
 - Non-local requests now require both:
   - `x-scheduler-token` header matching `CRON_SCHEDULER_TOKEN`
@@ -559,6 +560,10 @@ PR5 implementation notes:
 - Local non-production usage is explicitly gated by:
   - localhost request URL (`localhost` / `127.0.0.1` / `::1`)
   - `x-scheduler-token` header matching `CRON_LOCAL_TOKEN`
+- Admin dashboard manual triggers now use:
+  - `x-admin-cron-trigger: 1`
+  - `Authorization: Bearer <Firebase user ID token>`
+  - verified admin email membership via `ADMIN_EMAILS`
 
 Environment expectations:
 

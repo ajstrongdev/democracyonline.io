@@ -138,14 +138,27 @@ function RouteComponent() {
     setTokens(result.tokens);
   };
 
+  const getManualAdvanceHeaders = async () => {
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const idToken = await user.getIdToken();
+    return {
+      authorization: `Bearer ${idToken}`,
+      "x-admin-cron-trigger": "1",
+    };
+  };
+
   const runGameAdvance = async () => {
     setAdvanceLoading({ ...advanceLoading, game: true });
     try {
+      const headers = await getManualAdvanceHeaders();
       let successCount = 0;
       let failCount = 0;
 
       for (let i = 0; i < gameAdvanceCount; i++) {
-        const response = await fetch("/api/game-advance");
+        const response = await fetch("/api/game-advance", { headers });
         const data = await response.json();
         if (data.success) {
           successCount++;
@@ -172,11 +185,12 @@ function RouteComponent() {
   const runBillAdvance = async () => {
     setAdvanceLoading({ ...advanceLoading, bills: true });
     try {
+      const headers = await getManualAdvanceHeaders();
       let successCount = 0;
       let failCount = 0;
 
       for (let i = 0; i < billAdvanceCount; i++) {
-        const response = await fetch("/api/bill-advance");
+        const response = await fetch("/api/bill-advance", { headers });
         const data = await response.json();
         if (data.success) {
           successCount++;
@@ -203,11 +217,12 @@ function RouteComponent() {
   const runHourlyAdvance = async () => {
     setAdvanceLoading({ ...advanceLoading, hourly: true });
     try {
+      const headers = await getManualAdvanceHeaders();
       let successCount = 0;
       let failCount = 0;
 
       for (let i = 0; i < hourlyAdvanceCount; i++) {
-        const response = await fetch("/api/hourly-advance");
+        const response = await fetch("/api/hourly-advance", { headers });
         const data = await response.json();
         if (data.success) {
           successCount++;
