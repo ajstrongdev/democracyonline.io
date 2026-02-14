@@ -572,6 +572,24 @@ Recommended fix:
 
 - Add explicit environment hard-stop (e.g., require production scheduler token unless localhost).
 
+PR5 implementation notes:
+
+- Added shared cron auth guard in `src/lib/server/cron-auth.ts` and applied it to:
+  - `src/routes/api/hourly-advance.ts`
+  - `src/routes/api/game-advance.ts`
+- Removed `IS_DEV` bypass for these endpoints.
+- Non-local requests now require both:
+  - `x-scheduler-token` header matching `CRON_SCHEDULER_TOKEN`
+  - valid `Authorization: Bearer <OIDC ID token>` from a `*-scheduler@*.iam.gserviceaccount.com` service account
+- Local non-production usage is explicitly gated by:
+  - localhost request URL (`localhost` / `127.0.0.1` / `::1`)
+  - `x-scheduler-token` header matching `CRON_LOCAL_TOKEN`
+
+Environment expectations:
+
+- `CRON_SCHEDULER_TOKEN`: required in shared/prod environments for scheduler calls.
+- `CRON_LOCAL_TOKEN`: required for local non-production manual/scheduled cron invocation.
+
 ---
 
 ## Hardening Priority (Suggested)

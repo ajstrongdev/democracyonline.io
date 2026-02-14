@@ -35,6 +35,8 @@ export const env = createEnv({
       }),
     FIREBASE_PROJECT_ID: z.string().min(1),
     SITE_URL: z.url().default("http://localhost:3000"),
+    CRON_SCHEDULER_TOKEN: z.string().optional().default(""),
+    CRON_LOCAL_TOKEN: z.string().optional().default(""),
   },
 
   /**
@@ -67,6 +69,8 @@ export const env = createEnv({
     FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY,
     FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
     SITE_URL: process.env.SITE_URL,
+    CRON_SCHEDULER_TOKEN: process.env.CRON_SCHEDULER_TOKEN,
+    CRON_LOCAL_TOKEN: process.env.CRON_LOCAL_TOKEN,
     // Client-side variables from import.meta.env
     VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
     VITE_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,

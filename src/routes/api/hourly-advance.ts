@@ -15,6 +15,7 @@ import {
   users,
 } from "@/db/schema";
 import { env } from "@/env";
+import { authorizeCronRequest } from "@/lib/server/cron-auth";
 import {
   calculateHourlyDividend,
   calculateMarketCap,
@@ -26,50 +27,21 @@ export const Route = createFileRoute("/api/hourly-advance")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        // Skip authentication in development mode
-        if (!env.IS_DEV) {
-          const authHeader = request.headers.get("authorization");
-          if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            console.error("Missing or invalid Authorization header");
-            return new Response(
-              JSON.stringify({ success: false, error: "Unauthorized" }),
-              { status: 401, headers: { "Content-Type": "application/json" } },
-            );
-          }
-
-          const token = authHeader.substring(7);
-
-          try {
+        const authFailure = await authorizeCronRequest({
+          request,
+          env,
+          verifySchedulerIdToken: async ({ idToken, audience }) => {
             const ticket = await oAuth2Client.verifyIdToken({
-              idToken: token,
-              audience: env.SITE_URL || "https://democracyonline.io",
+              idToken,
+              audience,
             });
 
-            const payload = ticket.getPayload();
+            return { email: ticket.getPayload()?.email };
+          },
+        });
 
-            const expectedEmailPattern =
-              /-scheduler@.*\.iam\.gserviceaccount\.com$/;
-
-            if (!payload?.email || !expectedEmailPattern.test(payload.email)) {
-              console.error("Invalid service account:", payload?.email);
-              return new Response(
-                JSON.stringify({
-                  success: false,
-                  error: "Unauthorized - Invalid service account",
-                }),
-                {
-                  status: 403,
-                  headers: { "Content-Type": "application/json" },
-                },
-              );
-            }
-          } catch (error) {
-            console.error("Token verification failed:", error);
-            return new Response(
-              JSON.stringify({ success: false, error: "Unauthorized" }),
-              { status: 401, headers: { "Content-Type": "application/json" } },
-            );
-          }
+        if (authFailure) {
+          return authFailure;
         }
 
         try {
