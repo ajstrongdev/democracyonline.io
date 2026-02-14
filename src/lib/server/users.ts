@@ -15,6 +15,7 @@ import { db } from "@/db";
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { UpdateUserProfileSchema } from "@/lib/schemas/user-schema";
 import { SearchUsersSchema } from "@/lib/schemas/user-search-schema";
+import { positiveMoneyAmountSchema } from "@/lib/schemas/finance-schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware";
 import { env } from "@/env";
 
@@ -394,7 +395,7 @@ export const transferMoney = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       recipientUsername: z.string().min(1, "Recipient username is required"),
-      amount: z.number().positive("Amount must be positive"),
+      amount: positiveMoneyAmountSchema,
     }),
   )
   .handler(async ({ context, data }) => {
@@ -430,7 +431,9 @@ export const transferMoney = createServerFn({ method: "POST" })
       const debitedSender = await tx
         .update(users)
         .set({ money: sql`${users.money} - ${data.amount}` })
-        .where(and(eq(users.id, sender.id), sql`${users.money} >= ${data.amount}`))
+        .where(
+          and(eq(users.id, sender.id), sql`${users.money} >= ${data.amount}`),
+        )
         .returning({ id: users.id, money: users.money });
 
       if (debitedSender.length === 0) {

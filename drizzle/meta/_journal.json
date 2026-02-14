@@ -64,6 +64,13 @@
       "when": 1770567725635,
       "tag": "0008_typical_mac_gargan",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1771092000000,
+      "tag": "0009_finance_input_constraints",
+      "breakpoints": true
     }
   ]
 }

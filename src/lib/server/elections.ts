@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, sql, not, like } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/db";
 import {
   elections,
@@ -13,6 +14,7 @@ import {
 } from "@/db/schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
 import { addFeedItem } from "@/lib/server/feed";
+import { positiveMoneyAmountSchema } from "@/lib/schemas/finance-schema";
 
 // Types
 export type ElectionInfo = {
@@ -60,9 +62,14 @@ const getAuthenticatedUserId = async (email?: string) => {
   return currentUser.id;
 };
 
-const rejectForgedUserId = (providedUserId: number | undefined, userId: number) => {
+const rejectForgedUserId = (
+  providedUserId: number | undefined,
+  userId: number,
+) => {
   if (providedUserId !== undefined && providedUserId !== userId) {
-    throw new Error("You can only perform election actions as your own account");
+    throw new Error(
+      "You can only perform election actions as your own account",
+    );
   }
 };
 
@@ -118,7 +125,9 @@ export const declareCandidate = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { userId?: number; election: string }) => data)
   .handler(async ({ data, context }) => {
-    const authenticatedUserId = await getAuthenticatedUserId(context.user?.email);
+    const authenticatedUserId = await getAuthenticatedUserId(
+      context.user?.email,
+    );
     rejectForgedUserId(data.userId, authenticatedUserId);
 
     // Check if user is already a candidate in any election
@@ -159,7 +168,9 @@ export const revokeCandidate = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { userId?: number; election: string }) => data)
   .handler(async ({ data, context }) => {
-    const authenticatedUserId = await getAuthenticatedUserId(context.user?.email);
+    const authenticatedUserId = await getAuthenticatedUserId(
+      context.user?.email,
+    );
     rejectForgedUserId(data.userId, authenticatedUserId);
 
     const result = await db
@@ -194,7 +205,9 @@ export const voteForCandidate = createServerFn({ method: "POST" })
     (data: { userId?: number; candidateId: number; election: string }) => data,
   )
   .handler(async ({ data, context }) => {
-    const authenticatedUserId = await getAuthenticatedUserId(context.user?.email);
+    const authenticatedUserId = await getAuthenticatedUserId(
+      context.user?.email,
+    );
     rejectForgedUserId(data.userId, authenticatedUserId);
 
     // Get the candidate to verify they're in the specified election
@@ -446,16 +459,20 @@ export const electionPageData = createServerFn()
 
 export const donateToCandidate = createServerFn()
   .middleware([requireAuthMiddleware])
-  .inputValidator(
-    (data: { userId?: number; candidateId: number; amount: number }) => data,
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        userId: z.number().int().positive().optional(),
+        candidateId: z.number().int().positive(),
+        amount: positiveMoneyAmountSchema,
+      })
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
-    const authenticatedUserId = await getAuthenticatedUserId(context.user?.email);
+    const authenticatedUserId = await getAuthenticatedUserId(
+      context.user?.email,
+    );
     rejectForgedUserId(data.userId, authenticatedUserId);
-
-    if (data.amount <= 0) {
-      throw new Error("Donation amount must be greater than zero");
-    }
 
     return db.transaction(async (tx) => {
       const [candidate] = await tx
@@ -495,7 +512,9 @@ export const donateToCandidate = createServerFn()
 
       const updatedCandidates = await tx
         .update(candidates)
-        .set({ donations: sql`COALESCE(${candidates.donations}, 0) + ${data.amount}` })
+        .set({
+          donations: sql`COALESCE(${candidates.donations}, 0) + ${data.amount}`,
+        })
         .where(eq(candidates.id, candidate.id))
         .returning({ id: candidates.id });
 

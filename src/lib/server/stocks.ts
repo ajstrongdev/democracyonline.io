@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { db } from "@/db";
 import {
   companies,
@@ -19,6 +20,27 @@ import {
   calculateIssuedSharesFromCapital,
   calculateMarketCap,
 } from "@/lib/utils/stock-economy";
+import {
+  nonNegativeQuantitySchema,
+  positiveMoneyAmountSchema,
+  positiveQuantitySchema,
+} from "@/lib/schemas/finance-schema";
+
+const BuySharesInputSchema = z.object({
+  companyId: z.number().int().positive(),
+  quantity: positiveQuantitySchema.optional().default(1),
+});
+
+const SellSharesInputSchema = z.object({
+  companyId: z.number().int().positive(),
+  quantity: positiveQuantitySchema,
+});
+
+const InvestInCompanyInputSchema = z.object({
+  companyId: z.number().int().positive(),
+  investmentAmount: positiveMoneyAmountSchema,
+  retainedShares: nonNegativeQuantitySchema,
+});
 
 // Helper: find the CEO of a company (top shareholder by shares)
 async function getCompanyCEOId(companyId: number): Promise<number | null> {
@@ -330,12 +352,9 @@ export const getUserShares = createServerFn()
 
 export const buyShares = createServerFn()
   .middleware([requireAuthMiddleware])
-  .inputValidator((data: { companyId: number; quantity?: number }) => data)
+  .inputValidator((data: unknown) => BuySharesInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const quantity = data.quantity || 1;
-    if (quantity <= 0) {
-      throw new Error("Quantity must be greater than zero");
-    }
 
     if (!context.user?.email) {
       throw new Error("Unauthorized");
@@ -380,12 +399,15 @@ export const buyShares = createServerFn()
       const totalCost = sharePrice * quantity;
 
       const [sharesAggregate] = await tx
-        .select({ totalOwned: sql<number>`COALESCE(SUM(${userShares.quantity}), 0)` })
+        .select({
+          totalOwned: sql<number>`COALESCE(SUM(${userShares.quantity}), 0)`,
+        })
         .from(userShares)
         .where(eq(userShares.companyId, company.id));
 
       const totalSharesOwned = Number(sharesAggregate?.totalOwned || 0);
-      const availableShares = Number(company.issuedShares || 0) - totalSharesOwned;
+      const availableShares =
+        Number(company.issuedShares || 0) - totalSharesOwned;
 
       if (availableShares < quantity) {
         throw new Error(
@@ -426,7 +448,9 @@ export const buyShares = createServerFn()
 
       await tx
         .update(stocks)
-        .set({ broughtToday: sql`COALESCE(${stocks.broughtToday}, 0) + ${quantity}` })
+        .set({
+          broughtToday: sql`COALESCE(${stocks.broughtToday}, 0) + ${quantity}`,
+        })
         .where(eq(stocks.id, stock.id));
 
       await tx.insert(transactionHistory).values({
@@ -439,7 +463,7 @@ export const buyShares = createServerFn()
 // Sell shares
 export const sellShares = createServerFn()
   .middleware([requireAuthMiddleware])
-  .inputValidator((data: { companyId: number; quantity: number }) => data)
+  .inputValidator((data: unknown) => SellSharesInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     if (!context.user?.email) {
       throw new Error("Unauthorized");
@@ -453,10 +477,6 @@ export const sellShares = createServerFn()
 
     if (!currentUser) {
       throw new Error("User not found");
-    }
-
-    if (data.quantity <= 0) {
-      throw new Error("Not enough shares to sell");
     }
 
     return db.transaction(async (tx) => {
@@ -515,7 +535,9 @@ export const sellShares = createServerFn()
 
       await tx
         .update(stocks)
-        .set({ soldToday: sql`COALESCE(${stocks.soldToday}, 0) + ${data.quantity}` })
+        .set({
+          soldToday: sql`COALESCE(${stocks.soldToday}, 0) + ${data.quantity}`,
+        })
         .where(eq(stocks.id, stock.id));
 
       await tx.insert(transactionHistory).values({
@@ -530,13 +552,7 @@ export const sellShares = createServerFn()
 // CEO investment to issue more shares
 export const investInCompany = createServerFn()
   .middleware([requireAuthMiddleware])
-  .inputValidator(
-    (data: {
-      companyId: number;
-      investmentAmount: number;
-      retainedShares: number;
-    }) => data,
-  )
+  .inputValidator((data: unknown) => InvestInCompanyInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     if (!context.user?.email) {
       throw new Error("Unauthorized");
