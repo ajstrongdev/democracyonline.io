@@ -1,9 +1,5 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import {
-  getCompanyById,
-  getCompanyStakeholders,
-  investInCompany,
-} from "@/lib/server/stocks";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { getCompanyById, getCompanyStakeholders } from "@/lib/server/stocks";
 import { getCurrentUserInfo } from "@/lib/server/users";
 import {
   Card,
@@ -14,16 +10,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Building2,
   DollarSign,
@@ -31,12 +17,9 @@ import {
   Users,
   ArrowLeft,
   Wallet,
-  PiggyBank,
   Edit,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { useState } from "react";
-import { toast } from "sonner";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -53,12 +36,6 @@ export const Route = createFileRoute("/companies/$id")({
 
 function CompanyDetailPage() {
   const { company, stakeholders, userData } = Route.useLoaderData();
-  const router = useRouter();
-  const sharePrice = company?.stockPrice || 100;
-  const [sharesToIssue, setSharesToIssue] = useState(1);
-  const [retainedShares, setRetainedShares] = useState(0);
-  const [isInvesting, setIsInvesting] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   if (!company) {
     return (
@@ -80,20 +57,6 @@ function CompanyDetailPage() {
     ? company.stockPrice * (company.totalOwnedShares || 0)
     : 0;
 
-  const investmentAmount = sharesToIssue * sharePrice;
-  const maxAffordableShares = Math.max(
-    1,
-    Math.floor(
-      ((userData && typeof userData === "object" && "money" in userData
-        ? Number(userData.money)
-        : 0) || 0) / sharePrice,
-    ),
-  );
-  const availableShares = sharesToIssue - retainedShares;
-  const userMoney =
-    userData && typeof userData === "object" && "money" in userData
-      ? userData.money
-      : 0;
   const currentUserId =
     userData && typeof userData === "object" && "id" in userData
       ? (userData as any).id
@@ -105,31 +68,6 @@ function CompanyDetailPage() {
     const iconsMap = LucideIcons as unknown as Record<string, LucideIcon>;
     LogoIcon = iconsMap[company.logo] || null;
   }
-
-  const handleInvest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsInvesting(true);
-
-    try {
-      const result = await investInCompany({
-        data: {
-          companyId: company.id,
-          investmentAmount,
-          retainedShares,
-        },
-      });
-
-      toast.success(
-        `Successfully invested $${investmentAmount.toLocaleString()}! Issued ${result.newShares} shares at $${sharePrice}/share (${retainedShares} retained, ${availableShares} available)`,
-      );
-      setDialogOpen(false);
-      router.invalidate();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to invest");
-    } finally {
-      setIsInvesting(false);
-    }
-  };
 
   return (
     <div className="container max-w-6xl mx-auto px-4 py-8">
@@ -184,154 +122,20 @@ function CompanyDetailPage() {
                 </div>
                 <div className="flex flex-row gap-2 w-full sm:w-auto">
                   {isCEO && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        className="gap-2 flex-1 sm:flex-initial"
-                        asChild
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="gap-2 flex-1 sm:flex-initial"
+                      asChild
+                    >
+                      <Link
+                        to="/companies/edit/$id"
+                        params={{ id: String(company.id) }}
                       >
-                        <Link
-                          to="/companies/edit/$id"
-                          params={{ id: String(company.id) }}
-                        >
-                          <Edit className="h-4 w-4" />
-                          Edit
-                        </Link>
-                      </Button>
-                      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button
-                            size="lg"
-                            className="gap-2 flex-1 sm:flex-initial"
-                          >
-                            <PiggyBank className="h-5 w-5" />
-                            Invest
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Invest in {company.name}</DialogTitle>
-                            <DialogDescription>
-                              Invest money to issue new shares. You can choose
-                              how many shares to retain for yourself.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <form onSubmit={handleInvest} className="space-y-4">
-                            <div>
-                              <Label>Your Balance</Label>
-                              <div className="flex items-center gap-2 text-lg font-bold">
-                                <Wallet className="h-4 w-4 text-muted-foreground" />
-                                ${userMoney?.toLocaleString() || 0}
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="sharesToIssue">
-                                Shares to Issue
-                              </Label>
-                              <Input
-                                id="sharesToIssue"
-                                type="number"
-                                min={1}
-                                max={maxAffordableShares}
-                                value={sharesToIssue}
-                                onChange={(e) => {
-                                  const val = Math.max(
-                                    1,
-                                    Math.min(
-                                      parseInt(e.target.value) || 1,
-                                      maxAffordableShares,
-                                    ),
-                                  );
-                                  setSharesToIssue(val);
-                                  setRetainedShares(
-                                    Math.min(retainedShares, val),
-                                  );
-                                }}
-                              />
-                              <p className="text-sm text-muted-foreground">
-                                ${sharePrice.toLocaleString()} per share
-                                &middot; Total cost: $
-                                {investmentAmount.toLocaleString()}
-                              </p>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="retained">Shares to Retain</Label>
-                              <Input
-                                id="retained"
-                                type="number"
-                                min={0}
-                                max={sharesToIssue}
-                                value={retainedShares}
-                                onChange={(e) =>
-                                  setRetainedShares(
-                                    Math.min(
-                                      parseInt(e.target.value) || 0,
-                                      sharesToIssue,
-                                    ),
-                                  )
-                                }
-                              />
-                              <p className="text-sm text-muted-foreground">
-                                {availableShares} shares will be available for
-                                trading
-                              </p>
-                            </div>
-                            <div className="rounded-lg bg-muted p-4 space-y-2">
-                              <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                  Investment:
-                                </span>
-                                <span className="font-medium">
-                                  ${investmentAmount.toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                  Shares Issued:
-                                </span>
-                                <span className="font-medium">
-                                  {sharesToIssue}
-                                </span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                  Price per Share:
-                                </span>
-                                <span className="font-medium">
-                                  ${sharePrice.toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                  You Keep:
-                                </span>
-                                <span className="font-medium">
-                                  {retainedShares}
-                                </span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                  Available to Buy:
-                                </span>
-                                <span className="font-medium">
-                                  {availableShares}
-                                </span>
-                              </div>
-                            </div>
-                            <Button
-                              type="submit"
-                              disabled={isInvesting}
-                              className="w-full"
-                            >
-                              {isInvesting
-                                ? "Investing..."
-                                : `Invest $${investmentAmount.toLocaleString()}`}
-                            </Button>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
-                    </>
+                        <Edit className="h-4 w-4" />
+                        Edit
+                      </Link>
+                    </Button>
                   )}
                   <Button
                     variant="outline"

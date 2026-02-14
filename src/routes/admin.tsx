@@ -5,6 +5,7 @@ import {
   listAccessTokens,
   listDatabaseUsers,
   listFirebaseUsers,
+  resetEconomy,
 } from "@/lib/server/admin";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserList from "@/components/admin/user-list";
@@ -26,7 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Clock, FileText, Gamepad2 } from "lucide-react";
+import { Clock, FileText, Gamepad2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({
@@ -75,6 +76,7 @@ function RouteComponent() {
   const [gameAdvanceCount, setGameAdvanceCount] = useState(1);
   const [billAdvanceCount, setBillAdvanceCount] = useState(1);
   const [hourlyAdvanceCount, setHourlyAdvanceCount] = useState(1);
+  const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -383,6 +385,58 @@ function RouteComponent() {
               </AlertDialogContent>
             </AlertDialog>
           </div>
+        </div>
+      </div>
+
+      <div className="mb-6 p-4 border rounded-lg bg-card border-destructive">
+        <h2 className="text-xl font-semibold mb-4 text-destructive">
+          Danger Zone
+        </h2>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Reset the entire economy: delete all companies, shares, and price
+            history. All players will receive $2,500 as compensation.
+          </p>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                disabled={resetLoading}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                {resetLoading ? "Resetting..." : "Reset Economy"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reset the entire economy?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete all companies, shares, and share
+                  price history. Every player&apos;s balance will be set to
+                  $2,500. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    setResetLoading(true);
+                    try {
+                      const result = await resetEconomy();
+                      toast.success(result.message);
+                    } catch (error) {
+                      toast.error(`Failed to reset economy: ${error}`);
+                    } finally {
+                      setResetLoading(false);
+                    }
+                  }}
+                >
+                  Yes, reset everything
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
