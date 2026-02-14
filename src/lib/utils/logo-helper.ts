@@ -56,10 +56,9 @@ import {
   Users,
   Wind,
   Wrench,
-  Zap
+  Zap,
 } from "lucide-react";
-import type {
-  LucideIcon} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 export const icons: Array<{ name: string; Icon: LucideIcon }> = [
   { name: "Star", Icon: Star },

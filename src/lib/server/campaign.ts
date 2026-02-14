@@ -1,12 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import {
-  candidatePurchases,
-  candidates,
-  elections,
-  items,
-} from "@/db/schema";
+import { candidatePurchases, candidates, elections, items } from "@/db/schema";
 import { requireAuthMiddleware } from "@/middleware/auth";
 
 // Types

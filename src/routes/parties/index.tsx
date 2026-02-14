@@ -37,7 +37,7 @@ export const Route = createFileRoute("/parties/")({
   loader: async ({ context }) => {
     const userInfo = await getCurrentUserInfo();
 
-    const email = (context.auth.user)?.email || "";
+    const email = context.auth.user?.email || "";
 
     const partyData = await partyPageData({
       data: { email },
