@@ -556,6 +556,42 @@ Recommended fix:
 
 - Reassess if inflation should be conditional (e.g., on investment/events) instead of unconditional hourly issuance.
 
+PR6 balance-track decision (issue #231):
+
+- Decision: move from unconditional `+1 issued share/hour` to event-conditional minting.
+- Rationale:
+  - Unconditional issuance creates passive ownership drift even for inactive companies.
+  - Dividend share shrinks over time for long-hold users without any counter-play.
+  - Conditioning issuance on explicit economy activity keeps dilution tied to gameplay.
+
+Chosen policy shape:
+
+- Stop hourly unconditional minting in `hourly-advance`.
+- Mint only on defined economy events (implementation track):
+  - Company investment transaction accepted.
+  - Optional secondary trigger: sustained buy-pressure window (to be A/B gated).
+- Guardrails:
+  - Daily mint cap per company.
+  - No mint when there are no active holders.
+
+KPI baseline and expected impact:
+
+- KPI 1 — Daily ownership drift for passive holders
+  - Baseline (current model): for holder shares `q` and issued shares `S`, ownership drifts from `q/S` to `q/(S+24)` per day.
+  - Target: median passive-holder drift reduced by >= 70% after policy rollout.
+- KPI 2 — Dividend stability for passive holders
+  - Baseline: payout share decays mechanically with denominator growth even without trade/invest events.
+  - Target: week-over-week passive-holder dividend volatility reduced by >= 30%.
+- KPI 3 — Company dilution concentration
+  - Baseline: every company dilutes at the same hourly rate regardless of activity.
+  - Target: >= 80% of new issuance attributable to explicit mint-trigger events.
+
+Rollout criteria before implementation:
+
+- Feature flag added for issuance policy (`legacy-hourly` vs `event-conditional`).
+- 14-day comparison window with KPI dashboards and rollback switch.
+- Follow-up implementation issue required before merge to production.
+
 ### 8) Dev-mode bypass on critical cron endpoints
 
 `hourly-advance` skips auth when `IS_DEV` is true.
