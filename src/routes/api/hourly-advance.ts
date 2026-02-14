@@ -1,14 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   candidateSnapshots,
   candidates,
   companies,
   elections,
+  financeKpiSnapshots,
   feed,
   sharePriceHistory,
+  shareIssuanceEvents,
   stocks,
   transactionHistory,
   userShares,
@@ -16,6 +18,12 @@ import {
 } from "@/db/schema";
 import { env } from "@/env";
 import { authorizeCronRequest } from "@/lib/server/cron-auth";
+import {
+  calculateDividendPerShareMilli,
+  calculateHourlyDividendPool,
+  calculateOneShareOwnershipDriftBps,
+  shouldTriggerBuyPressureMint,
+} from "@/lib/utils/share-issuance-policy";
 import {
   calculateHourlyDividend,
   calculateMarketCap,
@@ -64,6 +72,20 @@ export const Route = createFileRoute("/api/hourly-advance")({
             `Processing ${allStocks.length} stocks for price updates`,
           );
 
+          const issuancePolicy = env.SHARE_ISSUANCE_POLICY;
+          const dailyMintCap = env.DAILY_COMPANY_MINT_CAP;
+          const buyPressureThreshold = env.BUY_PRESSURE_MINT_THRESHOLD;
+          const buyPressureTriggerEnabled =
+            env.ENABLE_BUY_PRESSURE_MINT_TRIGGER;
+
+          const dayStart = new Date();
+          dayStart.setHours(0, 0, 0, 0);
+          const nextDayStart = new Date(dayStart);
+          nextDayStart.setDate(nextDayStart.getDate() + 1);
+
+          let issuedThisTick = 0;
+          let issuanceEvents = 0;
+
           for (const stock of allStocks) {
             const bought = stock.broughtToday || 0;
             const sold = stock.soldToday || 0;
@@ -108,18 +130,145 @@ export const Route = createFileRoute("/api/hourly-advance")({
             }
           }
 
-          // Issue one new share per company each hour
-          for (const stock of allStocks) {
-            if (stock.companyId) {
+          if (issuancePolicy === "legacy-hourly") {
+            for (const stock of allStocks) {
+              if (!stock.companyId) {
+                continue;
+              }
+
+              const issuedSharesBefore = Number(stock.issuedShares || 0);
+              const mintedShares = 1;
+              const issuedSharesAfter = issuedSharesBefore + mintedShares;
+
+              const activeHoldersResult = await db
+                .select({ count: sql<number>`count(*)::int` })
+                .from(userShares)
+                .where(
+                  and(
+                    eq(userShares.companyId, stock.companyId),
+                    gte(userShares.quantity, 1),
+                  ),
+                );
+
+              const activeHolders = activeHoldersResult[0]?.count || 0;
+
               await db
                 .update(companies)
                 .set({
-                  issuedShares: sql`${companies.issuedShares} + 1`,
+                  issuedShares: issuedSharesAfter,
                 })
                 .where(eq(companies.id, stock.companyId));
 
+              await db.insert(shareIssuanceEvents).values({
+                companyId: stock.companyId,
+                policy: issuancePolicy,
+                source: "legacy-hourly",
+                mintedShares,
+                issuedSharesBefore,
+                issuedSharesAfter,
+                activeHolders,
+                buyPressureDelta: 0,
+                ownershipDriftBps: calculateOneShareOwnershipDriftBps({
+                  issuedSharesBefore,
+                  mintedShares,
+                }),
+              });
+
+              issuedThisTick += mintedShares;
+              issuanceEvents++;
+
               console.log(
-                `${stock.companySymbol}: Issued 1 new share (total: ${(stock.issuedShares || 0) + 1})`,
+                `${stock.companySymbol}: Issued ${mintedShares} share via legacy-hourly policy`,
+              );
+            }
+          }
+
+          if (
+            issuancePolicy === "event-conditional" &&
+            buyPressureTriggerEnabled
+          ) {
+            for (const stock of allStocks) {
+              if (!stock.companyId) {
+                continue;
+              }
+
+              const buyDelta = Number(stock.broughtToday || 0);
+              const sellDelta = Number(stock.soldToday || 0);
+              const netDemand = buyDelta - sellDelta;
+
+              if (
+                !shouldTriggerBuyPressureMint({
+                  policy: issuancePolicy,
+                  buyPressureTriggerEnabled,
+                  netDemand,
+                  buyPressureThreshold,
+                })
+              ) {
+                continue;
+              }
+
+              const activeHoldersResult = await db
+                .select({ count: sql<number>`count(*)::int` })
+                .from(userShares)
+                .where(
+                  and(
+                    eq(userShares.companyId, stock.companyId),
+                    gte(userShares.quantity, 1),
+                  ),
+                );
+
+              const activeHolders = activeHoldersResult[0]?.count || 0;
+              if (activeHolders <= 0) {
+                continue;
+              }
+
+              const alreadyMintedResult = await db
+                .select({
+                  total: sql<number>`COALESCE(SUM(${shareIssuanceEvents.mintedShares}), 0)::int`,
+                })
+                .from(shareIssuanceEvents)
+                .where(
+                  and(
+                    eq(shareIssuanceEvents.companyId, stock.companyId),
+                    gte(shareIssuanceEvents.createdAt, dayStart),
+                    lt(shareIssuanceEvents.createdAt, nextDayStart),
+                  ),
+                );
+
+              const alreadyMintedToday = alreadyMintedResult[0]?.total || 0;
+              if (alreadyMintedToday >= dailyMintCap) {
+                continue;
+              }
+
+              const mintedShares = 1;
+              const issuedSharesBefore = Number(stock.issuedShares || 0);
+              const issuedSharesAfter = issuedSharesBefore + mintedShares;
+
+              await db
+                .update(companies)
+                .set({ issuedShares: issuedSharesAfter })
+                .where(eq(companies.id, stock.companyId));
+
+              await db.insert(shareIssuanceEvents).values({
+                companyId: stock.companyId,
+                policy: issuancePolicy,
+                source: "buy-pressure",
+                mintedShares,
+                issuedSharesBefore,
+                issuedSharesAfter,
+                activeHolders,
+                buyPressureDelta: netDemand,
+                ownershipDriftBps: calculateOneShareOwnershipDriftBps({
+                  issuedSharesBefore,
+                  mintedShares,
+                }),
+              });
+
+              issuedThisTick += mintedShares;
+              issuanceEvents++;
+
+              console.log(
+                `${stock.companySymbol}: Issued ${mintedShares} share via buy-pressure trigger (net demand ${netDemand})`,
               );
             }
           }
@@ -225,6 +374,22 @@ export const Route = createFileRoute("/api/hourly-advance")({
                 issuedShares,
               });
 
+              const hourlyDividendPool = calculateHourlyDividendPool(marketCap);
+              const dividendPerShareMilli = calculateDividendPerShareMilli({
+                hourlyDividendPool,
+                issuedShares,
+              });
+
+              await db.insert(financeKpiSnapshots).values({
+                companyId: stock.companyId,
+                policy: issuancePolicy,
+                sharePrice: stock.price,
+                issuedShares,
+                marketCap,
+                hourlyDividendPool,
+                dividendPerShareMilli,
+              });
+
               for (const holding of allHoldings) {
                 const qty = holding.quantity || 0;
                 if (qty <= 0) continue;
@@ -316,7 +481,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
           return new Response(
             JSON.stringify({
               success: true,
-              message: `Updated ${allStocks.length} stock prices, paid $${dividendsPaid} in dividends, processed ${candidatesProcessed} candidates`,
+              message: `Updated ${allStocks.length} stock prices, issued ${issuedThisTick} shares via ${issuanceEvents} events, paid $${dividendsPaid} in dividends, processed ${candidatesProcessed} candidates`,
             }),
             {
               status: 200,

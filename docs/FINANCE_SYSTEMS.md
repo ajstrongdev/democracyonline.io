@@ -592,6 +592,25 @@ Rollout criteria before implementation:
 - 14-day comparison window with KPI dashboards and rollback switch.
 - Follow-up implementation issue required before merge to production.
 
+PR6 implementation notes (issue #232):
+
+- Added feature-flagged issuance controls in `src/env.ts`:
+  - `SHARE_ISSUANCE_POLICY` (`legacy-hourly` | `event-conditional`)
+  - `ENABLE_BUY_PRESSURE_MINT_TRIGGER`
+  - `BUY_PRESSURE_MINT_THRESHOLD`
+  - `DAILY_COMPANY_MINT_CAP`
+- Updated `src/routes/api/hourly-advance.ts`:
+  - `event-conditional` policy disables unconditional hourly minting.
+  - Optional buy-pressure trigger can mint shares when enabled and threshold is met.
+  - Buy-pressure issuance enforces guardrails: active holders required + per-company daily mint cap.
+- Updated `src/lib/server/stocks.ts` investment issuance:
+  - Event-triggered investment minting writes issuance telemetry.
+  - In `event-conditional` mode, investment minting enforces per-company daily cap.
+- Added queryable telemetry tables:
+  - `share_issuance_events` for issuance source attribution and ownership-drift signals.
+  - `finance_kpi_snapshots` for time-series dividend/market-cap snapshots.
+- Added migration: `drizzle/0010_event_conditional_share_issuance.sql`.
+
 ### 8) Dev-mode bypass on critical cron endpoints
 
 `hourly-advance` skips auth when `IS_DEV` is true.

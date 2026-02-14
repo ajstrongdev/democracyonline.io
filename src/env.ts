@@ -37,6 +37,30 @@ export const env = createEnv({
     SITE_URL: z.url().default("http://localhost:3000"),
     CRON_SCHEDULER_TOKEN: z.string().optional().default(""),
     CRON_LOCAL_TOKEN: z.string().optional().default(""),
+    SHARE_ISSUANCE_POLICY: z
+      .enum(["legacy-hourly", "event-conditional"])
+      .default("legacy-hourly"),
+    ENABLE_BUY_PRESSURE_MINT_TRIGGER: z
+      .string()
+      .optional()
+      .default("false")
+      .transform((val) => val === "true"),
+    BUY_PRESSURE_MINT_THRESHOLD: z
+      .string()
+      .optional()
+      .default("25")
+      .transform((val) => Number.parseInt(val, 10))
+      .refine((val) => Number.isFinite(val) && val > 0, {
+        message: "BUY_PRESSURE_MINT_THRESHOLD must be a positive integer",
+      }),
+    DAILY_COMPANY_MINT_CAP: z
+      .string()
+      .optional()
+      .default("10000")
+      .transform((val) => Number.parseInt(val, 10))
+      .refine((val) => Number.isFinite(val) && val > 0, {
+        message: "DAILY_COMPANY_MINT_CAP must be a positive integer",
+      }),
   },
 
   /**
@@ -71,6 +95,11 @@ export const env = createEnv({
     SITE_URL: process.env.SITE_URL,
     CRON_SCHEDULER_TOKEN: process.env.CRON_SCHEDULER_TOKEN,
     CRON_LOCAL_TOKEN: process.env.CRON_LOCAL_TOKEN,
+    SHARE_ISSUANCE_POLICY: process.env.SHARE_ISSUANCE_POLICY,
+    ENABLE_BUY_PRESSURE_MINT_TRIGGER:
+      process.env.ENABLE_BUY_PRESSURE_MINT_TRIGGER,
+    BUY_PRESSURE_MINT_THRESHOLD: process.env.BUY_PRESSURE_MINT_THRESHOLD,
+    DAILY_COMPANY_MINT_CAP: process.env.DAILY_COMPANY_MINT_CAP,
     // Client-side variables from import.meta.env
     VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
     VITE_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,

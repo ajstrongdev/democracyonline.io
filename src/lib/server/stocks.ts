@@ -3,6 +3,8 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
   companies,
+  financeKpiSnapshots,
+  shareIssuanceEvents,
   stocks,
   users,
   transactionHistory,
@@ -16,10 +18,16 @@ import {
   UpdateCompanySchema,
 } from "@/lib/schemas/stock-schema";
 import {
+  calculateDividendPerShareMilli,
+  calculateHourlyDividendPool,
+  calculateOneShareOwnershipDriftBps,
+} from "@/lib/utils/share-issuance-policy";
+import {
   calculateHourlyDividend,
   calculateIssuedSharesFromCapital,
   calculateMarketCap,
 } from "@/lib/utils/stock-economy";
+import { env } from "@/env";
 import {
   nonNegativeQuantitySchema,
   positiveMoneyAmountSchema,
@@ -642,6 +650,51 @@ export const investInCompany = createServerFn()
         throw new Error("Insufficient funds for investment");
       }
 
+      const activeHoldersResult = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(userShares)
+        .where(
+          and(
+            eq(userShares.companyId, company.id),
+            sql`${userShares.quantity} >= 1`,
+          ),
+        );
+
+      const activeHolders = activeHoldersResult[0]?.count || 0;
+
+      if (activeHolders <= 0) {
+        throw new Error("Cannot issue shares when no active holders exist");
+      }
+
+      if (env.SHARE_ISSUANCE_POLICY === "event-conditional") {
+        const dayStart = new Date();
+        dayStart.setHours(0, 0, 0, 0);
+        const nextDayStart = new Date(dayStart);
+        nextDayStart.setDate(nextDayStart.getDate() + 1);
+
+        const alreadyMintedResult = await tx
+          .select({
+            total: sql<number>`COALESCE(SUM(${shareIssuanceEvents.mintedShares}), 0)::int`,
+          })
+          .from(shareIssuanceEvents)
+          .where(
+            and(
+              eq(shareIssuanceEvents.companyId, company.id),
+              sql`${shareIssuanceEvents.createdAt} >= ${dayStart}`,
+              sql`${shareIssuanceEvents.createdAt} < ${nextDayStart}`,
+            ),
+          );
+
+        const alreadyMintedToday = alreadyMintedResult[0]?.total || 0;
+        const remainingMint = env.DAILY_COMPANY_MINT_CAP - alreadyMintedToday;
+
+        if (newShares > remainingMint) {
+          throw new Error(
+            `Daily mint cap exceeded. Remaining allowance: ${Math.max(remainingMint, 0)} share(s)`,
+          );
+        }
+      }
+
       const newCapital = currentCapital + actualCost;
       const newTotalShares = currentShares + newShares;
 
@@ -677,6 +730,41 @@ export const investInCompany = createServerFn()
       await tx.insert(transactionHistory).values({
         userId: currentUser.id,
         description: `Invested $${actualCost.toLocaleString()} in ${company.name}, issued ${newShares} new shares${data.retainedShares > 0 ? ` (retained ${data.retainedShares})` : ""}`,
+      });
+
+      await tx.insert(shareIssuanceEvents).values({
+        companyId: company.id,
+        policy: env.SHARE_ISSUANCE_POLICY,
+        source: "investment",
+        mintedShares: newShares,
+        issuedSharesBefore: currentShares,
+        issuedSharesAfter: newTotalShares,
+        activeHolders,
+        buyPressureDelta: 0,
+        ownershipDriftBps: calculateOneShareOwnershipDriftBps({
+          issuedSharesBefore: currentShares,
+          mintedShares: newShares,
+        }),
+      });
+
+      const marketCap = calculateMarketCap({
+        sharePrice,
+        issuedShares: newTotalShares,
+      });
+      const hourlyDividendPool = calculateHourlyDividendPool(marketCap);
+      const dividendPerShareMilli = calculateDividendPerShareMilli({
+        hourlyDividendPool,
+        issuedShares: newTotalShares,
+      });
+
+      await tx.insert(financeKpiSnapshots).values({
+        companyId: company.id,
+        policy: env.SHARE_ISSUANCE_POLICY,
+        sharePrice,
+        issuedShares: newTotalShares,
+        marketCap,
+        hourlyDividendPool,
+        dividendPerShareMilli,
       });
 
       return {
