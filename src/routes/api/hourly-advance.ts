@@ -185,20 +185,17 @@ export const Route = createFileRoute("/api/hourly-advance")({
                 .from(userShares)
                 .where(eq(userShares.companyId, stock.companyId));
 
-              const totalOwnedShares = allHoldings.reduce(
-                (sum, h) => sum + (h.quantity || 0),
-                0,
-              );
+              const issuedShares = stock.issuedShares || 0;
 
-              if (totalOwnedShares <= 0) continue;
+              if (issuedShares <= 0) continue;
 
-              const marketCap = stock.price * totalOwnedShares;
+              const marketCap = stock.price * issuedShares;
 
               for (const holding of allHoldings) {
                 const qty = holding.quantity || 0;
                 if (qty <= 0) continue;
 
-                const ownershipPct = qty / totalOwnedShares;
+                const ownershipPct = qty / issuedShares;
                 // ownership% × 10% of market cap
                 const dividend = Math.floor(ownershipPct * 0.1 * marketCap);
 
