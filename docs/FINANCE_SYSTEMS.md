@@ -113,23 +113,23 @@ Example:
 #### F. Hourly stock dividends
 
 - Paid in `hourly-advance`.
-- Company dividend pool is modeled as **10% of market cap per hour**, then split by ownership.
+- Company dividend pool is modeled as **1% of market cap per hour**, then split by ownership.
 - Current formulas:
   - `marketCap = stock.price * issuedShares`
   - `ownershipPct = holderShares / issuedShares`
-  - `holderDividend = floor(ownershipPct * 0.1 * marketCap)`
+  - `holderDividend = floor(ownershipPct * 0.01 * marketCap)`
   - `holder.money = holder.money + holderDividend`
 
 Example:
 
 - `stock.price = 200`, `issuedShares = 100` → `marketCap = 20,000`
-- Hourly dividend pool target is `10%` of cap → `2,000` total before per-holder flooring effects.
+- Hourly dividend pool target is `1%` of cap → `200` total before per-holder flooring effects.
 - Holder A owns `25` shares (`25%`):
-  - `floor(0.25 * 2,000) = 500`
+  - `floor(0.25 * 200) = 50`
 - Holder B owns `1` share (`1%`):
-  - `floor(0.01 * 2,000) = 20`
+  - `floor(0.01 * 200) = 2`
 - If price drops to `30`, a `1` share holder gets:
-  - `floor(1 * 30 * 0.1) = floor(3) = 3`.
+  - `floor(1 * 30 * 0.01) = floor(0.3) = 0`.
 
 ---
 
@@ -585,18 +585,18 @@ Environment expectations:
 
 Current formula is intentionally conservative and deterministic:
 
-- 10% of market cap per hour
+- 1% of market cap per hour
 - ownership-proportional
 - floored to integer payout
 
 Equivalent simplification under current market-cap definition:
 
-- `holderDividend = floor(holderShares * sharePrice * 0.1)`
+- `holderDividend = floor(holderShares * sharePrice * 0.01)`
 
 Because of floor rounding, tiny holdings at low prices can yield zero hourly payout.
 
 Example:
 
 - Holder has `3` shares, price is `45`.
-- `holderDividend = floor(3 * 45 * 0.1) = floor(13.5) = 13`.
-- If price falls to `20`: `floor(3 * 20 * 0.1) = floor(6) = 6`.
+- `holderDividend = floor(3 * 45 * 0.01) = floor(1.35) = 1`.
+- If price falls to `20`: `floor(3 * 20 * 0.01) = floor(0.6) = 0`.

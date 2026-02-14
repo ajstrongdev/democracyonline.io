@@ -25,5 +25,5 @@ export function calculateHourlyDividend(params: {
   const ownershipPct = Math.max(0, Number(params.ownershipPct || 0));
   const marketCap = Math.max(0, Number(params.marketCap || 0));
 
-  return Math.floor(ownershipPct * 0.1 * marketCap);
+  return Math.floor(ownershipPct * 0.01 * marketCap);
 }
