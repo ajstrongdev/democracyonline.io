@@ -387,37 +387,45 @@ Severity uses: **Critical / High / Medium / Low**.
 ### Resolved in this branch
 
 1. **Critical — election money auth binding**
-  - Status: **Resolved**.
-  - Money-sensitive election actions are now bound to authenticated identity from server context rather than trusting client-supplied identity.
+
+- Status: **Resolved**.
+- Money-sensitive election actions are now bound to authenticated identity from server context rather than trusting client-supplied identity.
 
 2. **Critical — TOCTOU/race risks on wallet/share mutation paths**
-  - Status: **Resolved (core paths)**.
-  - Key finance mutations were moved to transactional/atomic patterns to prevent stale read-then-write overspend behavior.
+
+- Status: **Resolved (core paths)**.
+- Key finance mutations were moved to transactional/atomic patterns to prevent stale read-then-write overspend behavior.
 
 3. **High — market-cap inconsistency between payout and display**
-  - Status: **Resolved**.
-  - Canonical market-cap definition (`price * issuedShares`) is now the expected basis across finance engine and aligned surfaces.
+
+- Status: **Resolved**.
+- Canonical market-cap definition (`price * issuedShares`) is now the expected basis across finance engine and aligned surfaces.
 
 4. **High — retained-share schema/runtime mismatch**
-  - Status: **Resolved**.
-  - Validation and runtime issuance rules are aligned.
+
+- Status: **Resolved**.
+- Validation and runtime issuance rules are aligned.
 
 5. **High/Medium — unbounded and fractional money input risk**
-  - Status: **Resolved**.
-  - Shared finance validators enforce integer + capped values; DB-level CHECK constraints add defense in depth.
+
+- Status: **Resolved**.
+- Shared finance validators enforce integer + capped values; DB-level CHECK constraints add defense in depth.
 
 6. **High — cron endpoint dev-bypass risk**
-  - Status: **Resolved**.
-  - Dev bypass removed; scheduler token + bearer/OIDC checks are required for non-local calls.
+
+- Status: **Resolved**.
+- Dev bypass removed; scheduler token + bearer/OIDC checks are required for non-local calls.
 
 ### Remaining / ongoing risks
 
 1. **Medium — issuance policy tuning and KPI drift**
-  - Event-conditional issuance is implemented and feature-flagged, but KPI monitoring/rollout discipline remains important.
+
+- Event-conditional issuance is implemented and feature-flagged, but KPI monitoring/rollout discipline remains important.
 
 2. **Low/Medium — transaction-history parity gaps**
-  - Some wallet/ledger mirror semantics are still asymmetric by design (for example, party-ledger vs user-wallet mirroring).
-  - This is mainly auditability/UX clarity risk, not a core integrity break.
+
+- Some wallet/ledger mirror semantics are still asymmetric by design (for example, party-ledger vs user-wallet mirroring).
+- This is mainly auditability/UX clarity risk, not a core integrity break.
 
 ### PR4 Implementation Notes (Issue #229)
 
