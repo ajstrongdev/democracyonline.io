@@ -790,7 +790,7 @@ export const getUserDividendCompanies = createServerFn()
         const userShares_ = holding.quantity || 0;
         const issuedShares = company.issuedShares || 0;
         const ownershipPct = issuedShares > 0 ? userShares_ / issuedShares : 0;
-        const marketCap = (company.stockPrice || 0) * issuedShares;
+        const marketCap = (company.stockPrice || 0) * totalOwnedShares;
         // ownership% × 10% of market cap
         const hourlyDividend = Math.floor(ownershipPct * 0.1 * marketCap);
         const dailyDividend = hourlyDividend * 24;
