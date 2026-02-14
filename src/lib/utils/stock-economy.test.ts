@@ -14,7 +14,10 @@ describe("stock economy helpers", () => {
   });
 
   it("calculates hourly dividend from ownership and market cap", () => {
-    const marketCap = calculateMarketCap({ sharePrice: 100, issuedShares: 1_000 });
+    const marketCap = calculateMarketCap({
+      sharePrice: 100,
+      issuedShares: 1_000,
+    });
     const hourlyDividend = calculateHourlyDividend({
       ownershipPct: 0.25,
       marketCap,
