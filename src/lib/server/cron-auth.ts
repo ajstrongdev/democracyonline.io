@@ -22,9 +22,7 @@ const unauthorized = (error: string, status = 401) =>
 
 export function isLocalHostname(hostname: string) {
   return (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1"
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1"
   );
 }
 
@@ -43,7 +41,8 @@ export async function authorizeCronRequest({
   verifySchedulerIdToken: VerifySchedulerIdToken;
 }): Promise<Response | null> {
   const schedulerToken = request.headers.get("x-scheduler-token");
-  const isLocalNonProd = isLocalRequest(request) && env.NODE_ENV !== "production";
+  const isLocalNonProd =
+    isLocalRequest(request) && env.NODE_ENV !== "production";
 
   if (isLocalNonProd) {
     if (!env.CRON_LOCAL_TOKEN) {

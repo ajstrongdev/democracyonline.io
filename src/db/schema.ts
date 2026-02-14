@@ -276,14 +276,14 @@ export const shareIssuanceEvents = pgTable("share_issuance_events", {
   policy: varchar("policy", { length: 32 }).notNull(),
   source: varchar("source", { length: 32 }).notNull(),
   mintedShares: bigint("minted_shares", { mode: "number" }).notNull(),
-  issuedSharesBefore: bigint("issued_shares_before", { mode: "number" })
-    .notNull(),
-  issuedSharesAfter: bigint("issued_shares_after", { mode: "number" })
-    .notNull(),
+  issuedSharesBefore: bigint("issued_shares_before", {
+    mode: "number",
+  }).notNull(),
+  issuedSharesAfter: bigint("issued_shares_after", {
+    mode: "number",
+  }).notNull(),
   activeHolders: bigint("active_holders", { mode: "number" }).default(0),
-  buyPressureDelta: bigint("buy_pressure_delta", { mode: "number" }).default(
-    0,
-  ),
+  buyPressureDelta: bigint("buy_pressure_delta", { mode: "number" }).default(0),
   ownershipDriftBps: bigint("ownership_drift_bps", { mode: "number" }).default(
     0,
   ),
@@ -299,8 +299,9 @@ export const financeKpiSnapshots = pgTable("finance_kpi_snapshots", {
   sharePrice: bigint("share_price", { mode: "number" }).notNull(),
   issuedShares: bigint("issued_shares", { mode: "number" }).notNull(),
   marketCap: bigint("market_cap", { mode: "number" }).notNull(),
-  hourlyDividendPool: bigint("hourly_dividend_pool", { mode: "number" })
-    .notNull(),
+  hourlyDividendPool: bigint("hourly_dividend_pool", {
+    mode: "number",
+  }).notNull(),
   dividendPerShareMilli: bigint("dividend_per_share_milli", {
     mode: "number",
   }).notNull(),

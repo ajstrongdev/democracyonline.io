@@ -10,7 +10,9 @@ const defaultEnv = {
 
 describe("authorizeCronRequest", () => {
   it("rejects non-local requests without scheduler token", async () => {
-    const request = new Request("https://democracyonline.io/api/hourly-advance");
+    const request = new Request(
+      "https://democracyonline.io/api/hourly-advance",
+    );
 
     const result = await authorizeCronRequest({
       request,
@@ -22,11 +24,14 @@ describe("authorizeCronRequest", () => {
   });
 
   it("rejects non-local requests without bearer auth", async () => {
-    const request = new Request("https://democracyonline.io/api/hourly-advance", {
-      headers: {
-        "x-scheduler-token": "prod-token",
+    const request = new Request(
+      "https://democracyonline.io/api/hourly-advance",
+      {
+        headers: {
+          "x-scheduler-token": "prod-token",
+        },
       },
-    });
+    );
 
     const result = await authorizeCronRequest({
       request,
@@ -38,12 +43,15 @@ describe("authorizeCronRequest", () => {
   });
 
   it("accepts non-local requests with valid scheduler token and service account", async () => {
-    const request = new Request("https://democracyonline.io/api/hourly-advance", {
-      headers: {
-        "x-scheduler-token": "prod-token",
-        authorization: "Bearer valid-token",
+    const request = new Request(
+      "https://democracyonline.io/api/hourly-advance",
+      {
+        headers: {
+          "x-scheduler-token": "prod-token",
+          authorization: "Bearer valid-token",
+        },
       },
-    });
+    );
 
     const result = await authorizeCronRequest({
       request,
