@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { calculateIssuedSharesFromCapital } from "@/lib/utils/stock-economy";
 
 export const CreateCompanySchema = z
   .object({
@@ -22,7 +23,7 @@ export const CreateCompanySchema = z
   })
   .refine(
     (data) => {
-      const totalShares = Math.floor(data.capital / 50);
+      const totalShares = calculateIssuedSharesFromCapital(data.capital);
       return data.retainedShares <= totalShares;
     },
     {

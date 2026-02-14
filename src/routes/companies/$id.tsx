@@ -22,6 +22,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { calculateMarketCap } from "@/lib/utils/stock-economy";
 
 export const Route = createFileRoute("/companies/$id")({
   loader: async ({ params }) => {
@@ -53,9 +54,10 @@ function CompanyDetailPage() {
     );
   }
 
-  const marketCap = company.stockPrice
-    ? company.stockPrice * (company.totalOwnedShares || 0)
-    : 0;
+  const marketCap = calculateMarketCap({
+    sharePrice: company.stockPrice,
+    issuedShares: company.issuedShares,
+  });
 
   const currentUserId =
     userData && typeof userData === "object" && "id" in userData

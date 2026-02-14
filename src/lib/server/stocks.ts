@@ -14,6 +14,11 @@ import {
   CreateCompanySchema,
   UpdateCompanySchema,
 } from "@/lib/schemas/stock-schema";
+import {
+  calculateHourlyDividend,
+  calculateIssuedSharesFromCapital,
+  calculateMarketCap,
+} from "@/lib/utils/stock-economy";
 
 // Helper: find the CEO of a company (top shareholder by shares)
 async function getCompanyCEOId(companyId: number): Promise<number | null> {
@@ -132,7 +137,7 @@ export const createCompany = createServerFn({ method: "POST" })
     }
 
     // Calculate issued shares: 1 share per $100 capital
-    const issuedShares = Math.floor(data.capital / 100);
+    const issuedShares = calculateIssuedSharesFromCapital(data.capital);
     const initialSharePrice = 100; // $100 per share
 
     if (data.retainedShares > issuedShares) {
@@ -791,9 +796,14 @@ export const getUserDividendCompanies = createServerFn()
         const userShares_ = holding.quantity || 0;
         const issuedShares = company.issuedShares || 0;
         const ownershipPct = issuedShares > 0 ? userShares_ / issuedShares : 0;
-        const marketCap = (company.stockPrice || 0) * issuedShares;
-        // ownership% × 10% of market cap
-        const hourlyDividend = Math.floor(ownershipPct * 0.1 * marketCap);
+        const marketCap = calculateMarketCap({
+          sharePrice: company.stockPrice,
+          issuedShares,
+        });
+        const hourlyDividend = calculateHourlyDividend({
+          ownershipPct,
+          marketCap,
+        });
         const dailyDividend = hourlyDividend * 24;
 
         return {

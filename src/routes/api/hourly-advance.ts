@@ -1,20 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
+import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  stocks,
-  sharePriceHistory,
-  companies,
-  candidates,
-  elections,
   candidateSnapshots,
-  users,
+  candidates,
+  companies,
+  elections,
+  feed,
+  sharePriceHistory,
+  stocks,
   transactionHistory,
   userShares,
-  feed,
+  users,
 } from "@/db/schema";
 import { env } from "@/env";
-import { eq, sql, desc } from "drizzle-orm";
+import {
+  calculateHourlyDividend,
+  calculateMarketCap,
+} from "@/lib/utils/stock-economy";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -188,7 +192,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
           }
 
           // Dissolve companies with no shareholders
-          const dissolvedCompanies: string[] = [];
+          const dissolvedCompanies: Array<string> = [];
           for (const stock of allStocks) {
             if (stock.companyId) {
               const holders = await db
@@ -241,14 +245,13 @@ export const Route = createFileRoute("/api/hourly-advance")({
                 .where(eq(userShares.companyId, stock.companyId));
 
               const issuedShares = stock.issuedShares || 0;
-              const totalOwnedShares = allHoldings.reduce(
-                (sum, h) => sum + (h.quantity || 0),
-                0,
-              );
 
               if (issuedShares <= 0) continue;
 
-              const marketCap = stock.price * totalOwnedShares;
+              const marketCap = calculateMarketCap({
+                sharePrice: stock.price,
+                issuedShares,
+              });
 
               for (const holding of allHoldings) {
                 const qty = holding.quantity || 0;
@@ -256,7 +259,10 @@ export const Route = createFileRoute("/api/hourly-advance")({
 
                 const ownershipPct = qty / issuedShares;
                 // ownership% × 10% of market cap
-                const dividend = Math.floor(ownershipPct * 0.1 * marketCap);
+                const dividend = calculateHourlyDividend({
+                  ownershipPct,
+                  marketCap,
+                });
 
                 if (dividend > 0) {
                   await db
