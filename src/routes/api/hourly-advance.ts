@@ -317,8 +317,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
           }
 
           // ========== TREASURY FILLS ==========
-          // Fill buy orders from the 1 share minted this hour (max 1 per company)
-          // No bulk unowned stock — only the freshly minted share is available
+          // Fill buy orders from unowned (treasury) shares
           let treasurySharesSold = 0;
 
           for (const stock of allStocks) {
@@ -335,8 +334,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
             const totalOwned = totalOwnedResult?.total || 0;
             const unownedShares = (stock.issuedShares || 0) - totalOwned;
 
-            // Only allow max 1 treasury share to be sold per tick (the minted one)
-            const availableShares = Math.min(unownedShares, 1);
+            const availableShares = unownedShares;
 
             if (availableShares <= 0) continue;
 
@@ -355,7 +353,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
                 ),
               )
               .orderBy(asc(stockOrders.createdAt))
-              .limit(5); // Only need a few since we sell at most 1 share
+              .limit(50);
 
             let sharesLeftToSell = availableShares;
 
