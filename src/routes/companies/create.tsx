@@ -1,11 +1,5 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  Building2,
-  DollarSign,
-  PieChart,
-  TrendingUp,
-} from "lucide-react";
+import { ArrowLeft, Building2, DollarSign, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { getCurrentUserInfo } from "@/lib/server/users";
@@ -41,15 +35,12 @@ function CreateCompanyPage() {
   const [companySymbol, setCompanySymbol] = useState("");
   const [companyDescription, setCompanyDescription] = useState("");
   const [companyCapital, setCompanyCapital] = useState(100);
-  const [retainedSharesPercent, setRetainedSharesPercent] = useState(50);
   const [selectedLogo, setSelectedLogo] = useState<string | null>(null);
   const [companyColor, setCompanyColor] = useState("#3b82f6");
   const [isCreating, setIsCreating] = useState(false);
 
   const totalShares = Math.floor(companyCapital / 100);
-  const safeRetainedPercent = Math.min(retainedSharesPercent, 100);
-  const retainedShares = Math.floor((totalShares * safeRetainedPercent) / 100);
-  const availableShares = totalShares - retainedShares;
+  const retainedShares = totalShares; // All created shares go to the founder
 
   const handleCreateCompany = async () => {
     if (!companyName || !companySymbol) {
@@ -138,7 +129,9 @@ function CreateCompanyPage() {
           <CardHeader>
             <CardTitle>Company Details</CardTitle>
             <CardDescription>
-              Every $100 in startup capital creates 1 share at $100 per share
+              Every $100 in startup capital creates 1 share at $100 per share.
+              All shares go to you — additional shares enter the market via
+              hourly minting (1 per hour).
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -272,40 +265,8 @@ function CreateCompanyPage() {
                     }
                   />
                   <p className="text-sm text-muted-foreground">
-                    $100 per share &middot; {totalShares} shares will be issued
-                    &middot; Max: ${maxCapital.toLocaleString()}
-                  </p>
-                </div>
-
-                {/* Shares to Retain */}
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="retained-shares"
-                    className="flex items-center gap-2"
-                  >
-                    <PieChart className="w-4 h-4" />
-                    Shares to Retain
-                  </Label>
-                  <Input
-                    id="retained-shares"
-                    type="number"
-                    min={0}
-                    max={totalShares}
-                    value={retainedShares}
-                    onChange={(e) => {
-                      const val = Math.max(
-                        0,
-                        Math.min(parseInt(e.target.value) || 0, totalShares),
-                      );
-                      setRetainedSharesPercent(
-                        totalShares > 0
-                          ? Math.round((val / totalShares) * 100)
-                          : 0,
-                      );
-                    }}
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    {availableShares} shares will be available for trading
+                    $100 per share &middot; {totalShares} shares will be created
+                    (all yours) &middot; Max: ${maxCapital.toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -318,8 +279,8 @@ function CreateCompanyPage() {
                 </h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total Shares:</span>
-                    <span className="font-semibold">
+                    <span className="text-muted-foreground">Your Shares:</span>
+                    <span className="font-semibold text-primary">
                       {totalShares.toLocaleString()}
                     </span>
                   </div>
@@ -327,18 +288,12 @@ function CreateCompanyPage() {
                     <span className="text-muted-foreground">Share Price:</span>
                     <span className="font-semibold">$100</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">You Retain:</span>
-                    <span className="font-semibold text-primary">
-                      {retainedShares.toLocaleString()} shares
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between col-span-2">
                     <span className="text-muted-foreground">
-                      Available to Buy:
+                      Market Growth:
                     </span>
                     <span className="font-semibold">
-                      {availableShares.toLocaleString()} shares
+                      +1 share/hour via minting
                     </span>
                   </div>
                 </div>

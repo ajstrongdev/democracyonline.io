@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { and, asc, desc, eq, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   companies,
@@ -170,6 +170,26 @@ export const createCompany = createServerFn({ method: "POST" })
       throw new Error("Insufficient funds for startup capital");
     }
 
+    // Rate limit: 1 company creation per 24 hours
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [recentCreation] = await db
+      .select({ id: transactionHistory.id })
+      .from(transactionHistory)
+      .where(
+        and(
+          eq(transactionHistory.userId, currentUser.id),
+          gte(transactionHistory.createdAt, twentyFourHoursAgo),
+          sql`${transactionHistory.description} LIKE 'Created company %'`,
+        ),
+      )
+      .limit(1);
+
+    if (recentCreation) {
+      throw new Error(
+        "You can only create one company every 24 hours. Please wait before creating another.",
+      );
+    }
+
     const existingCompany = await db
       .select()
       .from(companies)
@@ -180,12 +200,16 @@ export const createCompany = createServerFn({ method: "POST" })
       throw new Error("Stock symbol already exists");
     }
 
-    // Calculate issued shares: 1 share per $100 capital
-    const issuedShares = calculateIssuedSharesFromCapital(data.capital);
+    // Only issue the shares the founder actually retains — no unowned stock
+    const issuedShares = data.retainedShares;
     const initialSharePrice = 100; // $100 per share
 
-    if (data.retainedShares > issuedShares) {
-      throw new Error("Cannot retain more shares than will be issued");
+    // Validate retained shares don't exceed what capital could theoretically support
+    const maxPossibleShares = calculateIssuedSharesFromCapital(data.capital);
+    if (data.retainedShares > maxPossibleShares) {
+      throw new Error(
+        `Cannot retain more than ${maxPossibleShares} shares with $${data.capital.toLocaleString()} capital`,
+      );
     }
 
     const [newCompany] = await db
@@ -247,7 +271,7 @@ export const createCompany = createServerFn({ method: "POST" })
       company: newCompany,
       sharesIssued: issuedShares,
       sharesRetained: data.retainedShares,
-      sharesAvailable: issuedShares - data.retainedShares,
+      sharesAvailable: 0,
     };
   });
 
@@ -421,7 +445,7 @@ export const buyShares = createServerFn()
         .limit(1);
       const currentGameHour = currentGameState?.currentGameHour ?? 0;
 
-      // Rate limit: 1 buy order per game hour
+      // Rate limit: 1 buy order per game hour (only active orders count)
       const [recentBuyOrder] = await tx
         .select({ id: stockOrders.id })
         .from(stockOrders)
@@ -430,6 +454,10 @@ export const buyShares = createServerFn()
             eq(stockOrders.userId, currentUser.id),
             eq(stockOrders.side, "buy"),
             eq(stockOrders.gameHour, currentGameHour),
+            or(
+              eq(stockOrders.status, "open"),
+              eq(stockOrders.status, "partial"),
+            ),
           ),
         )
         .limit(1);
@@ -560,7 +588,7 @@ export const sellShares = createServerFn()
         .limit(1);
       const currentGameHour = currentGameState?.currentGameHour ?? 0;
 
-      // Rate limit: 1 sell order per game hour
+      // Rate limit: 1 sell order per game hour (only active orders count)
       const [recentSellOrder] = await tx
         .select({ id: stockOrders.id })
         .from(stockOrders)
@@ -569,6 +597,10 @@ export const sellShares = createServerFn()
             eq(stockOrders.userId, currentUser.id),
             eq(stockOrders.side, "sell"),
             eq(stockOrders.gameHour, currentGameHour),
+            or(
+              eq(stockOrders.status, "open"),
+              eq(stockOrders.status, "partial"),
+            ),
           ),
         )
         .limit(1);
@@ -889,19 +921,19 @@ export const investInCompany = createServerFn()
         throw new Error("Invalid share price");
       }
 
-      if (data.investmentAmount < sharePrice) {
-        throw new Error(`Investment must be at least $${sharePrice} (1 share)`);
-      }
-
-      const newShares = Math.floor(data.investmentAmount / sharePrice);
+      // Only issue shares the CEO actually retains — no unowned stock
+      const newShares = data.retainedShares;
       const actualCost = newShares * sharePrice;
 
-      if (data.retainedShares > newShares) {
-        throw new Error("Cannot retain more shares than are being issued");
+      if (newShares <= 0) {
+        throw new Error("Must retain at least 1 share");
       }
 
-      if (data.retainedShares < 0) {
-        throw new Error("Retained shares cannot be negative");
+      // Validate the investment covers the cost
+      if (data.investmentAmount < actualCost) {
+        throw new Error(
+          `Investment must be at least $${actualCost.toLocaleString()} to retain ${newShares} share${newShares > 1 ? "s" : ""}`,
+        );
       }
 
       const deductedRows = await tx

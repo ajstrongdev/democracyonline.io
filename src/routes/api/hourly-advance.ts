@@ -317,8 +317,8 @@ export const Route = createFileRoute("/api/hourly-advance")({
           }
 
           // ========== TREASURY FILLS ==========
-          // Fill remaining buy orders from available/treasury shares
-          // (issued shares not owned by any player — e.g. minted hourly)
+          // Fill buy orders from the 1 share minted this hour (max 1 per company)
+          // No bulk unowned stock — only the freshly minted share is available
           let treasurySharesSold = 0;
 
           for (const stock of allStocks) {
@@ -333,11 +333,14 @@ export const Route = createFileRoute("/api/hourly-advance")({
               .where(eq(userShares.companyId, stock.companyId));
 
             const totalOwned = totalOwnedResult?.total || 0;
-            let availableShares = (stock.issuedShares || 0) - totalOwned;
+            const unownedShares = (stock.issuedShares || 0) - totalOwned;
+
+            // Only allow max 1 treasury share to be sold per tick (the minted one)
+            const availableShares = Math.min(unownedShares, 1);
 
             if (availableShares <= 0) continue;
 
-            // Get remaining unfilled buy orders for this company (FIFO)
+            // Get first unfilled buy order for this company (FIFO, only 1 share)
             const remainingBuyOrders = await db
               .select()
               .from(stockOrders)
@@ -351,15 +354,18 @@ export const Route = createFileRoute("/api/hourly-advance")({
                   ),
                 ),
               )
-              .orderBy(asc(stockOrders.createdAt));
+              .orderBy(asc(stockOrders.createdAt))
+              .limit(5); // Only need a few since we sell at most 1 share
+
+            let sharesLeftToSell = availableShares;
 
             for (const buyOrder of remainingBuyOrders) {
-              if (availableShares <= 0) break;
+              if (sharesLeftToSell <= 0) break;
 
               const buyRemaining = buyOrder.quantity - buyOrder.filledQuantity;
               if (buyRemaining <= 0) continue;
 
-              const fillQty = Math.min(buyRemaining, availableShares);
+              const fillQty = Math.min(buyRemaining, sharesLeftToSell);
               const tradePrice = buyOrder.pricePerShare;
               const totalTradeValue = tradePrice * fillQty;
 
@@ -413,7 +419,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
                 description: `Buy order filled from treasury: ${fillQty} share${fillQty > 1 ? "s" : ""} of ${stock.companyName} (${stock.companySymbol}) at $${tradePrice.toLocaleString()}/share`,
               });
 
-              availableShares -= fillQty;
+              sharesLeftToSell -= fillQty;
               treasurySharesSold += fillQty;
               totalSharesTraded += fillQty;
               totalOrdersFilled++;

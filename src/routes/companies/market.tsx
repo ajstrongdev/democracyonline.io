@@ -6,6 +6,8 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Eye,
+  Filter,
   ListOrdered,
   ShoppingCart,
   TrendingDown,
@@ -441,6 +443,28 @@ function MarketPage() {
   const [hiddenCompanies, setHiddenCompanies] = useState<Set<string>>(
     new Set(),
   );
+  const [chartFilter, setChartFilter] = useState<"all" | "holdings" | "orders">(
+    "all",
+  );
+
+  // Compute which symbols belong to holdings / orders
+  const holdingSymbols = new Set(userHoldings.map((h) => h.companySymbol));
+  const orderSymbols = new Set(
+    userOrdersList
+      .filter((o) => o.status === "open" || o.status === "partial")
+      .map((o) => o.companySymbol),
+  );
+
+  const allChartSymbols = Array.from(
+    new Set(priceHistory.map((h) => h.companySymbol)),
+  );
+
+  const filteredChartSymbols = allChartSymbols.filter((symbol) => {
+    if (hiddenCompanies.has(symbol)) return false;
+    if (chartFilter === "holdings") return holdingSymbols.has(symbol);
+    if (chartFilter === "orders") return orderSymbols.has(symbol);
+    return true;
+  });
 
   const toggleCompanyVisibility = (symbol: string) => {
     setHiddenCompanies((prev) => {
@@ -543,6 +567,59 @@ function MarketPage() {
               <CardDescription>
                 Price movements of listed companies in the last 48 hours.
               </CardDescription>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Button
+                  variant={chartFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setChartFilter("all");
+                    setHiddenCompanies(new Set());
+                  }}
+                >
+                  <Eye className="w-3 h-3 mr-1" />
+                  All
+                </Button>
+                <Button
+                  variant={chartFilter === "holdings" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setChartFilter("holdings");
+                    setHiddenCompanies(new Set());
+                  }}
+                  disabled={holdingSymbols.size === 0}
+                >
+                  <Briefcase className="w-3 h-3 mr-1" />
+                  My Holdings
+                  {holdingSymbols.size > 0 && (
+                    <Badge
+                      variant="secondary"
+                      className="ml-1 text-[10px] px-1.5 py-0"
+                    >
+                      {holdingSymbols.size}
+                    </Badge>
+                  )}
+                </Button>
+                <Button
+                  variant={chartFilter === "orders" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setChartFilter("orders");
+                    setHiddenCompanies(new Set());
+                  }}
+                  disabled={orderSymbols.size === 0}
+                >
+                  <ListOrdered className="w-3 h-3 mr-1" />
+                  Active Orders
+                  {orderSymbols.size > 0 && (
+                    <Badge
+                      variant="secondary"
+                      className="ml-1 text-[10px] px-1.5 py-0"
+                    >
+                      {orderSymbols.size}
+                    </Badge>
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <ChartContainer
@@ -638,7 +715,7 @@ function MarketPage() {
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   {Array.from(new Set(priceHistory.map((h) => h.companySymbol)))
-                    .filter((symbol) => !hiddenCompanies.has(symbol))
+                    .filter((symbol) => filteredChartSymbols.includes(symbol))
                     .map((symbol) => {
                       const company = priceHistory.find(
                         (h) => h.companySymbol === symbol,
@@ -658,38 +735,54 @@ function MarketPage() {
                     })}
                 </LineChart>
               </ChartContainer>
-              <div className="flex flex-wrap gap-4 mt-4 justify-center">
-                {Array.from(
-                  new Set(priceHistory.map((h) => h.companySymbol)),
-                ).map((symbol) => {
-                  const company = priceHistory.find(
-                    (h) => h.companySymbol === symbol,
-                  );
-                  const color = company?.companyColor || "#3b82f6";
-                  const isHidden = hiddenCompanies.has(symbol);
-                  return (
-                    <button
-                      key={symbol}
-                      onClick={() => toggleCompanyVisibility(symbol)}
-                      className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-md transition-all hover:bg-muted/50 ${
-                        isHidden ? "opacity-40 line-through" : ""
-                      }`}
-                      title={isHidden ? "Click to show" : "Click to hide"}
-                    >
-                      <div
-                        className="w-4 h-4 rounded-full transition-opacity"
-                        style={{
-                          backgroundColor: color,
-                          opacity: isHidden ? 0.3 : 1,
-                        }}
-                      />
-                      <span className="font-medium">{symbol}</span>
-                      <span className="text-muted-foreground">
-                        {company?.companyName}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div className="flex flex-wrap gap-2 mt-4 justify-center">
+                {Array.from(new Set(priceHistory.map((h) => h.companySymbol)))
+                  .filter((symbol) => {
+                    // In filtered modes, only show legend items that match the filter
+                    if (chartFilter === "holdings")
+                      return holdingSymbols.has(symbol);
+                    if (chartFilter === "orders")
+                      return orderSymbols.has(symbol);
+                    return true;
+                  })
+                  .map((symbol) => {
+                    const company = priceHistory.find(
+                      (h) => h.companySymbol === symbol,
+                    );
+                    const color = company?.companyColor || "#3b82f6";
+                    const isHidden = hiddenCompanies.has(symbol);
+                    const isHolding = holdingSymbols.has(symbol);
+                    const hasOrder = orderSymbols.has(symbol);
+                    return (
+                      <button
+                        key={symbol}
+                        onClick={() => toggleCompanyVisibility(symbol)}
+                        className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-md transition-all hover:bg-muted/50 ${
+                          isHidden ? "opacity-40 line-through" : ""
+                        }`}
+                        title={isHidden ? "Click to show" : "Click to hide"}
+                      >
+                        <div
+                          className="w-4 h-4 rounded-full transition-opacity"
+                          style={{
+                            backgroundColor: color,
+                            opacity: isHidden ? 0.3 : 1,
+                          }}
+                        />
+                        <span className="font-medium">{symbol}</span>
+                        {chartFilter === "all" && (isHolding || hasOrder) && (
+                          <span className="flex gap-0.5">
+                            {isHolding && (
+                              <Briefcase className="w-3 h-3 text-muted-foreground" />
+                            )}
+                            {hasOrder && (
+                              <Clock className="w-3 h-3 text-muted-foreground" />
+                            )}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
               </div>
             </CardContent>
           </Card>
