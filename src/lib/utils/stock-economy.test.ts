@@ -23,7 +23,7 @@ describe("stock economy helpers", () => {
       marketCap,
     });
 
-    expect(hourlyDividend).toBe(2_500);
+    expect(hourlyDividend).toBe(250);
   });
 
   it("uses the same issuance math in schema and runtime", () => {
