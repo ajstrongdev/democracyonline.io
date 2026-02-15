@@ -1,4 +1,9 @@
 import { z } from "zod";
+import { calculateIssuedSharesFromCapital } from "@/lib/utils/stock-economy";
+import {
+  MONEY_INPUT_CAP,
+  nonNegativeQuantitySchema,
+} from "@/lib/schemas/finance-schema";
 
 export const CreateCompanySchema = z
   .object({
@@ -11,9 +16,10 @@ export const CreateCompanySchema = z
     description: z.string().optional(),
     capital: z
       .number()
+      .int("Capital must be a whole number")
       .min(100, "Minimum startup capital is $100")
-      .max(1000000, "Maximum startup capital is $1,000,000"),
-    retainedShares: z.number().min(0, "Cannot retain negative shares"),
+      .max(MONEY_INPUT_CAP, "Maximum startup capital is $1,000,000"),
+    retainedShares: nonNegativeQuantitySchema,
     logo: z.string().nullable().optional(),
     color: z
       .string()
@@ -22,7 +28,7 @@ export const CreateCompanySchema = z
   })
   .refine(
     (data) => {
-      const totalShares = Math.floor(data.capital / 50);
+      const totalShares = calculateIssuedSharesFromCapital(data.capital);
       return data.retainedShares <= totalShares;
     },
     {

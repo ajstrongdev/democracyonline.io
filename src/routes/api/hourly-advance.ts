@@ -1,20 +1,37 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
+import { and, asc, desc, eq, gte, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  stocks,
-  sharePriceHistory,
-  companies,
-  candidates,
-  elections,
   candidateSnapshots,
-  users,
+  candidates,
+  companies,
+  elections,
+  feed,
+  financeKpiSnapshots,
+  gameState,
+  orderFills,
+  shareIssuanceEvents,
+  sharePriceHistory,
+  stockOrders,
+  stocks,
   transactionHistory,
   userShares,
-  feed,
+  users,
 } from "@/db/schema";
 import { env } from "@/env";
-import { eq, sql, desc } from "drizzle-orm";
+import { authorizeCronRequest } from "@/lib/server/cron-auth";
+import { getAdminAuth } from "@/lib/firebase-admin";
+import {
+  calculateDividendPerShareMilli,
+  calculateHourlyDividendPool,
+  calculateOneShareOwnershipDriftBps,
+  shouldTriggerBuyPressureMint,
+} from "@/lib/utils/share-issuance-policy";
+import {
+  calculateHourlyDividend,
+  calculateMarketCap,
+} from "@/lib/utils/stock-economy";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -22,50 +39,25 @@ export const Route = createFileRoute("/api/hourly-advance")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        // Skip authentication in development mode
-        if (!env.IS_DEV) {
-          const authHeader = request.headers.get("authorization");
-          if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            console.error("Missing or invalid Authorization header");
-            return new Response(
-              JSON.stringify({ success: false, error: "Unauthorized" }),
-              { status: 401, headers: { "Content-Type": "application/json" } },
-            );
-          }
-
-          const token = authHeader.substring(7);
-
-          try {
+        const authFailure = await authorizeCronRequest({
+          request,
+          env,
+          verifySchedulerIdToken: async ({ idToken, audience }) => {
             const ticket = await oAuth2Client.verifyIdToken({
-              idToken: token,
-              audience: env.SITE_URL || "https://democracyonline.io",
+              idToken,
+              audience,
             });
 
-            const payload = ticket.getPayload();
+            return { email: ticket.getPayload()?.email };
+          },
+          verifyAdminIdToken: async ({ idToken }) => {
+            const decoded = await getAdminAuth().verifyIdToken(idToken);
+            return { email: decoded.email };
+          },
+        });
 
-            const expectedEmailPattern =
-              /-scheduler@.*\.iam\.gserviceaccount\.com$/;
-
-            if (!payload?.email || !expectedEmailPattern.test(payload.email)) {
-              console.error("Invalid service account:", payload?.email);
-              return new Response(
-                JSON.stringify({
-                  success: false,
-                  error: "Unauthorized - Invalid service account",
-                }),
-                {
-                  status: 403,
-                  headers: { "Content-Type": "application/json" },
-                },
-              );
-            }
-          } catch (error) {
-            console.error("Token verification failed:", error);
-            return new Response(
-              JSON.stringify({ success: false, error: "Unauthorized" }),
-              { status: 401, headers: { "Content-Type": "application/json" } },
-            );
-          }
+        if (authFailure) {
+          return authFailure;
         }
 
         try {
@@ -88,13 +80,495 @@ export const Route = createFileRoute("/api/hourly-advance")({
             `Processing ${allStocks.length} stocks for price updates`,
           );
 
+          // ========== ADVANCE GAME HOUR ==========
+          // Upsert the game state row and increment the game hour counter
+          await db
+            .insert(gameState)
+            .values({ id: 1, currentGameHour: 1 })
+            .onConflictDoUpdate({
+              target: gameState.id,
+              set: {
+                currentGameHour: sql`${gameState.currentGameHour} + 1`,
+              },
+            });
+
+          const [currentGameStateRow] = await db
+            .select({ currentGameHour: gameState.currentGameHour })
+            .from(gameState)
+            .where(eq(gameState.id, 1))
+            .limit(1);
+
+          const currentGameHour = currentGameStateRow?.currentGameHour ?? 0;
+          console.log(`Game hour advanced to ${currentGameHour}`);
+
+          // ========== ORDER MATCHING ==========
+          // Match buy orders with sell orders per company (FIFO queue)
+          let totalOrdersFilled = 0;
+          let totalSharesTraded = 0;
+
           for (const stock of allStocks) {
+            if (!stock.companyId) continue;
+
+            // Get all open/partial sell orders for this company, ordered by creation (FIFO)
+            // Exclude self-trades by matching later
+            const sellOrders = await db
+              .select()
+              .from(stockOrders)
+              .where(
+                and(
+                  eq(stockOrders.companyId, stock.companyId),
+                  eq(stockOrders.side, "sell"),
+                  or(
+                    eq(stockOrders.status, "open"),
+                    eq(stockOrders.status, "partial"),
+                  ),
+                ),
+              )
+              .orderBy(asc(stockOrders.createdAt));
+
+            // Get all open/partial buy orders for this company, ordered by creation (FIFO)
+            const buyOrders = await db
+              .select()
+              .from(stockOrders)
+              .where(
+                and(
+                  eq(stockOrders.companyId, stock.companyId),
+                  eq(stockOrders.side, "buy"),
+                  or(
+                    eq(stockOrders.status, "open"),
+                    eq(stockOrders.status, "partial"),
+                  ),
+                ),
+              )
+              .orderBy(asc(stockOrders.createdAt));
+
+            if (buyOrders.length === 0 || sellOrders.length === 0) continue;
+
+            let sharesMatchedThisStock = 0;
+
+            // For each buy order, try to fill from sell orders (FIFO)
+            for (const buyOrder of buyOrders) {
+              let buyRemaining = buyOrder.quantity - buyOrder.filledQuantity;
+              if (buyRemaining <= 0) continue;
+
+              for (const sellOrder of sellOrders) {
+                if (buyRemaining <= 0) break;
+
+                // Skip self-trades — shares must be bought from another player
+                if (sellOrder.userId === buyOrder.userId) continue;
+
+                let sellRemaining =
+                  sellOrder.quantity - sellOrder.filledQuantity;
+                if (sellRemaining <= 0) continue;
+
+                // The trade executes at the buy order's price (buyer already escrowed this)
+                const tradePrice = buyOrder.pricePerShare;
+                const fillQty = Math.min(buyRemaining, sellRemaining);
+
+                // Buyer already escrowed funds at order time, so they can afford.
+                let actualFillQty = fillQty;
+
+                // Verify seller actually has the shares
+                const [sellerHolding] = await db
+                  .select({ quantity: userShares.quantity })
+                  .from(userShares)
+                  .where(
+                    and(
+                      eq(userShares.userId, sellOrder.userId),
+                      eq(userShares.companyId, stock.companyId!),
+                    ),
+                  )
+                  .limit(1);
+
+                const sellerOwnedShares = sellerHolding?.quantity || 0;
+
+                if (sellerOwnedShares < actualFillQty) {
+                  actualFillQty = Math.max(0, sellerOwnedShares);
+                }
+
+                if (actualFillQty <= 0) continue;
+
+                const totalTradeValue = tradePrice * actualFillQty;
+
+                // Execute the trade
+                // 1. Transfer shares: seller -> buyer
+                // Deduct from seller
+                await db
+                  .update(userShares)
+                  .set({
+                    quantity: sql`${userShares.quantity} - ${actualFillQty}`,
+                  })
+                  .where(
+                    and(
+                      eq(userShares.userId, sellOrder.userId),
+                      eq(userShares.companyId, stock.companyId!),
+                    ),
+                  );
+
+                // Clean up zero holdings
+                await db
+                  .delete(userShares)
+                  .where(
+                    and(
+                      eq(userShares.userId, sellOrder.userId),
+                      eq(userShares.companyId, stock.companyId!),
+                      sql`${userShares.quantity} <= 0`,
+                    ),
+                  );
+
+                // Add to buyer
+                await db
+                  .insert(userShares)
+                  .values({
+                    userId: buyOrder.userId,
+                    companyId: stock.companyId!,
+                    quantity: actualFillQty,
+                  })
+                  .onConflictDoUpdate({
+                    target: [userShares.userId, userShares.companyId],
+                    set: {
+                      quantity: sql`${userShares.quantity} + ${actualFillQty}`,
+                    },
+                  });
+
+                // 2. Pay seller (they only get money when shares are actually bought)
+                await db
+                  .update(users)
+                  .set({ money: sql`${users.money} + ${totalTradeValue}` })
+                  .where(eq(users.id, sellOrder.userId));
+
+                // 3. Update order fill quantities
+                const newBuyFilled = buyOrder.filledQuantity + actualFillQty;
+                const buyStatus =
+                  newBuyFilled >= buyOrder.quantity ? "filled" : "partial";
+                await db
+                  .update(stockOrders)
+                  .set({
+                    filledQuantity: newBuyFilled,
+                    status: buyStatus,
+                    updatedAt: new Date(),
+                  })
+                  .where(eq(stockOrders.id, buyOrder.id));
+                buyOrder.filledQuantity = newBuyFilled;
+
+                const newSellFilled = sellOrder.filledQuantity + actualFillQty;
+                const sellStatus =
+                  newSellFilled >= sellOrder.quantity ? "filled" : "partial";
+                await db
+                  .update(stockOrders)
+                  .set({
+                    filledQuantity: newSellFilled,
+                    status: sellStatus,
+                    updatedAt: new Date(),
+                  })
+                  .where(eq(stockOrders.id, sellOrder.id));
+                sellOrder.filledQuantity = newSellFilled;
+
+                // 4. Record the fill
+                await db.insert(orderFills).values({
+                  buyOrderId: buyOrder.id,
+                  sellOrderId: sellOrder.id,
+                  companyId: stock.companyId!,
+                  buyerUserId: buyOrder.userId,
+                  sellerUserId: sellOrder.userId,
+                  quantity: actualFillQty,
+                  pricePerShare: tradePrice,
+                  totalPrice: totalTradeValue,
+                });
+
+                // 5. Update stock broughtToday (buy pressure for price calculation)
+                await db
+                  .update(stocks)
+                  .set({
+                    broughtToday: sql`COALESCE(${stocks.broughtToday}, 0) + ${actualFillQty}`,
+                  })
+                  .where(eq(stocks.id, stock.id));
+
+                // 6. Transaction history for both parties
+                const [companyInfo] = await db
+                  .select({ name: companies.name, symbol: companies.symbol })
+                  .from(companies)
+                  .where(eq(companies.id, stock.companyId!))
+                  .limit(1);
+
+                await db.insert(transactionHistory).values({
+                  userId: buyOrder.userId,
+                  description: `Buy order filled: ${actualFillQty} share${actualFillQty > 1 ? "s" : ""} of ${companyInfo?.name} (${companyInfo?.symbol}) at $${tradePrice.toLocaleString()}/share`,
+                });
+
+                await db.insert(transactionHistory).values({
+                  userId: sellOrder.userId,
+                  description: `Sell order filled: ${actualFillQty} share${actualFillQty > 1 ? "s" : ""} of ${companyInfo?.name} (${companyInfo?.symbol}) at $${tradePrice.toLocaleString()}/share — received $${totalTradeValue.toLocaleString()}`,
+                });
+
+                buyRemaining -= actualFillQty;
+                sharesMatchedThisStock += actualFillQty;
+                totalOrdersFilled++;
+              }
+            }
+
+            totalSharesTraded += sharesMatchedThisStock;
+
+            if (sharesMatchedThisStock > 0) {
+              console.log(
+                `${stock.companySymbol}: Matched ${sharesMatchedThisStock} shares via order book`,
+              );
+            }
+          }
+
+          // ========== TREASURY FILLS ==========
+          // Fill buy orders from unowned (treasury) shares
+          let treasurySharesSold = 0;
+
+          for (const stock of allStocks) {
+            if (!stock.companyId) continue;
+
+            // Calculate how many shares are unowned (treasury)
+            const [totalOwnedResult] = await db
+              .select({
+                total: sql<number>`COALESCE(SUM(${userShares.quantity}), 0)::int`,
+              })
+              .from(userShares)
+              .where(eq(userShares.companyId, stock.companyId));
+
+            const totalOwned = totalOwnedResult?.total || 0;
+            const unownedShares = (stock.issuedShares || 0) - totalOwned;
+
+            const availableShares = unownedShares;
+
+            if (availableShares <= 0) continue;
+
+            // Get first unfilled buy order for this company (FIFO, only 1 share)
+            const remainingBuyOrders = await db
+              .select()
+              .from(stockOrders)
+              .where(
+                and(
+                  eq(stockOrders.companyId, stock.companyId),
+                  eq(stockOrders.side, "buy"),
+                  or(
+                    eq(stockOrders.status, "open"),
+                    eq(stockOrders.status, "partial"),
+                  ),
+                ),
+              )
+              .orderBy(asc(stockOrders.createdAt))
+              .limit(50);
+
+            let sharesLeftToSell = availableShares;
+
+            for (const buyOrder of remainingBuyOrders) {
+              if (sharesLeftToSell <= 0) break;
+
+              const buyRemaining = buyOrder.quantity - buyOrder.filledQuantity;
+              if (buyRemaining <= 0) continue;
+
+              const fillQty = Math.min(buyRemaining, sharesLeftToSell);
+              const tradePrice = buyOrder.pricePerShare;
+              const totalTradeValue = tradePrice * fillQty;
+
+              // Give shares to buyer
+              await db
+                .insert(userShares)
+                .values({
+                  userId: buyOrder.userId,
+                  companyId: stock.companyId!,
+                  quantity: fillQty,
+                })
+                .onConflictDoUpdate({
+                  target: [userShares.userId, userShares.companyId],
+                  set: {
+                    quantity: sql`${userShares.quantity} + ${fillQty}`,
+                  },
+                });
+
+              // Payment goes to company capital (treasury sale proceeds)
+              await db
+                .update(companies)
+                .set({
+                  capital: sql`${companies.capital} + ${totalTradeValue}`,
+                })
+                .where(eq(companies.id, stock.companyId!));
+
+              // Update buy order fill progress
+              const newBuyFilled = buyOrder.filledQuantity + fillQty;
+              const buyStatus =
+                newBuyFilled >= buyOrder.quantity ? "filled" : "partial";
+              await db
+                .update(stockOrders)
+                .set({
+                  filledQuantity: newBuyFilled,
+                  status: buyStatus,
+                  updatedAt: new Date(),
+                })
+                .where(eq(stockOrders.id, buyOrder.id));
+
+              // Count as buying pressure for price calculation
+              await db
+                .update(stocks)
+                .set({
+                  broughtToday: sql`COALESCE(${stocks.broughtToday}, 0) + ${fillQty}`,
+                })
+                .where(eq(stocks.id, stock.id));
+
+              // Transaction history
+              await db.insert(transactionHistory).values({
+                userId: buyOrder.userId,
+                description: `Buy order filled from treasury: ${fillQty} share${fillQty > 1 ? "s" : ""} of ${stock.companyName} (${stock.companySymbol}) at $${tradePrice.toLocaleString()}/share`,
+              });
+
+              sharesLeftToSell -= fillQty;
+              treasurySharesSold += fillQty;
+              totalSharesTraded += fillQty;
+              totalOrdersFilled++;
+            }
+          }
+
+          if (treasurySharesSold > 0) {
+            console.log(
+              `Treasury fills: ${treasurySharesSold} shares sold from available/minted supply`,
+            );
+          }
+
+          // ========== ORPHANED SELL ORDER CLEANUP ==========
+          // Cancel sell orders that can never fill because the only buy orders
+          // are from the seller themselves (prevents permanent share lockup)
+          // Track cancelled shares as sell pressure (oversupply signal)
+          let cancelledOrphanedOrders = 0;
+          const orphanedSellSharesByStock: Record<number, number> = {};
+
+          for (const stock of allStocks) {
+            if (!stock.companyId) continue;
+
+            const openSellOrders = await db
+              .select()
+              .from(stockOrders)
+              .where(
+                and(
+                  eq(stockOrders.companyId, stock.companyId),
+                  eq(stockOrders.side, "sell"),
+                  or(
+                    eq(stockOrders.status, "open"),
+                    eq(stockOrders.status, "partial"),
+                  ),
+                ),
+              );
+
+            if (openSellOrders.length === 0) continue;
+
+            // Check if there are ANY buy orders from OTHER users for this company
+            for (const sellOrder of openSellOrders) {
+              const sellRemaining =
+                sellOrder.quantity - sellOrder.filledQuantity;
+              if (sellRemaining <= 0) continue;
+
+              // Are there buy orders from users OTHER than this seller?
+              const [counterpartyResult] = await db
+                .select({
+                  count: sql<number>`COUNT(*)::int`,
+                })
+                .from(stockOrders)
+                .where(
+                  and(
+                    eq(stockOrders.companyId, stock.companyId),
+                    eq(stockOrders.side, "buy"),
+                    or(
+                      eq(stockOrders.status, "open"),
+                      eq(stockOrders.status, "partial"),
+                    ),
+                    sql`${stockOrders.userId} != ${sellOrder.userId}`,
+                  ),
+                );
+
+              const hasCounterparty = (counterpartyResult?.count || 0) > 0;
+
+              if (!hasCounterparty) {
+                // No other users have buy orders — this sell order will never fill
+                await db
+                  .update(stockOrders)
+                  .set({ status: "cancelled", updatedAt: new Date() })
+                  .where(eq(stockOrders.id, sellOrder.id));
+
+                await db.insert(transactionHistory).values({
+                  userId: sellOrder.userId,
+                  description: `Sell order auto-cancelled: ${sellRemaining} share${sellRemaining > 1 ? "s" : ""} of ${stock.companyName} (${stock.companySymbol}) — no buyers available`,
+                });
+
+                // Track as sell pressure — people tried to sell but couldn't
+                orphanedSellSharesByStock[stock.id] =
+                  (orphanedSellSharesByStock[stock.id] || 0) + sellRemaining;
+
+                cancelledOrphanedOrders++;
+                console.log(
+                  `${stock.companySymbol}: Auto-cancelled orphaned sell order ${sellOrder.id} (no counterparty buyers)`,
+                );
+              }
+            }
+          }
+
+          if (cancelledOrphanedOrders > 0) {
+            console.log(
+              `Orphan cleanup: ${cancelledOrphanedOrders} sell orders auto-cancelled`,
+            );
+          }
+
+          console.log(
+            `Order matching complete: ${totalSharesTraded} shares traded across ${totalOrdersFilled} fills`,
+          );
+
+          // ========== SELL PRESSURE FROM CANCELLED ORDERS ==========
+          // Cancelled sell orders = people wanted to sell but found no buyers = oversupply
+          for (const [stockId, cancelledShares] of Object.entries(
+            orphanedSellSharesByStock,
+          )) {
+            if (cancelledShares > 0) {
+              await db
+                .update(stocks)
+                .set({
+                  soldToday: sql`COALESCE(${stocks.soldToday}, 0) + ${cancelledShares}`,
+                })
+                .where(eq(stocks.id, Number(stockId)));
+            }
+          }
+
+          // Re-fetch stocks to get updated broughtToday/soldToday after order matching
+          const updatedStocks = await db
+            .select({
+              id: stocks.id,
+              companyId: stocks.companyId,
+              price: stocks.price,
+              broughtToday: stocks.broughtToday,
+              soldToday: stocks.soldToday,
+              issuedShares: companies.issuedShares,
+              capital: companies.capital,
+              companyName: companies.name,
+              companySymbol: companies.symbol,
+            })
+            .from(stocks)
+            .innerJoin(companies, eq(stocks.companyId, companies.id));
+
+          const issuancePolicy = env.SHARE_ISSUANCE_POLICY;
+          const dailyMintCap = env.DAILY_COMPANY_MINT_CAP;
+          const buyPressureThreshold = env.BUY_PRESSURE_MINT_THRESHOLD;
+          const buyPressureTriggerEnabled =
+            env.ENABLE_BUY_PRESSURE_MINT_TRIGGER;
+
+          const dayStart = new Date();
+          dayStart.setHours(0, 0, 0, 0);
+          const nextDayStart = new Date(dayStart);
+          nextDayStart.setDate(nextDayStart.getDate() + 1);
+
+          let issuedThisTick = 0;
+          let issuanceEvents = 0;
+
+          for (const stock of updatedStocks) {
             const bought = stock.broughtToday || 0;
             const sold = stock.soldToday || 0;
             const currentPrice = stock.price;
 
-            // Simple price adjustment based purely on demand
-            // +$1 per share bought, -$1 per share sold
+            // Price adjustment: buy fills push up, unfilled sell orders push down
+            // bought = shares filled from buy orders (P2P + treasury)
+            // sold = unfilled shares sitting in open sell orders (oversupply pressure)
             let priceChange = bought - sold;
 
             // Natural decay: if no trading activity, reduce price by 1%
@@ -132,24 +606,151 @@ export const Route = createFileRoute("/api/hourly-advance")({
             }
           }
 
-          // Issue one new share per company each hour
-          for (const stock of allStocks) {
-            if (stock.companyId) {
+          if (issuancePolicy === "legacy-hourly") {
+            for (const stock of updatedStocks) {
+              if (!stock.companyId) {
+                continue;
+              }
+
+              const issuedSharesBefore = Number(stock.issuedShares || 0);
+              const mintedShares = 1;
+              const issuedSharesAfter = issuedSharesBefore + mintedShares;
+
+              const activeHoldersResult = await db
+                .select({ count: sql<number>`count(*)::int` })
+                .from(userShares)
+                .where(
+                  and(
+                    eq(userShares.companyId, stock.companyId),
+                    gte(userShares.quantity, 1),
+                  ),
+                );
+
+              const activeHolders = activeHoldersResult[0]?.count || 0;
+
               await db
                 .update(companies)
                 .set({
-                  issuedShares: sql`${companies.issuedShares} + 1`,
+                  issuedShares: issuedSharesAfter,
                 })
                 .where(eq(companies.id, stock.companyId));
 
+              await db.insert(shareIssuanceEvents).values({
+                companyId: stock.companyId,
+                policy: issuancePolicy,
+                source: "legacy-hourly",
+                mintedShares,
+                issuedSharesBefore,
+                issuedSharesAfter,
+                activeHolders,
+                buyPressureDelta: 0,
+                ownershipDriftBps: calculateOneShareOwnershipDriftBps({
+                  issuedSharesBefore,
+                  mintedShares,
+                }),
+              });
+
+              issuedThisTick += mintedShares;
+              issuanceEvents++;
+
               console.log(
-                `${stock.companySymbol}: Issued 1 new share (total: ${(stock.issuedShares || 0) + 1})`,
+                `${stock.companySymbol}: Issued ${mintedShares} share via legacy-hourly policy`,
+              );
+            }
+          }
+
+          if (
+            issuancePolicy === "event-conditional" &&
+            buyPressureTriggerEnabled
+          ) {
+            for (const stock of updatedStocks) {
+              if (!stock.companyId) {
+                continue;
+              }
+
+              const buyDelta = Number(stock.broughtToday || 0);
+              const sellDelta = Number(stock.soldToday || 0);
+              const netDemand = buyDelta - sellDelta;
+
+              if (
+                !shouldTriggerBuyPressureMint({
+                  policy: issuancePolicy,
+                  buyPressureTriggerEnabled,
+                  netDemand,
+                  buyPressureThreshold,
+                })
+              ) {
+                continue;
+              }
+
+              const activeHoldersResult = await db
+                .select({ count: sql<number>`count(*)::int` })
+                .from(userShares)
+                .where(
+                  and(
+                    eq(userShares.companyId, stock.companyId),
+                    gte(userShares.quantity, 1),
+                  ),
+                );
+
+              const activeHolders = activeHoldersResult[0]?.count || 0;
+              if (activeHolders <= 0) {
+                continue;
+              }
+
+              const alreadyMintedResult = await db
+                .select({
+                  total: sql<number>`COALESCE(SUM(${shareIssuanceEvents.mintedShares}), 0)::int`,
+                })
+                .from(shareIssuanceEvents)
+                .where(
+                  and(
+                    eq(shareIssuanceEvents.companyId, stock.companyId),
+                    gte(shareIssuanceEvents.createdAt, dayStart),
+                    lt(shareIssuanceEvents.createdAt, nextDayStart),
+                  ),
+                );
+
+              const alreadyMintedToday = alreadyMintedResult[0]?.total || 0;
+              if (alreadyMintedToday >= dailyMintCap) {
+                continue;
+              }
+
+              const mintedShares = 1;
+              const issuedSharesBefore = Number(stock.issuedShares || 0);
+              const issuedSharesAfter = issuedSharesBefore + mintedShares;
+
+              await db
+                .update(companies)
+                .set({ issuedShares: issuedSharesAfter })
+                .where(eq(companies.id, stock.companyId));
+
+              await db.insert(shareIssuanceEvents).values({
+                companyId: stock.companyId,
+                policy: issuancePolicy,
+                source: "buy-pressure",
+                mintedShares,
+                issuedSharesBefore,
+                issuedSharesAfter,
+                activeHolders,
+                buyPressureDelta: netDemand,
+                ownershipDriftBps: calculateOneShareOwnershipDriftBps({
+                  issuedSharesBefore,
+                  mintedShares,
+                }),
+              });
+
+              issuedThisTick += mintedShares;
+              issuanceEvents++;
+
+              console.log(
+                `${stock.companySymbol}: Issued ${mintedShares} share via buy-pressure trigger (net demand ${netDemand})`,
               );
             }
           }
 
           // Update company CEOs to whoever has the most shares
-          for (const stock of allStocks) {
+          for (const stock of updatedStocks) {
             if (stock.companyId) {
               const [company] = await db
                 .select()
@@ -188,8 +789,8 @@ export const Route = createFileRoute("/api/hourly-advance")({
           }
 
           // Dissolve companies with no shareholders
-          const dissolvedCompanies: string[] = [];
-          for (const stock of allStocks) {
+          const dissolvedCompanies: Array<string> = [];
+          for (const stock of updatedStocks) {
             if (stock.companyId) {
               const holders = await db
                 .select({ userId: userShares.userId })
@@ -198,7 +799,39 @@ export const Route = createFileRoute("/api/hourly-advance")({
                 .limit(1);
 
               if (holders.length === 0) {
-                // Remove price history, stock entry, then company
+                // Cancel any open orders for this company and refund buy orders
+                const openOrders = await db
+                  .select()
+                  .from(stockOrders)
+                  .where(
+                    and(
+                      eq(stockOrders.companyId, stock.companyId),
+                      or(
+                        eq(stockOrders.status, "open"),
+                        eq(stockOrders.status, "partial"),
+                      ),
+                    ),
+                  );
+
+                for (const order of openOrders) {
+                  const remaining = order.quantity - order.filledQuantity;
+                  if (order.side === "buy" && remaining > 0) {
+                    const refund = remaining * order.pricePerShare;
+                    await db
+                      .update(users)
+                      .set({ money: sql`${users.money} + ${refund}` })
+                      .where(eq(users.id, order.userId));
+                  }
+                  await db
+                    .update(stockOrders)
+                    .set({ status: "cancelled", updatedAt: new Date() })
+                    .where(eq(stockOrders.id, order.id));
+                }
+
+                // Remove order fills, price history, stock entry, then company
+                await db
+                  .delete(orderFills)
+                  .where(eq(orderFills.companyId, stock.companyId));
                 await db
                   .delete(sharePriceHistory)
                   .where(eq(sharePriceHistory.stockId, stock.id));
@@ -221,7 +854,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
           }
 
           // Filter out dissolved companies before paying dividends
-          const activeStocks = allStocks.filter(
+          const activeStocks = updatedStocks.filter(
             (s) => !dissolvedCompanies.includes(s.companySymbol),
           );
 
@@ -241,14 +874,29 @@ export const Route = createFileRoute("/api/hourly-advance")({
                 .where(eq(userShares.companyId, stock.companyId));
 
               const issuedShares = stock.issuedShares || 0;
-              const totalOwnedShares = allHoldings.reduce(
-                (sum, h) => sum + (h.quantity || 0),
-                0,
-              );
 
               if (issuedShares <= 0) continue;
 
-              const marketCap = stock.price * totalOwnedShares;
+              const marketCap = calculateMarketCap({
+                sharePrice: stock.price,
+                issuedShares,
+              });
+
+              const hourlyDividendPool = calculateHourlyDividendPool(marketCap);
+              const dividendPerShareMilli = calculateDividendPerShareMilli({
+                hourlyDividendPool,
+                issuedShares,
+              });
+
+              await db.insert(financeKpiSnapshots).values({
+                companyId: stock.companyId,
+                policy: issuancePolicy,
+                sharePrice: stock.price,
+                issuedShares,
+                marketCap,
+                hourlyDividendPool,
+                dividendPerShareMilli,
+              });
 
               for (const holding of allHoldings) {
                 const qty = holding.quantity || 0;
@@ -256,7 +904,10 @@ export const Route = createFileRoute("/api/hourly-advance")({
 
                 const ownershipPct = qty / issuedShares;
                 // ownership% × 10% of market cap
-                const dividend = Math.floor(ownershipPct * 0.1 * marketCap);
+                const dividend = calculateHourlyDividend({
+                  ownershipPct,
+                  marketCap,
+                });
 
                 if (dividend > 0) {
                   await db
@@ -338,7 +989,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
           return new Response(
             JSON.stringify({
               success: true,
-              message: `Updated ${allStocks.length} stock prices, paid $${dividendsPaid} in dividends, processed ${candidatesProcessed} candidates`,
+              message: `Updated ${updatedStocks.length} stock prices, matched ${totalSharesTraded} shares (${treasurySharesSold} from treasury), cancelled ${cancelledOrphanedOrders} orphaned orders, issued ${issuedThisTick} shares via ${issuanceEvents} events, paid $${dividendsPaid} in dividends, processed ${candidatesProcessed} candidates`,
             }),
             {
               status: 200,

@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Copy, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,9 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { RefreshCw, Trash2, Copy, Plus } from "lucide-react";
 import { createAccessToken, deleteAccessToken } from "@/lib/server/admin";
-import { toast } from "sonner";
 
 interface AccessToken {
   id: number;
@@ -28,7 +28,7 @@ interface AccessToken {
 }
 
 interface AccessTokenManagerProps {
-  initialTokens: AccessToken[];
+  initialTokens: Array<AccessToken>;
   onRefresh: () => void | Promise<void>;
 }
 
@@ -36,7 +36,7 @@ export default function AccessTokenManager({
   initialTokens,
   onRefresh,
 }: AccessTokenManagerProps) {
-  const [tokens, setTokens] = useState<AccessToken[]>(initialTokens);
+  const [tokens, setTokens] = useState<Array<AccessToken>>(initialTokens);
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tokenToDelete, setTokenToDelete] = useState<AccessToken | null>(null);

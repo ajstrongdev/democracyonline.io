@@ -95,7 +95,7 @@ export type CalendarData = {
     currentPool: number;
     nextAdvanceTime: Date;
   };
-  upcomingEvents: CalendarEvent[];
+  upcomingEvents: Array<CalendarEvent>;
 };
 
 function getNextStageName(status: string, electionType: string): string {
@@ -151,7 +151,7 @@ export const getCalendarData = createServerFn().handler(
       };
     }
 
-    const upcomingEvents: CalendarEvent[] = [];
+    const upcomingEvents: Array<CalendarEvent> = [];
 
     const getEventDate = (daysFromNow: number): Date => {
       const now = new Date();

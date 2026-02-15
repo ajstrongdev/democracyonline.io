@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setCookie } from "@tanstack/react-start/server";
-import { eq, getTableColumns, sql, desc } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   accessTokens,
@@ -8,13 +8,14 @@ import {
   billVotesPresidential,
   billVotesSenate,
   bills,
-  users,
   transactionHistory,
+  users,
 } from "@/db/schema";
 import { db } from "@/db";
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { UpdateUserProfileSchema } from "@/lib/schemas/user-schema";
 import { SearchUsersSchema } from "@/lib/schemas/user-search-schema";
+import { positiveMoneyAmountSchema } from "@/lib/schemas/finance-schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware";
 import { env } from "@/env";
 
@@ -394,68 +395,75 @@ export const transferMoney = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       recipientUsername: z.string().min(1, "Recipient username is required"),
-      amount: z.number().positive("Amount must be positive"),
+      amount: positiveMoneyAmountSchema,
     }),
   )
   .handler(async ({ context, data }) => {
     if (!context.user?.email) {
       throw new Error("Unauthorized");
     }
+    const senderEmail = context.user.email;
 
-    const [sender] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, context.user.email))
-      .limit(1);
+    return db.transaction(async (tx) => {
+      const [sender] = await tx
+        .select({ id: users.id, username: users.username })
+        .from(users)
+        .where(eq(users.email, senderEmail))
+        .limit(1);
 
-    if (!sender) {
-      throw new Error("Sender not found");
-    }
+      if (!sender) {
+        throw new Error("Sender not found");
+      }
 
-    if ((sender.money || 0) < data.amount) {
-      throw new Error("Insufficient funds");
-    }
+      const [recipient] = await tx
+        .select({ id: users.id, username: users.username })
+        .from(users)
+        .where(eq(users.username, data.recipientUsername))
+        .limit(1);
 
-    const [recipient] = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, data.recipientUsername))
-      .limit(1);
+      if (!recipient) {
+        throw new Error("Recipient not found");
+      }
 
-    if (!recipient) {
-      throw new Error("Recipient not found");
-    }
+      if (sender.id === recipient.id) {
+        throw new Error("Cannot transfer money to yourself");
+      }
 
-    if (sender.id === recipient.id) {
-      throw new Error("Cannot transfer money to yourself");
-    }
+      const debitedSender = await tx
+        .update(users)
+        .set({ money: sql`${users.money} - ${data.amount}` })
+        .where(
+          and(eq(users.id, sender.id), sql`${users.money} >= ${data.amount}`),
+        )
+        .returning({ id: users.id, money: users.money });
 
-    // Deduct from sender
-    await db
-      .update(users)
-      .set({ money: (sender.money || 0) - data.amount })
-      .where(eq(users.id, sender.id));
+      if (debitedSender.length === 0) {
+        throw new Error("Insufficient funds");
+      }
 
-    // Add to recipient
-    await db
-      .update(users)
-      .set({ money: (recipient.money || 0) + data.amount })
-      .where(eq(users.id, recipient.id));
+      const creditedRecipient = await tx
+        .update(users)
+        .set({ money: sql`${users.money} + ${data.amount}` })
+        .where(eq(users.id, recipient.id))
+        .returning({ id: users.id });
 
-    // Log transaction for sender
-    await db.insert(transactionHistory).values({
-      userId: sender.id,
-      description: `Sent $${data.amount.toLocaleString()} to ${recipient.username}`,
+      if (creditedRecipient.length === 0) {
+        throw new Error("Recipient not found");
+      }
+
+      await tx.insert(transactionHistory).values({
+        userId: sender.id,
+        description: `Sent $${data.amount.toLocaleString()} to ${recipient.username}`,
+      });
+
+      await tx.insert(transactionHistory).values({
+        userId: recipient.id,
+        description: `Received $${data.amount.toLocaleString()} from ${sender.username}`,
+      });
+
+      return {
+        success: true,
+        newBalance: Number(debitedSender[0].money || 0),
+      };
     });
-
-    // Log transaction for recipient
-    await db.insert(transactionHistory).values({
-      userId: recipient.id,
-      description: `Received $${data.amount.toLocaleString()} from ${sender.username}`,
-    });
-
-    return {
-      success: true,
-      newBalance: (sender.money || 0) - data.amount,
-    };
   });

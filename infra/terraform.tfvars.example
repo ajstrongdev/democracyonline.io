@@ -30,8 +30,12 @@ firebase_admin_client_email    = "firebase-adminsdk-xxxxx@your-project.iam.gserv
 firebase_admin_private_key     = "-----BEGIN PRIVATE KEY-----\nYOUR-PRIVATE-KEY-HERE\n-----END PRIVATE KEY-----\n"
 manage_firebase_secrets        = true
 
-# Dev Mode (TEMPORARY - disables auth checks on API endpoints)
-is_dev = "false"
+# Cron Authentication Configuration
+# Must match the x-scheduler-token sent by Cloud Scheduler jobs
+cron_scheduler_token = "replace-with-random-shared-token"
+
+# Local-only token for localhost non-production cron invocation
+cron_local_token = ""
 
 # Cloud Run Configuration
 cloud_run_cpu           = "1"

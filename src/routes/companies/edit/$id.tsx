@@ -1,4 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, Building2, Save } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { getCompanyById, updateCompany } from "@/lib/server/stocks";
 import { getCurrentUserInfo } from "@/lib/server/users";
 import ProtectedRoute from "@/components/auth/protected-route";
@@ -13,9 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Building2, Save } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
 import { icons } from "@/lib/utils/logo-helper";
 import { useUserData } from "@/lib/hooks/use-user-data";
 

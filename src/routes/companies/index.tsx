@@ -1,12 +1,13 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { Building2, TrendingDown, TrendingUp } from "lucide-react";
+import { Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import * as LucideIcons from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { getCompanies, getSharePriceHistory } from "@/lib/server/stocks";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Building2, TrendingUp, TrendingDown } from "lucide-react";
-import { Line, LineChart, XAxis, YAxis, ResponsiveContainer } from "recharts";
-import * as LucideIcons from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { calculateMarketCap } from "@/lib/utils/stock-economy";
 
 export const Route = createFileRoute("/companies/")({
   component: CompaniesPage,
@@ -55,12 +56,10 @@ function CompaniesPage() {
       ) : (
         <div className="space-y-4">
           {companies.map((company) => {
-            // Calculate market cap based on owned shares, not issued shares
-            const totalOwnedShares =
-              (company.issuedShares || 0) - (company.availableShares || 0);
-            const marketCap = company.stockPrice
-              ? company.stockPrice * totalOwnedShares
-              : 0;
+            const marketCap = calculateMarketCap({
+              sharePrice: company.stockPrice,
+              issuedShares: company.issuedShares,
+            });
 
             const companyHistory = priceHistory.filter(
               (h) => h.stockId === company.id,

@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { billPageData } from "@/lib/server/bills";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { billPageData } from "@/lib/server/bills";
 import BillVotersList from "@/components/bill-votes-list";
 import { BackButton } from "@/components/back-button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import ProtectedRoute from "@/components/auth/protected-route";
 

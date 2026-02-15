@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
+import { Toaster } from "sonner";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
 import type { QueryClient } from "@tanstack/react-query";
@@ -19,7 +20,6 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { getThemeServerFn } from "@/lib/server/theme";
 import { ThemeProvider } from "@/components/theme-provider";
 import { NotFound } from "@/components/not-found";
-import { Toaster } from "sonner";
 
 type AuthContext = {
   user: User | null;

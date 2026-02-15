@@ -108,10 +108,17 @@ variable "firebase_admin_private_key" {
   sensitive   = true
 }
 
-variable "is_dev" {
-  description = "Whether to disable auth checks on API endpoints (TEMPORARY - security risk)"
+variable "cron_scheduler_token" {
+  description = "Shared token used by Cloud Scheduler and API cron auth"
   type        = string
-  default     = "false"
+  sensitive   = true
+}
+
+variable "cron_local_token" {
+  description = "Local-only cron token for localhost non-production access"
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "cloud_run_cpu" {
