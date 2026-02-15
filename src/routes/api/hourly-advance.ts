@@ -276,7 +276,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
                   totalPrice: totalTradeValue,
                 });
 
-                // 5. Update stock broughtToday (for price calculation)
+                // 5. Update stock broughtToday (buy pressure for price calculation)
                 await db
                   .update(stocks)
                   .set({
@@ -435,7 +435,9 @@ export const Route = createFileRoute("/api/hourly-advance")({
           // ========== ORPHANED SELL ORDER CLEANUP ==========
           // Cancel sell orders that can never fill because the only buy orders
           // are from the seller themselves (prevents permanent share lockup)
+          // Track cancelled shares as sell pressure (oversupply signal)
           let cancelledOrphanedOrders = 0;
+          const orphanedSellSharesByStock: Record<number, number> = {};
 
           for (const stock of allStocks) {
             if (!stock.companyId) continue;
@@ -494,6 +496,10 @@ export const Route = createFileRoute("/api/hourly-advance")({
                   description: `Sell order auto-cancelled: ${sellRemaining} share${sellRemaining > 1 ? "s" : ""} of ${stock.companyName} (${stock.companySymbol}) — no buyers available`,
                 });
 
+                // Track as sell pressure — people tried to sell but couldn't
+                orphanedSellSharesByStock[stock.id] =
+                  (orphanedSellSharesByStock[stock.id] || 0) + sellRemaining;
+
                 cancelledOrphanedOrders++;
                 console.log(
                   `${stock.companySymbol}: Auto-cancelled orphaned sell order ${sellOrder.id} (no counterparty buyers)`,
@@ -511,6 +517,21 @@ export const Route = createFileRoute("/api/hourly-advance")({
           console.log(
             `Order matching complete: ${totalSharesTraded} shares traded across ${totalOrdersFilled} fills`,
           );
+
+          // ========== SELL PRESSURE FROM CANCELLED ORDERS ==========
+          // Cancelled sell orders = people wanted to sell but found no buyers = oversupply
+          for (const [stockId, cancelledShares] of Object.entries(
+            orphanedSellSharesByStock,
+          )) {
+            if (cancelledShares > 0) {
+              await db
+                .update(stocks)
+                .set({
+                  soldToday: sql`COALESCE(${stocks.soldToday}, 0) + ${cancelledShares}`,
+                })
+                .where(eq(stocks.id, Number(stockId)));
+            }
+          }
 
           // Re-fetch stocks to get updated broughtToday/soldToday after order matching
           const updatedStocks = await db
@@ -547,8 +568,9 @@ export const Route = createFileRoute("/api/hourly-advance")({
             const sold = stock.soldToday || 0;
             const currentPrice = stock.price;
 
-            // Simple price adjustment based purely on demand
-            // +$1 per share bought, -$1 per share sold
+            // Price adjustment: buy fills push up, unfilled sell orders push down
+            // bought = shares filled from buy orders (P2P + treasury)
+            // sold = unfilled shares sitting in open sell orders (oversupply pressure)
             let priceChange = bought - sold;
 
             // Natural decay: if no trading activity, reduce price by 1%

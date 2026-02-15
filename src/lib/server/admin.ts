@@ -15,11 +15,17 @@ import {
   chats,
   companies,
   feed,
+  financeKpiSnapshots,
+  gameState,
+  orderFills,
   parties,
   presidentialElection,
   senateElection,
+  shareIssuanceEvents,
   sharePriceHistory,
+  stockOrders,
   stocks,
+  transactionHistory,
   userShares,
   users,
   votes,
@@ -278,6 +284,18 @@ export const resetEconomy = createServerFn({ method: "POST" })
       throw new Error("Unauthorized");
     }
 
+    // Delete order fills (references stockOrders and companies)
+    await db.delete(orderFills);
+
+    // Delete stock orders (references companies)
+    await db.delete(stockOrders);
+
+    // Delete finance KPI snapshots (references companies)
+    await db.delete(financeKpiSnapshots);
+
+    // Delete share issuance events (references companies)
+    await db.delete(shareIssuanceEvents);
+
     // Delete share price history
     await db.delete(sharePriceHistory);
 
@@ -289,6 +307,12 @@ export const resetEconomy = createServerFn({ method: "POST" })
 
     // Delete all companies
     await db.delete(companies);
+
+    // Reset game state
+    await db.delete(gameState);
+
+    // Delete transaction history (contains company creation records used for cooldowns)
+    await db.delete(transactionHistory);
 
     // Reset all players' money to $2500
     await db.update(users).set({ money: 2500 });

@@ -1,21 +1,22 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDownUp,
+  BarChart3,
   Briefcase,
   Building2,
   ChevronDown,
   ChevronUp,
   Clock,
   Eye,
-  Filter,
   ListOrdered,
+  Loader2,
   ShoppingCart,
   TrendingDown,
   TrendingUp,
   Wallet,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import * as LucideIcons from "lucide-react";
@@ -24,6 +25,7 @@ import { getCurrentUserInfo } from "@/lib/server/users";
 import {
   buyShares,
   getCompanies,
+  getCompanyOrderBook,
   getSharePriceHistory,
   getUserShares,
   getUserOrders,
@@ -48,6 +50,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/companies/market")({
   loader: async () => {
@@ -446,6 +455,61 @@ function MarketPage() {
   const [chartFilter, setChartFilter] = useState<"all" | "holdings" | "orders">(
     "all",
   );
+  const [orderBookCompanyId, setOrderBookCompanyId] = useState<number | null>(
+    null,
+  );
+  const [orderBookData, setOrderBookData] = useState<{
+    bids: Array<{
+      id: number;
+      pricePerShare: number;
+      quantity: number;
+      filledQuantity: number;
+      remaining: number;
+      status: string;
+      createdAt: Date | null;
+      username: string;
+      userId: number;
+    }>;
+    asks: Array<{
+      id: number;
+      pricePerShare: number;
+      quantity: number;
+      filledQuantity: number;
+      remaining: number;
+      status: string;
+      createdAt: Date | null;
+      username: string;
+      userId: number;
+    }>;
+    recentFills: Array<{
+      quantity: number;
+      pricePerShare: number;
+      filledAt: Date | null;
+    }>;
+  } | null>(null);
+  const [orderBookLoading, setOrderBookLoading] = useState(false);
+
+  useEffect(() => {
+    if (!orderBookCompanyId) {
+      setOrderBookData(null);
+      return;
+    }
+    let cancelled = false;
+    setOrderBookLoading(true);
+    getCompanyOrderBook({ data: { companyId: orderBookCompanyId } })
+      .then((data) => {
+        if (!cancelled) setOrderBookData(data);
+      })
+      .catch(() => {
+        if (!cancelled) setOrderBookData(null);
+      })
+      .finally(() => {
+        if (!cancelled) setOrderBookLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderBookCompanyId]);
 
   // Compute which symbols belong to holdings / orders
   const holdingSymbols = new Set(userHoldings.map((h) => h.companySymbol));
@@ -790,7 +854,7 @@ function MarketPage() {
 
         {/* Orders & Holdings in Tabs */}
         <Tabs defaultValue="orders" className="w-full">
-          <TabsList className="w-full grid grid-cols-3">
+          <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="orders" className="gap-1.5">
               <ListOrdered className="w-4 h-4" />
               <span className="hidden sm:inline">My Orders</span>
@@ -816,6 +880,11 @@ function MarketPage() {
                   {userHoldings.length}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="orderbook" className="gap-1.5">
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Order Book</span>
+              <span className="sm:hidden">Book</span>
             </TabsTrigger>
             <TabsTrigger value="market" className="gap-1.5">
               <ShoppingCart className="w-4 h-4" />
@@ -930,6 +999,261 @@ function MarketPage() {
                           .toLocaleString()}
                       </span>
                     </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ─── Order Book Tab ─────────────────────────────────────── */}
+          <TabsContent value="orderbook" className="mt-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-primary" />
+                  <CardTitle>Order Book</CardTitle>
+                </div>
+                <CardDescription>
+                  See who&apos;s in the queue and your position. Orders are
+                  matched hourly in FIFO order.
+                </CardDescription>
+                <div className="mt-3">
+                  <Select
+                    value={orderBookCompanyId?.toString() ?? ""}
+                    onValueChange={(val) =>
+                      setOrderBookCompanyId(val ? Number(val) : null)
+                    }
+                  >
+                    <SelectTrigger className="w-full sm:w-[280px]">
+                      <SelectValue placeholder="Select a company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companiesList.map((company) => (
+                        <SelectItem
+                          key={company.id}
+                          value={company.id.toString()}
+                        >
+                          {company.symbol} — {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {!orderBookCompanyId && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <BarChart3 className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                    <p className="font-medium">Select a company</p>
+                    <p className="text-sm">
+                      Choose a company above to view its order book
+                    </p>
+                  </div>
+                )}
+
+                {orderBookCompanyId && orderBookLoading && (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+
+                {orderBookCompanyId && !orderBookLoading && orderBookData && (
+                  <div className="space-y-6">
+                    {/* Spread info */}
+                    {orderBookData.bids.length > 0 &&
+                      orderBookData.asks.length > 0 && (
+                        <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground rounded-lg bg-muted/50 px-4 py-2.5">
+                          <ArrowDownUp className="w-4 h-4" />
+                          <span>
+                            Spread: $
+                            {(
+                              orderBookData.asks[0].pricePerShare -
+                              orderBookData.bids[0].pricePerShare
+                            ).toLocaleString()}
+                          </span>
+                          <span className="text-xs">
+                            (Best Bid: $
+                            {orderBookData.bids[0].pricePerShare.toLocaleString()}
+                            {" · "}
+                            Best Ask: $
+                            {orderBookData.asks[0].pricePerShare.toLocaleString()}
+                            )
+                          </span>
+                        </div>
+                      )}
+
+                    {/* Bids & Asks side-by-side */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Buy Orders (Bids) */}
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-semibold uppercase tracking-wider text-green-600 dark:text-green-400 flex items-center gap-1.5">
+                          <TrendingUp className="w-4 h-4" />
+                          Buy Queue
+                          {orderBookData.bids.length > 0 && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] px-1.5 py-0"
+                            >
+                              {orderBookData.bids.length}
+                            </Badge>
+                          )}
+                        </h3>
+                        {orderBookData.bids.length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-4 text-center">
+                            No open buy orders
+                          </p>
+                        ) : (
+                          <div className="rounded-lg border overflow-hidden">
+                            <div className="grid grid-cols-[auto_1fr_auto_auto] text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 bg-muted/50 gap-3">
+                              <span>#</span>
+                              <span>Player</span>
+                              <span className="text-right">Qty</span>
+                              <span className="text-right">Price</span>
+                            </div>
+                            {orderBookData.bids.map((bid, i) => {
+                              const isMe = bid.userId === user?.id;
+                              return (
+                                <div
+                                  key={bid.id}
+                                  className={`grid grid-cols-[auto_1fr_auto_auto] px-3 py-2 text-sm border-t gap-3 ${
+                                    isMe
+                                      ? "bg-green-50 dark:bg-green-950/30 ring-1 ring-inset ring-green-300 dark:ring-green-800"
+                                      : ""
+                                  }`}
+                                >
+                                  <span className="text-muted-foreground text-xs tabular-nums w-5">
+                                    {i + 1}
+                                  </span>
+                                  <span
+                                    className={`truncate ${isMe ? "font-semibold text-green-700 dark:text-green-400" : ""}`}
+                                  >
+                                    {bid.username}
+                                    {isMe && (
+                                      <span className="text-[10px] ml-1 text-green-600 dark:text-green-400">
+                                        (you)
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className="font-mono text-right tabular-nums">
+                                    {bid.remaining.toLocaleString()}
+                                  </span>
+                                  <span className="font-mono font-medium text-green-700 dark:text-green-400 text-right tabular-nums">
+                                    ${bid.pricePerShare.toLocaleString()}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Sell Orders (Asks) */}
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-semibold uppercase tracking-wider text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                          <TrendingDown className="w-4 h-4" />
+                          Sell Queue
+                          {orderBookData.asks.length > 0 && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] px-1.5 py-0"
+                            >
+                              {orderBookData.asks.length}
+                            </Badge>
+                          )}
+                        </h3>
+                        {orderBookData.asks.length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-4 text-center">
+                            No open sell orders
+                          </p>
+                        ) : (
+                          <div className="rounded-lg border overflow-hidden">
+                            <div className="grid grid-cols-[auto_1fr_auto_auto] text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 bg-muted/50 gap-3">
+                              <span>#</span>
+                              <span>Player</span>
+                              <span className="text-right">Qty</span>
+                              <span className="text-right">Price</span>
+                            </div>
+                            {orderBookData.asks.map((ask, i) => {
+                              const isMe = ask.userId === user?.id;
+                              return (
+                                <div
+                                  key={ask.id}
+                                  className={`grid grid-cols-[auto_1fr_auto_auto] px-3 py-2 text-sm border-t gap-3 ${
+                                    isMe
+                                      ? "bg-red-50 dark:bg-red-950/30 ring-1 ring-inset ring-red-300 dark:ring-red-800"
+                                      : ""
+                                  }`}
+                                >
+                                  <span className="text-muted-foreground text-xs tabular-nums w-5">
+                                    {i + 1}
+                                  </span>
+                                  <span
+                                    className={`truncate ${isMe ? "font-semibold text-red-700 dark:text-red-400" : ""}`}
+                                  >
+                                    {ask.username}
+                                    {isMe && (
+                                      <span className="text-[10px] ml-1 text-red-600 dark:text-red-400">
+                                        (you)
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className="font-mono text-right tabular-nums">
+                                    {ask.remaining.toLocaleString()}
+                                  </span>
+                                  <span className="font-mono font-medium text-red-700 dark:text-red-400 text-right tabular-nums">
+                                    ${ask.pricePerShare.toLocaleString()}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Recent Fills */}
+                    {orderBookData.recentFills.length > 0 && (
+                      <div className="space-y-2">
+                        <Separator />
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <Clock className="w-4 h-4" />
+                          Recent Trades
+                        </h3>
+                        <div className="rounded-lg border overflow-hidden">
+                          <div className="grid grid-cols-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 bg-muted/50">
+                            <span>Price</span>
+                            <span className="text-center">Qty</span>
+                            <span className="text-right">Time</span>
+                          </div>
+                          {orderBookData.recentFills.map((fill, i) => (
+                            <div
+                              key={i}
+                              className="grid grid-cols-3 px-3 py-2 text-sm border-t"
+                            >
+                              <span className="font-mono">
+                                ${fill.pricePerShare.toLocaleString()}
+                              </span>
+                              <span className="text-center font-mono">
+                                {fill.quantity.toLocaleString()}
+                              </span>
+                              <span className="text-right text-muted-foreground text-xs">
+                                {fill.filledAt
+                                  ? new Date(fill.filledAt).toLocaleString(
+                                      undefined,
+                                      {
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                      },
+                                    )
+                                  : "N/A"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -1056,7 +1380,7 @@ function MarketPage() {
                             </div>
                           </Link>
 
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-4 gap-2">
                             <div className="flex flex-col items-center">
                               <span className="text-lg font-bold">
                                 ${company.stockPrice?.toLocaleString() ?? "N/A"}
@@ -1089,11 +1413,22 @@ function MarketPage() {
                             </div>
 
                             <div className="flex flex-col items-center">
-                              <span className="text-lg font-semibold">
+                              <span className="text-lg font-semibold text-green-600 dark:text-green-400">
+                                {Number(
+                                  company.sellOrderShares ?? 0,
+                                ).toLocaleString()}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                For Sale
+                              </span>
+                            </div>
+
+                            <div className="flex flex-col items-center">
+                              <span className="text-lg font-semibold text-amber-600 dark:text-amber-400">
                                 {Number(company.available).toLocaleString()}
                               </span>
                               <span className="text-xs text-muted-foreground">
-                                Available
+                                Minted
                               </span>
                             </div>
 

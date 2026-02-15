@@ -107,6 +107,24 @@ export const getCompanies = createServerFn().handler(async () => {
       );
       const available = (company.issuedShares || 0) - totalOwned;
 
+      // Sum open/partial sell orders for this company
+      const [sellOrderResult] = await db
+        .select({
+          totalForSale: sql<number>`COALESCE(SUM(${stockOrders.quantity} - ${stockOrders.filledQuantity}), 0)`,
+        })
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.companyId, company.id),
+            eq(stockOrders.side, "sell"),
+            or(
+              eq(stockOrders.status, "open"),
+              eq(stockOrders.status, "partial"),
+            ),
+          ),
+        );
+      const sellOrderShares = Number(sellOrderResult?.totalForSale ?? 0);
+
       // CEO = top shareholder
       const topHolder = allHoldings.sort(
         (a, b) => (b.quantity || 0) - (a.quantity || 0),
@@ -121,7 +139,12 @@ export const getCompanies = createServerFn().handler(async () => {
         creatorUsername = ceoUser?.username || null;
       }
 
-      return { ...company, availableShares: available, creatorUsername };
+      return {
+        ...company,
+        availableShares: available,
+        sellOrderShares,
+        creatorUsername,
+      };
     }),
   );
 
@@ -801,17 +824,24 @@ export const cancelOrder = createServerFn()
     });
   });
 
-// Get the order book for a company (aggregated buy/sell orders)
+// Get the order book for a company (individual orders with player names, FIFO)
 export const getCompanyOrderBook = createServerFn()
   .inputValidator((data: { companyId: number }) => data)
   .handler(async ({ data }) => {
     const openBuyOrders = await db
       .select({
+        id: stockOrders.id,
         pricePerShare: stockOrders.pricePerShare,
-        totalQuantity: sql<number>`SUM(${stockOrders.quantity} - ${stockOrders.filledQuantity})::int`,
-        orderCount: sql<number>`COUNT(*)::int`,
+        quantity: stockOrders.quantity,
+        filledQuantity: stockOrders.filledQuantity,
+        remaining: sql<number>`(${stockOrders.quantity} - ${stockOrders.filledQuantity})::int`,
+        status: stockOrders.status,
+        createdAt: stockOrders.createdAt,
+        username: users.username,
+        userId: stockOrders.userId,
       })
       .from(stockOrders)
+      .innerJoin(users, eq(users.id, stockOrders.userId))
       .where(
         and(
           eq(stockOrders.companyId, data.companyId),
@@ -819,16 +849,22 @@ export const getCompanyOrderBook = createServerFn()
           or(eq(stockOrders.status, "open"), eq(stockOrders.status, "partial")),
         ),
       )
-      .groupBy(stockOrders.pricePerShare)
-      .orderBy(desc(stockOrders.pricePerShare));
+      .orderBy(desc(stockOrders.pricePerShare), asc(stockOrders.createdAt));
 
     const openSellOrders = await db
       .select({
+        id: stockOrders.id,
         pricePerShare: stockOrders.pricePerShare,
-        totalQuantity: sql<number>`SUM(${stockOrders.quantity} - ${stockOrders.filledQuantity})::int`,
-        orderCount: sql<number>`COUNT(*)::int`,
+        quantity: stockOrders.quantity,
+        filledQuantity: stockOrders.filledQuantity,
+        remaining: sql<number>`(${stockOrders.quantity} - ${stockOrders.filledQuantity})::int`,
+        status: stockOrders.status,
+        createdAt: stockOrders.createdAt,
+        username: users.username,
+        userId: stockOrders.userId,
       })
       .from(stockOrders)
+      .innerJoin(users, eq(users.id, stockOrders.userId))
       .where(
         and(
           eq(stockOrders.companyId, data.companyId),
@@ -836,8 +872,7 @@ export const getCompanyOrderBook = createServerFn()
           or(eq(stockOrders.status, "open"), eq(stockOrders.status, "partial")),
         ),
       )
-      .groupBy(stockOrders.pricePerShare)
-      .orderBy(asc(stockOrders.pricePerShare));
+      .orderBy(asc(stockOrders.pricePerShare), asc(stockOrders.createdAt));
 
     // Recent fills
     const recentFills = await db
