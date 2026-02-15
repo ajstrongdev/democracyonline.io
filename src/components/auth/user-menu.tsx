@@ -22,7 +22,7 @@ export function UserMenu() {
           <Link to="/login">Sign In</Link>
         </Button>
         <Button asChild>
-          <Link to="/signup">Sign Up</Link>
+          <Link to="/register">Sign Up</Link>
         </Button>
       </div>
     );

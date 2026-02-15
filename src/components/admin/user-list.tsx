@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { RefreshCw } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -20,8 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { RefreshCw } from "lucide-react";
-import { toggleUserDisabled, deleteFirebaseUser } from "@/lib/server/admin";
+import { deleteFirebaseUser, toggleUserDisabled } from "@/lib/server/admin";
 
 interface FirebaseUser {
   uid: string;
@@ -35,12 +35,12 @@ interface FirebaseUser {
 }
 
 interface UserListProps {
-  initialUsers: FirebaseUser[];
+  initialUsers: Array<FirebaseUser>;
   onRefresh: () => void | Promise<void>;
 }
 
 export default function UserList({ initialUsers, onRefresh }: UserListProps) {
-  const [users, setUsers] = useState<FirebaseUser[]>(initialUsers);
+  const [users, setUsers] = useState<Array<FirebaseUser>>(initialUsers);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

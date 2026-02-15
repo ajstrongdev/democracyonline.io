@@ -4,6 +4,10 @@
 
 Democracy Online is a full-stack web application that simulates an online democratic government system. Users can form political parties, propose and vote on legislation, participate in elections, and engage in the democratic process through a modern, interactive platform.
 
+## Additional Documentation
+
+- [Finance Systems](./FINANCE_SYSTEMS.md) — economy architecture, formulas, and exploit/risk analysis
+
 ## Technology Stack
 
 ### Frontend

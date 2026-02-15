@@ -2,11 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  bills,
   billVotesPresidential,
-  users,
+  bills,
   parties,
   transactionHistory,
+  users,
 } from "@/db/schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
 import { addFeedItem } from "@/lib/server/feed";

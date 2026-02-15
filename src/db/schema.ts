@@ -268,6 +268,99 @@ export const sharePriceHistory = pgTable("share_price_history", {
   recordedAt: timestamp("recorded_at").defaultNow(),
 });
 
+export const shareIssuanceEvents = pgTable("share_issuance_events", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id),
+  policy: varchar("policy", { length: 32 }).notNull(),
+  source: varchar("source", { length: 32 }).notNull(),
+  mintedShares: bigint("minted_shares", { mode: "number" }).notNull(),
+  issuedSharesBefore: bigint("issued_shares_before", {
+    mode: "number",
+  }).notNull(),
+  issuedSharesAfter: bigint("issued_shares_after", {
+    mode: "number",
+  }).notNull(),
+  activeHolders: bigint("active_holders", { mode: "number" }).default(0),
+  buyPressureDelta: bigint("buy_pressure_delta", { mode: "number" }).default(0),
+  ownershipDriftBps: bigint("ownership_drift_bps", { mode: "number" }).default(
+    0,
+  ),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Game state (single-row table tracking global game counters)
+export const gameState = pgTable("game_state", {
+  id: serial("id").primaryKey(),
+  currentGameHour: bigint("current_game_hour", { mode: "number" })
+    .default(0)
+    .notNull(),
+});
+
+// Stock orders (buy/sell order book)
+export const stockOrders = pgTable("stock_orders", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id),
+  side: varchar("side", { length: 4 }).notNull(), // 'buy' | 'sell'
+  quantity: bigint("quantity", { mode: "number" }).notNull(),
+  filledQuantity: bigint("filled_quantity", { mode: "number" })
+    .default(0)
+    .notNull(),
+  pricePerShare: bigint("price_per_share", { mode: "number" }).notNull(),
+  status: varchar("status", { length: 16 }).default("open").notNull(), // 'open' | 'partial' | 'filled' | 'cancelled'
+  gameHour: bigint("game_hour", { mode: "number" }).default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Order fill history (records each matched trade between buyer & seller)
+export const orderFills = pgTable("order_fills", {
+  id: serial("id").primaryKey(),
+  buyOrderId: integer("buy_order_id")
+    .notNull()
+    .references(() => stockOrders.id),
+  sellOrderId: integer("sell_order_id")
+    .notNull()
+    .references(() => stockOrders.id),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id),
+  buyerUserId: integer("buyer_user_id")
+    .notNull()
+    .references(() => users.id),
+  sellerUserId: integer("seller_user_id")
+    .notNull()
+    .references(() => users.id),
+  quantity: bigint("quantity", { mode: "number" }).notNull(),
+  pricePerShare: bigint("price_per_share", { mode: "number" }).notNull(),
+  totalPrice: bigint("total_price", { mode: "number" }).notNull(),
+  filledAt: timestamp("filled_at").defaultNow(),
+});
+
+export const financeKpiSnapshots = pgTable("finance_kpi_snapshots", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id),
+  policy: varchar("policy", { length: 32 }).notNull(),
+  sharePrice: bigint("share_price", { mode: "number" }).notNull(),
+  issuedShares: bigint("issued_shares", { mode: "number" }).notNull(),
+  marketCap: bigint("market_cap", { mode: "number" }).notNull(),
+  hourlyDividendPool: bigint("hourly_dividend_pool", {
+    mode: "number",
+  }).notNull(),
+  dividendPerShareMilli: bigint("dividend_per_share_milli", {
+    mode: "number",
+  }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Remove this later
 export const votes = pgTable("votes", {
   id: serial("id").primaryKey(),

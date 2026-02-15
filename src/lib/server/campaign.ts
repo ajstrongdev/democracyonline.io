@@ -1,13 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import {
-  candidates,
-  candidatePurchases,
-  elections,
-  items,
-  users,
-} from "@/db/schema";
+import { candidatePurchases, candidates, elections, items } from "@/db/schema";
 import { requireAuthMiddleware } from "@/middleware/auth";
 
 // Types
@@ -87,7 +81,7 @@ export const getCampaignData = createServerFn()
 export const getCampaignItems = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { candidateId: number }) => data)
-  .handler(async ({ data }): Promise<CampaignItem[]> => {
+  .handler(async ({ data }): Promise<Array<CampaignItem>> => {
     // Get all items
     const allItems = await db.select().from(items);
 

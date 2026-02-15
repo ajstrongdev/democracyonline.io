@@ -105,14 +105,14 @@ function PartyPage() {
     }
     try {
       await withdrawPartyFunds({
-        data: { partyId: party!.id, amount },
+        data: { partyId: party.id, amount },
       });
       setShowWithdrawDialog(false);
       setWithdrawAmount("");
       // Refresh the page to show updated balance
       navigate({
         to: "/parties/$id",
-        params: { id: String(party!.id) },
+        params: { id: String(party.id) },
       });
     } catch (error) {
       setWithdrawError(
@@ -330,7 +330,7 @@ function PartyPage() {
                       <Button
                         variant="outline"
                         className="w-full justify-start"
-                        onClick={async () => {
+                        onClick={() => {
                           if (userInfo?.id) {
                             setShowJoinDialog(true);
                           }

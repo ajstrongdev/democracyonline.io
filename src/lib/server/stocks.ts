@@ -1,19 +1,68 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { and, asc, desc, eq, gte, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   companies,
+  financeKpiSnapshots,
+  gameState,
+  orderFills,
+  shareIssuanceEvents,
+  sharePriceHistory,
+  stockOrders,
   stocks,
-  users,
   transactionHistory,
   userShares,
-  sharePriceHistory,
+  users,
 } from "@/db/schema";
 import { requireAuthMiddleware } from "@/middleware";
-import { eq, and, desc } from "drizzle-orm";
 import {
   CreateCompanySchema,
   UpdateCompanySchema,
 } from "@/lib/schemas/stock-schema";
+import {
+  calculateDividendPerShareMilli,
+  calculateHourlyDividendPool,
+  calculateOneShareOwnershipDriftBps,
+} from "@/lib/utils/share-issuance-policy";
+import {
+  calculateHourlyDividend,
+  calculateIssuedSharesFromCapital,
+  calculateMarketCap,
+} from "@/lib/utils/stock-economy";
+import { env } from "@/env";
+import {
+  nonNegativeQuantitySchema,
+  positiveMoneyAmountSchema,
+  positiveQuantitySchema,
+} from "@/lib/schemas/finance-schema";
+
+const MAX_OPEN_ORDER_SHARES_PER_COMPANY = 5;
+
+const BuySharesInputSchema = z.object({
+  companyId: z.number().int().positive(),
+  quantity: positiveQuantitySchema
+    .max(
+      MAX_OPEN_ORDER_SHARES_PER_COMPANY,
+      `Cannot order more than ${MAX_OPEN_ORDER_SHARES_PER_COMPANY} shares at once`,
+    )
+    .optional()
+    .default(1),
+});
+
+const SellSharesInputSchema = z.object({
+  companyId: z.number().int().positive(),
+  quantity: positiveQuantitySchema.max(
+    MAX_OPEN_ORDER_SHARES_PER_COMPANY,
+    `Cannot order more than ${MAX_OPEN_ORDER_SHARES_PER_COMPANY} shares at once`,
+  ),
+});
+
+const InvestInCompanyInputSchema = z.object({
+  companyId: z.number().int().positive(),
+  investmentAmount: positiveMoneyAmountSchema,
+  retainedShares: nonNegativeQuantitySchema,
+});
 
 // Helper: find the CEO of a company (top shareholder by shares)
 async function getCompanyCEOId(companyId: number): Promise<number | null> {
@@ -58,6 +107,24 @@ export const getCompanies = createServerFn().handler(async () => {
       );
       const available = (company.issuedShares || 0) - totalOwned;
 
+      // Sum open/partial sell orders for this company
+      const [sellOrderResult] = await db
+        .select({
+          totalForSale: sql<number>`COALESCE(SUM(${stockOrders.quantity} - ${stockOrders.filledQuantity}), 0)`,
+        })
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.companyId, company.id),
+            eq(stockOrders.side, "sell"),
+            or(
+              eq(stockOrders.status, "open"),
+              eq(stockOrders.status, "partial"),
+            ),
+          ),
+        );
+      const sellOrderShares = Number(sellOrderResult?.totalForSale ?? 0);
+
       // CEO = top shareholder
       const topHolder = allHoldings.sort(
         (a, b) => (b.quantity || 0) - (a.quantity || 0),
@@ -72,7 +139,12 @@ export const getCompanies = createServerFn().handler(async () => {
         creatorUsername = ceoUser?.username || null;
       }
 
-      return { ...company, availableShares: available, creatorUsername };
+      return {
+        ...company,
+        availableShares: available,
+        sellOrderShares,
+        creatorUsername,
+      };
     }),
   );
 
@@ -121,6 +193,26 @@ export const createCompany = createServerFn({ method: "POST" })
       throw new Error("Insufficient funds for startup capital");
     }
 
+    // Rate limit: 1 company creation per 24 hours
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [recentCreation] = await db
+      .select({ id: transactionHistory.id })
+      .from(transactionHistory)
+      .where(
+        and(
+          eq(transactionHistory.userId, currentUser.id),
+          gte(transactionHistory.createdAt, twentyFourHoursAgo),
+          sql`${transactionHistory.description} LIKE 'Created company %'`,
+        ),
+      )
+      .limit(1);
+
+    if (recentCreation) {
+      throw new Error(
+        "You can only create one company every 24 hours. Please wait before creating another.",
+      );
+    }
+
     const existingCompany = await db
       .select()
       .from(companies)
@@ -131,12 +223,16 @@ export const createCompany = createServerFn({ method: "POST" })
       throw new Error("Stock symbol already exists");
     }
 
-    // Calculate issued shares: 1 share per $100 capital
-    const issuedShares = Math.floor(data.capital / 100);
+    // Only issue the shares the founder actually retains — no unowned stock
+    const issuedShares = data.retainedShares;
     const initialSharePrice = 100; // $100 per share
 
-    if (data.retainedShares > issuedShares) {
-      throw new Error("Cannot retain more shares than will be issued");
+    // Validate retained shares don't exceed what capital could theoretically support
+    const maxPossibleShares = calculateIssuedSharesFromCapital(data.capital);
+    if (data.retainedShares > maxPossibleShares) {
+      throw new Error(
+        `Cannot retain more than ${maxPossibleShares} shares with $${data.capital.toLocaleString()} capital`,
+      );
     }
 
     const [newCompany] = await db
@@ -198,7 +294,7 @@ export const createCompany = createServerFn({ method: "POST" })
       company: newCompany,
       sharesIssued: issuedShares,
       sharesRetained: data.retainedShares,
-      sharesAvailable: issuedShares - data.retainedShares,
+      sharesAvailable: 0,
     };
   });
 
@@ -325,9 +421,10 @@ export const getUserShares = createServerFn()
 
 export const buyShares = createServerFn()
   .middleware([requireAuthMiddleware])
-  .inputValidator((data: { companyId: number; quantity?: number }) => data)
+  .inputValidator((data: unknown) => BuySharesInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const quantity = data.quantity || 1;
+
     if (!context.user?.email) {
       throw new Error("Unauthorized");
     }
@@ -342,101 +439,135 @@ export const buyShares = createServerFn()
       throw new Error("User not found");
     }
 
-    const [company] = await db
-      .select()
-      .from(companies)
-      .where(eq(companies.id, data.companyId))
-      .limit(1);
+    // Place a buy order instead of instant purchase
+    return db.transaction(async (tx) => {
+      const [company] = await tx
+        .select()
+        .from(companies)
+        .where(eq(companies.id, data.companyId))
+        .limit(1);
 
-    if (!company) {
-      throw new Error("Company not found");
-    }
+      if (!company) {
+        throw new Error("Company not found");
+      }
 
-    const [stock] = await db
-      .select()
-      .from(stocks)
-      .where(eq(stocks.companyId, company.id))
-      .limit(1);
+      const [stock] = await tx
+        .select()
+        .from(stocks)
+        .where(eq(stocks.companyId, company.id))
+        .limit(1);
 
-    if (!stock) {
-      throw new Error("Stock not found for company");
-    }
+      if (!stock) {
+        throw new Error("Stock not found for company");
+      }
 
-    const sharePrice = stock.price;
-    const totalCost = sharePrice * quantity;
-    if ((currentUser.money || 0) < totalCost) {
-      throw new Error(
-        `Insufficient funds to buy ${quantity} share${quantity > 1 ? "s" : ""}`,
-      );
-    }
+      // Get current game hour
+      const [currentGameState] = await tx
+        .select({ currentGameHour: gameState.currentGameHour })
+        .from(gameState)
+        .limit(1);
+      const currentGameHour = currentGameState?.currentGameHour ?? 0;
 
-    // Check if shares are available
-    const allUserShares = await db
-      .select()
-      .from(userShares)
-      .where(eq(userShares.companyId, company.id));
+      // Rate limit: 1 buy order per game hour (only active orders count)
+      const [recentBuyOrder] = await tx
+        .select({ id: stockOrders.id })
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.userId, currentUser.id),
+            eq(stockOrders.side, "buy"),
+            eq(stockOrders.gameHour, currentGameHour),
+            or(
+              eq(stockOrders.status, "open"),
+              eq(stockOrders.status, "partial"),
+            ),
+          ),
+        )
+        .limit(1);
 
-    const totalSharesOwned = allUserShares.reduce(
-      (sum, share) => sum + (share.quantity || 0),
-      0,
-    );
+      if (recentBuyOrder) {
+        throw new Error(
+          "You can only place one buy order per game hour. Wait for the next hourly tick.",
+        );
+      }
 
-    const availableShares = (company.issuedShares || 0) - totalSharesOwned;
+      // Cap: max 5 shares in open buy orders per company
+      const [pendingBuyResult] = await tx
+        .select({
+          pending: sql<number>`COALESCE(SUM(${stockOrders.quantity} - ${stockOrders.filledQuantity}), 0)`,
+        })
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.userId, currentUser.id),
+            eq(stockOrders.companyId, company.id),
+            eq(stockOrders.side, "buy"),
+            or(
+              eq(stockOrders.status, "open"),
+              eq(stockOrders.status, "partial"),
+            ),
+          ),
+        );
 
-    if (availableShares < quantity) {
-      throw new Error(
-        `Only ${availableShares} share${availableShares !== 1 ? "s" : ""} available for purchase`,
-      );
-    }
+      const pendingBuyShares = Number(pendingBuyResult?.pending || 0);
+      if (pendingBuyShares + quantity > MAX_OPEN_ORDER_SHARES_PER_COMPANY) {
+        const remaining = MAX_OPEN_ORDER_SHARES_PER_COMPANY - pendingBuyShares;
+        throw new Error(
+          remaining <= 0
+            ? `You already have ${pendingBuyShares} share${pendingBuyShares !== 1 ? "s" : ""} pending in buy orders for this company (max ${MAX_OPEN_ORDER_SHARES_PER_COMPANY})`
+            : `You can only order ${remaining} more share${remaining !== 1 ? "s" : ""} for this company (${pendingBuyShares} already pending, max ${MAX_OPEN_ORDER_SHARES_PER_COMPANY})`,
+        );
+      }
 
-    // Deduct money from user
-    await db
-      .update(users)
-      .set({ money: (currentUser.money || 0) - totalCost })
-      .where(eq(users.id, currentUser.id));
+      const pricePerShare = stock.price;
+      const totalCost = pricePerShare * quantity;
 
-    // Add shares to userShares
-    const [existingShare] = await db
-      .select()
-      .from(userShares)
-      .where(
-        and(
-          eq(userShares.userId, currentUser.id),
-          eq(userShares.companyId, company.id),
-        ),
-      )
-      .limit(1);
+      // Check user has enough funds to place the order
+      if ((currentUser.money || 0) < totalCost) {
+        throw new Error(
+          `Insufficient funds. Need $${totalCost.toLocaleString()}, have $${(currentUser.money || 0).toLocaleString()}`,
+        );
+      }
 
-    if (existingShare) {
-      await db
-        .update(userShares)
-        .set({ quantity: existingShare.quantity + quantity })
-        .where(eq(userShares.id, existingShare.id));
-    } else {
-      await db.insert(userShares).values({
+      // Deduct funds immediately (escrow)
+      await tx
+        .update(users)
+        .set({ money: sql`${users.money} - ${totalCost}` })
+        .where(
+          and(
+            eq(users.id, currentUser.id),
+            sql`${users.money} >= ${totalCost}`,
+          ),
+        );
+
+      // Create the buy order
+      const [order] = await tx
+        .insert(stockOrders)
+        .values({
+          userId: currentUser.id,
+          companyId: company.id,
+          side: "buy",
+          quantity,
+          filledQuantity: 0,
+          pricePerShare,
+          status: "open",
+          gameHour: currentGameHour,
+        })
+        .returning();
+
+      await tx.insert(transactionHistory).values({
         userId: currentUser.id,
-        companyId: company.id,
-        quantity: quantity,
+        description: `Placed buy order for ${quantity} share${quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) at $${pricePerShare.toLocaleString()}/share (total $${totalCost.toLocaleString()} escrowed)`,
       });
-    }
 
-    // Update stocks tracking
-    await db
-      .update(stocks)
-      .set({ broughtToday: (stock?.broughtToday || 0) + quantity })
-      .where(eq(stocks.id, stock.id));
-
-    // Update transaction history
-    await db.insert(transactionHistory).values({
-      userId: currentUser.id,
-      description: `Bought ${quantity} share${quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) for $${totalCost.toLocaleString()}`,
+      return { success: true, orderId: order.id };
     });
   });
 
-// Sell shares
+// Sell shares - places a sell order
 export const sellShares = createServerFn()
   .middleware([requireAuthMiddleware])
-  .inputValidator((data: { companyId: number; quantity: number }) => data)
+  .inputValidator((data: unknown) => SellSharesInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     if (!context.user?.email) {
       throw new Error("Unauthorized");
@@ -452,176 +583,60 @@ export const sellShares = createServerFn()
       throw new Error("User not found");
     }
 
-    const [company] = await db
-      .select()
-      .from(companies)
-      .where(eq(companies.id, data.companyId))
-      .limit(1);
-
-    if (!company) {
-      throw new Error("Company not found");
-    }
-
-    const [stock] = await db
-      .select()
-      .from(stocks)
-      .where(eq(stocks.companyId, company.id))
-      .limit(1);
-
-    if (!stock) {
-      throw new Error("Stock not found for company");
-    }
-
-    const [userShare] = await db
-      .select()
-      .from(userShares)
-      .where(
-        and(
-          eq(userShares.userId, currentUser.id),
-          eq(userShares.companyId, company.id),
-        ),
-      )
-      .limit(1);
-
-    if (
-      !userShare ||
-      userShare.quantity < data.quantity ||
-      data.quantity <= 0
-    ) {
-      throw new Error("Not enough shares to sell");
-    }
-
-    const totalValue = stock.price * data.quantity;
-
-    // Update user balance
-    await db
-      .update(users)
-      .set({ money: (currentUser.money || 0) + totalValue })
-      .where(eq(users.id, currentUser.id));
-
-    // Update or delete userShares
-    if (userShare.quantity === data.quantity) {
-      await db.delete(userShares).where(eq(userShares.id, userShare.id));
-    } else {
-      await db
-        .update(userShares)
-        .set({ quantity: userShare.quantity - data.quantity })
-        .where(eq(userShares.id, userShare.id));
-    }
-
-    // Update stocks tracking
-    await db
-      .update(stocks)
-      .set({ soldToday: (stock?.soldToday || 0) + data.quantity })
-      .where(eq(stocks.id, stock.id));
-
-    // Update transaction history
-    await db.insert(transactionHistory).values({
-      userId: currentUser.id,
-      description: `Sold ${data.quantity} share${data.quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) for $${totalValue.toLocaleString()}`,
-    });
-
-    return { success: true };
-  });
-
-// CEO investment to issue more shares
-export const investInCompany = createServerFn()
-  .middleware([requireAuthMiddleware])
-  .inputValidator(
-    (data: {
-      companyId: number;
-      investmentAmount: number;
-      retainedShares: number;
-    }) => data,
-  )
-  .handler(async ({ context, data }) => {
-    if (!context.user?.email) {
-      throw new Error("Unauthorized");
-    }
-
-    const [currentUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, context.user.email))
-      .limit(1);
-
-    if (!currentUser) {
-      throw new Error("User not found");
-    }
-
-    const [company] = await db
-      .select()
-      .from(companies)
-      .where(eq(companies.id, data.companyId))
-      .limit(1);
-
-    if (!company) {
-      throw new Error("Company not found");
-    }
-
-    const [stock] = await db
-      .select()
-      .from(stocks)
-      .where(eq(stocks.companyId, company.id))
-      .limit(1);
-
-    if (!stock) {
-      throw new Error("Stock not found for company");
-    }
-
-    // Only the CEO (top shareholder) can issue new shares
-    const ceoId = await getCompanyCEOId(company.id);
-    if (ceoId !== currentUser.id) {
-      throw new Error("Only the CEO can invest to issue new shares");
-    }
-
-    const currentCapital = company.capital || 0;
-    const currentShares = company.issuedShares || 0;
-    const sharePrice = stock.price;
-
-    if (sharePrice <= 0) {
-      throw new Error("Invalid share price");
-    }
-
-    if (data.investmentAmount < sharePrice) {
-      throw new Error(`Investment must be at least $${sharePrice} (1 share)`);
-    }
-
-    // Check if user has enough money
-    if ((currentUser.money || 0) < data.investmentAmount) {
-      throw new Error("Insufficient funds for investment");
-    }
-
-    // Issue new shares at the current share price — no dilution, price stays the same
-    const newShares = Math.floor(data.investmentAmount / sharePrice);
-    const actualCost = newShares * sharePrice;
-    const newCapital = currentCapital + actualCost;
-    const newTotalShares = currentShares + newShares;
-
-    // Validate retained shares
-    if (data.retainedShares > newShares) {
-      throw new Error("Cannot retain more shares than are being issued");
-    }
-
-    // Update company
-    await db
-      .update(companies)
-      .set({
-        capital: newCapital,
-        issuedShares: newTotalShares,
-      })
-      .where(eq(companies.id, company.id));
-
-    // Deduct money from investor (only the amount that buys whole shares)
-    await db
-      .update(users)
-      .set({ money: (currentUser.money || 0) - actualCost })
-      .where(eq(users.id, currentUser.id));
-
-    // Add retained shares to CEO's holdings
-    if (data.retainedShares > 0) {
-      const existingShares = await db
+    return db.transaction(async (tx) => {
+      const [company] = await tx
         .select()
+        .from(companies)
+        .where(eq(companies.id, data.companyId))
+        .limit(1);
+
+      if (!company) {
+        throw new Error("Company not found");
+      }
+
+      const [stock] = await tx
+        .select()
+        .from(stocks)
+        .where(eq(stocks.companyId, company.id))
+        .limit(1);
+
+      if (!stock) {
+        throw new Error("Stock not found for company");
+      }
+
+      // Get current game hour
+      const [currentGameState] = await tx
+        .select({ currentGameHour: gameState.currentGameHour })
+        .from(gameState)
+        .limit(1);
+      const currentGameHour = currentGameState?.currentGameHour ?? 0;
+
+      // Rate limit: 1 sell order per game hour (only active orders count)
+      const [recentSellOrder] = await tx
+        .select({ id: stockOrders.id })
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.userId, currentUser.id),
+            eq(stockOrders.side, "sell"),
+            eq(stockOrders.gameHour, currentGameHour),
+            or(
+              eq(stockOrders.status, "open"),
+              eq(stockOrders.status, "partial"),
+            ),
+          ),
+        )
+        .limit(1);
+
+      if (recentSellOrder) {
+        throw new Error(
+          "You can only place one sell order per game hour. Wait for the next hourly tick.",
+        );
+      }
+
+      // Check the user has enough shares (accounting for shares already in open sell orders)
+      const [holding] = await tx
+        .select({ quantity: userShares.quantity })
         .from(userShares)
         .where(
           and(
@@ -631,47 +646,472 @@ export const investInCompany = createServerFn()
         )
         .limit(1);
 
-      if (existingShares.length > 0) {
-        // Update existing holding
-        await db
-          .update(userShares)
-          .set({
-            quantity: existingShares[0].quantity + data.retainedShares,
-          })
-          .where(eq(userShares.id, existingShares[0].id));
-      } else {
-        // Create new holding
-        await db.insert(userShares).values({
+      const ownedShares = holding?.quantity || 0;
+
+      // Calculate shares already locked in open/partial sell orders
+      const [lockedResult] = await tx
+        .select({
+          locked: sql<number>`COALESCE(SUM(${stockOrders.quantity} - ${stockOrders.filledQuantity}), 0)`,
+        })
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.userId, currentUser.id),
+            eq(stockOrders.companyId, company.id),
+            eq(stockOrders.side, "sell"),
+            or(
+              eq(stockOrders.status, "open"),
+              eq(stockOrders.status, "partial"),
+            ),
+          ),
+        );
+
+      const lockedShares = Number(lockedResult?.locked || 0);
+      const availableToSell = ownedShares - lockedShares;
+
+      if (availableToSell < data.quantity) {
+        throw new Error(
+          `Only ${availableToSell} share${availableToSell !== 1 ? "s" : ""} available to sell (${lockedShares} locked in pending orders)`,
+        );
+      }
+
+      // Cap: max 5 shares in open sell orders per company
+      if (lockedShares + data.quantity > MAX_OPEN_ORDER_SHARES_PER_COMPANY) {
+        const remaining = MAX_OPEN_ORDER_SHARES_PER_COMPANY - lockedShares;
+        throw new Error(
+          remaining <= 0
+            ? `You already have ${lockedShares} share${lockedShares !== 1 ? "s" : ""} in pending sell orders for this company (max ${MAX_OPEN_ORDER_SHARES_PER_COMPANY})`
+            : `You can only sell ${remaining} more share${remaining !== 1 ? "s" : ""} for this company (${lockedShares} already pending, max ${MAX_OPEN_ORDER_SHARES_PER_COMPANY})`,
+        );
+      }
+
+      // Create the sell order (no money given yet - only on fill)
+      const [order] = await tx
+        .insert(stockOrders)
+        .values({
           userId: currentUser.id,
           companyId: company.id,
-          quantity: data.retainedShares,
-        });
-      }
+          side: "sell",
+          quantity: data.quantity,
+          filledQuantity: 0,
+          pricePerShare: stock.price,
+          status: "open",
+          gameHour: currentGameHour,
+        })
+        .returning();
+
+      await tx.insert(transactionHistory).values({
+        userId: currentUser.id,
+        description: `Placed sell order for ${data.quantity} share${data.quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) at $${stock.price.toLocaleString()}/share`,
+      });
+
+      return { success: true, orderId: order.id };
+    });
+  });
+
+// Get user's open/pending orders
+export const getUserOrders = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .handler(async ({ context }) => {
+    if (!context.user?.email) {
+      throw new Error("Unauthorized");
     }
 
-    // Share price stays the same — no dilution
-    const newSharePrice = sharePrice;
+    const [currentUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1);
 
-    // Log price in history (unchanged, but records the event)
-    await db.insert(sharePriceHistory).values({
-      stockId: stock.id,
-      price: newSharePrice,
-    });
+    if (!currentUser) {
+      throw new Error("User not found");
+    }
 
-    // Record transaction
-    await db.insert(transactionHistory).values({
-      userId: currentUser.id,
-      description: `Invested $${actualCost.toLocaleString()} in ${company.name}, issued ${newShares} new shares${data.retainedShares > 0 ? ` (retained ${data.retainedShares})` : ""}`,
+    const orders = await db
+      .select({
+        id: stockOrders.id,
+        companyId: stockOrders.companyId,
+        side: stockOrders.side,
+        quantity: stockOrders.quantity,
+        filledQuantity: stockOrders.filledQuantity,
+        pricePerShare: stockOrders.pricePerShare,
+        status: stockOrders.status,
+        createdAt: stockOrders.createdAt,
+        companyName: companies.name,
+        companySymbol: companies.symbol,
+        companyLogo: companies.logo,
+        companyColor: companies.color,
+      })
+      .from(stockOrders)
+      .innerJoin(companies, eq(stockOrders.companyId, companies.id))
+      .where(eq(stockOrders.userId, currentUser.id))
+      .orderBy(desc(stockOrders.createdAt));
+
+    return orders;
+  });
+
+// Cancel an open order
+export const cancelOrder = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .inputValidator((data: unknown) =>
+    z.object({ orderId: z.number().int().positive() }).parse(data),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user?.email) {
+      throw new Error("Unauthorized");
+    }
+
+    const [currentUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1);
+
+    if (!currentUser) {
+      throw new Error("User not found");
+    }
+
+    return db.transaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.id, data.orderId),
+            eq(stockOrders.userId, currentUser.id),
+          ),
+        )
+        .limit(1);
+
+      if (!order) {
+        throw new Error("Order not found");
+      }
+
+      if (order.status !== "open" && order.status !== "partial") {
+        throw new Error(
+          "Only open or partially filled orders can be cancelled",
+        );
+      }
+
+      const remainingQty = order.quantity - order.filledQuantity;
+
+      // If it's a buy order, refund the escrowed money for unfilled shares
+      if (order.side === "buy") {
+        const refund = remainingQty * order.pricePerShare;
+        await tx
+          .update(users)
+          .set({ money: sql`${users.money} + ${refund}` })
+          .where(eq(users.id, currentUser.id));
+      }
+
+      await tx
+        .update(stockOrders)
+        .set({ status: "cancelled", updatedAt: new Date() })
+        .where(eq(stockOrders.id, order.id));
+
+      const [company] = await tx
+        .select({ name: companies.name, symbol: companies.symbol })
+        .from(companies)
+        .where(eq(companies.id, order.companyId))
+        .limit(1);
+
+      await tx.insert(transactionHistory).values({
+        userId: currentUser.id,
+        description: `Cancelled ${order.side} order for ${remainingQty} share${remainingQty > 1 ? "s" : ""} of ${company?.name || "Unknown"} (${company?.symbol || "?"})${order.side === "buy" ? ` — $${(remainingQty * order.pricePerShare).toLocaleString()} refunded` : ""}`,
+      });
+
+      return { success: true };
     });
+  });
+
+// Get the order book for a company (individual orders with player names, FIFO)
+export const getCompanyOrderBook = createServerFn()
+  .inputValidator((data: { companyId: number }) => data)
+  .handler(async ({ data }) => {
+    const openBuyOrders = await db
+      .select({
+        id: stockOrders.id,
+        pricePerShare: stockOrders.pricePerShare,
+        quantity: stockOrders.quantity,
+        filledQuantity: stockOrders.filledQuantity,
+        remaining: sql<number>`(${stockOrders.quantity} - ${stockOrders.filledQuantity})::int`,
+        status: stockOrders.status,
+        createdAt: stockOrders.createdAt,
+        username: users.username,
+        userId: stockOrders.userId,
+      })
+      .from(stockOrders)
+      .innerJoin(users, eq(users.id, stockOrders.userId))
+      .where(
+        and(
+          eq(stockOrders.companyId, data.companyId),
+          eq(stockOrders.side, "buy"),
+          or(eq(stockOrders.status, "open"), eq(stockOrders.status, "partial")),
+        ),
+      )
+      .orderBy(desc(stockOrders.pricePerShare), asc(stockOrders.createdAt));
+
+    const openSellOrders = await db
+      .select({
+        id: stockOrders.id,
+        pricePerShare: stockOrders.pricePerShare,
+        quantity: stockOrders.quantity,
+        filledQuantity: stockOrders.filledQuantity,
+        remaining: sql<number>`(${stockOrders.quantity} - ${stockOrders.filledQuantity})::int`,
+        status: stockOrders.status,
+        createdAt: stockOrders.createdAt,
+        username: users.username,
+        userId: stockOrders.userId,
+      })
+      .from(stockOrders)
+      .innerJoin(users, eq(users.id, stockOrders.userId))
+      .where(
+        and(
+          eq(stockOrders.companyId, data.companyId),
+          eq(stockOrders.side, "sell"),
+          or(eq(stockOrders.status, "open"), eq(stockOrders.status, "partial")),
+        ),
+      )
+      .orderBy(asc(stockOrders.pricePerShare), asc(stockOrders.createdAt));
+
+    // Recent fills
+    const recentFills = await db
+      .select({
+        quantity: orderFills.quantity,
+        pricePerShare: orderFills.pricePerShare,
+        filledAt: orderFills.filledAt,
+      })
+      .from(orderFills)
+      .where(eq(orderFills.companyId, data.companyId))
+      .orderBy(desc(orderFills.filledAt))
+      .limit(20);
 
     return {
-      success: true,
-      newShares,
-      newTotalShares,
-      newCapital,
-      newSharePrice,
-      retainedShares: data.retainedShares,
+      bids: openBuyOrders,
+      asks: openSellOrders,
+      recentFills,
     };
+  });
+
+// CEO investment to issue more shares
+export const investInCompany = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .inputValidator((data: unknown) => InvestInCompanyInputSchema.parse(data))
+  .handler(async ({ context, data }) => {
+    if (!context.user?.email) {
+      throw new Error("Unauthorized");
+    }
+
+    const [currentUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1);
+
+    if (!currentUser) {
+      throw new Error("User not found");
+    }
+
+    return db.transaction(async (tx) => {
+      const [company] = await tx
+        .select()
+        .from(companies)
+        .where(eq(companies.id, data.companyId))
+        .limit(1);
+
+      if (!company) {
+        throw new Error("Company not found");
+      }
+
+      await tx.execute(
+        sql`SELECT id FROM companies WHERE id = ${company.id} FOR UPDATE`,
+      );
+
+      const [stock] = await tx
+        .select()
+        .from(stocks)
+        .where(eq(stocks.companyId, company.id))
+        .limit(1);
+
+      if (!stock) {
+        throw new Error("Stock not found for company");
+      }
+
+      const [topHolder] = await tx
+        .select({ userId: userShares.userId })
+        .from(userShares)
+        .where(eq(userShares.companyId, company.id))
+        .orderBy(desc(userShares.quantity))
+        .limit(1);
+
+      if (topHolder?.userId !== currentUser.id) {
+        throw new Error("Only the CEO can invest to issue new shares");
+      }
+
+      const currentCapital = Number(company.capital || 0);
+      const currentShares = Number(company.issuedShares || 0);
+      const sharePrice = Number(stock.price);
+
+      if (sharePrice <= 0) {
+        throw new Error("Invalid share price");
+      }
+
+      // Only issue shares the CEO actually retains — no unowned stock
+      const newShares = data.retainedShares;
+      const actualCost = newShares * sharePrice;
+
+      if (newShares <= 0) {
+        throw new Error("Must retain at least 1 share");
+      }
+
+      // Validate the investment covers the cost
+      if (data.investmentAmount < actualCost) {
+        throw new Error(
+          `Investment must be at least $${actualCost.toLocaleString()} to retain ${newShares} share${newShares > 1 ? "s" : ""}`,
+        );
+      }
+
+      const deductedRows = await tx
+        .update(users)
+        .set({ money: sql`${users.money} - ${actualCost}` })
+        .where(
+          and(
+            eq(users.id, currentUser.id),
+            sql`${users.money} >= ${actualCost}`,
+          ),
+        )
+        .returning({ id: users.id });
+
+      if (deductedRows.length === 0) {
+        throw new Error("Insufficient funds for investment");
+      }
+
+      const activeHoldersResult = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(userShares)
+        .where(
+          and(
+            eq(userShares.companyId, company.id),
+            sql`${userShares.quantity} >= 1`,
+          ),
+        );
+
+      const activeHolders = activeHoldersResult[0]?.count || 0;
+
+      if (activeHolders <= 0) {
+        throw new Error("Cannot issue shares when no active holders exist");
+      }
+
+      if (env.SHARE_ISSUANCE_POLICY === "event-conditional") {
+        const dayStart = new Date();
+        dayStart.setHours(0, 0, 0, 0);
+        const nextDayStart = new Date(dayStart);
+        nextDayStart.setDate(nextDayStart.getDate() + 1);
+
+        const alreadyMintedResult = await tx
+          .select({
+            total: sql<number>`COALESCE(SUM(${shareIssuanceEvents.mintedShares}), 0)::int`,
+          })
+          .from(shareIssuanceEvents)
+          .where(
+            and(
+              eq(shareIssuanceEvents.companyId, company.id),
+              sql`${shareIssuanceEvents.createdAt} >= ${dayStart}`,
+              sql`${shareIssuanceEvents.createdAt} < ${nextDayStart}`,
+            ),
+          );
+
+        const alreadyMintedToday = alreadyMintedResult[0]?.total || 0;
+        const remainingMint = env.DAILY_COMPANY_MINT_CAP - alreadyMintedToday;
+
+        if (newShares > remainingMint) {
+          throw new Error(
+            `Daily mint cap exceeded. Remaining allowance: ${Math.max(remainingMint, 0)} share(s)`,
+          );
+        }
+      }
+
+      const newCapital = currentCapital + actualCost;
+      const newTotalShares = currentShares + newShares;
+
+      await tx
+        .update(companies)
+        .set({
+          capital: newCapital,
+          issuedShares: newTotalShares,
+        })
+        .where(eq(companies.id, company.id));
+
+      if (data.retainedShares > 0) {
+        await tx
+          .insert(userShares)
+          .values({
+            userId: currentUser.id,
+            companyId: company.id,
+            quantity: data.retainedShares,
+          })
+          .onConflictDoUpdate({
+            target: [userShares.userId, userShares.companyId],
+            set: {
+              quantity: sql`${userShares.quantity} + ${data.retainedShares}`,
+            },
+          });
+      }
+
+      await tx.insert(sharePriceHistory).values({
+        stockId: stock.id,
+        price: sharePrice,
+      });
+
+      await tx.insert(transactionHistory).values({
+        userId: currentUser.id,
+        description: `Invested $${actualCost.toLocaleString()} in ${company.name}, issued ${newShares} new shares${data.retainedShares > 0 ? ` (retained ${data.retainedShares})` : ""}`,
+      });
+
+      await tx.insert(shareIssuanceEvents).values({
+        companyId: company.id,
+        policy: env.SHARE_ISSUANCE_POLICY,
+        source: "investment",
+        mintedShares: newShares,
+        issuedSharesBefore: currentShares,
+        issuedSharesAfter: newTotalShares,
+        activeHolders,
+        buyPressureDelta: 0,
+        ownershipDriftBps: calculateOneShareOwnershipDriftBps({
+          issuedSharesBefore: currentShares,
+          mintedShares: newShares,
+        }),
+      });
+
+      const marketCap = calculateMarketCap({
+        sharePrice,
+        issuedShares: newTotalShares,
+      });
+      const hourlyDividendPool = calculateHourlyDividendPool(marketCap);
+      const dividendPerShareMilli = calculateDividendPerShareMilli({
+        hourlyDividendPool,
+        issuedShares: newTotalShares,
+      });
+
+      await tx.insert(financeKpiSnapshots).values({
+        companyId: company.id,
+        policy: env.SHARE_ISSUANCE_POLICY,
+        sharePrice,
+        issuedShares: newTotalShares,
+        marketCap,
+        hourlyDividendPool,
+        dividendPerShareMilli,
+      });
+
+      return {
+        success: true,
+        newShares,
+        newTotalShares,
+        newCapital,
+        newSharePrice: sharePrice,
+        retainedShares: data.retainedShares,
+      };
+    });
   });
 
 export const getCompanyStakeholders = createServerFn()
@@ -796,9 +1236,14 @@ export const getUserDividendCompanies = createServerFn()
         const userShares_ = holding.quantity || 0;
         const issuedShares = company.issuedShares || 0;
         const ownershipPct = issuedShares > 0 ? userShares_ / issuedShares : 0;
-        const marketCap = (company.stockPrice || 0) * totalOwnedShares;
-        // ownership% × 10% of market cap
-        const hourlyDividend = Math.floor(ownershipPct * 0.1 * marketCap);
+        const marketCap = calculateMarketCap({
+          sharePrice: company.stockPrice,
+          issuedShares,
+        });
+        const hourlyDividend = calculateHourlyDividend({
+          ownershipPct,
+          marketCap,
+        });
         const dailyDividend = hourlyDividend * 24;
 
         return {
@@ -814,5 +1259,7 @@ export const getUserDividendCompanies = createServerFn()
       }),
     );
 
-    return result.filter(Boolean) as NonNullable<(typeof result)[number]>[];
+    return result.filter(Boolean) as Array<
+      NonNullable<(typeof result)[number]>
+    >;
   });

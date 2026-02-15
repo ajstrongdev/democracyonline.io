@@ -1,10 +1,11 @@
+import { Cell, Label, Pie, PieChart, ResponsiveContainer } from "recharts";
+import type {ChartConfig} from "@/components/ui/chart";
 import {
+  
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
+  ChartTooltipContent
 } from "@/components/ui/chart";
-import { Pie, PieChart, Cell, ResponsiveContainer, Label } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { sortCandidatesByParty } from "@/lib/utils/sort-candidates-by-party";
 
@@ -23,7 +24,7 @@ export type CandidateChartData = {
 };
 
 interface CandidatesChartProps {
-  candidates: CandidateChartData[];
+  candidates: Array<CandidateChartData>;
 }
 
 export function CandidatesChart({ candidates }: CandidatesChartProps) {

@@ -9,8 +9,8 @@ interface Candidate {
  * Candidates with null partyName are treated as independents (not grouped).
  */
 export function sortCandidatesByParty<T extends Candidate>(
-  candidates: T[],
-): T[] {
+  candidates: Array<T>,
+): Array<T> {
   if (candidates.length === 0) return [];
 
   // Pre-group and pre-sort candidates by party
@@ -20,8 +20,7 @@ export function sortCandidatesByParty<T extends Candidate>(
   // Track independent candidates (null partyName) separately
   let independentCounter = 0;
 
-  for (let i = 0; i < candidates.length; i++) {
-    const candidate = candidates[i];
+  for (const candidate of candidates) {
     const votes = candidate.votes ?? 0;
 
     // Treat null partyName as independent (unique party per candidate)
@@ -49,7 +48,7 @@ export function sortCandidatesByParty<T extends Candidate>(
     partyIndices.set(partyName, 0);
   }
 
-  const sortedCandidates: T[] = [];
+  const sortedCandidates: Array<T> = [];
   let remaining = candidates.length;
 
   while (remaining > 0) {

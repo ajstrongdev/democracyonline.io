@@ -3,8 +3,8 @@ import { eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   parties,
-  partyStances,
   partyNotifications,
+  partyStances,
   partyTransactionHistory,
   politicalStances,
   users,

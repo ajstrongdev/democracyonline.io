@@ -1,21 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
-import { and, desc, eq, inArray, sql, gt } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  candidatePurchases,
   candidateSnapshots,
   candidates,
-  candidatePurchases,
   elections,
   feed,
   items,
   parties,
   partyStances,
-  users,
   partyTransactionHistory,
   transactionHistory,
+  users,
 } from "@/db/schema";
 import { env } from "@/env";
+import { authorizeCronRequest } from "@/lib/server/cron-auth";
+import { getAdminAuth } from "@/lib/firebase-admin";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -243,55 +245,25 @@ export const Route = createFileRoute("/api/game-advance")({
     handlers: {
       GET: async ({ request }) => {
         console.log("[game-advance] Handler started");
-        // Skip authentication in development mode
-        if (!env.IS_DEV) {
-          const authHeader = request.headers.get("authorization");
-
-          if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            console.error("Missing or invalid Authorization header");
-            return new Response(
-              JSON.stringify({ success: false, error: "Unauthorized" }),
-              { status: 401, headers: { "Content-Type": "application/json" } },
-            );
-          }
-          const token = authHeader.substring(7);
-
-          try {
+        const authFailure = await authorizeCronRequest({
+          request,
+          env,
+          verifySchedulerIdToken: async ({ idToken, audience }) => {
             const ticket = await oAuth2Client.verifyIdToken({
-              idToken: token,
-              audience: env.SITE_URL || "https://democracyonline.io",
+              idToken,
+              audience,
             });
 
-            const payload = ticket.getPayload();
+            return { email: ticket.getPayload()?.email };
+          },
+          verifyAdminIdToken: async ({ idToken }) => {
+            const decoded = await getAdminAuth().verifyIdToken(idToken);
+            return { email: decoded.email };
+          },
+        });
 
-            const expectedEmailPattern =
-              /-scheduler@.*\.iam\.gserviceaccount\.com$/;
-
-            if (!payload?.email || !expectedEmailPattern.test(payload.email)) {
-              console.error("Invalid service account:", payload?.email);
-              return new Response(
-                JSON.stringify({
-                  success: false,
-                  error: "Unauthorized - Invalid service account",
-                }),
-                {
-                  status: 401,
-                  headers: { "Content-Type": "application/json" },
-                },
-              );
-            }
-
-            console.log("Authenticated request from:", payload.email);
-          } catch (error) {
-            console.error("Token validation failed:", error);
-            return new Response(
-              JSON.stringify({
-                success: false,
-                error: "Unauthorized - Invalid token",
-              }),
-              { status: 401, headers: { "Content-Type": "application/json" } },
-            );
-          }
+        if (authFailure) {
+          return authFailure;
         }
 
         console.log("[game-advance] Starting presidential election processing");
@@ -635,7 +607,7 @@ export const Route = createFileRoute("/api/game-advance")({
               );
 
             let totalFeesCollected = 0;
-            const ejectedMembers: string[] = [];
+            const ejectedMembers: Array<string> = [];
 
             for (const member of partyMembers) {
               const fee = party.partySubs ?? 0;

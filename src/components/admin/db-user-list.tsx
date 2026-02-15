@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { RefreshCw } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -19,7 +20,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { RefreshCw } from "lucide-react";
 import { purgeUserFromDatabase } from "@/lib/server/admin";
 
 interface DatabaseUser {
@@ -32,7 +32,7 @@ interface DatabaseUser {
 }
 
 interface DBUserListProps {
-  initialUsers: DatabaseUser[];
+  initialUsers: Array<DatabaseUser>;
   onRefresh: () => void | Promise<void>;
 }
 
@@ -40,7 +40,7 @@ export default function DBUserList({
   initialUsers,
   onRefresh,
 }: DBUserListProps) {
-  const [users, setUsers] = useState<DatabaseUser[]>(initialUsers);
+  const [users, setUsers] = useState<Array<DatabaseUser>>(initialUsers);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

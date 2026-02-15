@@ -1,12 +1,12 @@
+import { CheckCircle2, XCircle } from "lucide-react";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle } from "lucide-react";
 
 interface Voter {
   id: number;
@@ -18,9 +18,9 @@ interface Voter {
 }
 
 interface BillVotersData {
-  house: Voter[];
-  senate: Voter[];
-  presidential: Voter[];
+  house: Array<Voter>;
+  senate: Array<Voter>;
+  presidential: Array<Voter>;
 }
 
 function VoterCard({
@@ -80,7 +80,7 @@ function VotersSection({
   voters,
 }: {
   title: string;
-  voters: Voter[];
+  voters: Array<Voter>;
   stage: string;
 }) {
   const forVotes = voters.filter((v) => v.vote_yes);

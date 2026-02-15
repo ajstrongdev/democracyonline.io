@@ -1,39 +1,39 @@
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import {
+  Cell,
+  Label,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  YAxis,
+} from "recharts";
+import { DollarSign, PieChartIcon, TrendingUp, Users } from "lucide-react";
 import type { Candidate } from "@/lib/server/elections";
 import { getCurrentUserInfo, getUserFullById } from "@/lib/server/users";
 import { getPartyById } from "@/lib/server/party";
 import {
-  electionPageData,
   declareCandidate,
-  revokeCandidate,
   donateToCandidate,
+  electionPageData,
   getCampaignHistory,
+  revokeCandidate,
 } from "@/lib/server/elections";
-import { toast } from "sonner";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Slider } from "@/components/ui/slider";
 import GenericSkeleton from "@/components/generic-skeleton";
 import { MessageDialog } from "@/components/message-dialog";
 import PartyLogo from "@/components/party-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
-import {
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-  Label,
-  YAxis,
-} from "recharts";
-import { TrendingUp, DollarSign, Users, PieChartIcon } from "lucide-react";
 
 export const Route = createFileRoute("/elections/president")({
   loader: async () => {
@@ -140,7 +140,7 @@ function CandidateItem({
     setIsDonating(true);
     try {
       await donateToCandidate({
-        data: { userId: currentUserId, candidateId: candidate.id, amount },
+        data: { candidateId: candidate.id, amount },
       });
       toast.success(
         `Donated $${amount} to ${candidateUser?.username}'s campaign!`,
@@ -300,7 +300,7 @@ function CampaignGraphs({
   candidates,
 }: {
   campaignHistory: Awaited<ReturnType<typeof getCampaignHistory>>;
-  candidates: Candidate[];
+  candidates: Array<Candidate>;
 }) {
   // Group snapshots by timestamp
   const timePoints = Array.from(
@@ -600,7 +600,7 @@ function RouteComponent() {
 
   const [showCandidacyDialog, setShowCandidacyDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [localCandidates, setLocalCandidates] = useState<Candidate[]>(
+  const [localCandidates, setLocalCandidates] = useState<Array<Candidate>>(
     candidates || [],
   );
 
@@ -615,7 +615,7 @@ function RouteComponent() {
     setIsSubmitting(true);
     try {
       const newCandidate = await declareCandidate({
-        data: { userId: userData.id, election: "President" },
+        data: { election: "President" },
       });
       setLocalCandidates((prev) => [
         ...prev,
@@ -639,7 +639,7 @@ function RouteComponent() {
     setIsSubmitting(true);
     try {
       await revokeCandidate({
-        data: { userId: userData.id, election: "President" },
+        data: { election: "President" },
       });
       setLocalCandidates((prev) =>
         prev.filter((c) => c.userId !== userData.id),

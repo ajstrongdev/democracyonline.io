@@ -53,6 +53,10 @@ next-env.d.ts
 *.tfstate
 *.tfstate.*
 
+# Terraform plan files
+*.tfplan
+*.tfplan.*
+
 # Crash log files
 crash.log
 crash.*.log

@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Handshake, ArrowRight, Vote, CheckCircle2, Crown } from "lucide-react";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { ArrowRight, CheckCircle2, Crown, Handshake, Vote } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

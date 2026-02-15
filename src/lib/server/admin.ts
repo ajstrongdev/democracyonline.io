@@ -15,13 +15,19 @@ import {
   chats,
   companies,
   feed,
+  financeKpiSnapshots,
+  gameState,
+  orderFills,
   parties,
   presidentialElection,
   senateElection,
+  shareIssuanceEvents,
   sharePriceHistory,
+  stockOrders,
   stocks,
-  users,
+  transactionHistory,
   userShares,
+  users,
   votes,
 } from "@/db/schema";
 
@@ -33,7 +39,7 @@ function isAdminEmail(email: string) {
 
 export const checkIsAdmin = createServerFn()
   .middleware([authMiddleware])
-  .handler(async ({ context }) => {
+  .handler(({ context }) => {
     const email = context.user?.email;
     console.log("[checkIsAdmin] User email from context:", email);
     console.log("[checkIsAdmin] ADMIN_EMAILS:", env.ADMIN_EMAILS);
@@ -244,7 +250,10 @@ export const createAccessToken = createServerFn({ method: "POST" })
       throw new Error("Unauthorized");
     }
 
-    const token = crypto.randomBytes(31).toString("base64url").slice(0, 41);
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const bytes = crypto.randomBytes(41);
+    const token = Array.from(bytes, (b) => chars[b % chars.length]).join("");
 
     const [newToken] = await db
       .insert(accessTokens)
@@ -278,6 +287,18 @@ export const resetEconomy = createServerFn({ method: "POST" })
       throw new Error("Unauthorized");
     }
 
+    // Delete order fills (references stockOrders and companies)
+    await db.delete(orderFills);
+
+    // Delete stock orders (references companies)
+    await db.delete(stockOrders);
+
+    // Delete finance KPI snapshots (references companies)
+    await db.delete(financeKpiSnapshots);
+
+    // Delete share issuance events (references companies)
+    await db.delete(shareIssuanceEvents);
+
     // Delete share price history
     await db.delete(sharePriceHistory);
 
@@ -289,6 +310,12 @@ export const resetEconomy = createServerFn({ method: "POST" })
 
     // Delete all companies
     await db.delete(companies);
+
+    // Reset game state
+    await db.delete(gameState);
+
+    // Delete transaction history (contains company creation records used for cooldowns)
+    await db.delete(transactionHistory);
 
     // Reset all players' money to $2500
     await db.update(users).set({ money: 2500 });
