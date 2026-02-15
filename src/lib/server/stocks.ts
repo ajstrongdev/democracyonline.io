@@ -849,7 +849,7 @@ export const getCompanyOrderBook = createServerFn()
           or(eq(stockOrders.status, "open"), eq(stockOrders.status, "partial")),
         ),
       )
-      .orderBy(desc(stockOrders.pricePerShare), asc(stockOrders.createdAt));
+      .orderBy(asc(stockOrders.createdAt));
 
     const openSellOrders = await db
       .select({
