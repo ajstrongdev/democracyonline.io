@@ -78,6 +78,20 @@
       "when": 1771095600000,
       "tag": "0010_event_conditional_share_issuance",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1771200000000,
+      "tag": "0011_stock_order_book",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1771300000000,
+      "tag": "0012_game_hour_tracking",
+      "breakpoints": true
     }
   ]
 }

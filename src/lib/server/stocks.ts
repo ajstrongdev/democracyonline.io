@@ -1,12 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   companies,
   financeKpiSnapshots,
+  gameState,
+  orderFills,
   shareIssuanceEvents,
   sharePriceHistory,
+  stockOrders,
   stocks,
   transactionHistory,
   userShares,
@@ -34,14 +37,25 @@ import {
   positiveQuantitySchema,
 } from "@/lib/schemas/finance-schema";
 
+const MAX_OPEN_ORDER_SHARES_PER_COMPANY = 5;
+
 const BuySharesInputSchema = z.object({
   companyId: z.number().int().positive(),
-  quantity: positiveQuantitySchema.optional().default(1),
+  quantity: positiveQuantitySchema
+    .max(
+      MAX_OPEN_ORDER_SHARES_PER_COMPANY,
+      `Cannot order more than ${MAX_OPEN_ORDER_SHARES_PER_COMPANY} shares at once`,
+    )
+    .optional()
+    .default(1),
 });
 
 const SellSharesInputSchema = z.object({
   companyId: z.number().int().positive(),
-  quantity: positiveQuantitySchema,
+  quantity: positiveQuantitySchema.max(
+    MAX_OPEN_ORDER_SHARES_PER_COMPANY,
+    `Cannot order more than ${MAX_OPEN_ORDER_SHARES_PER_COMPANY} shares at once`,
+  ),
 });
 
 const InvestInCompanyInputSchema = z.object({
@@ -378,7 +392,8 @@ export const buyShares = createServerFn()
       throw new Error("User not found");
     }
 
-    await db.transaction(async (tx) => {
+    // Place a buy order instead of instant purchase
+    return db.transaction(async (tx) => {
       const [company] = await tx
         .select()
         .from(companies)
@@ -388,10 +403,6 @@ export const buyShares = createServerFn()
       if (!company) {
         throw new Error("Company not found");
       }
-
-      await tx.execute(
-        sql`SELECT id FROM companies WHERE id = ${company.id} FOR UPDATE`,
-      );
 
       const [stock] = await tx
         .select()
@@ -403,27 +414,72 @@ export const buyShares = createServerFn()
         throw new Error("Stock not found for company");
       }
 
-      const sharePrice = stock.price;
-      const totalCost = sharePrice * quantity;
+      // Get current game hour
+      const [currentGameState] = await tx
+        .select({ currentGameHour: gameState.currentGameHour })
+        .from(gameState)
+        .limit(1);
+      const currentGameHour = currentGameState?.currentGameHour ?? 0;
 
-      const [sharesAggregate] = await tx
-        .select({
-          totalOwned: sql<number>`COALESCE(SUM(${userShares.quantity}), 0)`,
-        })
-        .from(userShares)
-        .where(eq(userShares.companyId, company.id));
+      // Rate limit: 1 buy order per game hour
+      const [recentBuyOrder] = await tx
+        .select({ id: stockOrders.id })
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.userId, currentUser.id),
+            eq(stockOrders.side, "buy"),
+            eq(stockOrders.gameHour, currentGameHour),
+          ),
+        )
+        .limit(1);
 
-      const totalSharesOwned = Number(sharesAggregate?.totalOwned || 0);
-      const availableShares =
-        Number(company.issuedShares || 0) - totalSharesOwned;
-
-      if (availableShares < quantity) {
+      if (recentBuyOrder) {
         throw new Error(
-          `Only ${availableShares} share${availableShares !== 1 ? "s" : ""} available for purchase`,
+          "You can only place one buy order per game hour. Wait for the next hourly tick.",
         );
       }
 
-      const deductedRows = await tx
+      // Cap: max 5 shares in open buy orders per company
+      const [pendingBuyResult] = await tx
+        .select({
+          pending: sql<number>`COALESCE(SUM(${stockOrders.quantity} - ${stockOrders.filledQuantity}), 0)`,
+        })
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.userId, currentUser.id),
+            eq(stockOrders.companyId, company.id),
+            eq(stockOrders.side, "buy"),
+            or(
+              eq(stockOrders.status, "open"),
+              eq(stockOrders.status, "partial"),
+            ),
+          ),
+        );
+
+      const pendingBuyShares = Number(pendingBuyResult?.pending || 0);
+      if (pendingBuyShares + quantity > MAX_OPEN_ORDER_SHARES_PER_COMPANY) {
+        const remaining = MAX_OPEN_ORDER_SHARES_PER_COMPANY - pendingBuyShares;
+        throw new Error(
+          remaining <= 0
+            ? `You already have ${pendingBuyShares} share${pendingBuyShares !== 1 ? "s" : ""} pending in buy orders for this company (max ${MAX_OPEN_ORDER_SHARES_PER_COMPANY})`
+            : `You can only order ${remaining} more share${remaining !== 1 ? "s" : ""} for this company (${pendingBuyShares} already pending, max ${MAX_OPEN_ORDER_SHARES_PER_COMPANY})`,
+        );
+      }
+
+      const pricePerShare = stock.price;
+      const totalCost = pricePerShare * quantity;
+
+      // Check user has enough funds to place the order
+      if ((currentUser.money || 0) < totalCost) {
+        throw new Error(
+          `Insufficient funds. Need $${totalCost.toLocaleString()}, have $${(currentUser.money || 0).toLocaleString()}`,
+        );
+      }
+
+      // Deduct funds immediately (escrow)
+      await tx
         .update(users)
         .set({ money: sql`${users.money} - ${totalCost}` })
         .where(
@@ -431,44 +487,33 @@ export const buyShares = createServerFn()
             eq(users.id, currentUser.id),
             sql`${users.money} >= ${totalCost}`,
           ),
-        )
-        .returning({ id: users.id });
-
-      if (deductedRows.length === 0) {
-        throw new Error(
-          `Insufficient funds to buy ${quantity} share${quantity > 1 ? "s" : ""}`,
         );
-      }
 
-      await tx
-        .insert(userShares)
+      // Create the buy order
+      const [order] = await tx
+        .insert(stockOrders)
         .values({
           userId: currentUser.id,
           companyId: company.id,
+          side: "buy",
           quantity,
+          filledQuantity: 0,
+          pricePerShare,
+          status: "open",
+          gameHour: currentGameHour,
         })
-        .onConflictDoUpdate({
-          target: [userShares.userId, userShares.companyId],
-          set: {
-            quantity: sql`${userShares.quantity} + ${quantity}`,
-          },
-        });
-
-      await tx
-        .update(stocks)
-        .set({
-          broughtToday: sql`COALESCE(${stocks.broughtToday}, 0) + ${quantity}`,
-        })
-        .where(eq(stocks.id, stock.id));
+        .returning();
 
       await tx.insert(transactionHistory).values({
         userId: currentUser.id,
-        description: `Bought ${quantity} share${quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) for $${totalCost.toLocaleString()}`,
+        description: `Placed buy order for ${quantity} share${quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) at $${pricePerShare.toLocaleString()}/share (total $${totalCost.toLocaleString()} escrowed)`,
       });
+
+      return { success: true, orderId: order.id };
     });
   });
 
-// Sell shares
+// Sell shares - places a sell order
 export const sellShares = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator((data: unknown) => SellSharesInputSchema.parse(data))
@@ -498,10 +543,6 @@ export const sellShares = createServerFn()
         throw new Error("Company not found");
       }
 
-      await tx.execute(
-        sql`SELECT id FROM companies WHERE id = ${company.id} FOR UPDATE`,
-      );
-
       const [stock] = await tx
         .select()
         .from(stocks)
@@ -512,49 +553,277 @@ export const sellShares = createServerFn()
         throw new Error("Stock not found for company");
       }
 
-      const updatedShareRows = await tx
-        .update(userShares)
-        .set({ quantity: sql`${userShares.quantity} - ${data.quantity}` })
+      // Get current game hour
+      const [currentGameState] = await tx
+        .select({ currentGameHour: gameState.currentGameHour })
+        .from(gameState)
+        .limit(1);
+      const currentGameHour = currentGameState?.currentGameHour ?? 0;
+
+      // Rate limit: 1 sell order per game hour
+      const [recentSellOrder] = await tx
+        .select({ id: stockOrders.id })
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.userId, currentUser.id),
+            eq(stockOrders.side, "sell"),
+            eq(stockOrders.gameHour, currentGameHour),
+          ),
+        )
+        .limit(1);
+
+      if (recentSellOrder) {
+        throw new Error(
+          "You can only place one sell order per game hour. Wait for the next hourly tick.",
+        );
+      }
+
+      // Check the user has enough shares (accounting for shares already in open sell orders)
+      const [holding] = await tx
+        .select({ quantity: userShares.quantity })
+        .from(userShares)
         .where(
           and(
             eq(userShares.userId, currentUser.id),
             eq(userShares.companyId, company.id),
-            sql`${userShares.quantity} >= ${data.quantity}`,
           ),
         )
-        .returning({ id: userShares.id, quantity: userShares.quantity });
+        .limit(1);
 
-      if (updatedShareRows.length === 0) {
-        throw new Error("Not enough shares to sell");
-      }
+      const ownedShares = holding?.quantity || 0;
 
-      const updatedShare = updatedShareRows[0];
-
-      if (updatedShare.quantity === 0) {
-        await tx.delete(userShares).where(eq(userShares.id, updatedShare.id));
-      }
-
-      const totalValue = stock.price * data.quantity;
-
-      await tx
-        .update(users)
-        .set({ money: sql`${users.money} + ${totalValue}` })
-        .where(eq(users.id, currentUser.id));
-
-      await tx
-        .update(stocks)
-        .set({
-          soldToday: sql`COALESCE(${stocks.soldToday}, 0) + ${data.quantity}`,
+      // Calculate shares already locked in open/partial sell orders
+      const [lockedResult] = await tx
+        .select({
+          locked: sql<number>`COALESCE(SUM(${stockOrders.quantity} - ${stockOrders.filledQuantity}), 0)`,
         })
-        .where(eq(stocks.id, stock.id));
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.userId, currentUser.id),
+            eq(stockOrders.companyId, company.id),
+            eq(stockOrders.side, "sell"),
+            or(
+              eq(stockOrders.status, "open"),
+              eq(stockOrders.status, "partial"),
+            ),
+          ),
+        );
+
+      const lockedShares = Number(lockedResult?.locked || 0);
+      const availableToSell = ownedShares - lockedShares;
+
+      if (availableToSell < data.quantity) {
+        throw new Error(
+          `Only ${availableToSell} share${availableToSell !== 1 ? "s" : ""} available to sell (${lockedShares} locked in pending orders)`,
+        );
+      }
+
+      // Cap: max 5 shares in open sell orders per company
+      if (lockedShares + data.quantity > MAX_OPEN_ORDER_SHARES_PER_COMPANY) {
+        const remaining = MAX_OPEN_ORDER_SHARES_PER_COMPANY - lockedShares;
+        throw new Error(
+          remaining <= 0
+            ? `You already have ${lockedShares} share${lockedShares !== 1 ? "s" : ""} in pending sell orders for this company (max ${MAX_OPEN_ORDER_SHARES_PER_COMPANY})`
+            : `You can only sell ${remaining} more share${remaining !== 1 ? "s" : ""} for this company (${lockedShares} already pending, max ${MAX_OPEN_ORDER_SHARES_PER_COMPANY})`,
+        );
+      }
+
+      // Create the sell order (no money given yet - only on fill)
+      const [order] = await tx
+        .insert(stockOrders)
+        .values({
+          userId: currentUser.id,
+          companyId: company.id,
+          side: "sell",
+          quantity: data.quantity,
+          filledQuantity: 0,
+          pricePerShare: stock.price,
+          status: "open",
+          gameHour: currentGameHour,
+        })
+        .returning();
 
       await tx.insert(transactionHistory).values({
         userId: currentUser.id,
-        description: `Sold ${data.quantity} share${data.quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) for $${totalValue.toLocaleString()}`,
+        description: `Placed sell order for ${data.quantity} share${data.quantity > 1 ? "s" : ""} of ${company.name} (${company.symbol}) at $${stock.price.toLocaleString()}/share`,
+      });
+
+      return { success: true, orderId: order.id };
+    });
+  });
+
+// Get user's open/pending orders
+export const getUserOrders = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .handler(async ({ context }) => {
+    if (!context.user?.email) {
+      throw new Error("Unauthorized");
+    }
+
+    const [currentUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1);
+
+    if (!currentUser) {
+      throw new Error("User not found");
+    }
+
+    const orders = await db
+      .select({
+        id: stockOrders.id,
+        companyId: stockOrders.companyId,
+        side: stockOrders.side,
+        quantity: stockOrders.quantity,
+        filledQuantity: stockOrders.filledQuantity,
+        pricePerShare: stockOrders.pricePerShare,
+        status: stockOrders.status,
+        createdAt: stockOrders.createdAt,
+        companyName: companies.name,
+        companySymbol: companies.symbol,
+        companyLogo: companies.logo,
+        companyColor: companies.color,
+      })
+      .from(stockOrders)
+      .innerJoin(companies, eq(stockOrders.companyId, companies.id))
+      .where(eq(stockOrders.userId, currentUser.id))
+      .orderBy(desc(stockOrders.createdAt));
+
+    return orders;
+  });
+
+// Cancel an open order
+export const cancelOrder = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .inputValidator((data: unknown) =>
+    z.object({ orderId: z.number().int().positive() }).parse(data),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user?.email) {
+      throw new Error("Unauthorized");
+    }
+
+    const [currentUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, context.user.email))
+      .limit(1);
+
+    if (!currentUser) {
+      throw new Error("User not found");
+    }
+
+    return db.transaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.id, data.orderId),
+            eq(stockOrders.userId, currentUser.id),
+          ),
+        )
+        .limit(1);
+
+      if (!order) {
+        throw new Error("Order not found");
+      }
+
+      if (order.status !== "open" && order.status !== "partial") {
+        throw new Error(
+          "Only open or partially filled orders can be cancelled",
+        );
+      }
+
+      const remainingQty = order.quantity - order.filledQuantity;
+
+      // If it's a buy order, refund the escrowed money for unfilled shares
+      if (order.side === "buy") {
+        const refund = remainingQty * order.pricePerShare;
+        await tx
+          .update(users)
+          .set({ money: sql`${users.money} + ${refund}` })
+          .where(eq(users.id, currentUser.id));
+      }
+
+      await tx
+        .update(stockOrders)
+        .set({ status: "cancelled", updatedAt: new Date() })
+        .where(eq(stockOrders.id, order.id));
+
+      const [company] = await tx
+        .select({ name: companies.name, symbol: companies.symbol })
+        .from(companies)
+        .where(eq(companies.id, order.companyId))
+        .limit(1);
+
+      await tx.insert(transactionHistory).values({
+        userId: currentUser.id,
+        description: `Cancelled ${order.side} order for ${remainingQty} share${remainingQty > 1 ? "s" : ""} of ${company?.name || "Unknown"} (${company?.symbol || "?"})${order.side === "buy" ? ` — $${(remainingQty * order.pricePerShare).toLocaleString()} refunded` : ""}`,
       });
 
       return { success: true };
     });
+  });
+
+// Get the order book for a company (aggregated buy/sell orders)
+export const getCompanyOrderBook = createServerFn()
+  .inputValidator((data: { companyId: number }) => data)
+  .handler(async ({ data }) => {
+    const openBuyOrders = await db
+      .select({
+        pricePerShare: stockOrders.pricePerShare,
+        totalQuantity: sql<number>`SUM(${stockOrders.quantity} - ${stockOrders.filledQuantity})::int`,
+        orderCount: sql<number>`COUNT(*)::int`,
+      })
+      .from(stockOrders)
+      .where(
+        and(
+          eq(stockOrders.companyId, data.companyId),
+          eq(stockOrders.side, "buy"),
+          or(eq(stockOrders.status, "open"), eq(stockOrders.status, "partial")),
+        ),
+      )
+      .groupBy(stockOrders.pricePerShare)
+      .orderBy(desc(stockOrders.pricePerShare));
+
+    const openSellOrders = await db
+      .select({
+        pricePerShare: stockOrders.pricePerShare,
+        totalQuantity: sql<number>`SUM(${stockOrders.quantity} - ${stockOrders.filledQuantity})::int`,
+        orderCount: sql<number>`COUNT(*)::int`,
+      })
+      .from(stockOrders)
+      .where(
+        and(
+          eq(stockOrders.companyId, data.companyId),
+          eq(stockOrders.side, "sell"),
+          or(eq(stockOrders.status, "open"), eq(stockOrders.status, "partial")),
+        ),
+      )
+      .groupBy(stockOrders.pricePerShare)
+      .orderBy(asc(stockOrders.pricePerShare));
+
+    // Recent fills
+    const recentFills = await db
+      .select({
+        quantity: orderFills.quantity,
+        pricePerShare: orderFills.pricePerShare,
+        filledAt: orderFills.filledAt,
+      })
+      .from(orderFills)
+      .where(eq(orderFills.companyId, data.companyId))
+      .orderBy(desc(orderFills.filledAt))
+      .limit(20);
+
+    return {
+      bids: openBuyOrders,
+      asks: openSellOrders,
+      recentFills,
+    };
   });
 
 // CEO investment to issue more shares
@@ -923,5 +1192,7 @@ export const getUserDividendCompanies = createServerFn()
       }),
     );
 
-    return result.filter(Boolean) as Array<NonNullable<(typeof result)[number]>>;
+    return result.filter(Boolean) as Array<
+      NonNullable<(typeof result)[number]>
+    >;
   });

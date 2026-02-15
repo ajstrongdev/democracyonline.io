@@ -290,6 +290,59 @@ export const shareIssuanceEvents = pgTable("share_issuance_events", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Game state (single-row table tracking global game counters)
+export const gameState = pgTable("game_state", {
+  id: serial("id").primaryKey(),
+  currentGameHour: bigint("current_game_hour", { mode: "number" })
+    .default(0)
+    .notNull(),
+});
+
+// Stock orders (buy/sell order book)
+export const stockOrders = pgTable("stock_orders", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id),
+  side: varchar("side", { length: 4 }).notNull(), // 'buy' | 'sell'
+  quantity: bigint("quantity", { mode: "number" }).notNull(),
+  filledQuantity: bigint("filled_quantity", { mode: "number" })
+    .default(0)
+    .notNull(),
+  pricePerShare: bigint("price_per_share", { mode: "number" }).notNull(),
+  status: varchar("status", { length: 16 }).default("open").notNull(), // 'open' | 'partial' | 'filled' | 'cancelled'
+  gameHour: bigint("game_hour", { mode: "number" }).default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Order fill history (records each matched trade between buyer & seller)
+export const orderFills = pgTable("order_fills", {
+  id: serial("id").primaryKey(),
+  buyOrderId: integer("buy_order_id")
+    .notNull()
+    .references(() => stockOrders.id),
+  sellOrderId: integer("sell_order_id")
+    .notNull()
+    .references(() => stockOrders.id),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id),
+  buyerUserId: integer("buyer_user_id")
+    .notNull()
+    .references(() => users.id),
+  sellerUserId: integer("seller_user_id")
+    .notNull()
+    .references(() => users.id),
+  quantity: bigint("quantity", { mode: "number" }).notNull(),
+  pricePerShare: bigint("price_per_share", { mode: "number" }).notNull(),
+  totalPrice: bigint("total_price", { mode: "number" }).notNull(),
+  filledAt: timestamp("filled_at").defaultNow(),
+});
+
 export const financeKpiSnapshots = pgTable("finance_kpi_snapshots", {
   id: serial("id").primaryKey(),
   companyId: integer("company_id")
