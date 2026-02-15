@@ -250,7 +250,10 @@ export const createAccessToken = createServerFn({ method: "POST" })
       throw new Error("Unauthorized");
     }
 
-    const token = crypto.randomBytes(31).toString("base64url").slice(0, 41);
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const bytes = crypto.randomBytes(41);
+    const token = Array.from(bytes, (b) => chars[b % chars.length]).join("");
 
     const [newToken] = await db
       .insert(accessTokens)
