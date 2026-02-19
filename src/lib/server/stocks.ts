@@ -125,6 +125,24 @@ export const getCompanies = createServerFn().handler(async () => {
         );
       const sellOrderShares = Number(sellOrderResult?.totalForSale ?? 0);
 
+      // Sum open/partial buy orders for this company
+      const [buyOrderResult] = await db
+        .select({
+          totalBuying: sql<number>`COALESCE(SUM(${stockOrders.quantity} - ${stockOrders.filledQuantity}), 0)`,
+        })
+        .from(stockOrders)
+        .where(
+          and(
+            eq(stockOrders.companyId, company.id),
+            eq(stockOrders.side, "buy"),
+            or(
+              eq(stockOrders.status, "open"),
+              eq(stockOrders.status, "partial"),
+            ),
+          ),
+        );
+      const buyOrderShares = Number(buyOrderResult?.totalBuying ?? 0);
+
       // CEO = top shareholder
       const topHolder = allHoldings.sort(
         (a, b) => (b.quantity || 0) - (a.quantity || 0),
@@ -143,6 +161,7 @@ export const getCompanies = createServerFn().handler(async () => {
         ...company,
         availableShares: available,
         sellOrderShares,
+        buyOrderShares,
         creatorUsername,
       };
     }),
