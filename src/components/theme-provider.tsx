@@ -1,18 +1,18 @@
 import { useRouter } from "@tanstack/react-router";
-import {  createContext, use } from "react";
-import type {PropsWithChildren} from "react";
-import type {T as Theme} from "@/lib/server/theme";
-import {  setThemeServerFn } from "@/lib/server/theme";
+import { createContext, use } from "react";
+import type { PropsWithChildren } from "react";
+import type { ThemeId } from "@/lib/server/theme";
+import { setThemeServerFn } from "@/lib/server/theme";
 
-type ThemeContextVal = { theme: Theme; setTheme: (val: Theme) => void };
-type Props = PropsWithChildren<{ theme: Theme }>;
+type ThemeContextVal = { theme: ThemeId; setTheme: (val: ThemeId) => void };
+type Props = PropsWithChildren<{ theme: ThemeId }>;
 
 const ThemeContext = createContext<ThemeContextVal | null>(null);
 
 export function ThemeProvider({ children, theme }: Props) {
   const router = useRouter();
 
-  function setTheme(val: Theme) {
+  function setTheme(val: ThemeId) {
     setThemeServerFn({ data: val }).then(() => router.invalidate());
   }
 
