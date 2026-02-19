@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -50,13 +52,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 export const Route = createFileRoute("/companies/market")({
   loader: async () => {
@@ -206,32 +201,33 @@ function HoldingItem({ holding }: { holding: any }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex gap-4">
-          <div className="flex flex-col">
-            <span className="text-lg font-bold">
-              {(holding.quantity || 0).toLocaleString()}
-            </span>
-            <span className="text-xs text-muted-foreground">Shares</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-lg font-bold">
-              ${(holding.stockPrice || 0).toLocaleString()}
-            </span>
-            <span className="text-xs text-muted-foreground">Price</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-lg font-bold text-muted-foreground">
-              $
-              {(
-                (holding.quantity || 0) * (holding.stockPrice || 0)
-              ).toLocaleString()}
-            </span>
-            <span className="text-xs text-muted-foreground">Value</span>
-          </div>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="flex flex-col">
+          <span className="text-lg font-bold">
+            {(holding.quantity || 0).toLocaleString()}
+          </span>
+          <span className="text-xs text-muted-foreground">Shares</span>
         </div>
+        <div className="flex flex-col">
+          <span className="text-lg font-bold">
+            ${(holding.stockPrice || 0).toLocaleString()}
+          </span>
+          <span className="text-xs text-muted-foreground">Price</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-lg font-bold text-muted-foreground">
+            $
+            {(
+              (holding.quantity || 0) * (holding.stockPrice || 0)
+            ).toLocaleString()}
+          </span>
+          <span className="text-xs text-muted-foreground">Value</span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
         <form
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 flex-1"
           onSubmit={async (e) => {
             e.preventDefault();
             if (!holding.companyId || !sellQty || sellQty < 1) return;
@@ -300,6 +296,7 @@ function HoldingItem({ holding }: { holding: any }) {
             type="submit"
             variant="destructive"
             size="sm"
+            className="flex-1 sm:flex-initial"
             disabled={isSelling || (holding.quantity || 0) < 1}
           >
             {isSelling ? "..." : "Sell"}
@@ -335,44 +332,44 @@ function OrderItem({
 
   return (
     <div className="p-4 rounded-lg border bg-card space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex items-center justify-center w-10 h-10 rounded-lg font-bold text-sm shrink-0"
-            style={{
-              backgroundColor: order.companyColor
-                ? `${order.companyColor}20`
-                : "hsl(var(--primary) / 0.1)",
-              color: order.companyColor || "hsl(var(--primary))",
-            }}
-          >
-            {LogoIcon ? (
-              <LogoIcon className="w-5 h-5" />
-            ) : (
-              order.companySymbol?.slice(0, 2)
-            )}
+      <div className="flex items-start gap-3">
+        <div
+          className="flex items-center justify-center w-10 h-10 rounded-lg font-bold text-sm shrink-0"
+          style={{
+            backgroundColor: order.companyColor
+              ? `${order.companyColor}20`
+              : "hsl(var(--primary) / 0.1)",
+            color: order.companyColor || "hsl(var(--primary))",
+          }}
+        >
+          {LogoIcon ? (
+            <LogoIcon className="w-5 h-5" />
+          ) : (
+            order.companySymbol?.slice(0, 2)
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge
+              variant={isBuy ? "default" : "destructive"}
+              className="text-[10px] uppercase tracking-wider"
+            >
+              {order.side}
+            </Badge>
+            <h3 className="font-semibold truncate">{order.companyName}</h3>
+            <span className="text-xs px-2 py-0.5 bg-muted rounded font-mono shrink-0">
+              {order.companySymbol}
+            </span>
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <Badge
-                variant={isBuy ? "default" : "destructive"}
-                className="text-[10px] uppercase tracking-wider"
-              >
-                {order.side}
-              </Badge>
-              <h3 className="font-semibold truncate">{order.companyName}</h3>
-              <span className="text-xs px-2 py-0.5 bg-muted rounded font-mono shrink-0">
-                {order.companySymbol}
-              </span>
-            </div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
             <p className="text-xs text-muted-foreground">
               {order.createdAt
                 ? new Date(order.createdAt).toLocaleString()
                 : "N/A"}
             </p>
+            <OrderStatusBadge status={order.status} />
           </div>
         </div>
-        <OrderStatusBadge status={order.status} />
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-center">
@@ -488,6 +485,7 @@ function MarketPage() {
     }>;
   } | null>(null);
   const [orderBookLoading, setOrderBookLoading] = useState(false);
+  const [orderBookSearch, setOrderBookSearch] = useState("");
 
   useEffect(() => {
     if (!orderBookCompanyId) {
@@ -854,11 +852,11 @@ function MarketPage() {
 
         {/* Orders & Holdings in Tabs */}
         <Tabs defaultValue="orders" className="w-full">
-          <TabsList className="w-full grid grid-cols-4">
-            <TabsTrigger value="orders" className="gap-1.5">
-              <ListOrdered className="w-4 h-4" />
+          <TabsList className="w-full flex overflow-x-auto no-scrollbar">
+            <TabsTrigger value="orders" className="gap-1.5 flex-1 min-w-0">
+              <ListOrdered className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">My Orders</span>
-              <span className="sm:hidden">Orders</span>
+              <span className="sm:hidden text-xs">Orders</span>
               {activeOrders.length > 0 && (
                 <Badge
                   variant="default"
@@ -868,10 +866,10 @@ function MarketPage() {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="holdings" className="gap-1.5">
-              <Briefcase className="w-4 h-4" />
+            <TabsTrigger value="holdings" className="gap-1.5 flex-1 min-w-0">
+              <Briefcase className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">Holdings</span>
-              <span className="sm:hidden">Hold</span>
+              <span className="sm:hidden text-xs">Hold</span>
               {userHoldings.length > 0 && (
                 <Badge
                   variant="secondary"
@@ -881,14 +879,14 @@ function MarketPage() {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="orderbook" className="gap-1.5">
-              <BarChart3 className="w-4 h-4" />
+            <TabsTrigger value="orderbook" className="gap-1.5 flex-1 min-w-0">
+              <BarChart3 className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">Order Book</span>
-              <span className="sm:hidden">Book</span>
+              <span className="sm:hidden text-xs">Book</span>
             </TabsTrigger>
-            <TabsTrigger value="market" className="gap-1.5">
-              <ShoppingCart className="w-4 h-4" />
-              Market
+            <TabsTrigger value="market" className="gap-1.5 flex-1 min-w-0">
+              <ShoppingCart className="w-4 h-4 shrink-0" />
+              <span className="text-xs sm:text-sm">Market</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1017,27 +1015,83 @@ function MarketPage() {
                   See who&apos;s in the queue and your position. Orders are
                   matched hourly in FIFO order.
                 </CardDescription>
-                <div className="mt-3">
-                  <Select
-                    value={orderBookCompanyId?.toString() ?? ""}
-                    onValueChange={(val) =>
-                      setOrderBookCompanyId(val ? Number(val) : null)
-                    }
-                  >
-                    <SelectTrigger className="w-full sm:w-[280px]">
-                      <SelectValue placeholder="Select a company" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companiesList.map((company) => (
-                        <SelectItem
-                          key={company.id}
-                          value={company.id.toString()}
-                        >
-                          {company.symbol} — {company.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="mt-3 space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search companies…"
+                      value={orderBookSearch}
+                      onChange={(e) => setOrderBookSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto rounded-lg border">
+                    {companiesList
+                      .filter((c) => {
+                        if (!orderBookSearch.trim()) return true;
+                        const q = orderBookSearch.trim().toLowerCase();
+                        return (
+                          c.name.toLowerCase().includes(q) ||
+                          c.symbol.toLowerCase().includes(q)
+                        );
+                      })
+                      .map((company) => {
+                        const isSelected = orderBookCompanyId === company.id;
+                        let LogoIcon: LucideIcon | null = null;
+                        if (company.logo) {
+                          const iconsMap = LucideIcons as unknown as Record<
+                            string,
+                            LucideIcon
+                          >;
+                          LogoIcon = iconsMap[company.logo] || null;
+                        }
+                        return (
+                          <button
+                            key={company.id}
+                            type="button"
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors hover:bg-accent ${
+                              isSelected ? "bg-primary/10 font-semibold" : ""
+                            }`}
+                            onClick={() => {
+                              setOrderBookCompanyId(company.id);
+                              setOrderBookSearch("");
+                            }}
+                          >
+                            <div
+                              className="w-7 h-7 rounded flex items-center justify-center text-xs font-bold shrink-0"
+                              style={{
+                                backgroundColor: company.color
+                                  ? `${company.color}20`
+                                  : "hsl(var(--primary) / 0.1)",
+                                color: company.color || "hsl(var(--primary))",
+                              }}
+                            >
+                              {LogoIcon ? (
+                                <LogoIcon className="w-3.5 h-3.5" />
+                              ) : (
+                                company.symbol.charAt(0)
+                              )}
+                            </div>
+                            <span className="font-mono text-xs shrink-0">
+                              {company.symbol}
+                            </span>
+                            <span className="truncate">{company.name}</span>
+                          </button>
+                        );
+                      })}
+                    {companiesList.filter((c) => {
+                      if (!orderBookSearch.trim()) return true;
+                      const q = orderBookSearch.trim().toLowerCase();
+                      return (
+                        c.name.toLowerCase().includes(q) ||
+                        c.symbol.toLowerCase().includes(q)
+                      );
+                    }).length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No companies found
+                      </p>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -1380,7 +1434,7 @@ function MarketPage() {
                             </div>
                           </Link>
 
-                          <div className="grid grid-cols-4 gap-2">
+                          <div className="grid grid-cols-5 gap-2">
                             <div className="flex flex-col items-center">
                               <span className="text-lg font-bold">
                                 ${company.stockPrice?.toLocaleString() ?? "N/A"}
@@ -1410,6 +1464,17 @@ function MarketPage() {
                                   Price
                                 </span>
                               )}
+                            </div>
+
+                            <div className="flex flex-col items-center">
+                              <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+                                {Number(
+                                  company.buyOrderShares ?? 0,
+                                ).toLocaleString()}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                Buyers
+                              </span>
                             </div>
 
                             <div className="flex flex-col items-center">

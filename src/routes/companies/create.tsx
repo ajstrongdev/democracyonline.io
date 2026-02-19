@@ -35,6 +35,7 @@ function CreateCompanyPage() {
   const [companySymbol, setCompanySymbol] = useState("");
   const [companyDescription, setCompanyDescription] = useState("");
   const [companyCapital, setCompanyCapital] = useState(100);
+  const [capitalInput, setCapitalInput] = useState("100");
   const [selectedLogo, setSelectedLogo] = useState<string | null>(null);
   const [companyColor, setCompanyColor] = useState("#3b82f6");
   const [isCreating, setIsCreating] = useState(false);
@@ -251,18 +252,25 @@ function CreateCompanyPage() {
                     min={100}
                     max={maxCapital}
                     step={100}
-                    value={companyCapital}
-                    onChange={(e) =>
-                      setCompanyCapital(
-                        Math.max(
-                          100,
-                          Math.min(
-                            Math.floor(Number(e.target.value) / 100) * 100,
-                            maxCapital,
-                          ),
+                    value={capitalInput}
+                    onChange={(e) => {
+                      setCapitalInput(e.target.value);
+                      const num = Number(e.target.value);
+                      if (!isNaN(num)) {
+                        setCompanyCapital(Math.floor(num / 100) * 100);
+                      }
+                    }}
+                    onBlur={() => {
+                      const clamped = Math.max(
+                        100,
+                        Math.min(
+                          Math.floor(Number(capitalInput) / 100) * 100,
+                          maxCapital,
                         ),
-                      )
-                    }
+                      );
+                      setCompanyCapital(clamped);
+                      setCapitalInput(String(clamped));
+                    }}
                   />
                   <p className="text-sm text-muted-foreground">
                     $100 per share &middot; {totalShares} shares will be created

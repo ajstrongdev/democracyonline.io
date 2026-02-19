@@ -17,7 +17,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { getThemeServerFn } from "@/lib/server/theme";
+import { getThemeServerFn, getThemeClasses } from "@/lib/server/theme";
 import { ThemeProvider } from "@/components/theme-provider";
 import { NotFound } from "@/components/not-found";
 
@@ -89,7 +89,7 @@ function RootLayout() {
 function RootDocument({ children }: { children: React.ReactNode }) {
   const { theme } = Route.useLoaderData();
   return (
-    <html lang="en" className={theme} suppressHydrationWarning>
+    <html lang="en" className={getThemeClasses(theme)} suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
