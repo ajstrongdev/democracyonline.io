@@ -15,7 +15,7 @@ import {
   userShares,
   users,
 } from "@/db/schema";
-import { requireAuthMiddleware } from "@/middleware";
+import { authMiddleware, requireAuthMiddleware } from "@/middleware";
 import {
   CreateCompanySchema,
   UpdateCompanySchema,
@@ -38,6 +38,9 @@ import {
 } from "@/lib/schemas/finance-schema";
 
 const MAX_OPEN_ORDER_SHARES_PER_COMPANY = 5;
+const COMPANY_CREATION_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const COMPANY_CREATION_COOLDOWN_ERROR_MESSAGE =
+  "You can only create one company every 24 hours. Please wait before creating another.";
 
 const BuySharesInputSchema = z.object({
   companyId: z.number().int().positive(),
@@ -74,6 +77,77 @@ async function getCompanyCEOId(companyId: number): Promise<number | null> {
     .limit(1);
   return topHolder?.userId ?? null;
 }
+
+type CompanyCreationEligibility = {
+  canCreate: boolean;
+  remainingMs: number;
+  nextEligibleAt: string | null;
+};
+
+async function getCompanyCreationEligibilityForUser(
+  userId: number,
+): Promise<CompanyCreationEligibility> {
+  const twentyFourHoursAgo = new Date(Date.now() - COMPANY_CREATION_COOLDOWN_MS);
+  const [recentCreation] = await db
+    .select({ createdAt: transactionHistory.createdAt })
+    .from(transactionHistory)
+    .where(
+      and(
+        eq(transactionHistory.userId, userId),
+        gte(transactionHistory.createdAt, twentyFourHoursAgo),
+        sql`${transactionHistory.description} LIKE 'Created company %'`,
+      ),
+    )
+    .orderBy(desc(transactionHistory.createdAt))
+    .limit(1);
+
+  if (!recentCreation?.createdAt) {
+    return {
+      canCreate: true,
+      remainingMs: 0,
+      nextEligibleAt: null,
+    };
+  }
+
+  const nextEligibleAt = new Date(
+    recentCreation.createdAt.getTime() + COMPANY_CREATION_COOLDOWN_MS,
+  );
+  const remainingMs = Math.max(0, nextEligibleAt.getTime() - Date.now());
+
+  return {
+    canCreate: remainingMs <= 0,
+    remainingMs,
+    nextEligibleAt: remainingMs > 0 ? nextEligibleAt.toISOString() : null,
+  };
+}
+
+export const getCompanyCreationEligibility = createServerFn()
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    if (!context.user?.email) {
+      return {
+        canCreate: true,
+        remainingMs: 0,
+        nextEligibleAt: null,
+      };
+    }
+
+    const [currentUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(sql`lower(${users.email})`, sql`lower(${context.user.email})`))
+      .limit(1);
+
+    if (!currentUser) {
+      return {
+        canCreate: true,
+        remainingMs: 0,
+        nextEligibleAt: null,
+      };
+    }
+
+    return getCompanyCreationEligibilityForUser(currentUser.id);
+  });
 
 export const getCompanies = createServerFn().handler(async () => {
   const companiesWithStocks = await db
@@ -226,24 +300,11 @@ export const createCompany = createServerFn({ method: "POST" })
       throw new Error("Insufficient funds for startup capital");
     }
 
-    // Rate limit: 1 company creation per 24 hours
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const [recentCreation] = await db
-      .select({ id: transactionHistory.id })
-      .from(transactionHistory)
-      .where(
-        and(
-          eq(transactionHistory.userId, currentUser.id),
-          gte(transactionHistory.createdAt, twentyFourHoursAgo),
-          sql`${transactionHistory.description} LIKE 'Created company %'`,
-        ),
-      )
-      .limit(1);
-
-    if (recentCreation) {
-      throw new Error(
-        "You can only create one company every 24 hours. Please wait before creating another.",
-      );
+    const creationEligibility = await getCompanyCreationEligibilityForUser(
+      currentUser.id,
+    );
+    if (!creationEligibility.canCreate) {
+      throw new Error(COMPANY_CREATION_COOLDOWN_ERROR_MESSAGE);
     }
 
     const existingCompany = await db

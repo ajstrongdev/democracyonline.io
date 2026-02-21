@@ -1,9 +1,18 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Building2, DollarSign, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import {
+  ArrowLeft,
+  Building2,
+  Clock3,
+  DollarSign,
+  TrendingUp,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { getCurrentUserInfo } from "@/lib/server/users";
-import { createCompany } from "@/lib/server/stocks";
+import {
+  createCompany,
+  getCompanyCreationEligibility,
+} from "@/lib/server/stocks";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import ProtectedRoute from "@/components/auth/protected-route";
 import {
@@ -18,19 +27,31 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { icons } from "@/lib/utils/logo-helper";
+import { formatCompanyCreationCooldown } from "@/lib/utils/company-creation-cooldown";
 
 export const Route = createFileRoute("/companies/create")({
   loader: async () => {
-    const userData = await getCurrentUserInfo();
-    return { userData };
+    const [userData, companyCreationEligibility] = await Promise.all([
+      getCurrentUserInfo(),
+      getCompanyCreationEligibility(),
+    ]);
+
+    return { userData, companyCreationEligibility };
   },
   component: CreateCompanyPage,
 });
 
 function CreateCompanyPage() {
-  const { userData } = Route.useLoaderData();
-  const user = useUserData(userData);
+  const {
+    userData: loaderUserData,
+    companyCreationEligibility: initialCompanyCreationEligibility,
+  } = Route.useLoaderData();
+  const user = useUserData(loaderUserData);
   const navigate = useNavigate();
+  const [companyCreationEligibility, setCompanyCreationEligibility] = useState(
+    initialCompanyCreationEligibility,
+  );
+  const [isRefreshingEligibility, setIsRefreshingEligibility] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const [companySymbol, setCompanySymbol] = useState("");
   const [companyDescription, setCompanyDescription] = useState("");
@@ -40,10 +61,58 @@ function CreateCompanyPage() {
   const [companyColor, setCompanyColor] = useState("#3b82f6");
   const [isCreating, setIsCreating] = useState(false);
 
+  useEffect(() => {
+    setCompanyCreationEligibility(initialCompanyCreationEligibility);
+  }, [initialCompanyCreationEligibility]);
+
+  useEffect(() => {
+    if (!user?.id || loaderUserData) {
+      return;
+    }
+
+    let cancelled = false;
+    setIsRefreshingEligibility(true);
+
+    getCompanyCreationEligibility()
+      .then((eligibility) => {
+        if (!cancelled) {
+          setCompanyCreationEligibility(eligibility);
+        }
+      })
+      .catch((error) => {
+        console.error(
+          "Failed to refresh company creation eligibility:",
+          error,
+        );
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsRefreshingEligibility(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, loaderUserData]);
+
   const totalShares = Math.floor(companyCapital / 100);
   const retainedShares = totalShares; // All created shares go to the founder
+  const cooldownRemaining =
+    !companyCreationEligibility.canCreate &&
+    companyCreationEligibility.remainingMs > 0
+      ? formatCompanyCreationCooldown(companyCreationEligibility.remainingMs)
+      : null;
+  const nextEligibleAt = companyCreationEligibility.nextEligibleAt
+    ? new Date(companyCreationEligibility.nextEligibleAt).toLocaleString()
+    : null;
 
   const handleCreateCompany = async () => {
+    if (!companyCreationEligibility.canCreate) {
+      toast.error("Too soon to create another company. Please wait.");
+      return;
+    }
+
     if (!companyName || !companySymbol) {
       toast.error("Please fill in all required fields");
       return;
@@ -90,6 +159,79 @@ function CreateCompanyPage() {
 
   const maxCapital =
     Math.floor(Math.min(user?.money || 100, 1000000) / 100) * 100;
+
+  if (!loaderUserData && user?.id && isRefreshingEligibility) {
+    return (
+      <ProtectedRoute>
+        <div className="container mx-auto p-4 max-w-3xl">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">
+                Checking company creation eligibility...
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (!companyCreationEligibility.canCreate) {
+    return (
+      <ProtectedRoute>
+        <div className="container mx-auto p-4 max-w-3xl space-y-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/companies">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">
+                Too Soon to Create Another Company
+              </h1>
+              <p className="text-muted-foreground">
+                You can only create one company every 24 hours.
+              </p>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock3 className="h-5 w-5" />
+                Company Creation Cooldown
+              </CardTitle>
+              <CardDescription>
+                Please wait before creating another company.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                It&apos;s too soon to create another company.
+                {cooldownRemaining
+                  ? ` Try again in ${cooldownRemaining}.`
+                  : " Try again later."}
+              </p>
+              {nextEligibleAt && (
+                <p className="text-sm text-muted-foreground">
+                  Next available time: {nextEligibleAt}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-3">
+                <Button asChild variant="outline">
+                  <Link to="/companies">Back to Companies</Link>
+                </Button>
+                <Button asChild>
+                  <Link to="/companies/market">Go to Stock Market</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>
