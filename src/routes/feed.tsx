@@ -142,13 +142,14 @@ function FeedContent() {
                               })
                             }
                           >
-                            {item.username || "Anonymous"}
+                            {item.username || "System"}
                           </span>
                         ) : (
                           <span className="font-bold text-foreground">
-                            {item.username || "Anonymous"}
+                            {item.username || "System"}
                           </span>
-                        )}{" "}
+                        )}
+                        {": "}
                         <span className="text-muted-foreground">
                           {parseContentWithLinks(item.content)}
                         </span>
