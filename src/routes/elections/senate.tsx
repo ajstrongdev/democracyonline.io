@@ -441,17 +441,31 @@ function CampaignGraphs({
                     hide
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      padding: "8px 12px",
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-popover text-popover-foreground border border-border rounded-lg shadow-lg p-3 max-w-xs">
+                            {payload.map((entry, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-2 text-sm"
+                              >
+                                <span
+                                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                                  style={{ backgroundColor: entry.color }}
+                                />
+                                <span className="truncate">{entry.name}</span>
+                                <span className="ml-auto font-medium tabular-nums">
+                                  {Number(entry.value).toLocaleString()} votes
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return null;
                     }}
-                    formatter={(value: any, name: string) => [
-                      `${Number(value).toLocaleString()} votes`,
-                      name,
-                    ]}
-                    labelFormatter={() => ""}
+                    wrapperStyle={{ zIndex: 50 }}
                   />
                   {candidates.map((candidate) => (
                     <Line
@@ -560,17 +574,31 @@ function CampaignGraphs({
                     hide
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      padding: "8px 12px",
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-popover text-popover-foreground border border-border rounded-lg shadow-lg p-3 max-w-xs">
+                            {payload.map((entry, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-2 text-sm"
+                              >
+                                <span
+                                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                                  style={{ backgroundColor: entry.color }}
+                                />
+                                <span className="truncate">{entry.name}</span>
+                                <span className="ml-auto font-medium tabular-nums">
+                                  ${Number(entry.value).toLocaleString()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return null;
                     }}
-                    formatter={(value: any, name: string) => [
-                      `$${Number(value).toLocaleString()}`,
-                      name,
-                    ]}
-                    labelFormatter={() => ""}
+                    wrapperStyle={{ zIndex: 50 }}
                   />
                   {candidates.map((candidate) => (
                     <Line
