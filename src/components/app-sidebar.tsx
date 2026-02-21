@@ -26,6 +26,7 @@ import { Logo } from "@/components/logo";
 import { logOut } from "@/lib/auth-utils";
 import { useAuth } from "@/lib/auth-context";
 import { getBankBalance } from "@/lib/server/banking";
+import { useEffect } from "react";
 
 import {
   Sidebar,
@@ -42,7 +43,6 @@ import {
   SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { useEffect } from "react";
 
 const data = {
   navMain: [
@@ -158,10 +158,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   });
 
   useEffect(() => {
-    if (user) {
+    if (!user) return;
+    const sub = router.subscribe("onResolved", () => {
       refetchBalance();
-    }
-  }, [pathname, user, refetchBalance]);
+    });
+    return sub;
+  }, [user, router, refetchBalance]);
 
   const ALLOWED_ADMIN_EMAILS = [
     "jenewland1999@gmail.com",
