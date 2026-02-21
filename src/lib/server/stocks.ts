@@ -171,6 +171,19 @@ export const getCompanies = createServerFn().handler(async () => {
 });
 
 export const getSharePriceHistory = createServerFn().handler(async () => {
+  // Fetch the latest recorded timestamp to anchor the 48-hour window.
+  // This accounts for synthetic future timestamps from rapid dev advances.
+  const [latest] = await db
+    .select({ recordedAt: sharePriceHistory.recordedAt })
+    .from(sharePriceHistory)
+    .orderBy(desc(sharePriceHistory.recordedAt))
+    .limit(1);
+
+  const latestTime = latest?.recordedAt
+    ? new Date(latest.recordedAt).getTime()
+    : Date.now();
+  const cutoff = new Date(latestTime - 48 * 60 * 60 * 1000);
+
   const history = await db
     .select({
       id: sharePriceHistory.id,
@@ -184,8 +197,9 @@ export const getSharePriceHistory = createServerFn().handler(async () => {
     .from(sharePriceHistory)
     .innerJoin(stocks, eq(sharePriceHistory.stockId, stocks.id))
     .innerJoin(companies, eq(stocks.companyId, companies.id))
+    .where(gte(sharePriceHistory.recordedAt, cutoff))
     .orderBy(desc(sharePriceHistory.recordedAt))
-    .limit(500);
+    .limit(2000);
 
   return history;
 });

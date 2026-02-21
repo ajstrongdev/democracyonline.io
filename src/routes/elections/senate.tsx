@@ -309,14 +309,26 @@ function CampaignGraphs({
   campaignHistory: Awaited<ReturnType<typeof getCampaignHistory>>;
   candidates: Array<Candidate>;
 }) {
-  // Group snapshots by timestamp
-  const timePoints = Array.from(
-    new Set(
-      campaignHistory.map((snapshot) =>
-        snapshot.snapshotAt ? new Date(snapshot.snapshotAt).toISOString() : "",
-      ),
-    ),
-  ).sort();
+  const HOUR_MS = 60 * 60 * 1000;
+  const roundToHour = (ms: number) => Math.round(ms / HOUR_MS) * HOUR_MS;
+
+  const voteBuckets = new Map<number, Map<number, number>>();
+  const donationBuckets = new Map<number, Map<number, number>>();
+
+  for (const snapshot of campaignHistory) {
+    if (!snapshot.snapshotAt) continue;
+    const bucket = roundToHour(new Date(snapshot.snapshotAt).getTime());
+
+    if (!voteBuckets.has(bucket)) voteBuckets.set(bucket, new Map());
+    if (!donationBuckets.has(bucket)) donationBuckets.set(bucket, new Map());
+
+    voteBuckets.get(bucket)!.set(snapshot.candidateId, snapshot.votes || 0);
+    donationBuckets
+      .get(bucket)!
+      .set(snapshot.candidateId, snapshot.donations || 0);
+  }
+
+  const timePoints = Array.from(voteBuckets.keys()).sort((a, b) => a - b);
 
   // Create a color mapping for candidates based on their party color
   const candidateColors: Record<number, string> = {};
@@ -326,27 +338,21 @@ function CampaignGraphs({
 
   // Prepare votes data - carry forward last known values
   const lastKnownVotes: Record<string, number> = {};
-  const votesData = timePoints.map((timePoint) => {
+  const votesData = timePoints.map((bucket) => {
     const dataPoint: Record<string, any> = {
-      time: new Date(timePoint).toLocaleDateString(undefined, {
+      time: new Date(bucket).toLocaleDateString(undefined, {
         month: "short",
         day: "numeric",
         hour: "2-digit",
       }),
     };
 
+    const bucketVotes = voteBuckets.get(bucket)!;
     candidates.forEach((candidate) => {
-      const snapshot = campaignHistory.find(
-        (s) =>
-          s.candidateId === candidate.id &&
-          s.snapshotAt &&
-          new Date(s.snapshotAt).toISOString() === timePoint,
-      );
-
-      if (snapshot) {
-        lastKnownVotes[candidate.username] = snapshot.votes || 0;
+      const votes = bucketVotes.get(candidate.id);
+      if (votes !== undefined) {
+        lastKnownVotes[candidate.username] = votes;
       }
-
       dataPoint[candidate.username] = lastKnownVotes[candidate.username] ?? 0;
     });
 
@@ -355,27 +361,21 @@ function CampaignGraphs({
 
   // Prepare donations data - carry forward last known values
   const lastKnownDonations: Record<string, number> = {};
-  const donationsData = timePoints.map((timePoint) => {
+  const donationsData = timePoints.map((bucket) => {
     const dataPoint: Record<string, any> = {
-      time: new Date(timePoint).toLocaleDateString(undefined, {
+      time: new Date(bucket).toLocaleDateString(undefined, {
         month: "short",
         day: "numeric",
         hour: "2-digit",
       }),
     };
 
+    const bucketDonations = donationBuckets.get(bucket)!;
     candidates.forEach((candidate) => {
-      const snapshot = campaignHistory.find(
-        (s) =>
-          s.candidateId === candidate.id &&
-          s.snapshotAt &&
-          new Date(s.snapshotAt).toISOString() === timePoint,
-      );
-
-      if (snapshot) {
-        lastKnownDonations[candidate.username] = snapshot.donations || 0;
+      const donations = bucketDonations.get(candidate.id);
+      if (donations !== undefined) {
+        lastKnownDonations[candidate.username] = donations;
       }
-
       dataPoint[candidate.username] =
         lastKnownDonations[candidate.username] ?? 0;
     });
@@ -616,6 +616,7 @@ function RouteComponent() {
     localCandidates.some((candidate) => candidate.userId === userData?.id);
 
   const isACandidate = isCandidateInAny?.isCandidate || false;
+  const isPresident = userData?.role === "President";
 
   const handleCandidacyConfirm = async () => {
     if (!userData) return;
@@ -733,7 +734,7 @@ function RouteComponent() {
                 </AlertTitle>
                 <AlertDescription
                   className={
-                    isAlreadyCandidate || !isACandidate
+                    isAlreadyCandidate || !isACandidate || isPresident
                       ? "md:flex md:items-center md:justify-between"
                       : ""
                   }
@@ -741,7 +742,12 @@ function RouteComponent() {
                   <>
                     Stand as a candidate in the upcoming Senate elections and
                     become the voice of the people.
-                    {!isAlreadyCandidate && !isACandidate && userData ? (
+                    {isPresident ? (
+                      <h2 className="mt-2 text-yellow-500">
+                        You are currently serving as President and cannot run
+                        for Senate.
+                      </h2>
+                    ) : !isAlreadyCandidate && !isACandidate && userData ? (
                       <Button
                         className="mt-4 md:mt-0"
                         onClick={standAsCandidate}

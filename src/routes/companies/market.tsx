@@ -708,24 +708,54 @@ function MarketPage() {
                 <LineChart
                   height={400}
                   data={(() => {
-                    const now = Date.now();
-                    const fortyEightHoursAgo = now - 48 * 60 * 60 * 1000;
+                    const HOUR_MS = 60 * 60 * 1000;
+
+                    // Round a timestamp to the nearest hour so all companies
+                    // that recorded in the same cycle share one x-axis point.
+                    const roundToHour = (ms: number) =>
+                      Math.round(ms / HOUR_MS) * HOUR_MS;
+
+                    // Use the latest recorded timestamp (which may be in the
+                    // future when advances are run rapidly in dev) and show
+                    // the most recent 48 game-hours of data.
+                    const allTimestamps = priceHistory.map((h) =>
+                      new Date(h.recordedAt!).getTime(),
+                    );
+                    const latestTs =
+                      allTimestamps.length > 0
+                        ? Math.max(...allTimestamps)
+                        : Date.now();
+                    const cutoff = latestTs - 48 * HOUR_MS;
 
                     const recentHistory = priceHistory.filter(
-                      (h) =>
-                        new Date(h.recordedAt!).getTime() >= fortyEightHoursAgo,
+                      (h) => new Date(h.recordedAt!).getTime() >= cutoff,
                     );
-
-                    const timestamps = Array.from(
-                      new Set(
-                        recentHistory.map((h) =>
-                          new Date(h.recordedAt!).getTime(),
-                        ),
-                      ),
-                    ).sort((a, b) => a - b);
 
                     const symbols = Array.from(
                       new Set(recentHistory.map((h) => h.companySymbol)),
+                    );
+
+                    // Bucket each record into the nearest hour.
+                    // If multiple records for the same company land in
+                    // the same bucket, keep the latest one.
+                    const bucketMap = new Map<number, Map<string, number>>();
+
+                    for (const h of recentHistory) {
+                      const bucket = roundToHour(
+                        new Date(h.recordedAt!).getTime(),
+                      );
+                      if (!bucketMap.has(bucket)) {
+                        bucketMap.set(bucket, new Map());
+                      }
+                      // Later entries (closer to bucket centre) overwrite
+                      // earlier ones — acceptable for hourly granularity.
+                      bucketMap
+                        .get(bucket)!
+                        .set(h.companySymbol, Number(h.price));
+                    }
+
+                    const timestamps = Array.from(bucketMap.keys()).sort(
+                      (a, b) => a - b,
                     );
 
                     const lastPrices: Record<string, number> = {};
@@ -740,15 +770,13 @@ function MarketPage() {
                         timestamp,
                       };
 
-                      symbols.forEach((symbol) => {
-                        const priceEntry = recentHistory.find(
-                          (h) =>
-                            h.companySymbol === symbol &&
-                            new Date(h.recordedAt!).getTime() === timestamp,
-                        );
+                      const bucket = bucketMap.get(timestamp)!;
 
-                        if (priceEntry) {
-                          lastPrices[symbol] = Number(priceEntry.price);
+                      symbols.forEach((symbol) => {
+                        const price = bucket.get(symbol);
+
+                        if (price !== undefined) {
+                          lastPrices[symbol] = price;
                         }
 
                         if (lastPrices[symbol] !== undefined) {

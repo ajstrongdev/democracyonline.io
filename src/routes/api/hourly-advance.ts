@@ -553,6 +553,26 @@ export const Route = createFileRoute("/api/hourly-advance")({
           const buyPressureTriggerEnabled =
             env.ENABLE_BUY_PRESSURE_MINT_TRIGGER;
 
+          // Determine the recordedAt timestamp for this tick's price entries.
+          // If the most recent price entry is less than 50 minutes old (rapid
+          // dev advances), space entries exactly 1 hour apart from the last
+          // entry so the chart shows distinct data points.
+          const [latestPriceEntry] = await db
+            .select({ recordedAt: sharePriceHistory.recordedAt })
+            .from(sharePriceHistory)
+            .orderBy(desc(sharePriceHistory.recordedAt))
+            .limit(1);
+
+          let tickRecordedAt: Date | undefined;
+          if (latestPriceEntry?.recordedAt) {
+            const lastTime = new Date(latestPriceEntry.recordedAt).getTime();
+            const msSinceLast = Date.now() - lastTime;
+            const FIFTY_MINUTES_MS = 50 * 60 * 1000;
+            if (msSinceLast < FIFTY_MINUTES_MS) {
+              tickRecordedAt = new Date(lastTime + 60 * 60 * 1000);
+            }
+          }
+
           const dayStart = new Date();
           dayStart.setHours(0, 0, 0, 0);
           const nextDayStart = new Date(dayStart);
@@ -583,10 +603,13 @@ export const Route = createFileRoute("/api/hourly-advance")({
             const MIN_PRICE = 10;
             newPrice = Math.max(MIN_PRICE, newPrice);
 
-            // Always log price history to maintain chart continuity
+            // Always log price history to maintain chart continuity.
+            // tickRecordedAt is pre-computed above — if advances are running
+            // rapidly it spaces entries 1 hour apart for the chart.
             await db.insert(sharePriceHistory).values({
               stockId: stock.id,
               price: newPrice,
+              ...(tickRecordedAt ? { recordedAt: tickRecordedAt } : {}),
             });
 
             // Update stock price and reset daily counters
@@ -930,6 +953,22 @@ export const Route = createFileRoute("/api/hourly-advance")({
             }
           }
 
+          const [latestSnapshot] = await db
+            .select({ snapshotAt: candidateSnapshots.snapshotAt })
+            .from(candidateSnapshots)
+            .orderBy(desc(candidateSnapshots.snapshotAt))
+            .limit(1);
+
+          let tickSnapshotAt: Date | undefined;
+          if (latestSnapshot?.snapshotAt) {
+            const lastSnapTime = new Date(latestSnapshot.snapshotAt).getTime();
+            const msSinceLastSnap = Date.now() - lastSnapTime;
+            const FIFTY_MINUTES_MS = 50 * 60 * 1000;
+            if (msSinceLastSnap < FIFTY_MINUTES_MS) {
+              tickSnapshotAt = new Date(lastSnapTime + 60 * 60 * 1000);
+            }
+          }
+
           // Process candidate votes and donations per hour for elections in voting phase
           const votingElections = await db
             .select({ election: elections.election })
@@ -976,6 +1015,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
                 election: candidate.election || election.election,
                 votes: (candidate.votes || 0) + votesPerHour,
                 donations: Number(candidate.donations || 0) + donationsPerHour,
+                ...(tickSnapshotAt ? { snapshotAt: tickSnapshotAt } : {}),
               });
 
               candidatesProcessed++;

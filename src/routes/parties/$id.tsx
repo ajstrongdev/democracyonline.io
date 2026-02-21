@@ -141,10 +141,10 @@ function PartyPage() {
         <div className="space-y-6">
           <Card className="border-l-4" style={{ borderLeftColor: party.color }}>
             <CardHeader className="pb-6">
-              <div className="md:flex items-center gap-4">
+              <div className="md:flex items-center gap-4 min-w-0">
                 <PartyLogo party_id={party.id} size={80} />
-                <div className="flex-1">
-                  <h1 className="text-2xl mt-8 md:mt-0 md:text-4xl font-bold text-foreground text-wrap wrap-break-words">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-2xl mt-8 md:mt-0 md:text-4xl font-bold text-foreground wrap-break-word">
                     {party.name}
                   </h1>
                 </div>
