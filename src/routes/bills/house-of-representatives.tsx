@@ -1,15 +1,13 @@
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
-import type {HouseBill, Representative} from "@/lib/server/house-bills";
+import type { HouseBill, Representative } from "@/lib/server/house-bills";
 import { getCurrentUserInfo } from "@/lib/server/users";
 import {
-  
-  
   canVoteOnHouseBill,
   hasVotedOnHouseBill,
   houseBillsPageData,
-  voteOnHouseBill
+  voteOnHouseBill,
 } from "@/lib/server/house-bills";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import { Button } from "@/components/ui/button";
@@ -151,7 +149,7 @@ function RouteComponent() {
               {bills.map((bill: BillWithVotes) => (
                 <Card key={bill.id} className="flex flex-col">
                   <CardHeader>
-                    <h2 className="text-xl font-bold">
+                    <h2 className="text-xl text-balance font-bold">
                       Bill #{bill.id}: {bill.title}
                     </h2>
                     <p className="text-sm text-muted-foreground mb-2">
@@ -170,8 +168,10 @@ function RouteComponent() {
                     <p className="text-foreground mb-2 whitespace-pre-wrap line-clamp-3">
                       {bill.content}
                     </p>
+                  </CardContent>
+                  <CardFooter className="flex-col items-start gap-3">
                     {votesData[bill.id] ? (
-                      <div className="space-y-2 mt-2">
+                      <div className="space-y-2 w-full mt-2">
                         <div className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
                             <CheckCircle2 className="h-4 w-4" />
@@ -212,8 +212,6 @@ function RouteComponent() {
                         No votes recorded yet.
                       </div>
                     )}
-                  </CardContent>
-                  <CardFooter className="flex-col items-start gap-3">
                     <Button variant="outline" className="w-full" asChild>
                       <Link to="/bills/$id" params={{ id: bill.id.toString() }}>
                         View Full Bill
