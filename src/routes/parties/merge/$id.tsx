@@ -136,7 +136,7 @@ function MergePartyPage() {
     <ProtectedRoute>
       <div className="container mx-auto py-8 px-4 max-w-6xl">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2 wrap-break-word">
             Merge Party: {party.name}
           </h1>
           <p className="text-muted-foreground">

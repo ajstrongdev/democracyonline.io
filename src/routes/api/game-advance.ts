@@ -12,9 +12,12 @@ import {
   parties,
   partyStances,
   partyTransactionHistory,
+  stockOrders,
   transactionHistory,
+  userShares,
   users,
 } from "@/db/schema";
+import { or } from "drizzle-orm";
 import { env } from "@/env";
 import { authorizeCronRequest } from "@/lib/server/cron-auth";
 import { getAdminAuth } from "@/lib/firebase-admin";
@@ -688,6 +691,80 @@ export const Route = createFileRoute("/api/game-advance")({
             .update(users)
             .set({ isActive: false })
             .where(sql`${users.lastActivity} >= 14`);
+
+          // Relinquish shares from inactive users back to treasury (minted pool)
+          console.log(
+            "[game-advance] Relinquishing shares from inactive users",
+          );
+          const inactiveUsersWithShares = await db
+            .select({
+              userId: userShares.userId,
+              companyId: userShares.companyId,
+              quantity: userShares.quantity,
+            })
+            .from(userShares)
+            .innerJoin(users, eq(userShares.userId, users.id))
+            .where(eq(users.isActive, false));
+
+          if (inactiveUsersWithShares.length > 0) {
+            // Cancel all open stock orders for inactive users and refund buy orders
+            const inactiveUserIds = [
+              ...new Set(inactiveUsersWithShares.map((s) => s.userId)),
+            ];
+
+            for (const userId of inactiveUserIds) {
+              const openOrders = await db
+                .select()
+                .from(stockOrders)
+                .where(
+                  and(
+                    eq(stockOrders.userId, userId),
+                    or(
+                      eq(stockOrders.status, "open"),
+                      eq(stockOrders.status, "partial"),
+                    ),
+                  ),
+                );
+
+              for (const order of openOrders) {
+                const remaining = order.quantity - order.filledQuantity;
+                if (order.side === "buy" && remaining > 0) {
+                  const refund = remaining * order.pricePerShare;
+                  await db
+                    .update(users)
+                    .set({ money: sql`${users.money} + ${refund}` })
+                    .where(eq(users.id, userId));
+                }
+                await db
+                  .update(stockOrders)
+                  .set({ status: "cancelled", updatedAt: new Date() })
+                  .where(eq(stockOrders.id, order.id));
+              }
+            }
+
+            // Remove all shares held by inactive users (returns them to treasury)
+            for (const holding of inactiveUsersWithShares) {
+              if ((holding.quantity ?? 0) > 0) {
+                await db.insert(transactionHistory).values({
+                  userId: holding.userId,
+                  description: `Shares relinquished due to inactivity: ${holding.quantity} share(s) of company #${holding.companyId} returned to treasury`,
+                });
+              }
+            }
+
+            await db
+              .delete(userShares)
+              .where(inArray(userShares.userId, inactiveUserIds));
+
+            console.log(
+              `[game-advance] Relinquished shares from ${inactiveUserIds.length} inactive user(s) (${inactiveUsersWithShares.length} holdings)`,
+            );
+
+            // Post feed entry
+            await db.insert(feed).values({
+              content: `${inactiveUserIds.length} inactive user(s) had their shares relinquished back to the treasury.`,
+            });
+          }
 
           const inactiveUsers = await db
             .select({ id: users.id, partyId: users.partyId })

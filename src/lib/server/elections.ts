@@ -130,6 +130,26 @@ export const declareCandidate = createServerFn({ method: "POST" })
     );
     rejectForgedUserId(data.userId, authenticatedUserId);
 
+    if (data.election === "Senate" || data.election === "President") {
+      const [currentUser] = await db
+        .select({ role: users.role })
+        .from(users)
+        .where(eq(users.id, authenticatedUserId))
+        .limit(1);
+
+      if (data.election === "Senate" && currentUser?.role === "President") {
+        throw new Error(
+          "You are currently serving as President and cannot run for Senate.",
+        );
+      }
+
+      if (data.election === "President" && currentUser?.role === "Senator") {
+        throw new Error(
+          "You are currently serving as a Senator and cannot run for President.",
+        );
+      }
+    }
+
     // Check if user is already a candidate in any election
     const existingCandidacy = await db
       .select({ id: candidates.id })

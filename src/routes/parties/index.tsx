@@ -327,7 +327,7 @@ function PartyContent() {
                       <h3 className="font-semibold text-base truncate">
                         {stats.name}
                       </h3>
-                      <p className="text-xs text-muted-foreground line-clamp-1">
+                      <p className="text-xs text-muted-foreground whitespace-pre-wrap text-balance line-clamp-1">
                         {stats.bio}
                       </p>
                     </div>
@@ -335,7 +335,7 @@ function PartyContent() {
 
                   {/* Party info - separate on desktop */}
                   <div className="hidden sm:block sm:flex-1 min-w-0">
-                    <h3 className="font-semibold text-base md:text-lg truncate">
+                    <h3 className="font-semibold text-base whitespace-pre-wrap text-balance md:text-lg truncate">
                       {stats.name}
                     </h3>
                     <p className="text-xs md:text-sm text-muted-foreground line-clamp-1">
