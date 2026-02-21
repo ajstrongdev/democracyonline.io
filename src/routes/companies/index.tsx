@@ -1,12 +1,12 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Building2, Search, TrendingDown, TrendingUp } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import * as LucideIcons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { getCurrentUserInfo } from "@/lib/server/users";
 import {
   getCompanies,
+  getCompanyCreationEligibility,
   getSharePriceHistory,
   getUserShares,
 } from "@/lib/server/stocks";
@@ -21,14 +21,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatCompanyCreationCooldown } from "@/lib/utils/company-creation-cooldown";
 import { calculateMarketCap } from "@/lib/utils/stock-economy";
 
 export const Route = createFileRoute("/companies/")({
   component: CompaniesPage,
   loader: async () => {
-    const companies = await getCompanies();
-    const priceHistory = await getSharePriceHistory();
-    const userData = await getCurrentUserInfo();
+    const [companies, priceHistory, companyCreationEligibility] =
+      await Promise.all([
+        getCompanies(),
+        getSharePriceHistory(),
+        getCompanyCreationEligibility(),
+      ]);
 
     let userHoldings: Array<{
       id: number;
@@ -36,28 +40,59 @@ export const Route = createFileRoute("/companies/")({
       companyId: number;
     }> = [];
 
-    if (
-      userData &&
-      typeof userData === "object" &&
-      "id" in userData &&
-      userData.id
-    ) {
-      try {
-        userHoldings = await getUserShares();
-      } catch {
-        userHoldings = [];
-      }
+    try {
+      userHoldings = await getUserShares();
+    } catch {
+      userHoldings = [];
     }
 
-    return { companies, priceHistory, userHoldings };
+    return { companies, priceHistory, userHoldings, companyCreationEligibility };
   },
 });
 
 function CompaniesPage() {
-  const { companies, priceHistory, userHoldings } = Route.useLoaderData();
+  const {
+    companies,
+    priceHistory,
+    userHoldings,
+    companyCreationEligibility: initialCompanyCreationEligibility,
+  } = Route.useLoaderData();
+  const [companyCreationEligibility, setCompanyCreationEligibility] = useState(
+    initialCompanyCreationEligibility,
+  );
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("name-asc");
   const [filterHoldings, setFilterHoldings] = useState(false);
+
+  useEffect(() => {
+    setCompanyCreationEligibility(initialCompanyCreationEligibility);
+  }, [initialCompanyCreationEligibility]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCompanyCreationEligibility()
+      .then((eligibility) => {
+        if (!cancelled) {
+          setCompanyCreationEligibility(eligibility);
+        }
+      })
+      .catch((error) => {
+        console.error(
+          "Failed to refresh company creation eligibility:",
+          error,
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const cooldownRemaining =
+    !companyCreationEligibility.canCreate &&
+    companyCreationEligibility.remainingMs > 0
+      ? formatCompanyCreationCooldown(companyCreationEligibility.remainingMs)
+      : null;
 
   const heldCompanyIds = useMemo(
     () =>
@@ -169,20 +204,40 @@ function CompaniesPage() {
             Explore all registered companies and their market performance
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Button asChild>
             <Link to="/companies/market">
               <TrendingUp className="w-4 h-4 mr-2" />
               Stock Market
             </Link>
           </Button>
-          <Button asChild variant="outline">
-            <Link to="/companies/create">
+          {companyCreationEligibility.canCreate ? (
+            <Button asChild variant="outline">
+              <Link to="/companies/create">
+                <Building2 className="w-4 h-4 mr-2" />
+                Create Company
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              disabled
+              title={
+                cooldownRemaining
+                  ? `You can create another company in ${cooldownRemaining}.`
+                  : "You can only create one company every 24 hours."
+              }
+            >
               <Building2 className="w-4 h-4 mr-2" />
               Create Company
-            </Link>
-          </Button>
+            </Button>
+          )}
         </div>
+        {!companyCreationEligibility.canCreate && cooldownRemaining && (
+          <p className="text-sm text-muted-foreground mt-2">
+            You can create another company in {cooldownRemaining}.
+          </p>
+        )}
       </div>
 
       {/* Search & Filters */}
