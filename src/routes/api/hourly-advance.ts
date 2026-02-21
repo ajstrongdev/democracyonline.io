@@ -553,6 +553,26 @@ export const Route = createFileRoute("/api/hourly-advance")({
           const buyPressureTriggerEnabled =
             env.ENABLE_BUY_PRESSURE_MINT_TRIGGER;
 
+          // Determine the recordedAt timestamp for this tick's price entries.
+          // If the most recent price entry is less than 50 minutes old (rapid
+          // dev advances), space entries exactly 1 hour apart from the last
+          // entry so the chart shows distinct data points.
+          const [latestPriceEntry] = await db
+            .select({ recordedAt: sharePriceHistory.recordedAt })
+            .from(sharePriceHistory)
+            .orderBy(desc(sharePriceHistory.recordedAt))
+            .limit(1);
+
+          let tickRecordedAt: Date | undefined;
+          if (latestPriceEntry?.recordedAt) {
+            const lastTime = new Date(latestPriceEntry.recordedAt).getTime();
+            const msSinceLast = Date.now() - lastTime;
+            const FIFTY_MINUTES_MS = 50 * 60 * 1000;
+            if (msSinceLast < FIFTY_MINUTES_MS) {
+              tickRecordedAt = new Date(lastTime + 60 * 60 * 1000);
+            }
+          }
+
           const dayStart = new Date();
           dayStart.setHours(0, 0, 0, 0);
           const nextDayStart = new Date(dayStart);
@@ -583,10 +603,13 @@ export const Route = createFileRoute("/api/hourly-advance")({
             const MIN_PRICE = 10;
             newPrice = Math.max(MIN_PRICE, newPrice);
 
-            // Always log price history to maintain chart continuity
+            // Always log price history to maintain chart continuity.
+            // tickRecordedAt is pre-computed above — if advances are running
+            // rapidly it spaces entries 1 hour apart for the chart.
             await db.insert(sharePriceHistory).values({
               stockId: stock.id,
               price: newPrice,
+              ...(tickRecordedAt ? { recordedAt: tickRecordedAt } : {}),
             });
 
             // Update stock price and reset daily counters
@@ -788,6 +811,79 @@ export const Route = createFileRoute("/api/hourly-advance")({
             }
           }
 
+          // Helper to fully dissolve a company, cleaning up all FK-referenced data
+          async function dissolveCompany(
+            stock: {
+              id: number;
+              companyId: number | null;
+              companyName: string;
+              companySymbol: string;
+            },
+            reason: string,
+          ) {
+            if (!stock.companyId) return;
+
+            // Cancel any open orders for this company and refund buy orders
+            const openOrders = await db
+              .select()
+              .from(stockOrders)
+              .where(
+                and(
+                  eq(stockOrders.companyId, stock.companyId),
+                  or(
+                    eq(stockOrders.status, "open"),
+                    eq(stockOrders.status, "partial"),
+                  ),
+                ),
+              );
+
+            for (const order of openOrders) {
+              const remaining = order.quantity - order.filledQuantity;
+              if (order.side === "buy" && remaining > 0) {
+                const refund = remaining * order.pricePerShare;
+                await db
+                  .update(users)
+                  .set({ money: sql`${users.money} + ${refund}` })
+                  .where(eq(users.id, order.userId));
+              }
+              await db
+                .update(stockOrders)
+                .set({ status: "cancelled", updatedAt: new Date() })
+                .where(eq(stockOrders.id, order.id));
+            }
+
+            // Remove all user shares (return to void on dissolution)
+            await db
+              .delete(userShares)
+              .where(eq(userShares.companyId, stock.companyId));
+
+            // Remove all FK-referenced data before deleting company
+            await db
+              .delete(orderFills)
+              .where(eq(orderFills.companyId, stock.companyId));
+            await db
+              .delete(financeKpiSnapshots)
+              .where(eq(financeKpiSnapshots.companyId, stock.companyId));
+            await db
+              .delete(shareIssuanceEvents)
+              .where(eq(shareIssuanceEvents.companyId, stock.companyId));
+            await db
+              .delete(stockOrders)
+              .where(eq(stockOrders.companyId, stock.companyId));
+            await db
+              .delete(sharePriceHistory)
+              .where(eq(sharePriceHistory.stockId, stock.id));
+            await db.delete(stocks).where(eq(stocks.id, stock.id));
+            await db.delete(companies).where(eq(companies.id, stock.companyId));
+
+            // Log to the public feed
+            await db.insert(feed).values({
+              content: `${stock.companyName} (${stock.companySymbol}) has been dissolved: ${reason}`,
+            });
+
+            console.log(`${stock.companySymbol}: Dissolved — ${reason}`);
+          }
+
           // Dissolve companies with no shareholders
           const dissolvedCompanies: Array<string> = [];
           for (const stock of updatedStocks) {
@@ -799,57 +895,37 @@ export const Route = createFileRoute("/api/hourly-advance")({
                 .limit(1);
 
               if (holders.length === 0) {
-                // Cancel any open orders for this company and refund buy orders
-                const openOrders = await db
-                  .select()
-                  .from(stockOrders)
-                  .where(
-                    and(
-                      eq(stockOrders.companyId, stock.companyId),
-                      or(
-                        eq(stockOrders.status, "open"),
-                        eq(stockOrders.status, "partial"),
-                      ),
-                    ),
-                  );
-
-                for (const order of openOrders) {
-                  const remaining = order.quantity - order.filledQuantity;
-                  if (order.side === "buy" && remaining > 0) {
-                    const refund = remaining * order.pricePerShare;
-                    await db
-                      .update(users)
-                      .set({ money: sql`${users.money} + ${refund}` })
-                      .where(eq(users.id, order.userId));
-                  }
-                  await db
-                    .update(stockOrders)
-                    .set({ status: "cancelled", updatedAt: new Date() })
-                    .where(eq(stockOrders.id, order.id));
-                }
-
-                // Remove order fills, price history, stock entry, then company
-                await db
-                  .delete(orderFills)
-                  .where(eq(orderFills.companyId, stock.companyId));
-                await db
-                  .delete(sharePriceHistory)
-                  .where(eq(sharePriceHistory.stockId, stock.id));
-                await db.delete(stocks).where(eq(stocks.id, stock.id));
-                await db
-                  .delete(companies)
-                  .where(eq(companies.id, stock.companyId));
-
-                // Log to the public feed
-                await db.insert(feed).values({
-                  content: `${stock.companyName} (${stock.companySymbol}) has been dissolved due to having no shareholders.`,
-                });
-
+                await dissolveCompany(stock, "no shareholders remaining");
                 dissolvedCompanies.push(stock.companySymbol);
-                console.log(
-                  `${stock.companySymbol}: Dissolved — no shareholders remaining`,
-                );
               }
+            }
+          }
+
+          // Dissolve companies stuck at minimum price ($10) for 3+ days (72 hours)
+          const MIN_PRICE = 10;
+          const MIN_PRICE_HOURS = 72;
+
+          for (const stock of updatedStocks) {
+            if (!stock.companyId) continue;
+            if (dissolvedCompanies.includes(stock.companySymbol)) continue;
+            if (stock.price > MIN_PRICE) continue;
+
+            const recentPrices = await db
+              .select({ price: sharePriceHistory.price })
+              .from(sharePriceHistory)
+              .where(eq(sharePriceHistory.stockId, stock.id))
+              .orderBy(desc(sharePriceHistory.recordedAt))
+              .limit(MIN_PRICE_HOURS);
+
+            if (
+              recentPrices.length >= MIN_PRICE_HOURS &&
+              recentPrices.every((p) => p.price <= MIN_PRICE)
+            ) {
+              await dissolveCompany(
+                stock,
+                `share price at minimum ($${MIN_PRICE}) for over 3 days`,
+              );
+              dissolvedCompanies.push(stock.companySymbol);
             }
           }
 
@@ -930,6 +1006,22 @@ export const Route = createFileRoute("/api/hourly-advance")({
             }
           }
 
+          const [latestSnapshot] = await db
+            .select({ snapshotAt: candidateSnapshots.snapshotAt })
+            .from(candidateSnapshots)
+            .orderBy(desc(candidateSnapshots.snapshotAt))
+            .limit(1);
+
+          let tickSnapshotAt: Date | undefined;
+          if (latestSnapshot?.snapshotAt) {
+            const lastSnapTime = new Date(latestSnapshot.snapshotAt).getTime();
+            const msSinceLastSnap = Date.now() - lastSnapTime;
+            const FIFTY_MINUTES_MS = 50 * 60 * 1000;
+            if (msSinceLastSnap < FIFTY_MINUTES_MS) {
+              tickSnapshotAt = new Date(lastSnapTime + 60 * 60 * 1000);
+            }
+          }
+
           // Process candidate votes and donations per hour for elections in voting phase
           const votingElections = await db
             .select({ election: elections.election })
@@ -976,6 +1068,7 @@ export const Route = createFileRoute("/api/hourly-advance")({
                 election: candidate.election || election.election,
                 votes: (candidate.votes || 0) + votesPerHour,
                 donations: Number(candidate.donations || 0) + donationsPerHour,
+                ...(tickSnapshotAt ? { snapshotAt: tickSnapshotAt } : {}),
               });
 
               candidatesProcessed++;
