@@ -20,10 +20,12 @@ import {
   Wallet,
 } from "lucide-react";
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { ModeToggle } from "./theme-toggle";
 import { Logo } from "@/components/logo";
 import { logOut } from "@/lib/auth-utils";
 import { useAuth } from "@/lib/auth-context";
+import { getBankBalance } from "@/lib/server/banking";
 
 import {
   Sidebar,
@@ -40,6 +42,7 @@ import {
   SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { useEffect } from "react";
 
 const data = {
   navMain: [
@@ -145,6 +148,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter();
   const routerState = useRouterState();
   const pathname = routerState.location.pathname;
+
+  const { data: balanceData, refetch: refetchBalance } = useQuery({
+    queryKey: ["bankBalance"],
+    queryFn: () => getBankBalance(),
+    enabled: !!user,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
+  useEffect(() => {
+    if (user) {
+      refetchBalance();
+    }
+  }, [pathname, user, refetchBalance]);
 
   const ALLOWED_ADMIN_EMAILS = [
     "jenewland1999@gmail.com",
@@ -263,6 +280,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <SidebarSeparator />
+
+        {user && balanceData && (
+          <Link
+            to="/bank"
+            className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-sidebar-accent transition-colors"
+          >
+            <Wallet size={18} className="text-emerald-500" />
+            <span className="text-sm font-semibold">
+              ${Number(balanceData.balance).toLocaleString()}
+            </span>
+          </Link>
+        )}
+
         <SidebarSeparator />
 
         <SidebarMenu>
