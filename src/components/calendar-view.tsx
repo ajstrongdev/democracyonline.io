@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  ScrollText,
+  Gamepad2,
+} from "lucide-react";
 import type { CalendarData, CalendarEvent } from "@/lib/server/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -37,6 +43,115 @@ function MiniEventBadge({ event }: { event: CalendarEvent }) {
         <div className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
         <span className="truncate">{event.title}</span>
       </div>
+    </div>
+  );
+}
+
+/** Returns the next occurrence of a given UTC hour (0-23) */
+function getNextUtcHour(hour: number, now: Date): Date {
+  const target = new Date(now);
+  target.setUTCMinutes(0, 0, 0);
+  target.setUTCHours(hour);
+  if (target <= now) {
+    target.setUTCDate(target.getUTCDate() + 1);
+  }
+  return target;
+}
+
+/** Returns the next top-of-the-hour */
+function getNextTopOfHour(now: Date): Date {
+  const target = new Date(now);
+  target.setMinutes(0, 0, 0);
+  target.setHours(target.getHours() + 1);
+  return target;
+}
+
+/** Returns the soonest of the given UTC hours */
+function getNextOfUtcHours(hours: number[], now: Date): Date {
+  const candidates = hours.map((h) => getNextUtcHour(h, now));
+  candidates.sort((a, b) => a.getTime() - b.getTime());
+  return candidates[0];
+}
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "now";
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function LiveTimers() {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const nextMarket = getNextTopOfHour(now);
+  const nextBills = getNextOfUtcHours([4, 12, 20], now); // 4am/12pm/8pm GMT
+  const nextGame = getNextUtcHour(20, now); // 8pm GMT daily
+
+  const timers = [
+    {
+      icon: TrendingUp,
+      label: "Hourly tick",
+      time: nextMarket,
+      color: "text-emerald-500",
+      bg: "bg-linear-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20",
+      iconBg: "bg-emerald-500/10",
+      description:
+        "Dividends, stock prices, order matching, and election campaign ticks.",
+    },
+    {
+      icon: ScrollText,
+      label: "Bills progress",
+      time: nextBills,
+      color: "text-blue-500",
+      bg: "bg-linear-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20",
+      iconBg: "bg-blue-500/10",
+      description: "A bill progresses to the next stage.",
+    },
+    {
+      icon: Gamepad2,
+      label: "Daily game update",
+      time: nextGame,
+      color: "text-purple-500",
+      bg: "bg-linear-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20",
+      iconBg: "bg-purple-500/10",
+      description:
+        "Elections progress, party fees collected, inactive users processed.",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+      {timers.map((t) => {
+        const ms = t.time.getTime() - now.getTime();
+        const countdown = formatCountdown(ms);
+        return (
+          <Card key={t.label} className={t.bg}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className={`p-2 rounded-md ${t.iconBg}`}>
+                  <t.icon className={`h-4 w-4 ${t.color}`} />
+                </div>
+                <span className="font-semibold text-sm">{t.label}</span>
+              </div>
+              <div className="text-2xl font-bold tabular-nums tracking-tight mb-2">
+                {countdown}
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t.description}
+              </p>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -132,7 +247,7 @@ export function CalendarView({ data }: { data: CalendarData }) {
 
   return (
     <div className="container mx-auto p-4 max-w-7xl">
-      <div className="mb-6">
+      <div className="my-6">
         <h1 className="text-3xl font-bold mb-2">Calendar</h1>
         <p className="text-muted-foreground">
           View upcoming elections, bill advances, and important dates
@@ -140,32 +255,7 @@ export function CalendarView({ data }: { data: CalendarData }) {
       </div>
 
       {/* Live Countdown Timers */}
-      {/* <div className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.senateElection && (
-            <CountdownTimer
-              targetDate={new Date(data.senateElection.nextStageTime)}
-              label={data.senateElection.nextStageName}
-              icon={Landmark}
-              color="border-l-blue-500"
-            />
-          )}
-          {data.presidentialElection && (
-            <CountdownTimer
-              targetDate={new Date(data.presidentialElection.nextStageTime)}
-              label={data.presidentialElection.nextStageName}
-              icon={Crown}
-              color="border-l-purple-500"
-            />
-          )}
-          <CountdownTimer
-            targetDate={new Date(data.billAdvance.nextAdvanceTime)}
-            label="Bills Advance"
-            icon={FileText}
-            color="border-l-green-500"
-          />
-        </div>
-      </div> */}
+      <LiveTimers />
 
       {/* Today's Events Alert */}
       {todayEvents.length > 0 && (
