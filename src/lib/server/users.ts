@@ -8,7 +8,9 @@ import {
   billVotesPresidential,
   billVotesSenate,
   bills,
+  stocks,
   transactionHistory,
+  userShares,
   users,
 } from "@/db/schema";
 import { db } from "@/db";
@@ -347,6 +349,20 @@ export const deleteSessionCookie = createServerFn({ method: "POST" }).handler(
 
 export const getTopRichestUsers = createServerFn().handler(async () => {
   try {
+    // Subquery: total stock value per user = SUM(quantity * stock price)
+    const stockValue = db
+      .select({
+        userId: userShares.userId,
+        totalStockValue:
+          sql<number>`COALESCE(SUM(${userShares.quantity} * ${stocks.price}), 0)`.as(
+            "total_stock_value",
+          ),
+      })
+      .from(userShares)
+      .innerJoin(stocks, eq(stocks.companyId, userShares.companyId))
+      .groupBy(userShares.userId)
+      .as("stock_value");
+
     const richestUsers = await db
       .select({
         id: users.id,
@@ -354,10 +370,15 @@ export const getTopRichestUsers = createServerFn().handler(async () => {
         money: users.money,
         partyId: users.partyId,
         politicalLeaning: users.politicalLeaning,
+        stockValue: sql<number>`COALESCE(${stockValue.totalStockValue}, 0)`,
+        netWorth: sql<number>`COALESCE(${users.money}, 0) + COALESCE(${stockValue.totalStockValue}, 0)`,
       })
       .from(users)
+      .leftJoin(stockValue, eq(stockValue.userId, users.id))
       .where(sql`${users.username} NOT LIKE 'Banned User%'`)
-      .orderBy(sql`${users.money} DESC NULLS LAST`)
+      .orderBy(
+        sql`COALESCE(${users.money}, 0) + COALESCE(${stockValue.totalStockValue}, 0) DESC NULLS LAST`,
+      )
       .limit(10);
 
     return richestUsers;
@@ -366,6 +387,33 @@ export const getTopRichestUsers = createServerFn().handler(async () => {
     throw new Error("Failed to fetch richest users");
   }
 });
+
+/** Get a single user's net worth (cash + stock holdings value) */
+export const getUserNetWorth = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .handler(async ({ context }) => {
+    if (!context.user?.email) throw new Error("Authentication required");
+
+    const [user] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(sql`lower(${users.email})`, sql`lower(${context.user.email})`))
+      .limit(1);
+
+    if (!user) return { stockValue: 0, netWorth: 0 };
+
+    const [result] = await db
+      .select({
+        totalStockValue: sql<number>`COALESCE(SUM(${userShares.quantity} * ${stocks.price}), 0)`,
+      })
+      .from(userShares)
+      .innerJoin(stocks, eq(stocks.companyId, userShares.companyId))
+      .where(eq(userShares.userId, user.id));
+
+    const stockVal = Number(result?.totalStockValue || 0);
+
+    return { stockValue: stockVal };
+  });
 
 export const getUserTransactionHistory = createServerFn()
   .inputValidator(

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import {
   getCurrentUserInfo,
   getTopRichestUsers,
+  getUserNetWorth,
   getUserTransactionHistory,
   transferMoney,
 } from "@/lib/server/users";
@@ -31,8 +32,11 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/bank/")({
   loader: async () => {
-    const userData = await getCurrentUserInfo();
-    const richestUsers = await getTopRichestUsers();
+    const [userData, richestUsers, netWorthData] = await Promise.all([
+      getCurrentUserInfo(),
+      getTopRichestUsers(),
+      getUserNetWorth(),
+    ]);
 
     let transactions: Array<{
       id: number;
@@ -60,6 +64,7 @@ export const Route = createFileRoute("/bank/")({
       userData,
       richestUsers,
       transactions,
+      netWorthData,
     };
   },
   component: RouteComponent,
@@ -70,9 +75,14 @@ function RouteComponent() {
     userData,
     richestUsers,
     transactions: initialTransactions,
+    netWorthData,
   } = Route.useLoaderData();
   const user = useUserData(userData);
   const navigate = useNavigate();
+
+  const cashBalance = Number(user?.money || 0);
+  const stockValue = Number(netWorthData?.stockValue || 0);
+  const netWorth = cashBalance + stockValue;
 
   const [transactions, setTransactions] = useState(initialTransactions);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -186,14 +196,32 @@ function RouteComponent() {
                 <div className="space-y-8">
                   <div className="p-8 bg-linear-to-br from-primary/5 to-primary/10 rounded-lg border">
                     <p className="text-sm font-medium text-muted-foreground mb-2">
-                      Available Balance
+                      Net Worth
                     </p>
                     <p className="text-5xl font-bold tracking-tight">
-                      ${Number(user?.money || 0).toLocaleString()}
+                      ${netWorth.toLocaleString()}
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-5 border rounded-lg bg-card">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                        <Wallet className="w-4 h-4" />
+                        <p className="text-sm font-medium">Cash Balance</p>
+                      </div>
+                      <p className="text-lg font-semibold">
+                        ${cashBalance.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="p-5 border rounded-lg bg-card">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                        <TrendingUp className="w-4 h-4" />
+                        <p className="text-sm font-medium">Stock Holdings</p>
+                      </div>
+                      <p className="text-lg font-semibold">
+                        ${stockValue.toLocaleString()}
+                      </p>
+                    </div>
                     <div className="p-5 border rounded-lg bg-card">
                       <div className="flex items-center gap-2 text-muted-foreground mb-1">
                         <Clock className="w-4 h-4" />
@@ -204,14 +232,6 @@ function RouteComponent() {
                           ? new Date(user.createdAt).toLocaleDateString()
                           : "N/A"}
                       </p>
-                    </div>
-
-                    <div className="p-5 border rounded-lg bg-card">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <Landmark className="w-4 h-4" />
-                        <p className="text-sm font-medium">Account ID</p>
-                      </div>
-                      <p className="text-lg font-semibold">#{user?.id}</p>
                     </div>
                   </div>
                 </div>
@@ -342,7 +362,7 @@ function RouteComponent() {
                           <div className="flex items-center gap-2">
                             <Wallet className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
                             <span className="text-xl md:text-2xl font-bold">
-                              ${Number(richUser.money || 0).toLocaleString()}
+                              ${Number(richUser.netWorth || 0).toLocaleString()}
                             </span>
                           </div>
                           <span className="text-[10px] md:text-xs text-muted-foreground">
