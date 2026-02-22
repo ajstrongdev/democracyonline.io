@@ -11,8 +11,6 @@ import {
 } from "@/db/schema";
 import { requireAuthMiddleware } from "@/middleware";
 
-// ── helpers ──────────────────────────────────────────────
-
 async function resolveUser(email: string) {
   const [user] = await db
     .select({
@@ -36,7 +34,6 @@ async function getPartyCoalitionId(partyId: number): Promise<number | null> {
   return row?.coalitionId ?? null;
 }
 
-/** Get all party IDs in a coalition */
 async function getCoalitionPartyIds(coalitionId: number): Promise<number[]> {
   const rows = await db
     .select({ partyId: coalitionMembers.partyId })
@@ -45,13 +42,6 @@ async function getCoalitionPartyIds(coalitionId: number): Promise<number[]> {
   return rows.map((r) => r.partyId);
 }
 
-// ── queries ──────────────────────────────────────────────
-
-/**
- * Get full primaries data for a party / coalition.
- * If the party is in a coalition, returns the coalition‑wide primary.
- * Otherwise returns the party-level primary.
- */
 export const getPrimariesData = createServerFn()
   .middleware([requireAuthMiddleware])
   .handler(async ({ context }) => {
@@ -83,7 +73,6 @@ export const getPrimariesData = createServerFn()
       }
     }
 
-    // Primary candidates that belong to any eligible party
     let candidates: Array<{
       id: number;
       userId: number;
@@ -118,7 +107,6 @@ export const getPrimariesData = createServerFn()
       candidates = rows;
     }
 
-    // Has the current user already voted?
     let hasVoted = false;
     let votedCandidateId: number | null = null;
     if (user.id) {
@@ -176,9 +164,6 @@ export const getPrimariesData = createServerFn()
     };
   });
 
-// ── mutations ────────────────────────────────────────────
-
-/** Declare as a primary candidate */
 export const declarePrimaryCandidate = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
   .handler(async ({ context }) => {
@@ -227,7 +212,6 @@ export const declarePrimaryCandidate = createServerFn({ method: "POST" })
     return newCandidate;
   });
 
-/** Withdraw from the primary, optionally endorsing another candidate (transfers votes) */
 export const withdrawPrimaryCandidate = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { endorseCandidateId?: number | null }) => data ?? {})
@@ -236,7 +220,6 @@ export const withdrawPrimaryCandidate = createServerFn({ method: "POST" })
     const user = await resolveUser(context.user.email);
     if (!user) throw new Error("User not found");
 
-    // Must be Candidate phase
     const [electionInfo] = await db
       .select({ status: elections.status })
       .from(elections)
@@ -256,7 +239,6 @@ export const withdrawPrimaryCandidate = createServerFn({ method: "POST" })
     if (!candidate) throw new Error("You are not a primary candidate");
 
     await db.transaction(async (tx) => {
-      // If endorsing another candidate, transfer our vote total to them
       if (data.endorseCandidateId) {
         const [endorsed] = await tx
           .select({ id: primaryCandidates.id })
@@ -276,13 +258,11 @@ export const withdrawPrimaryCandidate = createServerFn({ method: "POST" })
           })
           .where(eq(primaryCandidates.id, data.endorseCandidateId));
 
-        // Re-point all vote records to the endorsed candidate
         await tx
           .update(primaryVotes)
           .set({ candidateId: data.endorseCandidateId })
           .where(eq(primaryVotes.candidateId, candidate.id));
       } else {
-        // No endorsement — just delete the votes
         await tx
           .delete(primaryVotes)
           .where(eq(primaryVotes.candidateId, candidate.id));
@@ -296,7 +276,6 @@ export const withdrawPrimaryCandidate = createServerFn({ method: "POST" })
     return true;
   });
 
-/** Vote for a primary candidate */
 export const voteInPrimary = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { candidateId: number }) => data)
@@ -306,7 +285,6 @@ export const voteInPrimary = createServerFn({ method: "POST" })
     if (!user) throw new Error("User not found");
     if (!user.partyId) throw new Error("You must be in a party to vote");
 
-    // Must be Candidate phase
     const [electionInfo] = await db
       .select({ status: elections.status })
       .from(elections)
@@ -317,7 +295,6 @@ export const voteInPrimary = createServerFn({ method: "POST" })
       throw new Error("Voting is only open during the Candidate phase");
     }
 
-    // Already voted?
     const [existingVote] = await db
       .select({ id: primaryVotes.id })
       .from(primaryVotes)
@@ -326,7 +303,6 @@ export const voteInPrimary = createServerFn({ method: "POST" })
 
     if (existingVote) throw new Error("You have already voted in this primary");
 
-    // Validate candidate exists and belongs to the user's primary group
     const [candidate] = await db
       .select({
         id: primaryCandidates.id,
@@ -339,22 +315,18 @@ export const voteInPrimary = createServerFn({ method: "POST" })
 
     if (!candidate) throw new Error("Candidate not found");
 
-    // Check the voter belongs to the same party or coalition
     const voterCoalitionId = await getPartyCoalitionId(user.partyId);
 
     if (candidate.coalitionId) {
-      // Coalition primary — voter must be in the same coalition
       if (voterCoalitionId !== candidate.coalitionId) {
         throw new Error("You can only vote in your own coalition's primary");
       }
     } else {
-      // Party-only primary — voter must be in the same party
       if (user.partyId !== candidate.partyId) {
         throw new Error("You can only vote in your own party's primary");
       }
     }
 
-    // Cast vote
     await db.transaction(async (tx) => {
       await tx.insert(primaryVotes).values({
         userId: user.id,
