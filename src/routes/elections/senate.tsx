@@ -14,7 +14,7 @@ import {
 } from "recharts";
 import { DollarSign, PieChartIcon, TrendingUp, Users } from "lucide-react";
 import type { Candidate } from "@/lib/server/elections";
-import { getCurrentUserInfo, getUserFullById } from "@/lib/server/users";
+import { getUserFullById } from "@/lib/server/users";
 import { getPartyById } from "@/lib/server/party";
 import {
   declareCandidate,
@@ -37,6 +37,7 @@ import ProtectedRoute from "@/components/auth/protected-route";
 
 export const Route = createFileRoute("/elections/senate")({
   loader: async () => {
+    const { getCurrentUserInfo } = await import("@/lib/server/users");
     const userData = await getCurrentUserInfo();
     const { candidates, ...pageData } = await electionPageData({
       data: { election: "Senate", userId: userData?.id },
