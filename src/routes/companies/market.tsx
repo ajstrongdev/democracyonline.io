@@ -608,9 +608,30 @@ function MarketPage() {
       .map((o) => o.companySymbol),
   );
 
+  const latestChartPriceBySymbol = priceHistory.reduce<
+    Map<string, { price: number; recordedAtMs: number }>
+  >((map, history) => {
+    const existing = map.get(history.companySymbol);
+    const recordedAtMs = history.recordedAt
+      ? new Date(history.recordedAt).getTime()
+      : 0;
+    if (!existing || recordedAtMs >= existing.recordedAtMs) {
+      map.set(history.companySymbol, {
+        price: Number(history.price),
+        recordedAtMs,
+      });
+    }
+    return map;
+  }, new Map());
+
   const allChartSymbols = Array.from(
     new Set(priceHistory.map((h) => h.companySymbol)),
-  );
+  ).sort((a, b) => {
+    const priceA = latestChartPriceBySymbol.get(a)?.price ?? -Infinity;
+    const priceB = latestChartPriceBySymbol.get(b)?.price ?? -Infinity;
+    if (priceA === priceB) return a.localeCompare(b);
+    return priceB - priceA;
+  });
 
   const filteredChartSymbols = allChartSymbols.filter((symbol) => {
     if (hiddenCompanies.has(symbol)) return false;
@@ -842,9 +863,7 @@ function MarketPage() {
               <ChartContainer
                 config={{
                   ...Object.fromEntries(
-                    Array.from(
-                      new Set(priceHistory.map((h) => h.companySymbol)),
-                    ).map((symbol) => {
+                    allChartSymbols.map((symbol) => {
                       const company = priceHistory.find(
                         (h) => h.companySymbol === symbol,
                       );
@@ -959,7 +978,7 @@ function MarketPage() {
                     }}
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  {Array.from(new Set(priceHistory.map((h) => h.companySymbol)))
+                  {allChartSymbols
                     .filter((symbol) => filteredChartSymbols.includes(symbol))
                     .map((symbol) => {
                       const company = priceHistory.find(
@@ -981,7 +1000,7 @@ function MarketPage() {
                 </LineChart>
               </ChartContainer>
               <div className="flex flex-wrap gap-2 mt-4 justify-center">
-                {Array.from(new Set(priceHistory.map((h) => h.companySymbol)))
+                {allChartSymbols
                   .filter((symbol) => {
                     // In filtered modes, only show legend items that match the filter
                     if (chartFilter === "holdings")
