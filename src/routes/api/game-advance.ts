@@ -6,9 +6,12 @@ import {
   candidatePurchases,
   candidateSnapshots,
   candidates,
+  coalitionMembers,
+  coalitions,
   elections,
   feed,
   items,
+  joinRequests,
   parties,
   partyStances,
   partyTransactionHistory,
@@ -21,6 +24,10 @@ import { or } from "drizzle-orm";
 import { env } from "@/env";
 import { authorizeCronRequest } from "@/lib/server/cron-auth";
 import { getAdminAuth } from "@/lib/firebase-admin";
+import {
+  resolvePrimaries,
+  clearPrimaries,
+} from "@/lib/server/primaries-resolve";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -289,6 +296,46 @@ export const Route = createFileRoute("/api/game-advance")({
                 .set({ daysLeft: sql`${elections.daysLeft} - 1` })
                 .where(eq(elections.election, "President"));
             } else {
+              // ── Resolve primaries: auto-register winners as presidential candidates ──
+              try {
+                const primaryWinnerIds = await resolvePrimaries();
+                if (primaryWinnerIds.length > 0) {
+                  console.log(
+                    `[game-advance] Primary winners: ${primaryWinnerIds.join(", ")}`,
+                  );
+                  for (const winnerUserId of primaryWinnerIds) {
+                    // Check if already registered as a presidential candidate
+                    const existing = await db
+                      .select({ id: candidates.id })
+                      .from(candidates)
+                      .where(
+                        and(
+                          eq(candidates.userId, winnerUserId),
+                          eq(candidates.election, "President"),
+                        ),
+                      )
+                      .limit(1);
+                    if (existing.length === 0) {
+                      await db.insert(candidates).values({
+                        userId: winnerUserId,
+                        election: "President",
+                        votes: 0,
+                        donations: 0,
+                        donationsPerHour: 0,
+                        votesPerHour: 0,
+                        haswon: false,
+                      });
+                      console.log(
+                        `[game-advance] Auto-registered primary winner userId=${winnerUserId} as presidential candidate`,
+                      );
+                    }
+                  }
+                }
+                await clearPrimaries();
+              } catch (err) {
+                console.error("[game-advance] Error resolving primaries:", err);
+              }
+
               await seedCampaignItems();
               await db
                 .update(elections)
@@ -388,6 +435,9 @@ export const Route = createFileRoute("/api/game-advance")({
                 .update(elections)
                 .set({ status: "Candidate", daysLeft: 10 })
                 .where(eq(elections.election, "President"));
+
+              // Safety: ensure primaries data is cleared for the new cycle
+              await clearPrimaries();
             }
           }
         } catch (error) {
@@ -803,6 +853,34 @@ export const Route = createFileRoute("/api/game-advance")({
             const memberCount = countRes[0]?.cnt ?? 0;
 
             if (memberCount === 0) {
+              const partyCoalitions = await db
+                .select({ coalitionId: coalitionMembers.coalitionId })
+                .from(coalitionMembers)
+                .where(eq(coalitionMembers.partyId, partyId));
+
+              await db
+                .delete(coalitionMembers)
+                .where(eq(coalitionMembers.partyId, partyId));
+              await db
+                .delete(joinRequests)
+                .where(eq(joinRequests.partyId, partyId));
+
+              for (const { coalitionId } of partyCoalitions) {
+                const remaining = await db
+                  .select({ coalitionId: coalitionMembers.coalitionId })
+                  .from(coalitionMembers)
+                  .where(eq(coalitionMembers.coalitionId, coalitionId))
+                  .limit(1);
+                if (remaining.length === 0) {
+                  await db
+                    .delete(joinRequests)
+                    .where(eq(joinRequests.coalitionId, coalitionId));
+                  await db
+                    .delete(coalitions)
+                    .where(eq(coalitions.id, coalitionId));
+                }
+              }
+
               await db
                 .delete(partyStances)
                 .where(eq(partyStances.partyId, partyId));
@@ -820,6 +898,39 @@ export const Route = createFileRoute("/api/game-advance")({
           const emptyPartyIdList = emptyPartyIds.map((p) => p.id);
 
           if (emptyPartyIdList.length > 0) {
+            // Clean up coalition memberships for empty parties
+            const affectedCoalitions = await db
+              .select({ coalitionId: coalitionMembers.coalitionId })
+              .from(coalitionMembers)
+              .where(inArray(coalitionMembers.partyId, emptyPartyIdList));
+
+            await db
+              .delete(coalitionMembers)
+              .where(inArray(coalitionMembers.partyId, emptyPartyIdList));
+            await db
+              .delete(joinRequests)
+              .where(inArray(joinRequests.partyId, emptyPartyIdList));
+
+            // Dissolve any coalitions left empty
+            const coalitionIds = [
+              ...new Set(affectedCoalitions.map((r) => r.coalitionId)),
+            ];
+            for (const coalitionId of coalitionIds) {
+              const remaining = await db
+                .select({ coalitionId: coalitionMembers.coalitionId })
+                .from(coalitionMembers)
+                .where(eq(coalitionMembers.coalitionId, coalitionId))
+                .limit(1);
+              if (remaining.length === 0) {
+                await db
+                  .delete(joinRequests)
+                  .where(eq(joinRequests.coalitionId, coalitionId));
+                await db
+                  .delete(coalitions)
+                  .where(eq(coalitions.id, coalitionId));
+              }
+            }
+
             await db
               .delete(partyStances)
               .where(inArray(partyStances.partyId, emptyPartyIdList));

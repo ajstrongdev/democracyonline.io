@@ -775,8 +775,26 @@ function RouteComponent() {
               </Alert>
             )}
 
-            {/* Candidacy Phase */}
-            {electionInfo.status === "Candidate" && (
+            {/* Primaries Banner */}
+            {electionInfo.status === "Candidate" && userData?.partyId && (
+              <Alert className="mb-6 border-primary/50 bg-primary/10">
+                <Users className="h-4 w-4" />
+                <AlertTitle className="font-bold">
+                  Party Primaries Active
+                </AlertTitle>
+                <AlertDescription className="md:flex md:items-center md:justify-between">
+                  Your party is running a presidential primary. Win your
+                  party&apos;s primary to be automatically registered as a
+                  presidential candidate when voting begins.
+                  <Button className="mt-4 md:mt-0" asChild>
+                    <Link to="/parties/primaries">Go to Primaries</Link>
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Candidacy Phase — only for independents (no party) */}
+            {electionInfo.status === "Candidate" && !userData?.partyId && (
               <Alert
                 className={
                   isAlreadyCandidate || !isACandidate || isSenator
