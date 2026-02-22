@@ -471,6 +471,21 @@ resource "google_cloud_run_v2_service" "app" {
         value = local.custom_domain_enabled ? "https://${var.custom_domain}" : ""
       }
 
+      env {
+        name  = "HOURLY_ADVANCE_SCHEDULE_UTC"
+        value = var.hourly_advance_schedule
+      }
+
+      env {
+        name  = "BILL_ADVANCE_SCHEDULE_UTC"
+        value = var.bill_advance_schedule
+      }
+
+      env {
+        name  = "GAME_ADVANCE_SCHEDULE_UTC"
+        value = var.game_advance_schedule
+      }
+
       # Client-side Firebase configuration (VITE_* variables)
       # These are baked into the app at build time, but also needed
       # for SSR/server-side rendering in TanStack Start
