@@ -161,6 +161,28 @@ function OrderStatusBadge({ status }: { status: string }) {
   }
 }
 
+function TabSearchField({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="relative mt-3">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Input
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="pl-9"
+      />
+    </div>
+  );
+}
+
 // ─── Holding Item ────────────────────────────────────────────────────────────
 
 function HoldingItem({ holding }: { holding: any }) {
@@ -194,7 +216,19 @@ function HoldingItem({ holding }: { holding: any }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold truncate">{holding.companyName}</h3>
+            <h3 className="font-semibold truncate">
+              {holding.companyId ? (
+                <Link
+                  to="/companies/$id"
+                  params={{ id: String(holding.companyId) }}
+                  className="hover:underline underline-offset-4"
+                >
+                  {holding.companyName}
+                </Link>
+              ) : (
+                holding.companyName
+              )}
+            </h3>
             <span className="text-xs px-2 py-0.5 bg-muted rounded font-mono shrink-0">
               {holding.companySymbol}
             </span>
@@ -363,7 +397,19 @@ function OrderItem({
             >
               {order.side}
             </Badge>
-            <h3 className="font-semibold truncate">{order.companyName}</h3>
+            <h3 className="font-semibold truncate">
+              {order.companyId ? (
+                <Link
+                  to="/companies/$id"
+                  params={{ id: String(order.companyId) }}
+                  className="hover:underline underline-offset-4"
+                >
+                  {order.companyName}
+                </Link>
+              ) : (
+                order.companyName
+              )}
+            </h3>
             <span className="text-xs px-2 py-0.5 bg-muted rounded font-mono shrink-0">
               {order.companySymbol}
             </span>
@@ -497,6 +543,9 @@ function MarketPage() {
   } | null>(null);
   const [orderBookLoading, setOrderBookLoading] = useState(false);
   const [orderBookSearch, setOrderBookSearch] = useState("");
+  const [ordersSearch, setOrdersSearch] = useState("");
+  const [holdingsSearch, setHoldingsSearch] = useState("");
+  const [marketSearch, setMarketSearch] = useState("");
 
   useEffect(() => {
     setCompanyCreationEligibility(initialCompanyCreationEligibility);
@@ -515,10 +564,7 @@ function MarketPage() {
         }
       })
       .catch((error) => {
-        console.error(
-          "Failed to refresh company creation eligibility:",
-          error,
-        );
+        console.error("Failed to refresh company creation eligibility:", error);
       });
 
     return () => {
@@ -612,6 +658,50 @@ function MarketPage() {
   const completedOrders = userOrdersList.filter(
     (o) => o.status === "filled" || o.status === "cancelled",
   );
+
+  const ordersSearchQuery = ordersSearch.trim().toLowerCase();
+  const filteredActiveOrders = activeOrders.filter((order) => {
+    if (!ordersSearchQuery) return true;
+    return (
+      order.companyName.toLowerCase().includes(ordersSearchQuery) ||
+      order.companySymbol.toLowerCase().includes(ordersSearchQuery)
+    );
+  });
+  const filteredCompletedOrders = completedOrders.filter((order) => {
+    if (!ordersSearchQuery) return true;
+    return (
+      order.companyName.toLowerCase().includes(ordersSearchQuery) ||
+      order.companySymbol.toLowerCase().includes(ordersSearchQuery)
+    );
+  });
+
+  const holdingsSearchQuery = holdingsSearch.trim().toLowerCase();
+  const filteredHoldings = userHoldings.filter((holding) => {
+    if (!holdingsSearchQuery) return true;
+    return (
+      holding.companyName.toLowerCase().includes(holdingsSearchQuery) ||
+      holding.companySymbol.toLowerCase().includes(holdingsSearchQuery)
+    );
+  });
+
+  const marketSearchQuery = marketSearch.trim().toLowerCase();
+  const filteredAvailableShares = availableShares.filter((company) => {
+    if (!marketSearchQuery) return true;
+    return (
+      company.name.toLowerCase().includes(marketSearchQuery) ||
+      company.symbol.toLowerCase().includes(marketSearchQuery) ||
+      company.description?.toLowerCase().includes(marketSearchQuery)
+    );
+  });
+
+  const orderBookSearchQuery = orderBookSearch.trim().toLowerCase();
+  const filteredOrderBookCompanies = companiesList.filter((company) => {
+    if (!orderBookSearchQuery) return true;
+    return (
+      company.name.toLowerCase().includes(orderBookSearchQuery) ||
+      company.symbol.toLowerCase().includes(orderBookSearchQuery)
+    );
+  });
 
   return (
     <ProtectedRoute>
@@ -995,15 +1085,20 @@ function MarketPage() {
                   Buy &amp; sell orders are matched hourly. Orders execute in
                   queue order (FIFO).
                 </CardDescription>
+                <TabSearchField
+                  value={ordersSearch}
+                  onChange={setOrdersSearch}
+                  placeholder="Search your orders by company name or symbol…"
+                />
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Active Orders */}
-                {activeOrders.length > 0 && (
+                {filteredActiveOrders.length > 0 && (
                   <div className="space-y-3">
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                       Active Orders
                     </h3>
-                    {activeOrders.map((order) => (
+                    {filteredActiveOrders.map((order) => (
                       <OrderItem
                         key={order.id}
                         order={order}
@@ -1013,17 +1108,16 @@ function MarketPage() {
                   </div>
                 )}
 
-                {activeOrders.length > 0 && completedOrders.length > 0 && (
-                  <Separator />
-                )}
+                {filteredActiveOrders.length > 0 &&
+                  filteredCompletedOrders.length > 0 && <Separator />}
 
                 {/* Completed / Cancelled Orders */}
-                {completedOrders.length > 0 && (
+                {filteredCompletedOrders.length > 0 && (
                   <div className="space-y-3">
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                       Order History
                     </h3>
-                    {completedOrders.slice(0, 10).map((order) => (
+                    {filteredCompletedOrders.slice(0, 10).map((order) => (
                       <OrderItem
                         key={order.id}
                         order={order}
@@ -1042,6 +1136,21 @@ function MarketPage() {
                     </p>
                   </div>
                 )}
+
+                {userOrdersList.length > 0 &&
+                  filteredActiveOrders.length === 0 &&
+                  filteredCompletedOrders.length === 0 && <Separator />}
+
+                {userOrdersList.length > 0 &&
+                  filteredActiveOrders.length === 0 &&
+                  filteredCompletedOrders.length === 0 && (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <p className="font-medium">No matching orders</p>
+                      <p className="text-sm">
+                        Try another company name or symbol
+                      </p>
+                    </div>
+                  )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1057,6 +1166,11 @@ function MarketPage() {
                 <CardDescription>
                   Shares you own — sell to place a sell order (filled hourly)
                 </CardDescription>
+                <TabSearchField
+                  value={holdingsSearch}
+                  onChange={setHoldingsSearch}
+                  placeholder="Search your holdings by company name or symbol…"
+                />
               </CardHeader>
               <CardContent>
                 {userHoldings.length === 0 ? (
@@ -1067,9 +1181,17 @@ function MarketPage() {
                       Place a buy order to start building your portfolio
                     </p>
                   </div>
+                ) : filteredHoldings.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Briefcase className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                    <p className="font-medium">No matching holdings</p>
+                    <p className="text-sm">
+                      Try another company name or symbol
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-3">
-                    {userHoldings.map((holding) => (
+                    {filteredHoldings.map((holding) => (
                       <HoldingItem key={holding.id} holding={holding} />
                     ))}
 
@@ -1077,11 +1199,13 @@ function MarketPage() {
                     <Separator className="my-4" />
                     <div className="flex items-center justify-between px-2">
                       <span className="text-sm text-muted-foreground font-medium">
-                        Total Portfolio Value
+                        {holdingsSearchQuery
+                          ? "Filtered Portfolio Value"
+                          : "Total Portfolio Value"}
                       </span>
                       <span className="text-lg font-bold">
                         $
-                        {userHoldings
+                        {filteredHoldings
                           .reduce(
                             (sum, h) =>
                               sum + (h.quantity || 0) * (h.stockPrice || 0),
@@ -1108,78 +1232,74 @@ function MarketPage() {
                   See who&apos;s in the queue and your position. Orders are
                   matched hourly in FIFO order.
                 </CardDescription>
+                <TabSearchField
+                  value={orderBookSearch}
+                  onChange={setOrderBookSearch}
+                  placeholder="Search companies…"
+                />
                 <div className="mt-3 space-y-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search companies…"
-                      value={orderBookSearch}
-                      onChange={(e) => setOrderBookSearch(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
                   <div className="max-h-48 overflow-y-auto rounded-lg border">
-                    {companiesList
-                      .filter((c) => {
-                        if (!orderBookSearch.trim()) return true;
-                        const q = orderBookSearch.trim().toLowerCase();
-                        return (
-                          c.name.toLowerCase().includes(q) ||
-                          c.symbol.toLowerCase().includes(q)
-                        );
-                      })
-                      .map((company) => {
-                        const isSelected = orderBookCompanyId === company.id;
-                        let LogoIcon: LucideIcon | null = null;
-                        if (company.logo) {
-                          const iconsMap = LucideIcons as unknown as Record<
-                            string,
-                            LucideIcon
-                          >;
-                          LogoIcon = iconsMap[company.logo] || null;
-                        }
-                        return (
-                          <button
-                            key={company.id}
-                            type="button"
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors hover:bg-accent ${
-                              isSelected ? "bg-primary/10 font-semibold" : ""
-                            }`}
-                            onClick={() => {
+                    {filteredOrderBookCompanies.map((company) => {
+                      const isSelected = orderBookCompanyId === company.id;
+                      let LogoIcon: LucideIcon | null = null;
+                      if (company.logo) {
+                        const iconsMap = LucideIcons as unknown as Record<
+                          string,
+                          LucideIcon
+                        >;
+                        LogoIcon = iconsMap[company.logo] || null;
+                      }
+                      return (
+                        <div
+                          key={company.id}
+                          role="button"
+                          tabIndex={0}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors hover:bg-accent ${
+                            isSelected ? "bg-primary/10 font-semibold" : ""
+                          }`}
+                          onClick={() => {
+                            setOrderBookCompanyId(company.id);
+                            setOrderBookSearch("");
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
                               setOrderBookCompanyId(company.id);
                               setOrderBookSearch("");
+                            }
+                          }}
+                        >
+                          <div
+                            className="w-7 h-7 rounded flex items-center justify-center text-xs font-bold shrink-0"
+                            style={{
+                              backgroundColor: company.color
+                                ? `${company.color}20`
+                                : "hsl(var(--primary) / 0.1)",
+                              color: company.color || "hsl(var(--primary))",
                             }}
                           >
-                            <div
-                              className="w-7 h-7 rounded flex items-center justify-center text-xs font-bold shrink-0"
-                              style={{
-                                backgroundColor: company.color
-                                  ? `${company.color}20`
-                                  : "hsl(var(--primary) / 0.1)",
-                                color: company.color || "hsl(var(--primary))",
-                              }}
-                            >
-                              {LogoIcon ? (
-                                <LogoIcon className="w-3.5 h-3.5" />
-                              ) : (
-                                company.symbol.charAt(0)
-                              )}
-                            </div>
-                            <span className="font-mono text-xs shrink-0">
-                              {company.symbol}
-                            </span>
-                            <span className="truncate">{company.name}</span>
-                          </button>
-                        );
-                      })}
-                    {companiesList.filter((c) => {
-                      if (!orderBookSearch.trim()) return true;
-                      const q = orderBookSearch.trim().toLowerCase();
-                      return (
-                        c.name.toLowerCase().includes(q) ||
-                        c.symbol.toLowerCase().includes(q)
+                            {LogoIcon ? (
+                              <LogoIcon className="w-3.5 h-3.5" />
+                            ) : (
+                              company.symbol.charAt(0)
+                            )}
+                          </div>
+                          <span className="font-mono text-xs shrink-0">
+                            {company.symbol}
+                          </span>
+                          <Link
+                            to="/companies/$id"
+                            params={{ id: String(company.id) }}
+                            className="truncate hover:underline underline-offset-4"
+                            onClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => event.stopPropagation()}
+                          >
+                            {company.name}
+                          </Link>
+                        </div>
                       );
-                    }).length === 0 && (
+                    })}
+                    {filteredOrderBookCompanies.length === 0 && (
                       <p className="text-sm text-muted-foreground text-center py-4">
                         No companies found
                       </p>
@@ -1421,6 +1541,11 @@ function MarketPage() {
                   Place buy orders — funds are escrowed until the order is
                   filled
                 </CardDescription>
+                <TabSearchField
+                  value={marketSearch}
+                  onChange={setMarketSearch}
+                  placeholder="Search available companies by name or symbol…"
+                />
               </CardHeader>
               <CardContent>
                 {companiesList.length === 0 ? (
@@ -1429,9 +1554,17 @@ function MarketPage() {
                     <p className="font-medium">No companies listed yet</p>
                     <p className="text-sm">Be the first to create a company!</p>
                   </div>
+                ) : filteredAvailableShares.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="font-medium">No matching companies</p>
+                    <p className="text-sm">
+                      Try another company name, symbol, or description
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
-                    {availableShares.map((company) => {
+                    {filteredAvailableShares.map((company) => {
                       let LogoIcon: LucideIcon | null = null;
                       if (company.logo) {
                         const iconsMap = LucideIcons as unknown as Record<
