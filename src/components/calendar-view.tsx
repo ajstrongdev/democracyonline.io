@@ -2,14 +2,16 @@ import { useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
-  ScrollText,
   Gamepad2,
+  ScrollText,
+  TrendingUp,
 } from "lucide-react";
 import type { CalendarData, CalendarEvent } from "@/lib/server/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { getNextUtcTimeFromCron } from "@/lib/utils/utc-schedule";
 
 // Event type configuration
 const eventTypeConfig = {
@@ -47,32 +49,6 @@ function MiniEventBadge({ event }: { event: CalendarEvent }) {
   );
 }
 
-/** Returns the next occurrence of a given UTC hour (0-23) */
-function getNextUtcHour(hour: number, now: Date): Date {
-  const target = new Date(now);
-  target.setUTCMinutes(0, 0, 0);
-  target.setUTCHours(hour);
-  if (target <= now) {
-    target.setUTCDate(target.getUTCDate() + 1);
-  }
-  return target;
-}
-
-/** Returns the next top-of-the-hour */
-function getNextTopOfHour(now: Date): Date {
-  const target = new Date(now);
-  target.setMinutes(0, 0, 0);
-  target.setHours(target.getHours() + 1);
-  return target;
-}
-
-/** Returns the soonest of the given UTC hours */
-function getNextOfUtcHours(hours: number[], now: Date): Date {
-  const candidates = hours.map((h) => getNextUtcHour(h, now));
-  candidates.sort((a, b) => a.getTime() - b.getTime());
-  return candidates[0];
-}
-
 function formatCountdown(ms: number): string {
   if (ms <= 0) return "now";
   const totalSeconds = Math.floor(ms / 1000);
@@ -84,17 +60,69 @@ function formatCountdown(ms: number): string {
   return `${s}s`;
 }
 
-function LiveTimers() {
-  const [now, setNow] = useState(new Date());
+function parseDebugTimestamp(value: string): Date | null {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function LiveTimers({
+  serverNow,
+  timerSchedules,
+}: {
+  serverNow: Date;
+  timerSchedules: CalendarData["timerSchedules"];
+}) {
+  const [clockOffsetMs] = useState(() => {
+    const serverNowTime = new Date(serverNow).getTime();
+    if (!Number.isFinite(serverNowTime)) {
+      return 0;
+    }
+    return serverNowTime - Date.now();
+  });
+  const [now, setNow] = useState(() => new Date(Date.now() + clockOffsetMs));
+  const [showDebugTools, setShowDebugTools] = useState(false);
+  const [useSimulatedNow, setUseSimulatedNow] = useState(false);
+  const [simulatedNowInput, setSimulatedNowInput] = useState(
+    "2026-02-22T10:20:00+05:30",
+  );
 
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
+    setNow(new Date(Date.now() + clockOffsetMs));
+    const id = setInterval(
+      () => setNow(new Date(Date.now() + clockOffsetMs)),
+      1000,
+    );
     return () => clearInterval(id);
+  }, [clockOffsetMs]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("timerDebug") !== "1") return;
+
+    setShowDebugTools(true);
+    setUseSimulatedNow(true);
+    const timestamp = params.get("timerNow");
+    if (timestamp) {
+      setSimulatedNowInput(timestamp);
+    }
   }, []);
 
-  const nextMarket = getNextTopOfHour(now);
-  const nextBills = getNextOfUtcHours([4, 12, 20], now); // 4am/12pm/8pm GMT
-  const nextGame = getNextUtcHour(20, now); // 8pm GMT daily
+  const simulatedNow = parseDebugTimestamp(simulatedNowInput);
+  const effectiveNow = useSimulatedNow && simulatedNow ? simulatedNow : now;
+
+  const nextMarket = getNextUtcTimeFromCron(
+    timerSchedules.hourlyAdvance,
+    effectiveNow,
+  );
+  const nextBills = getNextUtcTimeFromCron(
+    timerSchedules.billAdvance,
+    effectiveNow,
+  );
+  const nextGame = getNextUtcTimeFromCron(
+    timerSchedules.gameAdvance,
+    effectiveNow,
+  );
 
   const timers = [
     {
@@ -118,7 +146,7 @@ function LiveTimers() {
     },
     {
       icon: Gamepad2,
-      label: "Daily game update",
+      label: "Game update",
       time: nextGame,
       color: "text-purple-500",
       bg: "bg-linear-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20",
@@ -129,29 +157,135 @@ function LiveTimers() {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-      {timers.map((t) => {
-        const ms = t.time.getTime() - now.getTime();
-        const countdown = formatCountdown(ms);
-        return (
-          <Card key={t.label} className={t.bg}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className={`p-2 rounded-md ${t.iconBg}`}>
-                  <t.icon className={`h-4 w-4 ${t.color}`} />
+    <div className="mb-6 space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {timers.map((t) => {
+          const ms = t.time.getTime() - effectiveNow.getTime();
+          const countdown = formatCountdown(ms);
+          return (
+            <Card key={t.label} className={t.bg}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className={`p-2 rounded-md ${t.iconBg}`}>
+                    <t.icon className={`h-4 w-4 ${t.color}`} />
+                  </div>
+                  <span className="font-semibold text-sm">{t.label}</span>
                 </div>
-                <span className="font-semibold text-sm">{t.label}</span>
+                <div className="text-2xl font-bold tabular-nums tracking-tight mb-2">
+                  {countdown}
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {t.description}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {import.meta.env.DEV ? (
+        <Card className="border-dashed">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="font-medium text-sm">Timer Debug</p>
+                <p className="text-xs text-muted-foreground">
+                  Simulate timezone offsets with an ISO timestamp.
+                </p>
               </div>
-              <div className="text-2xl font-bold tabular-nums tracking-tight mb-2">
-                {countdown}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDebugTools((prev) => !prev)}
+              >
+                {showDebugTools ? "Hide" : "Show"}
+              </Button>
+            </div>
+
+            {showDebugTools ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="timer-debug-enabled"
+                    type="checkbox"
+                    checked={useSimulatedNow}
+                    onChange={(event) =>
+                      setUseSimulatedNow(event.target.checked)
+                    }
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <label htmlFor="timer-debug-enabled" className="text-sm">
+                    Use simulated timestamp
+                  </label>
+                </div>
+
+                <Input
+                  value={simulatedNowInput}
+                  onChange={(event) => setSimulatedNowInput(event.target.value)}
+                  placeholder="2026-02-22T10:20:00+05:30"
+                  spellCheck={false}
+                />
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setSimulatedNowInput("2026-02-22T10:20:00+05:30")
+                    }
+                  >
+                    +05:30 preset
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setSimulatedNowInput("2026-02-22T10:20:00-03:30")
+                    }
+                  >
+                    -03:30 preset
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setSimulatedNowInput("2026-02-22T10:20:00+05:45")
+                    }
+                  >
+                    +05:45 preset
+                  </Button>
+                </div>
+
+                {useSimulatedNow && !simulatedNow ? (
+                  <p className="text-xs text-destructive">
+                    Invalid timestamp. Use ISO format like
+                    2026-02-22T10:20:00+05:30.
+                  </p>
+                ) : null}
+
+                <p className="text-xs text-muted-foreground">
+                  Effective now (UTC): {effectiveNow.toISOString()}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Schedules (UTC): hourly={timerSchedules.hourlyAdvance}, bills=
+                  {timerSchedules.billAdvance}, game=
+                  {timerSchedules.gameAdvance}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Tip: open{" "}
+                  <code>
+                    /calendar?timerDebug=1&timerNow=2026-02-22T10:20:00%2B05:30
+                  </code>{" "}
+                  to load this quickly.
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {t.description}
-              </p>
-            </CardContent>
-          </Card>
-        );
-      })}
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }
@@ -255,7 +389,10 @@ export function CalendarView({ data }: { data: CalendarData }) {
       </div>
 
       {/* Live Countdown Timers */}
-      <LiveTimers />
+      <LiveTimers
+        serverNow={data.serverNow}
+        timerSchedules={data.timerSchedules}
+      />
 
       {/* Today's Events Alert */}
       {todayEvents.length > 0 && (
