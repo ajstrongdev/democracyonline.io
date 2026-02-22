@@ -32,11 +32,14 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/bank/")({
   loader: async () => {
-    const [userData, richestUsers, netWorthData] = await Promise.all([
+    const [userData, leaderboardData, netWorthData] = await Promise.all([
       getCurrentUserInfo(),
       getTopRichestUsers(),
       getUserNetWorth(),
     ]);
+
+    const richestUsers = leaderboardData.richestUsers;
+    const currentUserRank = leaderboardData.currentUserRank;
 
     let transactions: Array<{
       id: number;
@@ -65,6 +68,7 @@ export const Route = createFileRoute("/bank/")({
       richestUsers,
       transactions,
       netWorthData,
+      currentUserRank,
     };
   },
   component: RouteComponent,
@@ -76,6 +80,7 @@ function RouteComponent() {
     richestUsers,
     transactions: initialTransactions,
     netWorthData,
+    currentUserRank,
   } = Route.useLoaderData();
   const user = useUserData(userData);
   const navigate = useNavigate();
@@ -196,10 +201,10 @@ function RouteComponent() {
                 <div className="space-y-8">
                   <div className="p-8 bg-linear-to-br from-primary/5 to-primary/10 rounded-lg border">
                     <p className="text-sm font-medium text-muted-foreground mb-2">
-                      Net Worth
+                      Balance
                     </p>
                     <p className="text-5xl font-bold tracking-tight">
-                      ${netWorth.toLocaleString()}
+                      ${cashBalance.toLocaleString()}
                     </p>
                   </div>
 
@@ -207,10 +212,10 @@ function RouteComponent() {
                     <div className="p-5 border rounded-lg bg-card">
                       <div className="flex items-center gap-2 text-muted-foreground mb-1">
                         <Wallet className="w-4 h-4" />
-                        <p className="text-sm font-medium">Cash Balance</p>
+                        <p className="text-sm font-medium">Total Networth</p>
                       </div>
                       <p className="text-lg font-semibold">
-                        ${cashBalance.toLocaleString()}
+                        ${netWorth.toLocaleString()}
                       </p>
                     </div>
                     <div className="p-5 border rounded-lg bg-card">
@@ -297,7 +302,11 @@ function RouteComponent() {
                   {richestUsers.map((richUser, index) => (
                     <div
                       key={richUser.id}
-                      className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border bg-card transition-colors"
+                      className={`flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border bg-card transition-colors ${
+                        richUser.id === user?.id
+                          ? "ring-2 ring-primary border-primary"
+                          : ""
+                      }`}
                     >
                       <div className="flex items-center gap-3 w-full sm:w-auto">
                         <div
@@ -386,6 +395,96 @@ function RouteComponent() {
                       </div>
                     </div>
                   ))}
+
+                  {currentUserRank && (
+                    <>
+                      <div className="flex items-center gap-2 py-1">
+                        <div className="flex-1 border-t border-dashed border-muted-foreground/30" />
+                        <span className="text-xs text-muted-foreground">
+                          Your Position
+                        </span>
+                        <div className="flex-1 border-t border-dashed border-muted-foreground/30" />
+                      </div>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border bg-card ring-2 ring-primary border-primary transition-colors">
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                          <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full font-bold text-base md:text-lg shrink-0 bg-muted">
+                            #{currentUserRank.rank}
+                          </div>
+
+                          {currentUserRank.partyId && (
+                            <>
+                              <div className="shrink-0 sm:hidden md:block">
+                                <PartyLogo
+                                  party_id={currentUserRank.partyId}
+                                  size={40}
+                                />
+                              </div>
+                              <div className="hidden sm:block md:hidden">
+                                <PartyLogo
+                                  party_id={currentUserRank.partyId}
+                                  size={48}
+                                />
+                              </div>
+                            </>
+                          )}
+
+                          <div className="flex-1 min-w-0 sm:hidden">
+                            <h3 className="font-semibold text-base truncate">
+                              {currentUserRank.username}
+                            </h3>
+                            {currentUserRank.politicalLeaning && (
+                              <p className="text-xs text-muted-foreground">
+                                {currentUserRank.politicalLeaning}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="hidden sm:block sm:flex-1 min-w-0">
+                          <h3 className="font-semibold text-base md:text-lg truncate">
+                            {currentUserRank.username}
+                          </h3>
+                          {currentUserRank.politicalLeaning && (
+                            <p className="text-xs md:text-sm text-muted-foreground">
+                              {currentUserRank.politicalLeaning}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between w-full sm:w-auto gap-3 sm:gap-4">
+                          <div className="flex flex-col items-start sm:items-end">
+                            <div className="flex items-center gap-2">
+                              <Wallet className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+                              <span className="text-xl md:text-2xl font-bold">
+                                $
+                                {Number(
+                                  currentUserRank.netWorth || 0,
+                                ).toLocaleString()}
+                              </span>
+                            </div>
+                            <span className="text-[10px] md:text-xs text-muted-foreground">
+                              Net Worth
+                            </span>
+                          </div>
+
+                          <Button
+                            asChild
+                            variant="default"
+                            size="sm"
+                            className="whitespace-nowrap"
+                          >
+                            <Link
+                              to="/profile/$id"
+                              params={{
+                                id: currentUserRank.id.toString(),
+                              }}
+                            >
+                              View Profile
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
