@@ -73,7 +73,9 @@ export const getThemeServerFn = createServerFn().handler(
 
 export const setThemeServerFn = createServerFn({ method: "POST" })
   .inputValidator(postThemeValidator)
-  .handler(({ data }) => setCookie(storageKey, data));
+  .handler(({ data }) =>
+    setCookie(storageKey, data, { maxAge: 60 * 60 * 24 * 365 }),
+  );
 
 export function getThemeClasses(themeId: ThemeId): string {
   const theme = themes.find((t) => t.id === themeId);
