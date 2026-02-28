@@ -726,165 +726,176 @@ export const Route = createFileRoute("/api/game-advance")({
             }
           }
 
-          console.log("[game-advance] Updating user activity");
-          await db
-            .update(users)
-            .set({ lastActivity: sql`${users.lastActivity} + 1` });
+          if (env.DEPLOYED_ENV === "dev") {
+            // In dev deployment, skip inactivity — keep all users active
+            console.log(
+              "[game-advance] Dev environment: skipping inactivity, keeping all users active",
+            );
+            await db.update(users).set({ isActive: true, lastActivity: 0 });
+          } else {
+            console.log("[game-advance] Updating user activity");
+            await db
+              .update(users)
+              .set({ lastActivity: sql`${users.lastActivity} + 1` });
 
-          // Ensure users with recent activity are marked active
-          await db
-            .update(users)
-            .set({ isActive: true })
-            .where(sql`${users.lastActivity} < 14`);
+            // Ensure users with recent activity are marked active
+            await db
+              .update(users)
+              .set({ isActive: true })
+              .where(sql`${users.lastActivity} < 14`);
 
-          await db
-            .update(users)
-            .set({ isActive: false })
-            .where(sql`${users.lastActivity} >= 14`);
+            await db
+              .update(users)
+              .set({ isActive: false })
+              .where(sql`${users.lastActivity} >= 14`);
 
-          // Relinquish shares from inactive users back to treasury (minted pool)
-          console.log(
-            "[game-advance] Relinquishing shares from inactive users",
-          );
-          const inactiveUsersWithShares = await db
-            .select({
-              userId: userShares.userId,
-              companyId: userShares.companyId,
-              quantity: userShares.quantity,
-            })
-            .from(userShares)
-            .innerJoin(users, eq(userShares.userId, users.id))
-            .where(eq(users.isActive, false));
+            // Relinquish shares from inactive users back to treasury (minted pool)
+            console.log(
+              "[game-advance] Relinquishing shares from inactive users",
+            );
+            const inactiveUsersWithShares = await db
+              .select({
+                userId: userShares.userId,
+                companyId: userShares.companyId,
+                quantity: userShares.quantity,
+              })
+              .from(userShares)
+              .innerJoin(users, eq(userShares.userId, users.id))
+              .where(eq(users.isActive, false));
 
-          if (inactiveUsersWithShares.length > 0) {
-            // Cancel all open stock orders for inactive users and refund buy orders
-            const inactiveUserIds = [
-              ...new Set(inactiveUsersWithShares.map((s) => s.userId)),
-            ];
+            if (inactiveUsersWithShares.length > 0) {
+              // Cancel all open stock orders for inactive users and refund buy orders
+              const inactiveUserIds = [
+                ...new Set(inactiveUsersWithShares.map((s) => s.userId)),
+              ];
 
-            for (const userId of inactiveUserIds) {
-              const openOrders = await db
-                .select()
-                .from(stockOrders)
-                .where(
-                  and(
-                    eq(stockOrders.userId, userId),
-                    or(
-                      eq(stockOrders.status, "open"),
-                      eq(stockOrders.status, "partial"),
+              for (const userId of inactiveUserIds) {
+                const openOrders = await db
+                  .select()
+                  .from(stockOrders)
+                  .where(
+                    and(
+                      eq(stockOrders.userId, userId),
+                      or(
+                        eq(stockOrders.status, "open"),
+                        eq(stockOrders.status, "partial"),
+                      ),
                     ),
-                  ),
-                );
+                  );
 
-              for (const order of openOrders) {
-                const remaining = order.quantity - order.filledQuantity;
-                if (order.side === "buy" && remaining > 0) {
-                  const refund = remaining * order.pricePerShare;
+                for (const order of openOrders) {
+                  const remaining = order.quantity - order.filledQuantity;
+                  if (order.side === "buy" && remaining > 0) {
+                    const refund = remaining * order.pricePerShare;
+                    await db
+                      .update(users)
+                      .set({ money: sql`${users.money} + ${refund}` })
+                      .where(eq(users.id, userId));
+                  }
                   await db
-                    .update(users)
-                    .set({ money: sql`${users.money} + ${refund}` })
-                    .where(eq(users.id, userId));
+                    .update(stockOrders)
+                    .set({ status: "cancelled", updatedAt: new Date() })
+                    .where(eq(stockOrders.id, order.id));
                 }
-                await db
-                  .update(stockOrders)
-                  .set({ status: "cancelled", updatedAt: new Date() })
-                  .where(eq(stockOrders.id, order.id));
               }
+
+              // Remove all shares held by inactive users (returns them to treasury)
+              for (const holding of inactiveUsersWithShares) {
+                if ((holding.quantity ?? 0) > 0) {
+                  await db.insert(transactionHistory).values({
+                    userId: holding.userId,
+                    description: `Shares relinquished due to inactivity: ${holding.quantity} share(s) of company #${holding.companyId} returned to treasury`,
+                  });
+                }
+              }
+
+              await db
+                .delete(userShares)
+                .where(inArray(userShares.userId, inactiveUserIds));
+
+              console.log(
+                `[game-advance] Relinquished shares from ${inactiveUserIds.length} inactive user(s) (${inactiveUsersWithShares.length} holdings)`,
+              );
+
+              // Post feed entry
+              await db.insert(feed).values({
+                content: `${inactiveUserIds.length} inactive user(s) had their shares relinquished back to the treasury.`,
+              });
             }
 
-            // Remove all shares held by inactive users (returns them to treasury)
-            for (const holding of inactiveUsersWithShares) {
-              if ((holding.quantity ?? 0) > 0) {
-                await db.insert(transactionHistory).values({
-                  userId: holding.userId,
-                  description: `Shares relinquished due to inactivity: ${holding.quantity} share(s) of company #${holding.companyId} returned to treasury`,
-                });
+            const inactiveUsers = await db
+              .select({ id: users.id, partyId: users.partyId })
+              .from(users)
+              .where(
+                and(
+                  eq(users.isActive, false),
+                  sql`${users.partyId} IS NOT NULL`,
+                ),
+              );
+
+            const partyIds = new Set<number>();
+
+            for (const user of inactiveUsers) {
+              const partyId = user.partyId;
+              if (partyId) {
+                partyIds.add(partyId);
+
+                await db
+                  .update(parties)
+                  .set({ leaderId: null })
+                  .where(
+                    and(eq(parties.id, partyId), eq(parties.leaderId, user.id)),
+                  );
               }
             }
 
             await db
-              .delete(userShares)
-              .where(inArray(userShares.userId, inactiveUserIds));
+              .update(users)
+              .set({ partyId: null })
+              .where(eq(users.isActive, false));
 
-            console.log(
-              `[game-advance] Relinquished shares from ${inactiveUserIds.length} inactive user(s) (${inactiveUsersWithShares.length} holdings)`,
-            );
+            for (const partyId of partyIds) {
+              const countRes = await db
+                .select({ cnt: sql<number>`COUNT(*)::int` })
+                .from(users)
+                .where(eq(users.partyId, partyId));
 
-            // Post feed entry
-            await db.insert(feed).values({
-              content: `${inactiveUserIds.length} inactive user(s) had their shares relinquished back to the treasury.`,
-            });
-          }
+              const memberCount = countRes[0]?.cnt ?? 0;
 
-          const inactiveUsers = await db
-            .select({ id: users.id, partyId: users.partyId })
-            .from(users)
-            .where(
-              and(eq(users.isActive, false), sql`${users.partyId} IS NOT NULL`),
-            );
-
-          const partyIds = new Set<number>();
-
-          for (const user of inactiveUsers) {
-            const partyId = user.partyId;
-            if (partyId) {
-              partyIds.add(partyId);
-
-              await db
-                .update(parties)
-                .set({ leaderId: null })
-                .where(
-                  and(eq(parties.id, partyId), eq(parties.leaderId, user.id)),
-                );
-            }
-          }
-
-          await db
-            .update(users)
-            .set({ partyId: null })
-            .where(eq(users.isActive, false));
-
-          for (const partyId of partyIds) {
-            const countRes = await db
-              .select({ cnt: sql<number>`COUNT(*)::int` })
-              .from(users)
-              .where(eq(users.partyId, partyId));
-
-            const memberCount = countRes[0]?.cnt ?? 0;
-
-            if (memberCount === 0) {
-              const partyCoalitions = await db
-                .select({ coalitionId: coalitionMembers.coalitionId })
-                .from(coalitionMembers)
-                .where(eq(coalitionMembers.partyId, partyId));
-
-              await db
-                .delete(coalitionMembers)
-                .where(eq(coalitionMembers.partyId, partyId));
-              await db
-                .delete(joinRequests)
-                .where(eq(joinRequests.partyId, partyId));
-
-              for (const { coalitionId } of partyCoalitions) {
-                const remaining = await db
+              if (memberCount === 0) {
+                const partyCoalitions = await db
                   .select({ coalitionId: coalitionMembers.coalitionId })
                   .from(coalitionMembers)
-                  .where(eq(coalitionMembers.coalitionId, coalitionId))
-                  .limit(1);
-                if (remaining.length === 0) {
-                  await db
-                    .delete(joinRequests)
-                    .where(eq(joinRequests.coalitionId, coalitionId));
-                  await db
-                    .delete(coalitions)
-                    .where(eq(coalitions.id, coalitionId));
-                }
-              }
+                  .where(eq(coalitionMembers.partyId, partyId));
 
-              await db
-                .delete(partyStances)
-                .where(eq(partyStances.partyId, partyId));
-              await db.delete(parties).where(eq(parties.id, partyId));
+                await db
+                  .delete(coalitionMembers)
+                  .where(eq(coalitionMembers.partyId, partyId));
+                await db
+                  .delete(joinRequests)
+                  .where(eq(joinRequests.partyId, partyId));
+
+                for (const { coalitionId } of partyCoalitions) {
+                  const remaining = await db
+                    .select({ coalitionId: coalitionMembers.coalitionId })
+                    .from(coalitionMembers)
+                    .where(eq(coalitionMembers.coalitionId, coalitionId))
+                    .limit(1);
+                  if (remaining.length === 0) {
+                    await db
+                      .delete(joinRequests)
+                      .where(eq(joinRequests.coalitionId, coalitionId));
+                    await db
+                      .delete(coalitions)
+                      .where(eq(coalitions.id, coalitionId));
+                  }
+                }
+
+                await db
+                  .delete(partyStances)
+                  .where(eq(partyStances.partyId, partyId));
+                await db.delete(parties).where(eq(parties.id, partyId));
+              }
             }
           }
 
