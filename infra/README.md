@@ -69,6 +69,7 @@ This directory contains Terraform configuration for deploying the Democracy Onli
 
 2. **Edit `terraform.tfvars`** with your values:
    - Set `project_id` to your GCP project ID
+   - Set `deployed_env` (`dev` or `prod`) to match the target deployment
    - Add your Firebase configuration from the Firebase Console
    - Adjust resource sizing if needed
 
