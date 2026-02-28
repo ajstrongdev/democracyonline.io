@@ -169,8 +169,7 @@ function PrimariesPage() {
                 <Badge variant="outline">{electionStatus}</Badge> phase.
               </p>
               <p className="text-muted-foreground mb-4">
-                Primaries take place during the Candidate phase. Check back when
-                the next election cycle begins.
+                Check back when the next election cycle begins.
               </p>
               <Button asChild variant="outline">
                 <Link to="/elections/president">
@@ -227,23 +226,20 @@ function PrimariesPage() {
             </CardHeader>
           </Card>
 
-          {/* Info Alert */}
           <Alert>
             <Vote className="h-4 w-4" />
             <AlertTitle>How Primaries Work</AlertTitle>
             <AlertDescription>
-              During the Candidate phase, party members can declare as primary
-              candidates.{" "}
+              During the primaries, party members can declare themselves as
+              primary candidates.{" "}
               {isCoalitionPrimary
                 ? "Since your party is in a coalition, all coalition members vote together. "
                 : "All party members can vote for one candidate. "}
-              When the Candidate phase ends and Voting begins, the winner of
-              each primary is automatically registered as a presidential
-              candidate.
+              When the primaries end and voting begins, the winner of each
+              primary is automatically registered as the presidential candidate.
             </AlertDescription>
           </Alert>
 
-          {/* Stats */}
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
