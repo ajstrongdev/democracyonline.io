@@ -67,6 +67,19 @@ async function isPartyInCoalition(partyId: number, coalitionId: number) {
   return !!row;
 }
 
+export const getPartyCoalition = createServerFn()
+  .inputValidator((data: { partyId: number }) => data)
+  .handler(async ({ data }) => {
+    const coalitionId = await getPartyCoalitionId(data.partyId);
+    if (!coalitionId) return null;
+    const [coalition] = await db
+      .select()
+      .from(coalitions)
+      .where(eq(coalitions.id, coalitionId))
+      .limit(1);
+    return coalition ?? null;
+  });
+
 export const getCoalitions = createServerFn().handler(async () => {
   const rows = await db
     .select({
