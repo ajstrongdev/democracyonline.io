@@ -81,7 +81,7 @@ function ItemCard({
 
   return (
     <Card
-      className={`transition-all ${canAfford ? "hover:shadow-lg hover:border-primary/50" : "opacity-60"}`}
+      className={`h-full flex flex-col transition-all ${canAfford ? "hover:shadow-lg hover:border-primary/50" : "opacity-60"}`}
     >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
@@ -101,8 +101,8 @@ function ItemCard({
           {item.description}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between mb-3">
+      <CardContent className="mt-auto flex flex-col gap-3">
+        <div className="flex items-center justify-between">
           <div className="flex flex-col">
             <span className="text-xs text-muted-foreground">Produces</span>
             <span

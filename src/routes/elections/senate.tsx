@@ -14,7 +14,7 @@ import {
 } from "recharts";
 import { DollarSign, PieChartIcon, TrendingUp, Users } from "lucide-react";
 import type { Candidate } from "@/lib/server/elections";
-import { getCurrentUserInfo, getUserFullById } from "@/lib/server/users";
+import { getUserFullById } from "@/lib/server/users";
 import { getPartyById } from "@/lib/server/party";
 import {
   declareCandidate,
@@ -33,10 +33,13 @@ import { Slider } from "@/components/ui/slider";
 import GenericSkeleton from "@/components/generic-skeleton";
 import { MessageDialog } from "@/components/message-dialog";
 import PartyLogo from "@/components/party-logo";
+import CoalitionLogo from "@/components/coalition-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
+import { getPartyCoalition } from "@/lib/server/coalitions";
 
 export const Route = createFileRoute("/elections/senate")({
   loader: async () => {
+    const { getCurrentUserInfo } = await import("@/lib/server/users");
     const userData = await getCurrentUserInfo();
     const { candidates, ...pageData } = await electionPageData({
       data: { election: "Senate", userId: userData?.id },
@@ -93,6 +96,9 @@ function CandidateItem({
   const [party, setParty] = useState<Awaited<
     ReturnType<typeof getPartyById>
   > | null>(null);
+  const [coalition, setCoalition] = useState<Awaited<
+    ReturnType<typeof getPartyCoalition>
+  > | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [donationAmount, setDonationAmount] = useState<string>("");
   const [isDonating, setIsDonating] = useState(false);
@@ -111,6 +117,11 @@ function CandidateItem({
               data: { partyId: user.partyId },
             });
             setParty(partyData);
+
+            const coalitionData = await getPartyCoalition({
+              data: { partyId: user.partyId },
+            });
+            setCoalition(coalitionData);
           }
         } catch (error) {
           console.error("Error loading candidate data:", error);
@@ -207,12 +218,38 @@ function CandidateItem({
                 {party && (
                   <>
                     {" • "}
-                    <span style={{ color: party.color || undefined }}>
+                    <Link
+                      to="/parties/$id"
+                      params={{ id: party.id.toString() }}
+                      className="inline-flex items-center gap-1 hover:underline"
+                      style={{ color: party.color || undefined }}
+                    >
+                      <PartyLogo party_id={party.id} size={16} />
                       {party.name}
-                    </span>
+                    </Link>
                   </>
                 )}
                 {!party && " • Independent"}
+                {coalition && (
+                  <>
+                    {" • "}
+                    <Link
+                      to="/parties/coalitions/$id"
+                      params={{ id: coalition.id.toString() }}
+                      className="inline-flex items-center gap-1 hover:underline"
+                      style={{ color: coalition.color || undefined }}
+                    >
+                      <CoalitionLogo
+                        coalition_id={coalition.id}
+                        size={16}
+                        color={coalition.color}
+                        logo={coalition.logo}
+                        name={coalition.name}
+                      />
+                      {coalition.name}
+                    </Link>
+                  </>
+                )}
               </p>
             </div>
           </div>

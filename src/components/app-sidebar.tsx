@@ -17,6 +17,8 @@ import {
   Shield,
   TrendingUp,
   User,
+  Users,
+  Vote,
   Wallet,
 } from "lucide-react";
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
@@ -69,7 +71,23 @@ const data = {
     {
       title: "Political Parties",
       icon: Handshake,
-      url: "/parties",
+      dropdown: [
+        {
+          title: "Parties",
+          url: "/parties",
+          icon: User,
+        },
+        {
+          title: "Coalitions",
+          url: "/parties/coalitions",
+          icon: Users,
+        },
+        {
+          title: "Primaries",
+          url: "/parties/primaries",
+          icon: Vote,
+        },
+      ],
     },
     {
       title: "Finances",

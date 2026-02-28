@@ -53,7 +53,7 @@ export const Route = createFileRoute("/companies/$id")({
 function CompanyDetailPage() {
   const { company, stakeholders, priceHistory, userData } =
     Route.useLoaderData();
-  const [chartRange, setChartRange] = useState<"24h" | "48h">("48h");
+  const [chartRange, setChartRange] = useState<"24h" | "48h">("24h");
 
   if (!company) {
     return (

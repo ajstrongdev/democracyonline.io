@@ -100,6 +100,38 @@ export const partyNotifications = pgTable(
   }),
 );
 
+// Coalitions table
+export const coalitions = pgTable("coalitions", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull().unique(),
+  color: varchar("color", { length: 7 }).notNull(),
+  logo: varchar("logo", { length: 255 }),
+  bio: text("bio"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const coalitionMembers = pgTable(
+  "coalition_members",
+  {
+    coalitionId: integer("coalition_id").notNull(),
+    partyId: integer("party_id").notNull(),
+    joinDate: timestamp("join_date").defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.coalitionId, table.partyId],
+    }),
+  ],
+);
+
+export const joinRequests = pgTable("join_requests", {
+  id: serial("id").primaryKey(),
+  partyId: integer("party_id").notNull(),
+  coalitionId: integer("coalition_id").notNull(),
+  status: varchar("status", { length: 20 }).default("Pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Bills table
 export const bills = pgTable("bills", {
   id: serial("id").primaryKey(),
@@ -360,6 +392,37 @@ export const financeKpiSnapshots = pgTable("finance_kpi_snapshots", {
   }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Primary candidates - players declaring in their party/coalition primary
+export const primaryCandidates = pgTable(
+  "primary_candidates",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull(),
+    partyId: integer("party_id").notNull(),
+    /** If the party is in a coalition, this is set so the whole coalition votes together */
+    coalitionId: integer("coalition_id"),
+    votes: integer("votes").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    userUnique: unique().on(table.userId),
+  }),
+);
+
+// Primary votes - one vote per user per primary cycle
+export const primaryVotes = pgTable(
+  "primary_votes",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull(),
+    candidateId: integer("candidate_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    userUnique: unique().on(table.userId),
+  }),
+);
 
 // Remove this later
 export const votes = pgTable("votes", {

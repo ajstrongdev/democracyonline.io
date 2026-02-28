@@ -148,6 +148,21 @@ export const declareCandidate = createServerFn({ method: "POST" })
           "You are currently serving as a Senator and cannot run for President.",
         );
       }
+
+      // Party members must go through primaries for President
+      if (data.election === "President") {
+        const [userWithParty] = await db
+          .select({ partyId: users.partyId })
+          .from(users)
+          .where(eq(users.id, authenticatedUserId))
+          .limit(1);
+
+        if (userWithParty?.partyId) {
+          throw new Error(
+            "As a party member, you must participate in your party's primary to run for President. Visit the Primaries page to declare your candidacy.",
+          );
+        }
+      }
     }
 
     // Check if user is already a candidate in any election

@@ -207,9 +207,10 @@ function RouteComponent() {
                         {bill.content}
                       </p>
                     </div>
-
+                  </CardContent>
+                  <CardFooter className="mt-auto flex-col items-stretch gap-4 border-t">
                     {/* Bill voting */}
-                    <div className="flex flex-col gap-4 mt-3">
+                    <div className="flex flex-col gap-4">
                       <div>
                         <h2 className="text-xl font-semibold mb-2">House</h2>
                         <div className="space-y-2">
@@ -338,8 +339,6 @@ function RouteComponent() {
                         </div>
                       )}
                     </div>
-                  </CardContent>
-                  <CardFooter className="mt-auto">
                     <Button asChild variant="outline" className="w-full">
                       <Link to="/bills/$id" params={{ id: bill.id.toString() }}>
                         View Bill
