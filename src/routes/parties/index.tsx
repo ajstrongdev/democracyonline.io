@@ -36,12 +36,10 @@ import { useUserData } from "@/lib/hooks/use-user-data";
 export const Route = createFileRoute("/parties/")({
   loader: async ({ context }) => {
     const userInfo = await getCurrentUserInfo();
-
     const email = context.auth.user?.email || "";
 
-    const partyData = await partyPageData({
-      data: { email },
-    });
+    const partyData = await partyPageData({ data: { email } });
+
     return {
       ...partyData,
       userInfo,
@@ -65,20 +63,13 @@ function PartyContent() {
   const partyStats = data.partyInfo;
   const userData = useUserData(data.userInfo);
 
-  // Hack: check isInParty client-side to handle SSR correctly
   const isInParty = userData?.partyId != null;
 
-  // Debug logging
-  console.log("Party Stats:", partyStats);
-  console.log("First party:", partyStats[0]);
-
-  // Get total numnber of party members.
   const totalMembers = partyStats.reduce(
     (sum, stats) => sum + Number(stats.memberCount || 0),
     0,
   );
 
-  // Sort parties by member count
   const sortedParties = [...partyStats].sort(
     (a, b) => Number(b.memberCount || 0) - Number(a.memberCount || 0),
   );
@@ -102,7 +93,6 @@ function PartyContent() {
     {} as ChartConfig,
   );
 
-  // Chart data
   const barChartData = sortedParties.map((stats) => ({
     name: stats.name,
     members: Number(stats.memberCount || 0),
@@ -157,7 +147,6 @@ function PartyContent() {
               </p>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -175,6 +164,7 @@ function PartyContent() {
             </CardContent>
           </Card>
         </div>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base md:text-lg">
@@ -279,6 +269,7 @@ function PartyContent() {
             </Tabs>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
             <div>
@@ -309,20 +300,16 @@ function PartyContent() {
                     borderLeftColor: stats.color,
                   }}
                 >
-                  {/* Rank and Logo - Always together on mobile */}
                   <div className="flex items-center gap-3 w-full sm:w-auto">
                     <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full bg-muted font-bold text-base md:text-lg shrink-0">
                       #{index + 1}
                     </div>
-
                     <div className="shrink-0 sm:hidden md:block">
                       <PartyLogo party_id={stats.id} size={40} />
                     </div>
                     <div className="hidden sm:block md:hidden">
                       <PartyLogo party_id={stats.id} size={48} />
                     </div>
-
-                    {/* Party info - shows next to rank on mobile */}
                     <div className="flex-1 min-w-0 sm:hidden">
                       <h3 className="font-semibold text-base truncate">
                         {stats.name}
@@ -332,8 +319,6 @@ function PartyContent() {
                       </p>
                     </div>
                   </div>
-
-                  {/* Party info - separate on desktop */}
                   <div className="hidden sm:block sm:flex-1 min-w-0">
                     <h3 className="font-semibold text-base whitespace-pre-wrap text-balance md:text-lg truncate">
                       {stats.name}
@@ -342,8 +327,6 @@ function PartyContent() {
                       {stats.bio}
                     </p>
                   </div>
-
-                  {/* Stats and Button - Full width on mobile */}
                   <div className="flex items-center justify-between w-full sm:w-auto gap-3 sm:gap-4">
                     <div className="flex flex-col items-start sm:items-end gap-1">
                       <div className="flex items-center gap-2">
@@ -361,7 +344,6 @@ function PartyContent() {
                           : "0% of total"}
                       </span>
                     </div>
-
                     <div className="flex flex-col gap-2">
                       <Button
                         asChild

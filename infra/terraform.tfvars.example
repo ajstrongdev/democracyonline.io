@@ -6,6 +6,7 @@ region     = "europe-west2"
 app_name    = "odr"
 environment = "production"
 name_suffix = "" # e.g., "dev" to create odr-dev resources
+deployed_env = "prod" # "dev" or "prod" — passed to the app as DEPLOYED_ENV
 
 # Database Configuration
 db_tier = "db-f1-micro" # Use db-g1-small for better performance

@@ -4,7 +4,7 @@
 # Cloud SQL to Local Database Sync Script
 #===============================================================================
 # This script creates a backup of the Cloud SQL database and imports it into
-# the local PostgreSQL database running in Docker.
+# the local PostgreSQL database running in Docker or Podman.
 #
 # Usage: ./sync-cloud-sql.sh [OPTIONS]
 #
@@ -15,7 +15,7 @@
 # Prerequisites:
 #   - gcloud CLI installed and authenticated
 #   - gsutil CLI (comes with gcloud)
-#   - Docker running with PostgreSQL container
+#   - Docker or Podman running with PostgreSQL container
 #   - .env file with DATABASE_URL
 #===============================================================================
 
@@ -47,6 +47,8 @@ readonly BOLD=$'\033[1m'
 
 # Flags
 DRY_RUN=false
+# Optional container runtime override via environment variable (docker|podman)
+CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-}"
 
 #-------------------------------------------------------------------------------
 # Logging Functions
@@ -106,7 +108,7 @@ ${BOLD}DESCRIPTION:${NC}
     1. Creates an on-demand backup of the Cloud SQL database
     2. Exports the backup to a Google Cloud Storage bucket
     3. Downloads the backup file locally
-    4. Imports the backup into the local PostgreSQL database (Docker)
+    4. Imports the backup into the local PostgreSQL database (Docker/Podman)
 
 ${BOLD}CONFIGURATION:${NC}
     GCP Project:      ${GCP_PROJECT_ID}
@@ -118,8 +120,11 @@ ${BOLD}CONFIGURATION:${NC}
 ${BOLD}PREREQUISITES:${NC}
     • gcloud CLI installed and authenticated
     • gsutil CLI (included with gcloud SDK)
-    • Docker running with PostgreSQL container
+    • Docker or Podman running with PostgreSQL container
     • .env file with DATABASE_URL variable
+
+${BOLD}OPTIONAL ENVIRONMENT VARIABLES:${NC}
+    CONTAINER_RUNTIME=docker|podman    Force a specific container runtime
 
 ${BOLD}EXAMPLES:${NC}
     ./sync-cloud-sql.sh              # Run the sync
@@ -173,21 +178,71 @@ parse_database_url() {
     fi
 }
 
-get_docker_container_id() {
+detect_container_runtime() {
+    # Allow explicit override via CONTAINER_RUNTIME env var
+    if [[ -n "${CONTAINER_RUNTIME}" ]]; then
+        CONTAINER_RUNTIME="$(printf "%s" "${CONTAINER_RUNTIME}" | tr '[:upper:]' '[:lower:]')"
+        case "${CONTAINER_RUNTIME}" in
+            docker|podman)
+                if ! command -v "${CONTAINER_RUNTIME}" &> /dev/null; then
+                    log_error "CONTAINER_RUNTIME=${CONTAINER_RUNTIME} is set, but the command is not installed"
+                    return 1
+                fi
+                if ! "${CONTAINER_RUNTIME}" info &> /dev/null; then
+                    log_error "${CONTAINER_RUNTIME} is installed but not available. Start it and try again."
+                    return 1
+                fi
+                log_success "Using container runtime from CONTAINER_RUNTIME=${CONTAINER_RUNTIME}"
+                return 0
+                ;;
+            *)
+                log_error "Invalid CONTAINER_RUNTIME=${CONTAINER_RUNTIME}. Use 'docker' or 'podman'."
+                return 1
+                ;;
+        esac
+    fi
+
+    # Auto-detect runtime: prefer Docker first, then Podman
+    if command -v docker &> /dev/null && docker info &> /dev/null; then
+        CONTAINER_RUNTIME="docker"
+        log_success "Using container runtime: Docker"
+        return 0
+    fi
+
+    if command -v podman &> /dev/null && podman info &> /dev/null; then
+        CONTAINER_RUNTIME="podman"
+        log_success "Using container runtime: Podman"
+        return 0
+    fi
+
+    if command -v docker &> /dev/null; then
+        log_warning "Docker is installed but not available"
+    fi
+    if command -v podman &> /dev/null; then
+        log_warning "Podman is installed but not available"
+    fi
+
+    log_error "No available container runtime found. Install/start Docker or Podman."
+    return 1
+}
+
+get_postgres_container_id() {
+    local runtime=$1
+
     # Find the PostgreSQL container - try common naming patterns
     local container_id
 
     # Try to find by image name
-    container_id=$(docker ps --filter "ancestor=postgres" --format "{{.ID}}" | head -n 1)
+    container_id=$("${runtime}" ps --filter "ancestor=postgres" --format "{{.ID}}" 2>/dev/null | head -n 1 || true)
 
     if [[ -z "$container_id" ]]; then
         # Try to find by name pattern
-        container_id=$(docker ps --filter "name=postgres" --format "{{.ID}}" | head -n 1)
+        container_id=$("${runtime}" ps --filter "name=postgres" --format "{{.ID}}" 2>/dev/null | head -n 1 || true)
     fi
 
     if [[ -z "$container_id" ]]; then
         # Try to find by exposed port
-        container_id=$(docker ps --filter "publish=${DB_PORT}" --format "{{.ID}}" | head -n 1)
+        container_id=$("${runtime}" ps --filter "publish=${DB_PORT}" --format "{{.ID}}" 2>/dev/null | head -n 1 || true)
     fi
 
     echo "$container_id"
@@ -215,8 +270,15 @@ verify_prerequisites() {
     # Check required tools
     check_command "gcloud" "Google Cloud CLI" || ((missing_tools++))
     check_command "gsutil" "gsutil" || ((missing_tools++))
-    check_command "docker" "Docker" || ((missing_tools++))
     check_command "psql" "PostgreSQL CLI (psql)" || ((missing_tools++))
+
+    # At least one supported container runtime must be installed
+    if command -v docker &> /dev/null || command -v podman &> /dev/null; then
+        log_success "Container runtime installed (Docker or Podman)"
+    else
+        log_error "Neither Docker nor Podman is installed"
+        ((missing_tools++))
+    fi
 
     if [[ $missing_tools -gt 0 ]]; then
         echo ""
@@ -224,12 +286,10 @@ verify_prerequisites() {
         exit 1
     fi
 
-    # Check Docker is running
-    if ! docker info &> /dev/null; then
-        log_error "Docker is not running. Please start Docker and try again."
+    # Detect container runtime availability
+    if ! detect_container_runtime; then
         exit 1
     fi
-    log_success "Docker daemon is running"
 
     # Check gcloud authentication
     if ! gcloud auth print-identity-token &> /dev/null; then
@@ -268,13 +328,14 @@ verify_prerequisites() {
     log_info "  User: ${DB_USER}"
 
     # Check PostgreSQL container is running
-    DOCKER_CONTAINER_ID=$(get_docker_container_id)
-    if [[ -z "$DOCKER_CONTAINER_ID" ]]; then
-        log_error "No PostgreSQL Docker container found running"
+    local container_id
+    container_id=$(get_postgres_container_id "${CONTAINER_RUNTIME}")
+    if [[ -z "$container_id" ]]; then
+        log_error "No PostgreSQL container found running in ${CONTAINER_RUNTIME}"
         log_info "Make sure your PostgreSQL container is running"
         exit 1
     fi
-    log_success "PostgreSQL container found: ${DOCKER_CONTAINER_ID:0:12}"
+    log_success "PostgreSQL container found (${CONTAINER_RUNTIME}): ${container_id:0:12}"
 
     echo ""
     log_success "All prerequisites verified!"

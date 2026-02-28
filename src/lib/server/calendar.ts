@@ -2,24 +2,44 @@ import { createServerFn } from "@tanstack/react-start";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { elections, gameTracker } from "@/db/schema";
+import { env } from "@/env";
+import {
+  DEFAULT_BILL_ADVANCE_SCHEDULE_UTC,
+  DEFAULT_GAME_ADVANCE_SCHEDULE_UTC,
+  DEFAULT_HOURLY_ADVANCE_SCHEDULE_UTC,
+  getNextUtcTimeFromCron,
+  getSingleDailyUtcAnchor,
+  resolveUtcCronSchedule,
+} from "@/lib/utils/utc-schedule";
 
-const GAME_ADVANCE_HOUR_UTC = 20;
-const GAME_ADVANCE_MINUTE_UTC = 0;
+const HOURLY_ADVANCE_SCHEDULE_UTC = resolveUtcCronSchedule(
+  env.HOURLY_ADVANCE_SCHEDULE_UTC,
+  DEFAULT_HOURLY_ADVANCE_SCHEDULE_UTC,
+);
+const BILL_ADVANCE_SCHEDULE_UTC = resolveUtcCronSchedule(
+  env.BILL_ADVANCE_SCHEDULE_UTC,
+  DEFAULT_BILL_ADVANCE_SCHEDULE_UTC,
+);
+const GAME_ADVANCE_SCHEDULE_UTC = resolveUtcCronSchedule(
+  env.GAME_ADVANCE_SCHEDULE_UTC,
+  DEFAULT_GAME_ADVANCE_SCHEDULE_UTC,
+);
 
-function getNextAdvanceTime(daysLeft: number): Date {
-  const now = new Date();
-  const today = new Date(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate(),
-  );
+const gameAdvanceDailyAnchor = getSingleDailyUtcAnchor(GAME_ADVANCE_SCHEDULE_UTC);
+const GAME_ADVANCE_HOUR_UTC = gameAdvanceDailyAnchor?.hour ?? 20;
+const GAME_ADVANCE_MINUTE_UTC = gameAdvanceDailyAnchor?.minute ?? 0;
 
-  const todayAdvance = new Date(today);
-  todayAdvance.setUTCHours(
-    GAME_ADVANCE_HOUR_UTC,
-    GAME_ADVANCE_MINUTE_UTC,
-    0,
-    0,
+function getNextAdvanceTime(daysLeft: number, now: Date): Date {
+  const todayAdvance = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      GAME_ADVANCE_HOUR_UTC,
+      GAME_ADVANCE_MINUTE_UTC,
+      0,
+      0,
+    ),
   );
 
   // If today's advance time hasn't passed yet and daysLeft is 0, use today
@@ -34,41 +54,21 @@ function getNextAdvanceTime(daysLeft: number): Date {
     daysToAdd = daysLeft - 1;
   }
 
-  const nextAdvance = new Date(today);
-  nextAdvance.setUTCDate(nextAdvance.getUTCDate() + daysToAdd);
-  nextAdvance.setUTCHours(GAME_ADVANCE_HOUR_UTC, GAME_ADVANCE_MINUTE_UTC, 0, 0);
-
-  return nextAdvance;
-}
-
-function getNextBillAdvanceTime(): Date {
-  const now = new Date();
-  const today = new Date(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate(),
-  );
-  const todayAdvance = new Date(today);
-  todayAdvance.setUTCHours(
-    GAME_ADVANCE_HOUR_UTC,
-    GAME_ADVANCE_MINUTE_UTC,
-    0,
-    0,
-  );
-
-  if (now >= todayAdvance) {
-    const nextAdvance = new Date(today);
-    nextAdvance.setUTCDate(nextAdvance.getUTCDate() + 1);
-    nextAdvance.setUTCHours(
+  return new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() + daysToAdd,
       GAME_ADVANCE_HOUR_UTC,
       GAME_ADVANCE_MINUTE_UTC,
       0,
       0,
-    );
-    return nextAdvance;
-  } else {
-    return todayAdvance;
-  }
+    ),
+  );
+}
+
+function getNextBillAdvanceTime(now: Date): Date {
+  return getNextUtcTimeFromCron(BILL_ADVANCE_SCHEDULE_UTC, now);
 }
 
 export type CalendarEvent = {
@@ -79,6 +79,12 @@ export type CalendarEvent = {
 };
 
 export type CalendarData = {
+  serverNow: Date;
+  timerSchedules: {
+    hourlyAdvance: string;
+    billAdvance: string;
+    gameAdvance: string;
+  };
   senateElection: {
     status: string;
     daysLeft: number;
@@ -111,6 +117,8 @@ function getNextStageName(status: string, electionType: string): string {
 
 export const getCalendarData = createServerFn().handler(
   async (): Promise<CalendarData> => {
+    const now = new Date();
+
     const [senateData] = await db
       .select()
       .from(elections)
@@ -125,14 +133,14 @@ export const getCalendarData = createServerFn().handler(
 
     const [gameData] = await db.select().from(gameTracker).limit(1);
     const currentPool = gameData?.billPool || 1;
-    const billAdvanceTime = getNextBillAdvanceTime();
+    const billAdvanceTime = getNextBillAdvanceTime(now);
 
     let senateElection = null;
     if (senateData) {
       senateElection = {
         status: senateData.status || "Unknown",
         daysLeft: senateData.daysLeft,
-        nextStageTime: getNextAdvanceTime(senateData.daysLeft),
+        nextStageTime: getNextAdvanceTime(senateData.daysLeft, now),
         nextStageName: getNextStageName(senateData.status || "", "Senate"),
       };
     }
@@ -143,7 +151,7 @@ export const getCalendarData = createServerFn().handler(
       presidentialElection = {
         status: presidentData.status || "Unknown",
         daysLeft: presidentData.daysLeft,
-        nextStageTime: getNextAdvanceTime(presidentData.daysLeft),
+        nextStageTime: getNextAdvanceTime(presidentData.daysLeft, now),
         nextStageName: getNextStageName(
           presidentData.status || "",
           "Presidential",
@@ -154,35 +162,17 @@ export const getCalendarData = createServerFn().handler(
     const upcomingEvents: Array<CalendarEvent> = [];
 
     const getEventDate = (daysFromNow: number): Date => {
-      const now = new Date();
-
-      const todayAdvance = new Date(
+      return new Date(
         Date.UTC(
           now.getUTCFullYear(),
           now.getUTCMonth(),
-          now.getUTCDate(),
+          now.getUTCDate() + daysFromNow,
           GAME_ADVANCE_HOUR_UTC,
           GAME_ADVANCE_MINUTE_UTC,
           0,
           0,
         ),
       );
-
-      const baseDaysOffset = now >= todayAdvance ? daysFromNow : daysFromNow;
-
-      const eventDate = new Date(
-        Date.UTC(
-          now.getUTCFullYear(),
-          now.getUTCMonth(),
-          now.getUTCDate() + baseDaysOffset,
-          GAME_ADVANCE_HOUR_UTC,
-          GAME_ADVANCE_MINUTE_UTC,
-          0,
-          0,
-        ),
-      );
-
-      return eventDate;
     };
 
     if (senateElection) {
@@ -383,6 +373,12 @@ export const getCalendarData = createServerFn().handler(
     upcomingEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     return {
+      serverNow: now,
+      timerSchedules: {
+        hourlyAdvance: HOURLY_ADVANCE_SCHEDULE_UTC,
+        billAdvance: BILL_ADVANCE_SCHEDULE_UTC,
+        gameAdvance: GAME_ADVANCE_SCHEDULE_UTC,
+      },
       senateElection,
       presidentialElection,
       billAdvance: {

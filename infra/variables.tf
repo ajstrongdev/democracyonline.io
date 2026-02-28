@@ -180,3 +180,14 @@ variable "hourly_advance_schedule" {
   type        = string
   default     = "0 * * * *"
 }
+
+variable "deployed_env" {
+  description = "Deployment environment identifier passed to the application (dev or prod)"
+  type        = string
+  default     = "prod"
+
+  validation {
+    condition     = contains(["dev", "prod"], var.deployed_env)
+    error_message = "deployed_env must be either 'dev' or 'prod'."
+  }
+}

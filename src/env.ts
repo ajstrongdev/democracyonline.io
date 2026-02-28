@@ -57,6 +57,10 @@ export const env = createEnv({
       .refine((val) => Number.isFinite(val) && val > 0, {
         message: "DAILY_COMPANY_MINT_CAP must be a positive integer",
       }),
+    HOURLY_ADVANCE_SCHEDULE_UTC: z.string().optional().default("0 * * * *"),
+    BILL_ADVANCE_SCHEDULE_UTC: z.string().optional().default("0 4,12,20 * * *"),
+    GAME_ADVANCE_SCHEDULE_UTC: z.string().optional().default("0 20 * * *"),
+    DEPLOYED_ENV: z.string().optional().default("local"),
   },
 
   /**
@@ -95,6 +99,10 @@ export const env = createEnv({
       process.env.ENABLE_BUY_PRESSURE_MINT_TRIGGER,
     BUY_PRESSURE_MINT_THRESHOLD: process.env.BUY_PRESSURE_MINT_THRESHOLD,
     DAILY_COMPANY_MINT_CAP: process.env.DAILY_COMPANY_MINT_CAP,
+    HOURLY_ADVANCE_SCHEDULE_UTC: process.env.HOURLY_ADVANCE_SCHEDULE_UTC,
+    BILL_ADVANCE_SCHEDULE_UTC: process.env.BILL_ADVANCE_SCHEDULE_UTC,
+    GAME_ADVANCE_SCHEDULE_UTC: process.env.GAME_ADVANCE_SCHEDULE_UTC,
+    DEPLOYED_ENV: process.env.DEPLOYED_ENV,
     // Client-side variables from import.meta.env
     VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
     VITE_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,

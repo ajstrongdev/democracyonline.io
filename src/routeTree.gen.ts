@@ -23,6 +23,7 @@ import { Route as CompaniesIndexRouteImport } from './routes/companies/index'
 import { Route as BillsIndexRouteImport } from './routes/bills/index'
 import { Route as BankIndexRouteImport } from './routes/bank/index'
 import { Route as ProfileIdRouteImport } from './routes/profile/$id'
+import { Route as PartiesPrimariesRouteImport } from './routes/parties/primaries'
 import { Route as PartiesCreateRouteImport } from './routes/parties/create'
 import { Route as PartiesIdRouteImport } from './routes/parties/$id'
 import { Route as ElectionsSenateRouteImport } from './routes/elections/senate'
@@ -40,8 +41,11 @@ import { Route as ApiHourlyAdvanceRouteImport } from './routes/api/hourly-advanc
 import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
 import { Route as ApiBotRouteImport } from './routes/api/bot'
 import { Route as ApiBillAdvanceRouteImport } from './routes/api/bill-advance'
+import { Route as PartiesCoalitionsIndexRouteImport } from './routes/parties/coalitions/index'
 import { Route as PartiesMergeIdRouteImport } from './routes/parties/merge/$id'
 import { Route as PartiesManageIdRouteImport } from './routes/parties/manage/$id'
+import { Route as PartiesCoalitionsCreateRouteImport } from './routes/parties/coalitions/create'
+import { Route as PartiesCoalitionsIdRouteImport } from './routes/parties/coalitions/$id'
 import { Route as CompaniesEditIdRouteImport } from './routes/companies/edit/$id'
 import { Route as BillsEditIdRouteImport } from './routes/bills/edit/$id'
 
@@ -113,6 +117,11 @@ const BankIndexRoute = BankIndexRouteImport.update({
 const ProfileIdRoute = ProfileIdRouteImport.update({
   id: '/profile/$id',
   path: '/profile/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartiesPrimariesRoute = PartiesPrimariesRouteImport.update({
+  id: '/parties/primaries',
+  path: '/parties/primaries',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PartiesCreateRoute = PartiesCreateRouteImport.update({
@@ -201,6 +210,11 @@ const ApiBillAdvanceRoute = ApiBillAdvanceRouteImport.update({
   path: '/api/bill-advance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartiesCoalitionsIndexRoute = PartiesCoalitionsIndexRouteImport.update({
+  id: '/parties/coalitions/',
+  path: '/parties/coalitions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PartiesMergeIdRoute = PartiesMergeIdRouteImport.update({
   id: '/parties/merge/$id',
   path: '/parties/merge/$id',
@@ -209,6 +223,16 @@ const PartiesMergeIdRoute = PartiesMergeIdRouteImport.update({
 const PartiesManageIdRoute = PartiesManageIdRouteImport.update({
   id: '/parties/manage/$id',
   path: '/parties/manage/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartiesCoalitionsCreateRoute = PartiesCoalitionsCreateRouteImport.update({
+  id: '/parties/coalitions/create',
+  path: '/parties/coalitions/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartiesCoalitionsIdRoute = PartiesCoalitionsIdRouteImport.update({
+  id: '/parties/coalitions/$id',
+  path: '/parties/coalitions/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompaniesEditIdRoute = CompaniesEditIdRouteImport.update({
@@ -248,6 +272,7 @@ export interface FileRoutesByFullPath {
   '/elections/senate': typeof ElectionsSenateRoute
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
+  '/parties/primaries': typeof PartiesPrimariesRoute
   '/profile/$id': typeof ProfileIdRoute
   '/bank': typeof BankIndexRoute
   '/bills': typeof BillsIndexRoute
@@ -256,8 +281,11 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileIndexRoute
   '/bills/edit/$id': typeof BillsEditIdRoute
   '/companies/edit/$id': typeof CompaniesEditIdRoute
+  '/parties/coalitions/$id': typeof PartiesCoalitionsIdRoute
+  '/parties/coalitions/create': typeof PartiesCoalitionsCreateRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
   '/parties/merge/$id': typeof PartiesMergeIdRoute
+  '/parties/coalitions': typeof PartiesCoalitionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -285,6 +313,7 @@ export interface FileRoutesByTo {
   '/elections/senate': typeof ElectionsSenateRoute
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
+  '/parties/primaries': typeof PartiesPrimariesRoute
   '/profile/$id': typeof ProfileIdRoute
   '/bank': typeof BankIndexRoute
   '/bills': typeof BillsIndexRoute
@@ -293,8 +322,11 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileIndexRoute
   '/bills/edit/$id': typeof BillsEditIdRoute
   '/companies/edit/$id': typeof CompaniesEditIdRoute
+  '/parties/coalitions/$id': typeof PartiesCoalitionsIdRoute
+  '/parties/coalitions/create': typeof PartiesCoalitionsCreateRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
   '/parties/merge/$id': typeof PartiesMergeIdRoute
+  '/parties/coalitions': typeof PartiesCoalitionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -323,6 +355,7 @@ export interface FileRoutesById {
   '/elections/senate': typeof ElectionsSenateRoute
   '/parties/$id': typeof PartiesIdRoute
   '/parties/create': typeof PartiesCreateRoute
+  '/parties/primaries': typeof PartiesPrimariesRoute
   '/profile/$id': typeof ProfileIdRoute
   '/bank/': typeof BankIndexRoute
   '/bills/': typeof BillsIndexRoute
@@ -331,8 +364,11 @@ export interface FileRoutesById {
   '/profile/': typeof ProfileIndexRoute
   '/bills/edit/$id': typeof BillsEditIdRoute
   '/companies/edit/$id': typeof CompaniesEditIdRoute
+  '/parties/coalitions/$id': typeof PartiesCoalitionsIdRoute
+  '/parties/coalitions/create': typeof PartiesCoalitionsCreateRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
   '/parties/merge/$id': typeof PartiesMergeIdRoute
+  '/parties/coalitions/': typeof PartiesCoalitionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -362,6 +398,7 @@ export interface FileRouteTypes {
     | '/elections/senate'
     | '/parties/$id'
     | '/parties/create'
+    | '/parties/primaries'
     | '/profile/$id'
     | '/bank'
     | '/bills'
@@ -370,8 +407,11 @@ export interface FileRouteTypes {
     | '/profile'
     | '/bills/edit/$id'
     | '/companies/edit/$id'
+    | '/parties/coalitions/$id'
+    | '/parties/coalitions/create'
     | '/parties/manage/$id'
     | '/parties/merge/$id'
+    | '/parties/coalitions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -399,6 +439,7 @@ export interface FileRouteTypes {
     | '/elections/senate'
     | '/parties/$id'
     | '/parties/create'
+    | '/parties/primaries'
     | '/profile/$id'
     | '/bank'
     | '/bills'
@@ -407,8 +448,11 @@ export interface FileRouteTypes {
     | '/profile'
     | '/bills/edit/$id'
     | '/companies/edit/$id'
+    | '/parties/coalitions/$id'
+    | '/parties/coalitions/create'
     | '/parties/manage/$id'
     | '/parties/merge/$id'
+    | '/parties/coalitions'
   id:
     | '__root__'
     | '/'
@@ -436,6 +480,7 @@ export interface FileRouteTypes {
     | '/elections/senate'
     | '/parties/$id'
     | '/parties/create'
+    | '/parties/primaries'
     | '/profile/$id'
     | '/bank/'
     | '/bills/'
@@ -444,8 +489,11 @@ export interface FileRouteTypes {
     | '/profile/'
     | '/bills/edit/$id'
     | '/companies/edit/$id'
+    | '/parties/coalitions/$id'
+    | '/parties/coalitions/create'
     | '/parties/manage/$id'
     | '/parties/merge/$id'
+    | '/parties/coalitions/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -474,6 +522,7 @@ export interface RootRouteChildren {
   ElectionsSenateRoute: typeof ElectionsSenateRoute
   PartiesIdRoute: typeof PartiesIdRoute
   PartiesCreateRoute: typeof PartiesCreateRoute
+  PartiesPrimariesRoute: typeof PartiesPrimariesRoute
   ProfileIdRoute: typeof ProfileIdRoute
   BankIndexRoute: typeof BankIndexRoute
   BillsIndexRoute: typeof BillsIndexRoute
@@ -482,8 +531,11 @@ export interface RootRouteChildren {
   ProfileIndexRoute: typeof ProfileIndexRoute
   BillsEditIdRoute: typeof BillsEditIdRoute
   CompaniesEditIdRoute: typeof CompaniesEditIdRoute
+  PartiesCoalitionsIdRoute: typeof PartiesCoalitionsIdRoute
+  PartiesCoalitionsCreateRoute: typeof PartiesCoalitionsCreateRoute
   PartiesManageIdRoute: typeof PartiesManageIdRoute
   PartiesMergeIdRoute: typeof PartiesMergeIdRoute
+  PartiesCoalitionsIndexRoute: typeof PartiesCoalitionsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -584,6 +636,13 @@ declare module '@tanstack/react-router' {
       path: '/profile/$id'
       fullPath: '/profile/$id'
       preLoaderRoute: typeof ProfileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parties/primaries': {
+      id: '/parties/primaries'
+      path: '/parties/primaries'
+      fullPath: '/parties/primaries'
+      preLoaderRoute: typeof PartiesPrimariesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/parties/create': {
@@ -705,6 +764,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBillAdvanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parties/coalitions/': {
+      id: '/parties/coalitions/'
+      path: '/parties/coalitions'
+      fullPath: '/parties/coalitions'
+      preLoaderRoute: typeof PartiesCoalitionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/parties/merge/$id': {
       id: '/parties/merge/$id'
       path: '/parties/merge/$id'
@@ -717,6 +783,20 @@ declare module '@tanstack/react-router' {
       path: '/parties/manage/$id'
       fullPath: '/parties/manage/$id'
       preLoaderRoute: typeof PartiesManageIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parties/coalitions/create': {
+      id: '/parties/coalitions/create'
+      path: '/parties/coalitions/create'
+      fullPath: '/parties/coalitions/create'
+      preLoaderRoute: typeof PartiesCoalitionsCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parties/coalitions/$id': {
+      id: '/parties/coalitions/$id'
+      path: '/parties/coalitions/$id'
+      fullPath: '/parties/coalitions/$id'
+      preLoaderRoute: typeof PartiesCoalitionsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/companies/edit/$id': {
@@ -762,6 +842,7 @@ const rootRouteChildren: RootRouteChildren = {
   ElectionsSenateRoute: ElectionsSenateRoute,
   PartiesIdRoute: PartiesIdRoute,
   PartiesCreateRoute: PartiesCreateRoute,
+  PartiesPrimariesRoute: PartiesPrimariesRoute,
   ProfileIdRoute: ProfileIdRoute,
   BankIndexRoute: BankIndexRoute,
   BillsIndexRoute: BillsIndexRoute,
@@ -770,8 +851,11 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileIndexRoute: ProfileIndexRoute,
   BillsEditIdRoute: BillsEditIdRoute,
   CompaniesEditIdRoute: CompaniesEditIdRoute,
+  PartiesCoalitionsIdRoute: PartiesCoalitionsIdRoute,
+  PartiesCoalitionsCreateRoute: PartiesCoalitionsCreateRoute,
   PartiesManageIdRoute: PartiesManageIdRoute,
   PartiesMergeIdRoute: PartiesMergeIdRoute,
+  PartiesCoalitionsIndexRoute: PartiesCoalitionsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

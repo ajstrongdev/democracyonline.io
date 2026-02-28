@@ -354,6 +354,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/democracy
 
 # Optional
 NODE_ENV=development
+DEPLOYED_ENV=local
 ```
 
 See [docs/FIREBASE_AUTH.md](FIREBASE_AUTH.md) for Firebase setup instructions.

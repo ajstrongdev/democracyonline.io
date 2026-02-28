@@ -33,7 +33,9 @@ import { Slider } from "@/components/ui/slider";
 import GenericSkeleton from "@/components/generic-skeleton";
 import { MessageDialog } from "@/components/message-dialog";
 import PartyLogo from "@/components/party-logo";
+import CoalitionLogo from "@/components/coalition-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
+import { getPartyCoalition } from "@/lib/server/coalitions";
 
 export const Route = createFileRoute("/elections/president")({
   loader: async () => {
@@ -90,6 +92,9 @@ function CandidateItem({
   const [party, setParty] = useState<Awaited<
     ReturnType<typeof getPartyById>
   > | null>(null);
+  const [coalition, setCoalition] = useState<Awaited<
+    ReturnType<typeof getPartyCoalition>
+  > | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [donationAmount, setDonationAmount] = useState<string>("");
   const [isDonating, setIsDonating] = useState(false);
@@ -108,6 +113,11 @@ function CandidateItem({
               data: { partyId: user.partyId },
             });
             setParty(partyData);
+
+            const coalitionData = await getPartyCoalition({
+              data: { partyId: user.partyId },
+            });
+            setCoalition(coalitionData);
           }
         } catch (error) {
           console.error("Error loading candidate data:", error);
@@ -200,12 +210,38 @@ function CandidateItem({
                 {party && (
                   <>
                     {" • "}
-                    <span style={{ color: party.color || undefined }}>
+                    <Link
+                      to="/parties/$id"
+                      params={{ id: party.id.toString() }}
+                      className="inline-flex items-center gap-1 hover:underline"
+                      style={{ color: party.color || undefined }}
+                    >
+                      <PartyLogo party_id={party.id} size={16} />
                       {party.name}
-                    </span>
+                    </Link>
                   </>
                 )}
                 {!party && " • Independent"}
+                {coalition && (
+                  <>
+                    {" • "}
+                    <Link
+                      to="/parties/coalitions/$id"
+                      params={{ id: coalition.id.toString() }}
+                      className="inline-flex items-center gap-1 hover:underline"
+                      style={{ color: coalition.color || undefined }}
+                    >
+                      <CoalitionLogo
+                        coalition_id={coalition.id}
+                        size={16}
+                        color={coalition.color}
+                        logo={coalition.logo}
+                        name={coalition.name}
+                      />
+                      {coalition.name}
+                    </Link>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -775,8 +811,26 @@ function RouteComponent() {
               </Alert>
             )}
 
-            {/* Candidacy Phase */}
-            {electionInfo.status === "Candidate" && (
+            {/* Primaries Banner */}
+            {electionInfo.status === "Candidate" && userData?.partyId && (
+              <Alert className="mb-6 border-primary/50 bg-primary/10">
+                <Users className="h-4 w-4" />
+                <AlertTitle className="font-bold">
+                  Party Primaries Active
+                </AlertTitle>
+                <AlertDescription className="md:flex md:items-center md:justify-between">
+                  Your party is running a presidential primary. Win your
+                  party&apos;s primary to be automatically registered as a
+                  presidential candidate when voting begins.
+                  <Button className="mt-4 md:mt-0" asChild>
+                    <Link to="/parties/primaries">Go to Primaries</Link>
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Candidacy Phase — only for independents (no party) */}
+            {electionInfo.status === "Candidate" && !userData?.partyId && (
               <Alert
                 className={
                   isAlreadyCandidate || !isACandidate || isSenator
