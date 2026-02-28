@@ -84,3 +84,6 @@ terraform.rc
 
 # Temporary files
 tmp/
+
+# Local script overrides
+src/scripts/sync-cloud-sql-prod-to-dev.sh

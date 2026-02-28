@@ -97,6 +97,7 @@ function PrimariesPage() {
       await withdrawPrimaryCandidate({
         data: { endorseCandidateId: endorseCandidateId ?? undefined },
       });
+      setShowWithdrawDialog(false);
       router.invalidate();
     } catch (error: any) {
       alert(error.message);
