@@ -58,11 +58,9 @@ export const env = createEnv({
         message: "DAILY_COMPANY_MINT_CAP must be a positive integer",
       }),
     HOURLY_ADVANCE_SCHEDULE_UTC: z.string().optional().default("0 * * * *"),
-    BILL_ADVANCE_SCHEDULE_UTC: z
-      .string()
-      .optional()
-      .default("0 4,12,20 * * *"),
+    BILL_ADVANCE_SCHEDULE_UTC: z.string().optional().default("0 4,12,20 * * *"),
     GAME_ADVANCE_SCHEDULE_UTC: z.string().optional().default("0 20 * * *"),
+    DEPLOYED_ENV: z.string().optional().default("local"),
   },
 
   /**
@@ -104,6 +102,7 @@ export const env = createEnv({
     HOURLY_ADVANCE_SCHEDULE_UTC: process.env.HOURLY_ADVANCE_SCHEDULE_UTC,
     BILL_ADVANCE_SCHEDULE_UTC: process.env.BILL_ADVANCE_SCHEDULE_UTC,
     GAME_ADVANCE_SCHEDULE_UTC: process.env.GAME_ADVANCE_SCHEDULE_UTC,
+    DEPLOYED_ENV: process.env.DEPLOYED_ENV,
     // Client-side variables from import.meta.env
     VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
     VITE_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,

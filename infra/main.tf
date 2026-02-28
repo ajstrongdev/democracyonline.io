@@ -457,6 +457,11 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
+        name  = "DEPLOYED_ENV"
+        value = var.deployed_env
+      }
+
+      env {
         name  = "CRON_SCHEDULER_TOKEN"
         value = var.cron_scheduler_token
       }
