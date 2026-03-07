@@ -1,6 +1,6 @@
 import { Check, Palette } from "lucide-react";
 import { useState } from "react";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@ajstrongdev/start-themes";
 import { themes } from "@/lib/server/theme";
 import type { ThemeId } from "@/lib/server/theme";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
