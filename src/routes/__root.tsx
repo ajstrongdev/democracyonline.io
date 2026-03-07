@@ -17,8 +17,12 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { getThemeServerFn, getThemeClasses } from "@/lib/server/theme";
-import { ThemeProvider } from "@/components/theme-provider";
+import {
+  getThemeServerFn,
+  getThemeClasses,
+  setThemeServerFn,
+} from "@/lib/server/theme";
+import { ThemeProvider } from "@ajstrongdev/start-themes";
 import { NotFound } from "@/components/not-found";
 
 type AuthContext = {
@@ -70,7 +74,10 @@ function RootLayout() {
   const { theme } = Route.useLoaderData();
 
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider
+      theme={theme}
+      onThemeChange={(t) => setThemeServerFn({ data: t })}
+    >
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
