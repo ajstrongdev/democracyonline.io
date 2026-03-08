@@ -5,6 +5,7 @@ import {
   redirect,
   useNavigate,
 } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   Crown,
@@ -44,6 +45,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { icons } from "@/lib/utils/logo-helper";
 import GenericSkeleton from "@/components/generic-skeleton";
 
+const coalitionQueryKeys = {
+  details: (coalitionId: number, userId: number | null) =>
+    ["coalition", "details", coalitionId, userId] as const,
+  userInfo: ["coalition", "userInfo"] as const,
+};
+
 export const Route = createFileRoute("/parties/coalitions/$id")({
   loader: async ({ params }) => {
     const coalitionId = Number(params.id);
@@ -68,19 +75,50 @@ export const Route = createFileRoute("/parties/coalitions/$id")({
 });
 
 function CoalitionPage() {
-  const {
-    coalition,
-    memberParties,
-    pendingRequests,
-    callerPartyId: loaderCallerPartyId,
-    callerCoalitionId: loaderCallerCoalitionId,
-    userInfo: loaderUserInfo,
-  } = Route.useLoaderData();
-  const userInfo = useUserData(loaderUserInfo);
+  const loaderData = Route.useLoaderData();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
+  const { data: rawUserInfo } = useQuery({
+    queryKey: coalitionQueryKeys.userInfo,
+    queryFn: () => getCurrentUserInfo(),
+    initialData: loaderData.userInfo,
+  });
+  const userInfo = useUserData(rawUserInfo);
+
+  const coalitionId = loaderData.coalition?.id;
+
+  const { data: details } = useQuery({
+    queryKey: coalitionQueryKeys.details(coalitionId!, userInfo?.id ?? null),
+    queryFn: () =>
+      getCoalitionDetails({
+        data: { coalitionId: coalitionId!, userId: userInfo?.id ?? null },
+      }),
+    initialData: {
+      coalition: loaderData.coalition,
+      memberParties: loaderData.memberParties,
+      pendingRequests: loaderData.pendingRequests,
+      isMemberPartyLeader: false,
+      callerPartyId: loaderData.callerPartyId,
+      callerCoalitionId: loaderData.callerCoalitionId,
+    },
+    enabled: !!coalitionId,
+  });
+
+  const { coalition, memberParties, pendingRequests } = details;
+
+  const invalidateCoalitionData = () => {
+    if (!coalitionId) return;
+    queryClient.invalidateQueries({
+      queryKey: coalitionQueryKeys.details(coalitionId, userInfo?.id ?? null),
+    });
+    queryClient.invalidateQueries({
+      queryKey: coalitionQueryKeys.userInfo,
+    });
+  };
+
   // Re-derive membership status client-side for robustness
-  const callerPartyId = userInfo?.partyId ?? loaderCallerPartyId;
+  const callerPartyId = userInfo?.partyId ?? details.callerPartyId;
   const memberPartyIds = memberParties.map((p) => p.id);
   const isInThisCoalition =
     callerPartyId != null && memberPartyIds.includes(callerPartyId);
@@ -90,7 +128,7 @@ function CoalitionPage() {
   const canJoin =
     callerPartyId != null &&
     !isInThisCoalition &&
-    loaderCallerCoalitionId == null;
+    details.callerCoalitionId == null;
 
   // Edit state
   const [editing, setEditing] = useState(false);
@@ -130,10 +168,7 @@ function CoalitionPage() {
         },
       });
       setEditing(false);
-      navigate({
-        to: "/parties/coalitions/$id",
-        params: { id: coalition.id.toString() },
-      });
+      invalidateCoalitionData();
     } catch (e: any) {
       alert(e.message);
     }
@@ -142,10 +177,7 @@ function CoalitionPage() {
   const handleJoin = async () => {
     try {
       await requestJoinCoalition({ data: { coalitionId: coalition.id } });
-      navigate({
-        to: "/parties/coalitions/$id",
-        params: { id: coalition.id.toString() },
-      });
+      invalidateCoalitionData();
     } catch (e: any) {
       alert(e.message);
     }
@@ -163,10 +195,7 @@ function CoalitionPage() {
   const handleAccept = async (requestId: number) => {
     try {
       await acceptJoinRequest({ data: { requestId } });
-      navigate({
-        to: "/parties/coalitions/$id",
-        params: { id: coalition.id.toString() },
-      });
+      invalidateCoalitionData();
     } catch (e: any) {
       alert(e.message);
     }
@@ -175,10 +204,7 @@ function CoalitionPage() {
   const handleDecline = async (requestId: number) => {
     try {
       await declineJoinRequest({ data: { requestId } });
-      navigate({
-        to: "/parties/coalitions/$id",
-        params: { id: coalition.id.toString() },
-      });
+      invalidateCoalitionData();
     } catch (e: any) {
       alert(e.message);
     }
