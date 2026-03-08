@@ -42,6 +42,7 @@ export const Route = createFileRoute("/parties/coalitions/")({
     return { coalitions: coalitionsList, userInfo };
   },
   component: CoalitionsPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function CoalitionsPage() {

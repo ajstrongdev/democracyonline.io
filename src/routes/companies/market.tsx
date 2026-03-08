@@ -54,6 +54,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/companies/market")({
   loader: async () => {
@@ -122,6 +123,7 @@ export const Route = createFileRoute("/companies/market")({
     };
   },
   component: MarketPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 // ─── Order Status Badge ─────────────────────────────────────────────────────

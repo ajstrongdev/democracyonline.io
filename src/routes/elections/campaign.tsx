@@ -12,14 +12,12 @@ import {
   Vote,
 } from "lucide-react";
 import { toast } from "sonner";
-import type {CampaignData, CampaignItem} from "@/lib/server/campaign";
+import type { CampaignData, CampaignItem } from "@/lib/server/campaign";
 import { getCurrentUserInfo } from "@/lib/server/users";
 import {
-  
-  
   getCampaignData,
   getCampaignItems,
-  purchaseCampaignItem
+  purchaseCampaignItem,
 } from "@/lib/server/campaign";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import ProtectedRoute from "@/components/auth/protected-route";
@@ -33,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/elections/campaign")({
   loader: async () => {
@@ -54,6 +53,7 @@ export const Route = createFileRoute("/elections/campaign")({
     return { userData, campaignData, campaignItems };
   },
   component: RouteComponent,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function formatNumber(num: number): string {
@@ -147,7 +147,8 @@ function RouteComponent() {
 
   const [localCampaignData, setLocalCampaignData] =
     useState<CampaignData | null>(campaignData);
-  const [localItems, setLocalItems] = useState<Array<CampaignItem>>(initialItems);
+  const [localItems, setLocalItems] =
+    useState<Array<CampaignItem>>(initialItems);
   const [purchasingItemId, setPurchasingItemId] = useState<number | null>(null);
 
   // Not a candidate

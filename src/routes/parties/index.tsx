@@ -46,6 +46,7 @@ export const Route = createFileRoute("/parties/")({
     };
   },
   component: PartyDetailsPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function PartyDetailsPage() {

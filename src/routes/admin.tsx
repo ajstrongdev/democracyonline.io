@@ -32,6 +32,7 @@ import {
 
 export const Route = createFileRoute("/admin")({
   component: RouteComponent,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 interface FirebaseUser {

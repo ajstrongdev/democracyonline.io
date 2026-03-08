@@ -69,6 +69,7 @@ export const Route = createFileRoute("/elections/senate")({
     };
   },
   component: RouteComponent,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 // Component to display individual candidate details

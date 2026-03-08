@@ -68,6 +68,7 @@ export const Route = createFileRoute("/elections/president")({
     };
   },
   component: RouteComponent,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function CandidateItem({

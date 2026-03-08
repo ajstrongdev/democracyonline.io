@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { MessageDialog } from "@/components/message-dialog";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/parties/$id")({
   loader: async ({ params }) => {
@@ -56,6 +57,7 @@ export const Route = createFileRoute("/parties/$id")({
   },
   gcTime: 0, // Force loader to refetch on client hydration
   component: PartyPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function PartyPage() {
@@ -274,7 +276,6 @@ function PartyPage() {
                           variant="outline"
                           className="w-full justify-start"
                           onClick={() => {
-                            // TODO: Implement edit party page
                             navigate({
                               to: "/parties/manage/$id",
                               params: {

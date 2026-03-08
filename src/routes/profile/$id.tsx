@@ -36,6 +36,7 @@ import PartyLogo from "@/components/party-logo";
 import { getLastSeenText } from "@/lib/constants";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import ProtectedRoute from "@/components/auth/protected-route";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/profile/$id")({
   loader: async ({ params }) => {
@@ -102,6 +103,7 @@ export const Route = createFileRoute("/profile/$id")({
     };
   },
   component: ProfilePage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function ProfilePage() {

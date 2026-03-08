@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { icons } from "@/lib/utils/logo-helper";
 import { useUserData } from "@/lib/hooks/use-user-data";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/companies/edit/$id")({
   loader: async ({ params }) => {
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/companies/edit/$id")({
     return { company, userData };
   },
   component: EditCompanyPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function EditCompanyPage() {

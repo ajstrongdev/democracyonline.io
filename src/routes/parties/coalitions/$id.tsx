@@ -42,6 +42,7 @@ import { useUserData } from "@/lib/hooks/use-user-data";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { icons } from "@/lib/utils/logo-helper";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/parties/coalitions/$id")({
   loader: async ({ params }) => {
@@ -63,6 +64,7 @@ export const Route = createFileRoute("/parties/coalitions/$id")({
   },
   gcTime: 0,
   component: CoalitionPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function CoalitionPage() {

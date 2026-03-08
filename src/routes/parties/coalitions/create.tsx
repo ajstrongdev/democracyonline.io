@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { icons } from "@/lib/utils/logo-helper";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/parties/coalitions/create")({
   loader: async () => {
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/parties/coalitions/create")({
     return { userData };
   },
   component: CreateCoalitionPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function CreateCoalitionPage() {
