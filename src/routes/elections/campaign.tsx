@@ -32,6 +32,15 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GenericSkeleton from "@/components/generic-skeleton";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+const campaignQueryKeys = {
+  userData: ["campaign", "userData"] as const,
+  campaignData: (userId: number) =>
+    ["campaign", "campaignData", userId] as const,
+  campaignItems: (candidateId: number) =>
+    ["campaign", "campaignItems", candidateId] as const,
+};
 
 export const Route = createFileRoute("/elections/campaign")({
   loader: async () => {
@@ -138,17 +147,35 @@ function ItemCard({
 }
 
 function RouteComponent() {
-  const {
-    userData: loaderUserData,
-    campaignData,
-    campaignItems: initialItems,
-  } = Route.useLoaderData();
-  const userData = useUserData(loaderUserData);
+  const loaderData = Route.useLoaderData();
+  const queryClient = useQueryClient();
 
-  const [localCampaignData, setLocalCampaignData] =
-    useState<CampaignData | null>(campaignData);
-  const [localItems, setLocalItems] =
-    useState<Array<CampaignItem>>(initialItems);
+  const { data: rawUserData } = useQuery({
+    queryKey: campaignQueryKeys.userData,
+    queryFn: () => getCurrentUserInfo(),
+    initialData: loaderData.userData,
+  });
+  const userData = useUserData(rawUserData);
+
+  const { data: localCampaignData } = useQuery({
+    queryKey: campaignQueryKeys.campaignData(userData?.id ?? 0),
+    queryFn: () => getCampaignData({ data: { userId: userData!.id } }),
+    initialData: loaderData.campaignData,
+    enabled: !!userData?.id,
+  });
+
+  const { data: localItems } = useQuery({
+    queryKey: campaignQueryKeys.campaignItems(
+      localCampaignData?.candidateId ?? 0,
+    ),
+    queryFn: () =>
+      getCampaignItems({
+        data: { candidateId: localCampaignData!.candidateId },
+      }),
+    initialData: loaderData.campaignItems,
+    enabled: !!localCampaignData?.candidateId,
+  });
+
   const [purchasingItemId, setPurchasingItemId] = useState<number | null>(null);
 
   // Not a candidate
@@ -228,21 +255,20 @@ function RouteComponent() {
         data: { candidateId: localCampaignData.candidateId, itemId },
       });
 
-      // Refresh data
-      const newCampaignData = await getCampaignData({
-        data: { userId: userData!.id },
-      });
-      const newItems = await getCampaignItems({
-        data: { candidateId: localCampaignData.candidateId },
-      });
-
-      setLocalCampaignData(newCampaignData);
-      setLocalItems(newItems);
-
       const item = localItems.find((i) => i.id === itemId);
       toast.success(
         `Purchased ${item?.name} for $${formatNumber(result.cost)}`,
       );
+
+      // Invalidate to refetch updated data
+      queryClient.invalidateQueries({
+        queryKey: campaignQueryKeys.campaignData(userData!.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: campaignQueryKeys.campaignItems(
+          localCampaignData!.candidateId,
+        ),
+      });
     } catch (error) {
       console.error("Purchase failed:", error);
       toast.error(
