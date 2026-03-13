@@ -1,5 +1,6 @@
-import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Cell,
@@ -36,6 +37,12 @@ import PartyLogo from "@/components/party-logo";
 import CoalitionLogo from "@/components/coalition-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { getPartyCoalition } from "@/lib/server/coalitions";
+
+const presidentQueryKeys = {
+  userData: ["president", "userData"] as const,
+  electionData: ["president", "electionData"] as const,
+  campaignHistory: ["president", "campaignHistory"] as const,
+};
 
 export const Route = createFileRoute("/elections/president")({
   loader: async () => {
@@ -78,6 +85,7 @@ function CandidateItem({
   currentUserMoney,
   rank,
   totalVotes,
+  onDonated,
 }: {
   candidate: Candidate;
   electionStatus: string;
@@ -85,8 +93,8 @@ function CandidateItem({
   currentUserMoney?: number;
   rank?: number;
   totalVotes: number;
+  onDonated: (candidateId: number, amount: number) => void;
 }) {
-  const router = useRouter();
   const [candidateUser, setCandidateUser] = useState<Awaited<
     ReturnType<typeof getUserFullById>
   > | null>(null);
@@ -157,8 +165,7 @@ function CandidateItem({
         `Donated $${amount} to ${candidateUser?.username}'s campaign!`,
       );
       setDonationAmount("");
-      // Reload the page to update balances
-      router.invalidate();
+      onDonated(candidate.id, amount);
     } catch (error) {
       console.error("Error donating:", error);
       toast.error("Failed to donate. Please try again.");
@@ -656,21 +663,91 @@ function CampaignGraphs({
 }
 
 function RouteComponent() {
-  const router = useRouter();
-  const {
-    electionInfo,
-    candidates,
-    campaignHistory,
-    isCandidateInAny,
-    userData: loaderUserData,
-  } = Route.useLoaderData();
-  const userData = useUserData(loaderUserData);
+  const loaderData = Route.useLoaderData();
+  const queryClient = useQueryClient();
+
+  const { data: rawUserData } = useQuery({
+    queryKey: presidentQueryKeys.userData,
+    queryFn: () => getCurrentUserInfo(),
+    initialData: loaderData.userData,
+  });
+  const userData = useUserData(rawUserData);
+
+  const { data: electionPageResult } = useQuery({
+    queryKey: presidentQueryKeys.electionData,
+    queryFn: () =>
+      electionPageData({
+        data: { election: "President", userId: userData?.id },
+      }),
+    initialData: {
+      electionInfo: loaderData.electionInfo,
+      candidates: loaderData.candidates,
+      votingStatus: loaderData.votingStatus,
+      isCandidateInAny: loaderData.isCandidateInAny,
+    },
+  });
+
+  const { data: campaignHistory } = useQuery({
+    queryKey: presidentQueryKeys.campaignHistory,
+    queryFn: () => getCampaignHistory({ data: { election: "President" } }),
+    initialData: loaderData.campaignHistory,
+  });
+
+  const electionInfo = electionPageResult.electionInfo;
+  const localCandidates = electionPageResult.candidates
+    ? [...electionPageResult.candidates].sort((a, b) => {
+        const partyA = a.partyName || "";
+        const partyB = b.partyName || "";
+        if (partyA !== partyB) {
+          if (!a.partyName) return 1;
+          if (!b.partyName) return -1;
+          return partyA.localeCompare(partyB);
+        }
+        return a.username.localeCompare(b.username);
+      })
+    : [];
+  const isCandidateInAny = electionPageResult.isCandidateInAny;
+
+  const invalidatePresidentData = () => {
+    queryClient.invalidateQueries({ queryKey: presidentQueryKeys.userData });
+    queryClient.invalidateQueries({
+      queryKey: presidentQueryKeys.electionData,
+    });
+    queryClient.invalidateQueries({
+      queryKey: presidentQueryKeys.campaignHistory,
+    });
+  };
+
+  const handleDonated = (candidateId: number, amount: number) => {
+    // Optimistically update the user's money
+    queryClient.setQueryData(
+      presidentQueryKeys.userData,
+      (old: typeof rawUserData) => {
+        if (!old) return old;
+        return { ...old, money: Number(old.money || 0) - amount };
+      },
+    );
+    // Optimistically update the candidate's donations
+    queryClient.setQueryData(
+      presidentQueryKeys.electionData,
+      (old: typeof electionPageResult) => {
+        if (!old) return old;
+        return {
+          ...old,
+          candidates: old.candidates.map((c) =>
+            c.id === candidateId
+              ? { ...c, donations: (c.donations || 0) + amount }
+              : c,
+          ),
+        };
+      },
+    );
+    // Background refetch to get authoritative data
+    invalidatePresidentData();
+  };
 
   const [showCandidacyDialog, setShowCandidacyDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [localCandidates, setLocalCandidates] = useState<Array<Candidate>>(
-    candidates || [],
-  );
 
   const isAlreadyCandidate =
     localCandidates &&
@@ -683,19 +760,10 @@ function RouteComponent() {
     if (!userData) return;
     setIsSubmitting(true);
     try {
-      const newCandidate = await declareCandidate({
+      await declareCandidate({
         data: { election: "President" },
       });
-      setLocalCandidates((prev) => [
-        ...prev,
-        {
-          ...newCandidate,
-          username: userData.username,
-          partyName: null,
-          partyColor: null,
-        },
-      ]);
-      router.invalidate();
+      invalidatePresidentData();
     } catch (error) {
       console.error("Error standing as candidate:", error);
     } finally {
@@ -710,10 +778,7 @@ function RouteComponent() {
       await revokeCandidate({
         data: { election: "President" },
       });
-      setLocalCandidates((prev) =>
-        prev.filter((c) => c.userId !== userData.id),
-      );
-      router.invalidate();
+      invalidatePresidentData();
     } catch (error) {
       console.error("Error revoking candidacy:", error);
     } finally {
@@ -947,6 +1012,7 @@ function RouteComponent() {
                             : undefined
                         }
                         totalVotes={totalVotes}
+                        onDonated={handleDonated}
                       />
                     ))}
                   </div>
