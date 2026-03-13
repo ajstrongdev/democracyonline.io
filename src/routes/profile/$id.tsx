@@ -8,8 +8,10 @@ import {
   Edit,
   Handshake,
   History,
+  TrendingUp,
   UserCircle,
   Users,
+  Wallet,
   XCircle,
 } from "lucide-react";
 import { useState } from "react";
@@ -146,6 +148,13 @@ function ProfilePage() {
   }
 
   const isOwnProfile = currentUser?.id === targetUser.id;
+
+  const cashBalance = Number(targetUser.money || 0);
+  const stockValue = dividendCompanies.reduce(
+    (sum, c) => sum + c.sharesOwned * (c.stockPrice || 0),
+    0,
+  );
+  const netWorth = cashBalance + stockValue;
 
   const loadMoreVotes = () => {
     const nextBatch = allVotes.slice(currentOffset, currentOffset + 10);
@@ -313,6 +322,36 @@ function ProfilePage() {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-5 border rounded-lg bg-card">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <Wallet className="w-4 h-4" />
+              <p className="text-sm font-medium">Net Worth</p>
+            </div>
+            <p className="text-lg font-semibold">
+              ${netWorth.toLocaleString()}
+            </p>
+          </div>
+          <div className="p-5 border rounded-lg bg-card">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <DollarSign className="w-4 h-4" />
+              <p className="text-sm font-medium">Cash</p>
+            </div>
+            <p className="text-lg font-semibold">
+              ${cashBalance.toLocaleString()}
+            </p>
+          </div>
+          <div className="p-5 border rounded-lg bg-card">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <TrendingUp className="w-4 h-4" />
+              <p className="text-sm font-medium">Stock Holdings</p>
+            </div>
+            <p className="text-lg font-semibold">
+              ${stockValue.toLocaleString()}
+            </p>
+          </div>
         </div>
 
         <Tabs defaultValue="companies" className="w-full">
