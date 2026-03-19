@@ -507,7 +507,7 @@ function CampaignGraphs({
                   {candidates.map((candidate) => (
                     <Line
                       key={candidate.id}
-                      type="natural"
+                      type="monotone"
                       dataKey={candidate.username}
                       stroke={candidateColors[candidate.id]}
                       strokeWidth={3}
@@ -640,7 +640,7 @@ function CampaignGraphs({
                   {candidates.map((candidate) => (
                     <Line
                       key={candidate.id}
-                      type="natural"
+                      type="monotone"
                       dataKey={candidate.username}
                       stroke={candidateColors[candidate.id]}
                       strokeWidth={3}
