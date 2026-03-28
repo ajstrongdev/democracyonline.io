@@ -36,6 +36,7 @@ import {
   positiveMoneyAmountSchema,
   positiveQuantitySchema,
 } from "@/lib/schemas/finance-schema";
+import { userEmailEquals } from "@/lib/server/user-email";
 
 const MAX_OPEN_ORDER_SHARES_PER_COMPANY = 5;
 const COMPANY_CREATION_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -289,7 +290,7 @@ export const createCompany = createServerFn({ method: "POST" })
     const [currentUser] = await db
       .select()
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser) {
@@ -444,7 +445,7 @@ export const updateCompany = createServerFn()
     const [currentUser] = await db
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser) {
@@ -486,7 +487,7 @@ export const getUserShares = createServerFn()
     const [currentUser] = await db
       .select()
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser) {
@@ -526,7 +527,7 @@ export const buyShares = createServerFn()
     const [currentUser] = await db
       .select()
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser) {
@@ -670,7 +671,7 @@ export const sellShares = createServerFn()
     const [currentUser] = await db
       .select()
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser) {
@@ -814,7 +815,7 @@ export const getUserOrders = createServerFn()
     const [currentUser] = await db
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser) {
@@ -858,7 +859,7 @@ export const cancelOrder = createServerFn()
     const [currentUser] = await db
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser) {
@@ -999,7 +1000,7 @@ export const investInCompany = createServerFn()
     const [currentUser] = await db
       .select()
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser) {
