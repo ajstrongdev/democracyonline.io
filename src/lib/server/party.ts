@@ -14,6 +14,7 @@ import {
   CreatePartySchema,
   UpdatePartySchema,
 } from "@/lib/schemas/party-schema";
+import { userEmailEquals } from "@/lib/server/user-email";
 import { requireAuthMiddleware } from "@/middleware";
 
 // Data fetching
@@ -44,7 +45,7 @@ export const checkUserInParty = createServerFn()
     const [user] = await db
       .select({ partyId: users.partyId })
       .from(users)
-      .where(eq(sql`lower(${users.email})`, sql`lower(${data.email})`))
+      .where(userEmailEquals(data.email))
       .limit(1);
 
     return user?.partyId !== null && user?.partyId !== undefined;
@@ -202,7 +203,7 @@ export const updateParty = createServerFn()
     const [currentUser] = await db
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser) {
@@ -262,7 +263,7 @@ export const leaveParty = createServerFn()
     const [currentUser] = await db
       .select({ id: users.id, partyId: users.partyId })
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser || currentUser.id !== data.userId) {
@@ -338,7 +339,7 @@ export const joinParty = createServerFn()
     const [currentUser] = await db
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser || currentUser.id !== data.userId) {
@@ -364,7 +365,7 @@ export const becomePartyLeader = createServerFn()
     const [currentUser] = await db
       .select({ id: users.id, partyId: users.partyId })
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser || currentUser.id !== data.userId) {
@@ -458,7 +459,7 @@ export const withdrawPartyFunds = createServerFn()
     const [currentUser] = await db
       .select({ id: users.id, money: users.money })
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser) {

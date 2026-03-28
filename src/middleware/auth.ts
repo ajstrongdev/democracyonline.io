@@ -1,11 +1,11 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getCookie, getRequest, setCookie } from "@tanstack/react-start/server";
 import { getAuth } from "firebase-admin/auth";
-import { eq } from "drizzle-orm";
 import { auth } from "@/lib/firebase";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { getAdminApp } from "@/lib/firebase-admin";
+import { userEmailEquals } from "@/lib/server/user-email";
 import { env } from "@/env";
 
 export interface AuthContext {
@@ -126,7 +126,7 @@ export const userActivityMiddleware = createMiddleware({ type: "function" })
             lastActivity: 0,
             isActive: true,
           })
-          .where(eq(users.email, context.user.email));
+          .where(userEmailEquals(context.user.email));
 
         setCookie(activityCookieName, "1", {
           maxAge: activityCookieMaxAge,

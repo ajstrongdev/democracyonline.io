@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setCookie } from "@tanstack/react-start/server";
-import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   accessTokens,
@@ -18,6 +18,7 @@ import { getAdminAuth } from "@/lib/firebase-admin";
 import { UpdateUserProfileSchema } from "@/lib/schemas/user-schema";
 import { SearchUsersSchema } from "@/lib/schemas/user-search-schema";
 import { positiveMoneyAmountSchema } from "@/lib/schemas/finance-schema";
+import { normalizeEmail, userEmailEquals } from "@/lib/server/user-email";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware";
 import { env } from "@/env";
 
@@ -48,20 +49,27 @@ export const validateAccessToken = createServerFn({ method: "POST" })
 export const createUser = createServerFn({ method: "POST" })
   .inputValidator(CreateUserSchema)
   .handler(async ({ data }) => {
+    const normalizedEmail = normalizeEmail(data.email);
     const existingUser = await db
-      .select({ username: users.username })
+      .select({ username: users.username, email: users.email })
       .from(users)
-      .where(eq(users.username, data.username))
+      .where(or(eq(users.username, data.username), userEmailEquals(data.email)))
       .limit(1);
 
-    if (existingUser.length > 0) {
+    if (existingUser.some((user) => user.username === data.username)) {
       throw new Error("Username already exists");
+    }
+
+    if (
+      existingUser.some((user) => normalizeEmail(user.email) === normalizedEmail)
+    ) {
+      throw new Error("Email already exists");
     }
 
     const [newUser] = await db
       .insert(users)
       .values({
-        email: data.email,
+        email: normalizedEmail,
         username: data.username,
         bio: data.bio || null,
         politicalLeaning: data.politicalLeaning || null,
@@ -96,7 +104,7 @@ export const fetchUserInfoByEmail = createServerFn()
     const user = await db
       .select(userColumns)
       .from(users)
-      .where(eq(sql`lower(${users.email})`, sql`lower(${data.email})`))
+      .where(userEmailEquals(data.email))
       .limit(1);
     return user;
   });
@@ -111,7 +119,7 @@ export const getCurrentUserInfo = createServerFn()
     const user = await db
       .select(userColumns)
       .from(users)
-      .where(eq(sql`lower(${users.email})`, sql`lower(${context.user.email})`))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
     return user[0] ?? null;
   });
@@ -176,7 +184,7 @@ export const updateUserProfile = createServerFn({ method: "POST" })
     const [currentUser] = await db
       .select({ id: users.id })
       .from(users)
-      .where(eq(sql`lower(${users.email})`, sql`lower(${context.user.email})`))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (currentUser.id !== data.userId) {
