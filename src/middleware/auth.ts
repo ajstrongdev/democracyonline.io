@@ -1,6 +1,7 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getCookie, getRequest, setCookie } from "@tanstack/react-start/server";
 import { getAuth } from "firebase-admin/auth";
+import { eq } from "drizzle-orm";
 import { auth } from "@/lib/firebase";
 import { db } from "@/db";
 import { users } from "@/db/schema";
@@ -120,13 +121,31 @@ export const userActivityMiddleware = createMiddleware({ type: "function" })
       const activityCookie = getCookie(activityCookieName);
 
       if (!activityCookie) {
+        const matchingUsers = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(userEmailEquals(context.user.email))
+          .limit(2);
+
+        if (matchingUsers.length > 1) {
+          console.error(
+            "Refusing to update activity for duplicate case-insensitive user email:",
+            context.user.email,
+          );
+          return next();
+        }
+
+        if (matchingUsers.length === 0) {
+          return next();
+        }
+
         await db
           .update(users)
           .set({
             lastActivity: 0,
             isActive: true,
           })
-          .where(userEmailEquals(context.user.email));
+          .where(eq(users.id, matchingUsers[0].id));
 
         setCookie(activityCookieName, "1", {
           maxAge: activityCookieMaxAge,

@@ -136,7 +136,7 @@ export const getCompanyCreationEligibility = createServerFn()
     const [currentUser] = await db
       .select({ id: users.id })
       .from(users)
-      .where(eq(sql`lower(${users.email})`, sql`lower(${context.user.email})`))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!currentUser) {
