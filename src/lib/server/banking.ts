@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
+import { userEmailEquals } from "@/lib/server/user-email";
 import { requireAuthMiddleware } from "@/middleware";
 
 export const getBankBalance = createServerFn()
@@ -14,7 +14,7 @@ export const getBankBalance = createServerFn()
     const [requestedUser] = await db
       .select()
       .from(users)
-      .where(eq(users.email, context.user.email))
+      .where(userEmailEquals(context.user.email))
       .limit(1);
 
     if (!requestedUser) {
