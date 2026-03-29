@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeftRight,
   Banknote,
@@ -26,6 +27,17 @@ import { Input } from "@/components/ui/input";
 import { MessageDialog } from "@/components/message-dialog";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
+import GenericSkeleton from "@/components/generic-skeleton";
+
+const partyQueryKeys = {
+  details: (partyId: number, userId: number | null) =>
+    ["party", "details", partyId, userId] as const,
+  mergeRequestCount: (partyId: number) =>
+    ["party", "mergeRequestCount", partyId] as const,
+  transactions: (partyId: number) =>
+    ["party", "transactions", partyId] as const,
+  userInfo: ["party", "userInfo"] as const,
+};
 
 export const Route = createFileRoute("/parties/$id")({
   loader: async ({ params }) => {
@@ -56,19 +68,76 @@ export const Route = createFileRoute("/parties/$id")({
   },
   gcTime: 0, // Force loader to refetch on client hydration
   component: PartyPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function PartyPage() {
-  const {
-    party,
-    stances,
-    members,
-    userInfo: loaderUserInfo,
-    mergeRequestCount,
-    transactions,
-  } = Route.useLoaderData();
-  const userInfo = useUserData(loaderUserInfo);
+  const loaderData = Route.useLoaderData();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  const { data: rawUserInfo } = useQuery({
+    queryKey: partyQueryKeys.userInfo,
+    queryFn: () => getCurrentUserInfo(),
+    initialData: loaderData.userInfo,
+  });
+  const userInfo = useUserData(rawUserInfo);
+
+  const partyId = loaderData.party?.id;
+
+  const { data: partyDetails } = useQuery({
+    queryKey: partyQueryKeys.details(partyId!, userInfo?.id ?? null),
+    queryFn: () =>
+      getPartyDetails({
+        data: { partyId: partyId!, userId: userInfo?.id ?? null },
+      }),
+    initialData: {
+      party: loaderData.party,
+      stances: loaderData.stances,
+      members: loaderData.members,
+      membershipStatus: {
+        isInParty: loaderData.members.some((m: any) => m.id === userInfo?.id),
+        isLeader: loaderData.party?.leaderId === userInfo?.id,
+      },
+    },
+    enabled: !!partyId,
+  });
+
+  const party = partyDetails.party;
+  const stances = partyDetails.stances;
+  const members = partyDetails.members;
+
+  const { data: mergeRequestCount } = useQuery({
+    queryKey: partyQueryKeys.mergeRequestCount(partyId!),
+    queryFn: () => getMergeRequestCount({ data: { partyId: partyId! } }),
+    initialData: loaderData.mergeRequestCount,
+    enabled: !!partyId,
+  });
+
+  const { data: transactions } = useQuery({
+    queryKey: partyQueryKeys.transactions(partyId!),
+    queryFn: () =>
+      getPartyTransactions({ data: { partyId: partyId!, limit: 20 } }),
+    initialData: loaderData.transactions,
+    enabled: !!partyId,
+  });
+
+  const invalidatePartyData = () => {
+    if (!partyId) return;
+    queryClient.invalidateQueries({
+      queryKey: partyQueryKeys.details(partyId, userInfo?.id ?? null),
+    });
+    queryClient.invalidateQueries({
+      queryKey: partyQueryKeys.mergeRequestCount(partyId),
+    });
+    queryClient.invalidateQueries({
+      queryKey: partyQueryKeys.transactions(partyId),
+    });
+    queryClient.invalidateQueries({
+      queryKey: partyQueryKeys.userInfo,
+    });
+  };
+
   const [showKickDialog, setShowKickDialog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{
     id: number;
@@ -83,7 +152,7 @@ function PartyPage() {
 
   // Hack: Determine membership status client-side since direct navigation caused the loader to return incomplete data.
   const membershipStatus = {
-    isInParty: members.some((m) => m.id === userInfo?.id),
+    isInParty: members.some((m: any) => m.id === userInfo?.id),
     isLeader: party?.leaderId === userInfo?.id,
   };
 
@@ -109,11 +178,7 @@ function PartyPage() {
       });
       setShowWithdrawDialog(false);
       setWithdrawAmount("");
-      // Refresh the page to show updated balance
-      navigate({
-        to: "/parties/$id",
-        params: { id: String(party.id) },
-      });
+      invalidatePartyData();
     } catch (error) {
       setWithdrawError(
         error instanceof Error ? error.message : "Failed to withdraw funds",
@@ -274,7 +339,6 @@ function PartyPage() {
                           variant="outline"
                           className="w-full justify-start"
                           onClick={() => {
-                            // TODO: Implement edit party page
                             navigate({
                               to: "/parties/manage/$id",
                               params: {
@@ -561,10 +625,7 @@ function PartyPage() {
                   userId: userInfo.id,
                 },
               });
-              navigate({
-                to: "/parties/$id",
-                params: { id: String(party.id) },
-              });
+              invalidatePartyData();
             }
             setShowLeaveDialog(false);
           }}
@@ -593,10 +654,7 @@ function PartyPage() {
               await joinParty({
                 data: { userId: userInfo.id, partyId: party.id },
               });
-              navigate({
-                to: "/parties/$id",
-                params: { id: String(party.id) },
-              });
+              invalidatePartyData();
             }
             setShowJoinDialog(false);
           }}
@@ -625,10 +683,7 @@ function PartyPage() {
               await becomePartyLeader({
                 data: { userId: userInfo.id, partyId: party.id },
               });
-              navigate({
-                to: "/parties/$id",
-                params: { id: String(party.id) },
-              });
+              invalidatePartyData();
             }
             setShowBecomeLeaderDialog(false);
           }}

@@ -4,6 +4,7 @@ import { UserStatsDisplay } from "@/components/search/UserStatsDisplay";
 import { SearchForm } from "@/components/search/SearchForm";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import ProtectedRoute from "@/components/auth/protected-route";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/search")({
   loader: async () => {
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/search")({
     return { stats, currentUser };
   },
   component: SearchPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function SearchPage() {

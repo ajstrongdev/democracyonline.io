@@ -29,6 +29,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PartyLogo from "@/components/party-logo";
 import { Button } from "@/components/ui/button";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/bank/")({
   loader: async () => {
@@ -72,6 +73,7 @@ export const Route = createFileRoute("/bank/")({
     };
   },
   component: RouteComponent,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function RouteComponent() {

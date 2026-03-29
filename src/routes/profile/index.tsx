@@ -27,4 +27,5 @@ export const Route = createFileRoute("/profile/")({
   component: () => {
     return <GenericSkeleton />;
   },
+  pendingComponent: () => <GenericSkeleton />,
 });

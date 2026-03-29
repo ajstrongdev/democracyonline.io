@@ -15,6 +15,7 @@ import { getCurrentUserInfo } from "@/lib/server/users";
 import { icons } from "@/lib/utils/logo-helper";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const POLITICAL_LEANINGS = [
   "Far Left",
@@ -68,6 +69,7 @@ export const Route = createFileRoute("/parties/manage/$id")({
     };
   },
   component: RouteComponent,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function RouteComponent() {

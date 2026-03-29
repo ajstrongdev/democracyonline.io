@@ -35,6 +35,7 @@ import {
 import { MessageDialog } from "@/components/message-dialog";
 import PartyLogo from "@/components/party-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/parties/primaries")({
   loader: async () => {
@@ -43,6 +44,7 @@ export const Route = createFileRoute("/parties/primaries")({
   },
   gcTime: 0,
   component: PrimariesPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function PrimariesPage() {

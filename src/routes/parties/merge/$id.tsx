@@ -28,6 +28,7 @@ import { icons } from "@/lib/utils/logo-helper";
 import PartyLogo from "@/components/party-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/parties/merge/$id")({
   loader: async ({ context, params }) => {
@@ -78,6 +79,7 @@ export const Route = createFileRoute("/parties/merge/$id")({
     };
   },
   component: MergePartyPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 export const leanings = [

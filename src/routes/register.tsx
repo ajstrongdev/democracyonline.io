@@ -1,8 +1,10 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { SignupForm } from "@/components/auth/signup-form";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function RegisterPage() {

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { formatCompanyCreationCooldown } from "@/lib/utils/company-creation-cooldown";
 import { calculateMarketCap } from "@/lib/utils/stock-economy";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/companies/")({
   component: CompaniesPage,
@@ -46,8 +47,14 @@ export const Route = createFileRoute("/companies/")({
       userHoldings = [];
     }
 
-    return { companies, priceHistory, userHoldings, companyCreationEligibility };
+    return {
+      companies,
+      priceHistory,
+      userHoldings,
+      companyCreationEligibility,
+    };
   },
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function CompaniesPage() {
@@ -77,10 +84,7 @@ function CompaniesPage() {
         }
       })
       .catch((error) => {
-        console.error(
-          "Failed to refresh company creation eligibility:",
-          error,
-        );
+        console.error("Failed to refresh company creation eligibility:", error);
       });
 
     return () => {
