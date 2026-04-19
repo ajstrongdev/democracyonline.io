@@ -188,6 +188,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     "ajstrongdev@pm.me",
     "robertjenner5@outlook.com",
     "spam@hpsaucii.dev",
+    "hwengerstickel@pm.me",
   ];
 
   const isAdmin = user?.email && ALLOWED_ADMIN_EMAILS.includes(user.email);
