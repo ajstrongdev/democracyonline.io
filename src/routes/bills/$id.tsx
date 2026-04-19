@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { billPageData } from "@/lib/server/bills";
+import { MarkdownContent } from "@/components/markdown-editor";
 import BillVotersList from "@/components/bill-votes-list";
 import { BackButton } from "@/components/back-button";
 import {
@@ -135,8 +136,14 @@ function BillDetailPage() {
                 <h3 className="text-sm sm:text-base md:text-lg font-semibold mb-2">
                   Bill Content
                 </h3>
-                <div className="p-3 sm:p-4 bg-muted/50 rounded-lg border whitespace-pre-wrap text-xs sm:text-sm leading-relaxed wrap-break-words overflow-x-auto">
-                  {bill.content || "No content available."}
+                <div className="p-3 sm:p-4 bg-muted/50 rounded-lg border text-xs sm:text-sm leading-relaxed overflow-x-auto">
+                  {bill.content ? (
+                    <MarkdownContent content={bill.content} />
+                  ) : (
+                    <p className="text-muted-foreground">
+                      No content available.
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>

@@ -6,7 +6,7 @@ import { getCurrentUserInfo } from "@/lib/server/users";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import { Label } from "@/components/ui/label";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
@@ -139,13 +139,13 @@ function RouteComponent() {
                 {(field) => (
                   <div className="space-y-2">
                     <Label htmlFor={field.name}>Content</Label>
-                    <Textarea
+                    <MarkdownEditor
                       id={field.name}
                       name={field.name}
                       value={field.state.value}
                       onBlur={field.handleBlur}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      placeholder="Describe the bill in detail"
+                      onChange={(val) => field.handleChange(val)}
+                      placeholder="Describe the bill in detail — you can use Markdown formatting"
                       rows={8}
                       disabled={isSubmitting}
                       required
