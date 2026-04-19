@@ -20,6 +20,7 @@ import {
 import { MessageDialog } from "@/components/message-dialog";
 import PartyLogo from "@/components/party-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
+import { MarkdownContent } from "@/components/markdown-editor";
 
 export const Route = createFileRoute("/bills/house-of-representatives")({
   loader: async () => {
@@ -165,9 +166,9 @@ function RouteComponent() {
                     </p>
                   </CardHeader>
                   <CardContent className="grow">
-                    <p className="text-foreground mb-2 whitespace-pre-wrap line-clamp-3">
-                      {bill.content}
-                    </p>
+                    <div className="text-foreground mb-2 line-clamp-3">
+                      <MarkdownContent content={bill.content} />
+                    </div>
                   </CardContent>
                   <CardFooter className="flex-col items-start gap-3">
                     {votesData[bill.id] ? (

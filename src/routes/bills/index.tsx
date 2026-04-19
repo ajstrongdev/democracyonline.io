@@ -18,6 +18,22 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import ProtectedRoute from "@/components/auth/protected-route";
 
+/** Strip markdown syntax for lightweight plaintext previews */
+function stripMarkdown(md: string): string {
+  return md
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*{1,3}(.+?)\*{1,3}/g, "$1")
+    .replace(/_{1,3}(.+?)_{1,3}/g, "$1")
+    .replace(/~~(.+?)~~/g, "$1")
+    .replace(/`(.+?)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/^>\s?/gm, "")
+    .replace(/^[\s]*[-*+]\s+/gm, "")
+    .replace(/^[\s]*\d+\.\s+/gm, "")
+    .replace(/^[-*_]{3,}$/gm, "");
+}
+
 export const Route = createFileRoute("/bills/")({
   loader: async () => {
     const userData = await getCurrentUserInfo();
@@ -203,8 +219,8 @@ function RouteComponent() {
                           ? new Date(bill.createdAt).toLocaleDateString()
                           : "Unknown"}
                       </p>
-                      <p className="line-clamp-3 text-foreground mt-5 sm:mt-3 whitespace-pre-wrap wrap-break-words">
-                        {bill.content}
+                      <p className="line-clamp-3 text-foreground mt-5 sm:mt-3 whitespace-pre-wrap wrap-break-word">
+                        {stripMarkdown(bill.content)}
                       </p>
                     </div>
                   </CardContent>
