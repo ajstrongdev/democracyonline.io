@@ -274,18 +274,18 @@ export interface FileRoutesByFullPath {
   '/parties/create': typeof PartiesCreateRoute
   '/parties/primaries': typeof PartiesPrimariesRoute
   '/profile/$id': typeof ProfileIdRoute
-  '/bank': typeof BankIndexRoute
-  '/bills': typeof BillsIndexRoute
-  '/companies': typeof CompaniesIndexRoute
-  '/parties': typeof PartiesIndexRoute
-  '/profile': typeof ProfileIndexRoute
+  '/bank/': typeof BankIndexRoute
+  '/bills/': typeof BillsIndexRoute
+  '/companies/': typeof CompaniesIndexRoute
+  '/parties/': typeof PartiesIndexRoute
+  '/profile/': typeof ProfileIndexRoute
   '/bills/edit/$id': typeof BillsEditIdRoute
   '/companies/edit/$id': typeof CompaniesEditIdRoute
   '/parties/coalitions/$id': typeof PartiesCoalitionsIdRoute
   '/parties/coalitions/create': typeof PartiesCoalitionsCreateRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
   '/parties/merge/$id': typeof PartiesMergeIdRoute
-  '/parties/coalitions': typeof PartiesCoalitionsIndexRoute
+  '/parties/coalitions/': typeof PartiesCoalitionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -400,18 +400,18 @@ export interface FileRouteTypes {
     | '/parties/create'
     | '/parties/primaries'
     | '/profile/$id'
-    | '/bank'
-    | '/bills'
-    | '/companies'
-    | '/parties'
-    | '/profile'
+    | '/bank/'
+    | '/bills/'
+    | '/companies/'
+    | '/parties/'
+    | '/profile/'
     | '/bills/edit/$id'
     | '/companies/edit/$id'
     | '/parties/coalitions/$id'
     | '/parties/coalitions/create'
     | '/parties/manage/$id'
     | '/parties/merge/$id'
-    | '/parties/coalitions'
+    | '/parties/coalitions/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -599,35 +599,35 @@ declare module '@tanstack/react-router' {
     '/profile/': {
       id: '/profile/'
       path: '/profile'
-      fullPath: '/profile'
+      fullPath: '/profile/'
       preLoaderRoute: typeof ProfileIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/parties/': {
       id: '/parties/'
       path: '/parties'
-      fullPath: '/parties'
+      fullPath: '/parties/'
       preLoaderRoute: typeof PartiesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/companies/': {
       id: '/companies/'
       path: '/companies'
-      fullPath: '/companies'
+      fullPath: '/companies/'
       preLoaderRoute: typeof CompaniesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bills/': {
       id: '/bills/'
       path: '/bills'
-      fullPath: '/bills'
+      fullPath: '/bills/'
       preLoaderRoute: typeof BillsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bank/': {
       id: '/bank/'
       path: '/bank'
-      fullPath: '/bank'
+      fullPath: '/bank/'
       preLoaderRoute: typeof BankIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -767,7 +767,7 @@ declare module '@tanstack/react-router' {
     '/parties/coalitions/': {
       id: '/parties/coalitions/'
       path: '/parties/coalitions'
-      fullPath: '/parties/coalitions'
+      fullPath: '/parties/coalitions/'
       preLoaderRoute: typeof PartiesCoalitionsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
