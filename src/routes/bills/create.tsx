@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/bills/create")({
   loader: async () => {
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/bills/create")({
     return userInfo;
   },
   component: RouteComponent,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function RouteComponent() {

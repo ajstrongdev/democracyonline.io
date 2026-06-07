@@ -94,6 +94,7 @@ export const getCoalitions = createServerFn().handler(async () => {
     .leftJoin(parties, eq(parties.id, coalitionMembers.partyId))
     .leftJoin(users, eq(users.partyId, parties.id))
     .groupBy(coalitions.id)
+    .having(sql`count(DISTINCT ${coalitionMembers.partyId}) > 0`)
     .orderBy(sql`count(DISTINCT ${coalitionMembers.partyId}) desc`);
   return rows;
 });

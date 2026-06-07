@@ -61,6 +61,7 @@ export const Route = createFileRoute("/feed")({
     };
   },
   component: FeedPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function FeedPage() {

@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import ProtectedRoute from "@/components/auth/protected-route";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/bills/$id")({
   loader: async ({ params }) => {
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/bills/$id")({
     return { billPageDataResult };
   },
   component: BillDetailPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function VoteSummary({

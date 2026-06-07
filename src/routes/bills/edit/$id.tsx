@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/bills/edit/$id")({
   loader: async ({ params }) => {
@@ -39,6 +40,7 @@ export const Route = createFileRoute("/bills/edit/$id")({
   },
   notFoundComponent: EditBillNotFound,
   component: RouteComponent,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function EditBillNotFound() {

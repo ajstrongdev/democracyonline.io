@@ -1,11 +1,13 @@
-import { Link, createFileRoute, useNavigate  } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { signIn } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function LoginPage() {

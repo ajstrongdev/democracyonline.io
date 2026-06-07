@@ -23,6 +23,7 @@ import { leanings } from "@/lib/constants";
 import { useAuth } from "@/lib/auth-context";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import ProtectedRoute from "@/components/auth/protected-route";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/settings")({
   loader: async ({ context }) => {
@@ -41,6 +42,7 @@ export const Route = createFileRoute("/settings")({
     return { user };
   },
   component: SettingsPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function SettingsPage() {

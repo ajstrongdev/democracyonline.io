@@ -951,6 +951,29 @@ export const Route = createFileRoute("/api/game-advance")({
               .where(inArray(parties.id, emptyPartyIdList));
           }
 
+          const emptyCoalitions = await db
+            .select({ id: coalitions.id })
+            .from(coalitions)
+            .leftJoin(
+              coalitionMembers,
+              eq(coalitionMembers.coalitionId, coalitions.id),
+            )
+            .groupBy(coalitions.id)
+            .having(sql`count(${coalitionMembers.partyId}) = 0`);
+
+          if (emptyCoalitions.length > 0) {
+            const emptyCoalitionIds = emptyCoalitions.map((c) => c.id);
+            await db
+              .delete(joinRequests)
+              .where(inArray(joinRequests.coalitionId, emptyCoalitionIds));
+            await db
+              .delete(coalitions)
+              .where(inArray(coalitions.id, emptyCoalitionIds));
+            console.log(
+              `[game-advance] Cleaned up ${emptyCoalitionIds.length} empty coalition(s)`,
+            );
+          }
+
           console.log("[game-advance] Game advance completed successfully");
           return new Response(JSON.stringify({ success: true }), {
             status: 200,

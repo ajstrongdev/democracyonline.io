@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { icons } from "@/lib/utils/logo-helper";
 import { formatCompanyCreationCooldown } from "@/lib/utils/company-creation-cooldown";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/companies/create")({
   loader: async () => {
@@ -39,6 +40,7 @@ export const Route = createFileRoute("/companies/create")({
     return { userData, companyCreationEligibility };
   },
   component: CreateCompanyPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function CreateCompanyPage() {
@@ -80,10 +82,7 @@ function CreateCompanyPage() {
         }
       })
       .catch((error) => {
-        console.error(
-          "Failed to refresh company creation eligibility:",
-          error,
-        );
+        console.error("Failed to refresh company creation eligibility:", error);
       })
       .finally(() => {
         if (!cancelled) {

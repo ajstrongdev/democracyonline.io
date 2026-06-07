@@ -20,6 +20,7 @@ import {
 import { MessageDialog } from "@/components/message-dialog";
 import PartyLogo from "@/components/party-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/bills/senate")({
   loader: async () => {
@@ -37,6 +38,7 @@ export const Route = createFileRoute("/bills/senate")({
     return { userData, bills, senators: sortedSenators };
   },
   component: RouteComponent,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 type BillWithVotes = SenateBill & {

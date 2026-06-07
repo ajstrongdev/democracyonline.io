@@ -37,6 +37,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { calculateMarketCap } from "@/lib/utils/stock-economy";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/companies/$id")({
   loader: async ({ params }) => {
@@ -48,6 +49,7 @@ export const Route = createFileRoute("/companies/$id")({
     return { company, stakeholders, priceHistory, userData };
   },
   component: CompanyDetailPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function CompanyDetailPage() {

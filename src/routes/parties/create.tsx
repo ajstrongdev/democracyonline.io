@@ -12,6 +12,7 @@ import { icons } from "@/lib/utils/logo-helper";
 import { leanings } from "@/lib/constants";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/parties/create")({
   loader: async () => {
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/parties/create")({
     };
   },
   component: PartyCreatePage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 function PartyCreatePage() {

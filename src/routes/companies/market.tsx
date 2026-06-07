@@ -1,4 +1,5 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDownUp,
   BarChart3,
@@ -17,7 +18,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import * as LucideIcons from "lucide-react";
@@ -54,6 +55,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import GenericSkeleton from "@/components/generic-skeleton";
+
+const marketQueryKeys = {
+  companies: ["market", "companies"] as const,
+  userHoldings: ["market", "userHoldings"] as const,
+  userOrders: ["market", "userOrders"] as const,
+  priceHistory: ["market", "priceHistory"] as const,
+  companyCreationEligibility: ["market", "companyCreationEligibility"] as const,
+  orderBook: (companyId: number) => ["market", "orderBook", companyId] as const,
+  userData: ["market", "userData"] as const,
+};
 
 export const Route = createFileRoute("/companies/market")({
   loader: async () => {
@@ -122,6 +134,7 @@ export const Route = createFileRoute("/companies/market")({
     };
   },
   component: MarketPage,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 // ─── Order Status Badge ─────────────────────────────────────────────────────
@@ -185,10 +198,15 @@ function TabSearchField({
 
 // ─── Holding Item ────────────────────────────────────────────────────────────
 
-function HoldingItem({ holding }: { holding: any }) {
+function HoldingItem({
+  holding,
+  onSold,
+}: {
+  holding: any;
+  onSold: () => void;
+}) {
   const [sellQty, setSellQty] = useState(1);
   const [isSelling, setIsSelling] = useState(false);
-  const navigate = useNavigate();
 
   let LogoIcon: LucideIcon | null = null;
   if (holding.companyLogo) {
@@ -284,7 +302,7 @@ function HoldingItem({ holding }: { holding: any }) {
               toast.success(
                 `Sell order placed for ${sellQty} share${sellQty > 1 ? "s" : ""} of ${holding.companySymbol}`,
               );
-              navigate({ to: "/companies/market" });
+              onSold();
             } catch (err) {
               const msg =
                 typeof err === "object" && err && "message" in err
@@ -487,19 +505,46 @@ function OrderItem({
 // ─── Market Page ─────────────────────────────────────────────────────────────
 
 function MarketPage() {
-  const {
-    userData,
-    companiesList,
-    userHoldings,
-    userOrdersList,
-    priceHistory,
-    companyCreationEligibility: initialCompanyCreationEligibility,
-  } = Route.useLoaderData();
+  const loaderData = Route.useLoaderData();
+  const queryClient = useQueryClient();
+
+  const { data: userData } = useQuery({
+    queryKey: marketQueryKeys.userData,
+    queryFn: () => getCurrentUserInfo(),
+    initialData: loaderData.userData,
+  });
   const user = useUserData(userData);
-  const [companyCreationEligibility, setCompanyCreationEligibility] = useState(
-    initialCompanyCreationEligibility,
-  );
-  const navigate = useNavigate();
+
+  const { data: companiesList } = useQuery({
+    queryKey: marketQueryKeys.companies,
+    queryFn: () => getCompanies(),
+    initialData: loaderData.companiesList,
+  });
+
+  const { data: userHoldings } = useQuery({
+    queryKey: marketQueryKeys.userHoldings,
+    queryFn: () => getUserShares(),
+    initialData: loaderData.userHoldings,
+  });
+
+  const { data: userOrdersList } = useQuery({
+    queryKey: marketQueryKeys.userOrders,
+    queryFn: () => getUserOrders(),
+    initialData: loaderData.userOrdersList,
+  });
+
+  const { data: priceHistory } = useQuery({
+    queryKey: marketQueryKeys.priceHistory,
+    queryFn: () => getSharePriceHistory(),
+    initialData: loaderData.priceHistory,
+  });
+
+  const { data: companyCreationEligibility } = useQuery({
+    queryKey: marketQueryKeys.companyCreationEligibility,
+    queryFn: () => getCompanyCreationEligibility(),
+    initialData: loaderData.companyCreationEligibility,
+  });
+
   const [buyQuantities, setBuyQuantities] = useState<Record<number, number>>(
     {},
   );
@@ -512,65 +557,16 @@ function MarketPage() {
   const [orderBookCompanyId, setOrderBookCompanyId] = useState<number | null>(
     null,
   );
-  const [orderBookData, setOrderBookData] = useState<{
-    bids: Array<{
-      id: number;
-      pricePerShare: number;
-      quantity: number;
-      filledQuantity: number;
-      remaining: number;
-      status: string;
-      createdAt: Date | null;
-      username: string;
-      userId: number;
-    }>;
-    asks: Array<{
-      id: number;
-      pricePerShare: number;
-      quantity: number;
-      filledQuantity: number;
-      remaining: number;
-      status: string;
-      createdAt: Date | null;
-      username: string;
-      userId: number;
-    }>;
-    recentFills: Array<{
-      quantity: number;
-      pricePerShare: number;
-      filledAt: Date | null;
-    }>;
-  } | null>(null);
-  const [orderBookLoading, setOrderBookLoading] = useState(false);
+  const { data: orderBookData, isLoading: orderBookLoading } = useQuery({
+    queryKey: marketQueryKeys.orderBook(orderBookCompanyId!),
+    queryFn: () =>
+      getCompanyOrderBook({ data: { companyId: orderBookCompanyId! } }),
+    enabled: !!orderBookCompanyId,
+  });
   const [orderBookSearch, setOrderBookSearch] = useState("");
   const [ordersSearch, setOrdersSearch] = useState("");
   const [holdingsSearch, setHoldingsSearch] = useState("");
   const [marketSearch, setMarketSearch] = useState("");
-
-  useEffect(() => {
-    setCompanyCreationEligibility(initialCompanyCreationEligibility);
-  }, [initialCompanyCreationEligibility]);
-
-  useEffect(() => {
-    if (!user?.id || userData) {
-      return;
-    }
-
-    let cancelled = false;
-    getCompanyCreationEligibility()
-      .then((eligibility) => {
-        if (!cancelled) {
-          setCompanyCreationEligibility(eligibility);
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to refresh company creation eligibility:", error);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, userData]);
 
   const cooldownRemaining =
     !companyCreationEligibility.canCreate &&
@@ -578,27 +574,21 @@ function MarketPage() {
       ? formatCompanyCreationCooldown(companyCreationEligibility.remainingMs)
       : null;
 
-  useEffect(() => {
-    if (!orderBookCompanyId) {
-      setOrderBookData(null);
-      return;
-    }
-    let cancelled = false;
-    setOrderBookLoading(true);
-    getCompanyOrderBook({ data: { companyId: orderBookCompanyId } })
-      .then((data) => {
-        if (!cancelled) setOrderBookData(data);
-      })
-      .catch(() => {
-        if (!cancelled) setOrderBookData(null);
-      })
-      .finally(() => {
-        if (!cancelled) setOrderBookLoading(false);
+  const invalidateMarketData = () => {
+    queryClient.invalidateQueries({ queryKey: marketQueryKeys.companies });
+    queryClient.invalidateQueries({ queryKey: marketQueryKeys.userHoldings });
+    queryClient.invalidateQueries({ queryKey: marketQueryKeys.userOrders });
+    queryClient.invalidateQueries({ queryKey: marketQueryKeys.priceHistory });
+    queryClient.invalidateQueries({ queryKey: marketQueryKeys.userData });
+    queryClient.invalidateQueries({
+      queryKey: marketQueryKeys.companyCreationEligibility,
+    });
+    if (orderBookCompanyId) {
+      queryClient.invalidateQueries({
+        queryKey: marketQueryKeys.orderBook(orderBookCompanyId),
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [orderBookCompanyId]);
+    }
+  };
 
   // Compute which symbols belong to holdings / orders
   const holdingSymbols = new Set(userHoldings.map((h) => h.companySymbol));
@@ -656,7 +646,7 @@ function MarketPage() {
     try {
       await cancelOrder({ data: { orderId } });
       toast.success("Order cancelled successfully");
-      navigate({ to: "/companies/market" });
+      invalidateMarketData();
     } catch (err) {
       const msg =
         typeof err === "object" && err && "message" in err
@@ -1211,7 +1201,11 @@ function MarketPage() {
                 ) : (
                   <div className="space-y-3">
                     {filteredHoldings.map((holding) => (
-                      <HoldingItem key={holding.id} holding={holding} />
+                      <HoldingItem
+                        key={holding.id}
+                        holding={holding}
+                        onSold={invalidateMarketData}
+                      />
                     ))}
 
                     {/* Portfolio summary */}
@@ -1841,9 +1835,7 @@ function MarketPage() {
                                     toast.success(
                                       `Buy order placed for ${currentBuyQty} share${currentBuyQty > 1 ? "s" : ""} of ${company.symbol} ($${totalCost.toLocaleString()} escrowed)`,
                                     );
-                                    navigate({
-                                      to: "/companies/market",
-                                    });
+                                    invalidateMarketData();
                                   })
                                   .catch((err) => {
                                     toast.error(

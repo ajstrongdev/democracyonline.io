@@ -1,5 +1,6 @@
-import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Cell,
@@ -37,6 +38,12 @@ import CoalitionLogo from "@/components/coalition-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { getPartyCoalition } from "@/lib/server/coalitions";
 
+const senateQueryKeys = {
+  userData: ["senate", "userData"] as const,
+  electionData: ["senate", "electionData"] as const,
+  campaignHistory: ["senate", "campaignHistory"] as const,
+};
+
 export const Route = createFileRoute("/elections/senate")({
   loader: async () => {
     const { getCurrentUserInfo } = await import("@/lib/server/users");
@@ -69,6 +76,7 @@ export const Route = createFileRoute("/elections/senate")({
     };
   },
   component: RouteComponent,
+  pendingComponent: () => <GenericSkeleton />,
 });
 
 // Component to display individual candidate details
@@ -80,6 +88,7 @@ function CandidateItem({
   rank,
   totalVotes,
   seatsAvailable,
+  onDonated,
 }: {
   candidate: Candidate;
   electionStatus: string;
@@ -88,8 +97,8 @@ function CandidateItem({
   rank?: number;
   totalVotes: number;
   seatsAvailable?: number;
+  onDonated: (candidateId: number, amount: number) => void;
 }) {
-  const router = useRouter();
   const [candidateUser, setCandidateUser] = useState<Awaited<
     ReturnType<typeof getUserFullById>
   > | null>(null);
@@ -160,8 +169,7 @@ function CandidateItem({
         `Donated $${amount} to ${candidateUser?.username}'s campaign!`,
       );
       setDonationAmount("");
-      // Reload the page to update balances
-      router.invalidate();
+      onDonated(candidate.id, amount);
     } catch (error) {
       console.error("Error donating:", error);
       toast.error("Failed to donate. Please try again.");
@@ -660,21 +668,89 @@ function CampaignGraphs({
 }
 
 function RouteComponent() {
-  const router = useRouter();
-  const {
-    electionInfo,
-    candidates,
-    isCandidateInAny,
-    userData: loaderUserData,
-    campaignHistory,
-  } = Route.useLoaderData();
-  const userData = useUserData(loaderUserData);
+  const loaderData = Route.useLoaderData();
+  const queryClient = useQueryClient();
+
+  const { data: rawUserData } = useQuery({
+    queryKey: senateQueryKeys.userData,
+    queryFn: async () => {
+      const { getCurrentUserInfo } = await import("@/lib/server/users");
+      return getCurrentUserInfo();
+    },
+    initialData: loaderData.userData,
+  });
+  const userData = useUserData(rawUserData);
+
+  const { data: electionPageResult } = useQuery({
+    queryKey: senateQueryKeys.electionData,
+    queryFn: () =>
+      electionPageData({
+        data: { election: "Senate", userId: userData?.id },
+      }),
+    initialData: {
+      electionInfo: loaderData.electionInfo,
+      candidates: loaderData.candidates,
+      votingStatus: loaderData.votingStatus,
+      isCandidateInAny: loaderData.isCandidateInAny,
+    },
+  });
+
+  const { data: campaignHistory } = useQuery({
+    queryKey: senateQueryKeys.campaignHistory,
+    queryFn: () => getCampaignHistory({ data: { election: "Senate" } }),
+    initialData: loaderData.campaignHistory,
+  });
+
+  const electionInfo = electionPageResult.electionInfo;
+  const localCandidates = electionPageResult.candidates
+    ? [...electionPageResult.candidates].sort((a, b) => {
+        const partyA = a.partyName || "";
+        const partyB = b.partyName || "";
+        if (partyA !== partyB) {
+          if (!a.partyName) return 1;
+          if (!b.partyName) return -1;
+          return partyA.localeCompare(partyB);
+        }
+        return a.username.localeCompare(b.username);
+      })
+    : [];
+  const isCandidateInAny = electionPageResult.isCandidateInAny;
+
+  const invalidateSenateData = () => {
+    queryClient.invalidateQueries({ queryKey: senateQueryKeys.userData });
+    queryClient.invalidateQueries({ queryKey: senateQueryKeys.electionData });
+    queryClient.invalidateQueries({
+      queryKey: senateQueryKeys.campaignHistory,
+    });
+  };
+
+  const handleDonated = (candidateId: number, amount: number) => {
+    queryClient.setQueryData(
+      senateQueryKeys.userData,
+      (old: typeof rawUserData) => {
+        if (!old) return old;
+        return { ...old, money: Number(old.money || 0) - amount };
+      },
+    );
+    queryClient.setQueryData(
+      senateQueryKeys.electionData,
+      (old: typeof electionPageResult) => {
+        if (!old) return old;
+        return {
+          ...old,
+          candidates: old.candidates.map((c) =>
+            c.id === candidateId
+              ? { ...c, donations: (c.donations || 0) + amount }
+              : c,
+          ),
+        };
+      },
+    );
+    invalidateSenateData();
+  };
 
   const [showCandidacyDialog, setShowCandidacyDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [localCandidates, setLocalCandidates] = useState<Array<Candidate>>(
-    candidates || [],
-  );
 
   const isAlreadyCandidate =
     localCandidates &&
@@ -687,19 +763,10 @@ function RouteComponent() {
     if (!userData) return;
     setIsSubmitting(true);
     try {
-      const newCandidate = await declareCandidate({
+      await declareCandidate({
         data: { election: "Senate" },
       });
-      setLocalCandidates((prev) => [
-        ...prev,
-        {
-          ...newCandidate,
-          username: userData.username,
-          partyName: null,
-          partyColor: null,
-        },
-      ]);
-      router.invalidate();
+      invalidateSenateData();
     } catch (error) {
       console.error("Error standing as candidate:", error);
     } finally {
@@ -714,10 +781,7 @@ function RouteComponent() {
       await revokeCandidate({
         data: { election: "Senate" },
       });
-      setLocalCandidates((prev) =>
-        prev.filter((c) => c.userId !== userData.id),
-      );
-      router.invalidate();
+      invalidateSenateData();
     } catch (error) {
       console.error("Error revoking candidacy:", error);
     } finally {
@@ -949,6 +1013,7 @@ function RouteComponent() {
                               rank={index + 1}
                               totalVotes={totalVotes}
                               seatsAvailable={electionInfo.seats ?? 1}
+                              onDonated={handleDonated}
                             />
                           );
                         })}
@@ -981,6 +1046,7 @@ function RouteComponent() {
                         rank={0}
                         totalVotes={0}
                         seatsAvailable={electionInfo.seats ?? 1}
+                        onDonated={handleDonated}
                       />
                     ))}
                   </div>
