@@ -1,5 +1,7 @@
 onlyBuiltDependencies:
   - "@firebase/util"
+  - "@google/genai"
   - esbuild
+  - lightningcss
   - protobufjs
   - unrs-resolver
