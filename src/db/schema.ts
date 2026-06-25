@@ -117,6 +117,7 @@ export const politicians = pgTable("politicians", {
     .references(() => nations.id),
   createdAt: timestamp("created_at").defaultNow(),
   retiredAt: timestamp("retired_at"),
+  lastActiveAt: timestamp("last_active_at"),
 });
 
 export const nations = pgTable("nations", {
