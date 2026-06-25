@@ -86,3 +86,6 @@ tmp/
 
 # Local script overrides
 src/scripts/sync-cloud-sql-prod-to-dev.sh
+
+# Storybook
+/storybook-static

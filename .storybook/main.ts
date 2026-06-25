@@ -11,6 +11,7 @@ const config: StorybookConfig = {
     const { default: tailwindcss } = await import('@tailwindcss/vite')
     config.plugins = config.plugins || []
     config.plugins.push(tailwindcss())
+    config.resolve = { ...config.resolve, tsconfigPaths: true }
     return config
   },
 }
