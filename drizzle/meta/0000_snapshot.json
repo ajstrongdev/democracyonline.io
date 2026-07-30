@@ -1,5 +1,5 @@
 {
-  "id": "f658b8a5-360a-4324-b792-18e6902b810a",
+  "id": "d050a89f-dd82-4dea-9175-523b910a575e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -16,7 +16,92 @@
         },
         "token": {
           "name": "token",
-          "type": "varchar(255)",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "redeemed_by": {
+          "name": "redeemed_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "access_tokens_created_by_accounts_id_fk": {
+          "name": "access_tokens_created_by_accounts_id_fk",
+          "tableFrom": "access_tokens",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "access_tokens_redeemed_by_accounts_id_fk": {
+          "name": "access_tokens_redeemed_by_accounts_id_fk",
+          "tableFrom": "access_tokens",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "redeemed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "access_tokens_token_unique": {
+          "name": "access_tokens_token_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.accounts": {
+      "name": "accounts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -32,14 +117,507 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "access_tokens_token_unique": {
-          "name": "access_tokens_token_unique",
+        "accounts_username_unique": {
+          "name": "accounts_username_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "token"
+            "username"
+          ]
+        },
+        "accounts_email_unique": {
+          "name": "accounts_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.alliance_requests": {
+      "name": "alliance_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "requester_nation_id": {
+          "name": "requester_nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_nation_id": {
+          "name": "target_nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "alliance_request_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "alliance_requests_requester_nation_id_nations_id_fk": {
+          "name": "alliance_requests_requester_nation_id_nations_id_fk",
+          "tableFrom": "alliance_requests",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "requester_nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "alliance_requests_target_nation_id_nations_id_fk": {
+          "name": "alliance_requests_target_nation_id_nations_id_fk",
+          "tableFrom": "alliance_requests",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "target_nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "alliance_requests_distinct_nations": {
+          "name": "alliance_requests_distinct_nations",
+          "value": "\"alliance_requests\".\"requester_nation_id\" <> \"alliance_requests\".\"target_nation_id\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.alliances": {
+      "name": "alliances",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nation_a_id": {
+          "name": "nation_a_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nation_b_id": {
+          "name": "nation_b_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "alliances_nation_a_id_nations_id_fk": {
+          "name": "alliances_nation_a_id_nations_id_fk",
+          "tableFrom": "alliances",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_a_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "alliances_nation_b_id_nations_id_fk": {
+          "name": "alliances_nation_b_id_nations_id_fk",
+          "tableFrom": "alliances",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_b_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "alliances_pair_unq": {
+          "name": "alliances_pair_unq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "nation_a_id",
+            "nation_b_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "alliances_distinct_nations": {
+          "name": "alliances_distinct_nations",
+          "value": "\"alliances\".\"nation_a_id\" <> \"alliances\".\"nation_b_id\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.ammendments": {
+      "name": "ammendments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "bill_id": {
+          "name": "bill_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bill_clause_id": {
+          "name": "bill_clause_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proposer_id": {
+          "name": "proposer_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "amendment_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "ammendments_bill_id_bills_id_fk": {
+          "name": "ammendments_bill_id_bills_id_fk",
+          "tableFrom": "ammendments",
+          "tableTo": "bills",
+          "columnsFrom": [
+            "bill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "ammendments_bill_clause_id_bill_clauses_id_fk": {
+          "name": "ammendments_bill_clause_id_bill_clauses_id_fk",
+          "tableFrom": "ammendments",
+          "tableTo": "bill_clauses",
+          "columnsFrom": [
+            "bill_clause_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "ammendments_proposer_id_politicians_id_fk": {
+          "name": "ammendments_proposer_id_politicians_id_fk",
+          "tableFrom": "ammendments",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "proposer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.war_battle_participants": {
+      "name": "war_battle_participants",
+      "schema": "",
+      "columns": {
+        "battle_id": {
+          "name": "battle_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nation_id": {
+          "name": "nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fighting_for": {
+          "name": "fighting_for",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "war_battle_participants_battle_id_war_battles_id_fk": {
+          "name": "war_battle_participants_battle_id_war_battles_id_fk",
+          "tableFrom": "war_battle_participants",
+          "tableTo": "war_battles",
+          "columnsFrom": [
+            "battle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "war_battle_participants_nation_id_nations_id_fk": {
+          "name": "war_battle_participants_nation_id_nations_id_fk",
+          "tableFrom": "war_battle_participants",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "war_battle_participants_fighting_for_nations_id_fk": {
+          "name": "war_battle_participants_fighting_for_nations_id_fk",
+          "tableFrom": "war_battle_participants",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "fighting_for"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "war_battle_participants_pk": {
+          "name": "war_battle_participants_pk",
+          "columns": [
+            "battle_id",
+            "nation_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.war_battles": {
+      "name": "war_battles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "war_id": {
+          "name": "war_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "war_battles_war_id_wars_id_fk": {
+          "name": "war_battles_war_id_wars_id_fk",
+          "tableFrom": "war_battles",
+          "tableTo": "wars",
+          "columnsFrom": [
+            "war_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.bill_clauses": {
+      "name": "bill_clauses",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "bill_id": {
+          "name": "bill_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "bill_clauses_bill_id_bills_id_fk": {
+          "name": "bill_clauses_bill_id_bills_id_fk",
+          "tableFrom": "bill_clauses",
+          "tableTo": "bills",
+          "columnsFrom": [
+            "bill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.bill_stage_history": {
+      "name": "bill_stage_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "bill_id": {
+          "name": "bill_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stage": {
+          "name": "stage",
+          "type": "bill_stage",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "bill_stage_outcome",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "yes_votes": {
+          "name": "yes_votes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "no_votes": {
+          "name": "no_votes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "bill_stage_history_bill_id_bills_id_fk": {
+          "name": "bill_stage_history_bill_id_bills_id_fk",
+          "tableFrom": "bill_stage_history",
+          "tableTo": "bills",
+          "columnsFrom": [
+            "bill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -48,71 +626,145 @@
       "name": "bill_votes_house",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
+        "politician_id": {
+          "name": "politician_id",
+          "type": "integer",
+          "primaryKey": false,
           "notNull": true
         },
         "bill_id": {
           "name": "bill_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "voter_id": {
-          "name": "voter_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "vote_yes": {
-          "name": "vote_yes",
-          "type": "boolean",
+        "vote": {
+          "name": "vote",
+          "type": "vote",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
+        },
+        "voted_at": {
+          "name": "voted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "foreignKeys": {
+        "bill_votes_house_politician_id_politicians_id_fk": {
+          "name": "bill_votes_house_politician_id_politicians_id_fk",
+          "tableFrom": "bill_votes_house",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "politician_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "bill_votes_house_bill_id_bills_id_fk": {
+          "name": "bill_votes_house_bill_id_bills_id_fk",
+          "tableFrom": "bill_votes_house",
+          "tableTo": "bills",
+          "columnsFrom": [
+            "bill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "bill_votes_house_pk": {
+          "name": "bill_votes_house_pk",
+          "columns": [
+            "politician_id",
+            "bill_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.bill_votes_presidential": {
-      "name": "bill_votes_presidential",
+    "public.bill_votes_president": {
+      "name": "bill_votes_president",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
+        "politician_id": {
+          "name": "politician_id",
+          "type": "integer",
+          "primaryKey": false,
           "notNull": true
         },
         "bill_id": {
           "name": "bill_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "voter_id": {
-          "name": "voter_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "vote_yes": {
-          "name": "vote_yes",
-          "type": "boolean",
+        "vote": {
+          "name": "vote",
+          "type": "vote",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
+        },
+        "voted_at": {
+          "name": "voted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "foreignKeys": {
+        "bill_votes_president_politician_id_politicians_id_fk": {
+          "name": "bill_votes_president_politician_id_politicians_id_fk",
+          "tableFrom": "bill_votes_president",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "politician_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "bill_votes_president_bill_id_bills_id_fk": {
+          "name": "bill_votes_president_bill_id_bills_id_fk",
+          "tableFrom": "bill_votes_president",
+          "tableTo": "bills",
+          "columnsFrom": [
+            "bill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "bill_votes_president_pk": {
+          "name": "bill_votes_president_pk",
+          "columns": [
+            "politician_id",
+            "bill_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -122,34 +774,71 @@
       "name": "bill_votes_senate",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
+        "politician_id": {
+          "name": "politician_id",
+          "type": "integer",
+          "primaryKey": false,
           "notNull": true
         },
         "bill_id": {
           "name": "bill_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "voter_id": {
-          "name": "voter_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "vote_yes": {
-          "name": "vote_yes",
-          "type": "boolean",
+        "vote": {
+          "name": "vote",
+          "type": "vote",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
+        },
+        "voted_at": {
+          "name": "voted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "foreignKeys": {
+        "bill_votes_senate_politician_id_politicians_id_fk": {
+          "name": "bill_votes_senate_politician_id_politicians_id_fk",
+          "tableFrom": "bill_votes_senate",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "politician_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "bill_votes_senate_bill_id_bills_id_fk": {
+          "name": "bill_votes_senate_bill_id_bills_id_fk",
+          "tableFrom": "bill_votes_senate",
+          "tableTo": "bills",
+          "columnsFrom": [
+            "bill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "bill_votes_senate_pk": {
+          "name": "bill_votes_senate_pk",
+          "columns": [
+            "politician_id",
+            "bill_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -165,37 +854,27 @@
           "primaryKey": true,
           "notNull": true
         },
+        "nation_id": {
+          "name": "nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "status": {
           "name": "status",
-          "type": "varchar(50)",
+          "type": "bill_status",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'Queued'"
+          "default": "'queued'"
         },
         "stage": {
           "name": "stage",
-          "type": "varchar(50)",
+          "type": "bill_stage",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'House'"
-        },
-        "title": {
-          "name": "title",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "creator_id": {
-          "name": "creator_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "content": {
-          "name": "content",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
+          "default": "'house'"
         },
         "created_at": {
           "name": "created_at",
@@ -203,24 +882,32 @@
           "primaryKey": false,
           "notNull": false,
           "default": "now()"
-        },
-        "pool": {
-          "name": "pool",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "bills_nation_id_nations_id_fk": {
+          "name": "bills_nation_id_nations_id_fk",
+          "tableFrom": "bills",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.candidates": {
-      "name": "candidates",
+    "public.cabinet": {
+      "name": "cabinet",
       "schema": "",
       "columns": {
         "id": {
@@ -229,51 +916,122 @@
           "primaryKey": true,
           "notNull": true
         },
-        "user_id": {
-          "name": "user_id",
+        "nation_id": {
+          "name": "nation_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "election": {
-          "name": "election",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "votes": {
-          "name": "votes",
+        "politician_id": {
+          "name": "politician_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
-          "default": 0
+          "notNull": true
         },
-        "haswon": {
-          "name": "haswon",
-          "type": "boolean",
+        "position": {
+          "name": "position",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         }
       },
       "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "candidates_user_id_election_unique": {
-          "name": "candidates_user_id_election_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "user_id",
-            "election"
-          ]
+      "foreignKeys": {
+        "cabinet_nation_id_nations_id_fk": {
+          "name": "cabinet_nation_id_nations_id_fk",
+          "tableFrom": "cabinet",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "cabinet_politician_id_politicians_id_fk": {
+          "name": "cabinet_politician_id_politicians_id_fk",
+          "tableFrom": "cabinet",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "politician_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.chats": {
-      "name": "chats",
+    "public.coalition_parties": {
+      "name": "coalition_parties",
+      "schema": "",
+      "columns": {
+        "coalition_id": {
+          "name": "coalition_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "party_id": {
+          "name": "party_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "coalition_parties_coalition_id_coalitions_id_fk": {
+          "name": "coalition_parties_coalition_id_coalitions_id_fk",
+          "tableFrom": "coalition_parties",
+          "tableTo": "coalitions",
+          "columnsFrom": [
+            "coalition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "coalition_parties_party_id_parties_id_fk": {
+          "name": "coalition_parties_party_id_parties_id_fk",
+          "tableFrom": "coalition_parties",
+          "tableTo": "parties",
+          "columnsFrom": [
+            "party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "coalition_parties_pk": {
+          "name": "coalition_parties_pk",
+          "columns": [
+            "coalition_id",
+            "party_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.coalitions": {
+      "name": "coalitions",
       "schema": "",
       "columns": {
         "id": {
@@ -282,26 +1040,14 @@
           "primaryKey": true,
           "notNull": true
         },
-        "user_id": {
-          "name": "user_id",
+        "nation_id": {
+          "name": "nation_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
-        },
-        "room": {
-          "name": "room",
-          "type": "varchar(255)",
-          "primaryKey": false,
           "notNull": true
         },
-        "username": {
-          "name": "username",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message": {
-          "name": "message",
+        "name": {
+          "name": "name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -312,11 +1058,184 @@
           "primaryKey": false,
           "notNull": false,
           "default": "now()"
+        },
+        "dissolved_at": {
+          "name": "dissolved_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "coalitions_nation_id_nations_id_fk": {
+          "name": "coalitions_nation_id_nations_id_fk",
+          "tableFrom": "coalitions",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.election_candidates": {
+      "name": "election_candidates",
+      "schema": "",
+      "columns": {
+        "election_id": {
+          "name": "election_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "politician_id": {
+          "name": "politician_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "party_id": {
+          "name": "party_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vote_count": {
+          "name": "vote_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "is_winner": {
+          "name": "is_winner",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "election_candidates_election_id_elections_id_fk": {
+          "name": "election_candidates_election_id_elections_id_fk",
+          "tableFrom": "election_candidates",
+          "tableTo": "elections",
+          "columnsFrom": [
+            "election_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "election_candidates_politician_id_politicians_id_fk": {
+          "name": "election_candidates_politician_id_politicians_id_fk",
+          "tableFrom": "election_candidates",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "politician_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "election_candidates_party_id_parties_id_fk": {
+          "name": "election_candidates_party_id_parties_id_fk",
+          "tableFrom": "election_candidates",
+          "tableTo": "parties",
+          "columnsFrom": [
+            "party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "election_candidates_pk": {
+          "name": "election_candidates_pk",
+          "columns": [
+            "election_id",
+            "politician_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.election_votes": {
+      "name": "election_votes",
+      "schema": "",
+      "columns": {
+        "election_id": {
+          "name": "election_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "politician_id": {
+          "name": "politician_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "election_votes_election_id_elections_id_fk": {
+          "name": "election_votes_election_id_elections_id_fk",
+          "tableFrom": "election_votes",
+          "tableTo": "elections",
+          "columnsFrom": [
+            "election_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "election_votes_politician_id_politicians_id_fk": {
+          "name": "election_votes_politician_id_politicians_id_fk",
+          "tableFrom": "election_votes",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "politician_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "election_votes_pk": {
+          "name": "election_votes_pk",
+          "columns": [
+            "election_id",
+            "politician_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -326,28 +1245,164 @@
       "name": "elections",
       "schema": "",
       "columns": {
-        "election": {
-          "name": "election",
-          "type": "varchar(50)",
+        "id": {
+          "name": "id",
+          "type": "serial",
           "primaryKey": true,
+          "notNull": true
+        },
+        "nation_id": {
+          "name": "nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "election_type": {
+          "name": "election_type",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true
         },
         "status": {
           "name": "status",
-          "type": "varchar(50)",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'Candidacy'"
+          "notNull": true
         },
-        "seats": {
-          "name": "seats",
+        "term": {
+          "name": "term",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "days_left": {
-          "name": "days_left",
+        "winner_id": {
+          "name": "winner_id",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "elections_nation_id_nations_id_fk": {
+          "name": "elections_nation_id_nations_id_fk",
+          "tableFrom": "elections",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "elections_winner_id_politicians_id_fk": {
+          "name": "elections_winner_id_politicians_id_fk",
+          "tableFrom": "elections",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "winner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.international_members": {
+      "name": "international_members",
+      "schema": "",
+      "columns": {
+        "international_id": {
+          "name": "international_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "party_id": {
+          "name": "party_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "international_members_international_id_internationals_id_fk": {
+          "name": "international_members_international_id_internationals_id_fk",
+          "tableFrom": "international_members",
+          "tableTo": "internationals",
+          "columnsFrom": [
+            "international_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "international_members_party_id_parties_id_fk": {
+          "name": "international_members_party_id_parties_id_fk",
+          "tableFrom": "international_members",
+          "tableTo": "parties",
+          "columnsFrom": [
+            "party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "international_members_pk": {
+          "name": "international_members_pk",
+          "columns": [
+            "international_id",
+            "party_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.internationals": {
+      "name": "internationals",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         }
@@ -360,8 +1415,94 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.feed": {
-      "name": "feed",
+    "public.league_resolution_votes": {
+      "name": "league_resolution_votes",
+      "schema": "",
+      "columns": {
+        "resolution_id": {
+          "name": "resolution_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "politician_id": {
+          "name": "politician_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nation_id": {
+          "name": "nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vote": {
+          "name": "vote",
+          "type": "vote",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "league_resolution_votes_resolution_id_league_resolutions_id_fk": {
+          "name": "league_resolution_votes_resolution_id_league_resolutions_id_fk",
+          "tableFrom": "league_resolution_votes",
+          "tableTo": "league_resolutions",
+          "columnsFrom": [
+            "resolution_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "league_resolution_votes_politician_id_politicians_id_fk": {
+          "name": "league_resolution_votes_politician_id_politicians_id_fk",
+          "tableFrom": "league_resolution_votes",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "politician_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "league_resolution_votes_nation_id_nations_id_fk": {
+          "name": "league_resolution_votes_nation_id_nations_id_fk",
+          "tableFrom": "league_resolution_votes",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "league_resolution_votes_pk": {
+          "name": "league_resolution_votes_pk",
+          "columns": [
+            "resolution_id",
+            "politician_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.league_resolutions": {
+      "name": "league_resolutions",
       "schema": "",
       "columns": {
         "id": {
@@ -370,11 +1511,576 @@
           "primaryKey": true,
           "notNull": true
         },
-        "user_id": {
-          "name": "user_id",
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "resolution_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nation_id": {
+          "name": "nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "target_nation_id": {
+          "name": "target_nation_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "league_resolutions_nation_id_nations_id_fk": {
+          "name": "league_resolutions_nation_id_nations_id_fk",
+          "tableFrom": "league_resolutions",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "league_resolutions_target_nation_id_nations_id_fk": {
+          "name": "league_resolutions_target_nation_id_nations_id_fk",
+          "tableFrom": "league_resolutions",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "target_nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nation_events": {
+      "name": "nation_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nation_id": {
+          "name": "nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "nation_event_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "election_id": {
+          "name": "election_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "primary_id": {
+          "name": "primary_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bill_id": {
+          "name": "bill_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "war_id": {
+          "name": "war_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alliance_id": {
+          "name": "alliance_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolution_id": {
+          "name": "resolution_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "party_id": {
+          "name": "party_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "politician_id": {
+          "name": "politician_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "nation_events_nation_id_nations_id_fk": {
+          "name": "nation_events_nation_id_nations_id_fk",
+          "tableFrom": "nation_events",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nation_events_election_id_elections_id_fk": {
+          "name": "nation_events_election_id_elections_id_fk",
+          "tableFrom": "nation_events",
+          "tableTo": "elections",
+          "columnsFrom": [
+            "election_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nation_events_primary_id_primaries_id_fk": {
+          "name": "nation_events_primary_id_primaries_id_fk",
+          "tableFrom": "nation_events",
+          "tableTo": "primaries",
+          "columnsFrom": [
+            "primary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nation_events_bill_id_bills_id_fk": {
+          "name": "nation_events_bill_id_bills_id_fk",
+          "tableFrom": "nation_events",
+          "tableTo": "bills",
+          "columnsFrom": [
+            "bill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nation_events_war_id_wars_id_fk": {
+          "name": "nation_events_war_id_wars_id_fk",
+          "tableFrom": "nation_events",
+          "tableTo": "wars",
+          "columnsFrom": [
+            "war_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nation_events_alliance_id_alliances_id_fk": {
+          "name": "nation_events_alliance_id_alliances_id_fk",
+          "tableFrom": "nation_events",
+          "tableTo": "alliances",
+          "columnsFrom": [
+            "alliance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nation_events_resolution_id_league_resolutions_id_fk": {
+          "name": "nation_events_resolution_id_league_resolutions_id_fk",
+          "tableFrom": "nation_events",
+          "tableTo": "league_resolutions",
+          "columnsFrom": [
+            "resolution_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nation_events_party_id_parties_id_fk": {
+          "name": "nation_events_party_id_parties_id_fk",
+          "tableFrom": "nation_events",
+          "tableTo": "parties",
+          "columnsFrom": [
+            "party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nation_events_politician_id_politicians_id_fk": {
+          "name": "nation_events_politician_id_politicians_id_fk",
+          "tableFrom": "nation_events",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "politician_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nation_policies": {
+      "name": "nation_policies",
+      "schema": "",
+      "columns": {
+        "nation_id": {
+          "name": "nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "policy_id": {
+          "name": "policy_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "nation_policies_nation_id_nations_id_fk": {
+          "name": "nation_policies_nation_id_nations_id_fk",
+          "tableFrom": "nation_policies",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nation_policies_policy_id_policies_id_fk": {
+          "name": "nation_policies_policy_id_policies_id_fk",
+          "tableFrom": "nation_policies",
+          "tableTo": "policies",
+          "columnsFrom": [
+            "policy_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "nation_policies_pk": {
+          "name": "nation_policies_pk",
+          "columns": [
+            "nation_id",
+            "policy_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nation_stat_history": {
+      "name": "nation_stat_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nation_id": {
+          "name": "nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stat_id": {
+          "name": "stat_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "nation_stat_history_series_idx": {
+          "name": "nation_stat_history_series_idx",
+          "columns": [
+            {
+              "expression": "nation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "stat_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "recorded_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "nation_stat_history_nation_id_nations_id_fk": {
+          "name": "nation_stat_history_nation_id_nations_id_fk",
+          "tableFrom": "nation_stat_history",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nation_stat_history_stat_id_stats_id_fk": {
+          "name": "nation_stat_history_stat_id_stats_id_fk",
+          "tableFrom": "nation_stat_history",
+          "tableTo": "stats",
+          "columnsFrom": [
+            "stat_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nation_stats": {
+      "name": "nation_stats",
+      "schema": "",
+      "columns": {
+        "nation_id": {
+          "name": "nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stat_id": {
+          "name": "stat_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 50
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "nation_stats_nation_id_nations_id_fk": {
+          "name": "nation_stats_nation_id_nations_id_fk",
+          "tableFrom": "nation_stats",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nation_stats_stat_id_stats_id_fk": {
+          "name": "nation_stats_stat_id_stats_id_fk",
+          "tableFrom": "nation_stats",
+          "tableTo": "stats",
+          "columnsFrom": [
+            "stat_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "nation_stats_pk": {
+          "name": "nation_stats_pk",
+          "columns": [
+            "nation_id",
+            "stat_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nations": {
+      "name": "nations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.newspaper_articles": {
+      "name": "newspaper_articles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "newspaper_id": {
+          "name": "newspaper_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issue_id": {
+          "name": "issue_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
         "content": {
           "name": "content",
@@ -382,87 +2088,19 @@
           "primaryKey": false,
           "notNull": true
         },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.game_tracker": {
-      "name": "game_tracker",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "bill_pool": {
-          "name": "bill_pool",
-          "type": "integer",
+        "status": {
+          "name": "status",
+          "type": "article_status",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": 1
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.merge_request": {
-      "name": "merge_request",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
+          "default": "'pending'"
         },
-        "leader_id": {
-          "name": "leader_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "color": {
-          "name": "color",
-          "type": "varchar(7)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bio": {
-          "name": "bio",
+        "editor_note": {
+          "name": "editor_note",
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "political_leaning": {
-          "name": "political_leaning",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
         },
         "created_at": {
           "name": "created_at",
@@ -470,30 +2108,58 @@
           "primaryKey": false,
           "notNull": false,
           "default": "now()"
-        },
-        "leaning": {
-          "name": "leaning",
-          "type": "varchar(25)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "logo": {
-          "name": "logo",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "newspaper_articles_newspaper_id_party_newspapers_id_fk": {
+          "name": "newspaper_articles_newspaper_id_party_newspapers_id_fk",
+          "tableFrom": "newspaper_articles",
+          "tableTo": "party_newspapers",
+          "columnsFrom": [
+            "newspaper_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "newspaper_articles_author_id_accounts_id_fk": {
+          "name": "newspaper_articles_author_id_accounts_id_fk",
+          "tableFrom": "newspaper_articles",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "author_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "newspaper_articles_issue_id_newspaper_issues_id_fk": {
+          "name": "newspaper_articles_issue_id_newspaper_issues_id_fk",
+          "tableFrom": "newspaper_articles",
+          "tableTo": "newspaper_issues",
+          "columnsFrom": [
+            "issue_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.merge_request_stances": {
-      "name": "merge_request_stances",
+    "public.newspaper_issues": {
+      "name": "newspaper_issues",
       "schema": "",
       "columns": {
         "id": {
@@ -502,27 +2168,184 @@
           "primaryKey": true,
           "notNull": true
         },
-        "merge_request_id": {
-          "name": "merge_request_id",
+        "newspaper_id": {
+          "name": "newspaper_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "stance_id": {
-          "name": "stance_id",
+        "issue_number": {
+          "name": "issue_number",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "value": {
-          "name": "value",
+        "title": {
+          "name": "title",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "newspaper_issues_newspaper_id_party_newspapers_id_fk": {
+          "name": "newspaper_issues_newspaper_id_party_newspapers_id_fk",
+          "tableFrom": "newspaper_issues",
+          "tableTo": "party_newspapers",
+          "columnsFrom": [
+            "newspaper_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "newspaper_issues_number_unq": {
+          "name": "newspaper_issues_number_unq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "newspaper_id",
+            "issue_number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.office_terms": {
+      "name": "office_terms",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nation_id": {
+          "name": "nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "politician_id": {
+          "name": "politician_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "office": {
+          "name": "office",
+          "type": "office_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "party_id": {
+          "name": "party_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "election_id": {
+          "name": "election_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "term": {
+          "name": "term",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "office_terms_nation_id_nations_id_fk": {
+          "name": "office_terms_nation_id_nations_id_fk",
+          "tableFrom": "office_terms",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "office_terms_politician_id_politicians_id_fk": {
+          "name": "office_terms_politician_id_politicians_id_fk",
+          "tableFrom": "office_terms",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "politician_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "office_terms_party_id_parties_id_fk": {
+          "name": "office_terms_party_id_parties_id_fk",
+          "tableFrom": "office_terms",
+          "tableTo": "parties",
+          "columnsFrom": [
+            "party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "office_terms_election_id_elections_id_fk": {
+          "name": "office_terms_election_id_elections_id_fk",
+          "tableFrom": "office_terms",
+          "tableTo": "elections",
+          "columnsFrom": [
+            "election_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -539,35 +2362,17 @@
           "primaryKey": true,
           "notNull": true
         },
-        "leader_id": {
-          "name": "leader_id",
+        "nation_id": {
+          "name": "nation_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "name": {
           "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "color": {
-          "name": "color",
-          "type": "varchar(7)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bio": {
-          "name": "bio",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
-        },
-        "political_leaning": {
-          "name": "political_leaning",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
@@ -576,59 +2381,243 @@
           "notNull": false,
           "default": "now()"
         },
-        "leaning": {
-          "name": "leaning",
-          "type": "varchar(25)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "logo": {
-          "name": "logo",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "discord": {
-          "name": "discord",
-          "type": "varchar(255)",
+        "dissolved_at": {
+          "name": "dissolved_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "parties_name_unique": {
-          "name": "parties_name_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+      "foreignKeys": {
+        "parties_nation_id_nations_id_fk": {
+          "name": "parties_nation_id_nations_id_fk",
+          "tableFrom": "parties",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.party_notifications": {
-      "name": "party_notifications",
+    "public.party_merge_requests": {
+      "name": "party_merge_requests",
       "schema": "",
       "columns": {
-        "sender_party_id": {
-          "name": "sender_party_id",
+        "party_id": {
+          "name": "party_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "receiver_party_id": {
-          "name": "receiver_party_id",
+        "merged_party_id": {
+          "name": "merged_party_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "party_merge_requests_party_id_parties_id_fk": {
+          "name": "party_merge_requests_party_id_parties_id_fk",
+          "tableFrom": "party_merge_requests",
+          "tableTo": "parties",
+          "columnsFrom": [
+            "party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "party_merge_requests_merged_party_id_parties_id_fk": {
+          "name": "party_merge_requests_merged_party_id_parties_id_fk",
+          "tableFrom": "party_merge_requests",
+          "tableTo": "parties",
+          "columnsFrom": [
+            "merged_party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "party_merge_requests_pk": {
+          "name": "party_merge_requests_pk",
+          "columns": [
+            "party_id",
+            "merged_party_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.party_newspapers": {
+      "name": "party_newspapers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "party_id": {
+          "name": "party_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "merge_request_id": {
-          "name": "merge_request_id",
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "party_newspapers_party_id_parties_id_fk": {
+          "name": "party_newspapers_party_id_parties_id_fk",
+          "tableFrom": "party_newspapers",
+          "tableTo": "parties",
+          "columnsFrom": [
+            "party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.party_policies": {
+      "name": "party_policies",
+      "schema": "",
+      "columns": {
+        "party_id": {
+          "name": "party_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "policy_id": {
+          "name": "policy_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "section": {
+          "name": "section",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "party_policies_party_id_parties_id_fk": {
+          "name": "party_policies_party_id_parties_id_fk",
+          "tableFrom": "party_policies",
+          "tableTo": "parties",
+          "columnsFrom": [
+            "party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "party_policies_policy_id_policies_id_fk": {
+          "name": "party_policies_policy_id_policies_id_fk",
+          "tableFrom": "party_policies",
+          "tableTo": "policies",
+          "columnsFrom": [
+            "policy_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "party_policies_pk": {
+          "name": "party_policies_pk",
+          "columns": [
+            "party_id",
+            "policy_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.policies": {
+      "name": "policies",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.politicians": {
+      "name": "politicians",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nation_id": {
+          "name": "nation_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -639,24 +2628,247 @@
           "primaryKey": false,
           "notNull": false,
           "default": "now()"
+        },
+        "retired_at": {
+          "name": "retired_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_active_at": {
+          "name": "last_active_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "politicians_account_id_accounts_id_fk": {
+          "name": "politicians_account_id_accounts_id_fk",
+          "tableFrom": "politicians",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "politicians_nation_id_nations_id_fk": {
+          "name": "politicians_nation_id_nations_id_fk",
+          "tableFrom": "politicians",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.primaries": {
+      "name": "primaries",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nation_id": {
+          "name": "nation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "party_id": {
+          "name": "party_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "coalition_id": {
+          "name": "coalition_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "status": {
           "name": "status",
-          "type": "varchar(20)",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'Pending'"
+          "notNull": true
+        },
+        "term": {
+          "name": "term",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "winner_id": {
+          "name": "winner_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "primaries_nation_id_nations_id_fk": {
+          "name": "primaries_nation_id_nations_id_fk",
+          "tableFrom": "primaries",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "primaries_party_id_parties_id_fk": {
+          "name": "primaries_party_id_parties_id_fk",
+          "tableFrom": "primaries",
+          "tableTo": "parties",
+          "columnsFrom": [
+            "party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "primaries_coalition_id_coalitions_id_fk": {
+          "name": "primaries_coalition_id_coalitions_id_fk",
+          "tableFrom": "primaries",
+          "tableTo": "coalitions",
+          "columnsFrom": [
+            "coalition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "primaries_winner_id_politicians_id_fk": {
+          "name": "primaries_winner_id_politicians_id_fk",
+          "tableFrom": "primaries",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "winner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "primaries_party_or_coalition": {
+          "name": "primaries_party_or_coalition",
+          "value": "num_nonnulls(\"primaries\".\"party_id\", \"primaries\".\"coalition_id\") = 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.primary_candidates": {
+      "name": "primary_candidates",
+      "schema": "",
+      "columns": {
+        "primary_id": {
+          "name": "primary_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "politician_id": {
+          "name": "politician_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vote_count": {
+          "name": "vote_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "is_winner": {
+          "name": "is_winner",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "primary_candidates_primary_id_primaries_id_fk": {
+          "name": "primary_candidates_primary_id_primaries_id_fk",
+          "tableFrom": "primary_candidates",
+          "tableTo": "primaries",
+          "columnsFrom": [
+            "primary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "primary_candidates_politician_id_politicians_id_fk": {
+          "name": "primary_candidates_politician_id_politicians_id_fk",
+          "tableFrom": "primary_candidates",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "politician_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
-        "party_notifications_sender_party_id_receiver_party_id_merge_request_id_pk": {
-          "name": "party_notifications_sender_party_id_receiver_party_id_merge_request_id_pk",
+        "primary_candidates_pk": {
+          "name": "primary_candidates_pk",
           "columns": [
-            "sender_party_id",
-            "receiver_party_id",
-            "merge_request_id"
+            "primary_id",
+            "politician_id"
           ]
         }
       },
@@ -665,26 +2877,134 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.party_stances": {
-      "name": "party_stances",
+    "public.primary_votes": {
+      "name": "primary_votes",
       "schema": "",
       "columns": {
-        "party_id": {
-          "name": "party_id",
+        "primary_id": {
+          "name": "primary_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "stance_id": {
-          "name": "stance_id",
+        "politician_id": {
+          "name": "politician_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "primary_votes_primary_id_primaries_id_fk": {
+          "name": "primary_votes_primary_id_primaries_id_fk",
+          "tableFrom": "primary_votes",
+          "tableTo": "primaries",
+          "columnsFrom": [
+            "primary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
-        "value": {
-          "name": "value",
-          "type": "varchar(1024)",
+        "primary_votes_politician_id_politicians_id_fk": {
+          "name": "primary_votes_politician_id_politicians_id_fk",
+          "tableFrom": "primary_votes",
+          "tableTo": "politicians",
+          "columnsFrom": [
+            "politician_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "primary_votes_pk": {
+          "name": "primary_votes_pk",
+          "columns": [
+            "primary_id",
+            "politician_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.proposal_supporters": {
+      "name": "proposal_supporters",
+      "schema": "",
+      "columns": {
+        "account_id": {
+          "name": "account_id",
+          "type": "integer",
           "primaryKey": false,
+          "notNull": true
+        },
+        "bill_id": {
+          "name": "bill_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "proposal_supporters_account_id_accounts_id_fk": {
+          "name": "proposal_supporters_account_id_accounts_id_fk",
+          "tableFrom": "proposal_supporters",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "proposal_supporters_bill_id_bills_id_fk": {
+          "name": "proposal_supporters_bill_id_bills_id_fk",
+          "tableFrom": "proposal_supporters",
+          "tableTo": "bills",
+          "columnsFrom": [
+            "bill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "proposal_supporters_pk": {
+          "name": "proposal_supporters_pk",
+          "columns": [
+            "account_id",
+            "bill_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.stats": {
+      "name": "stats",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
           "notNull": true
         }
       },
@@ -696,8 +3016,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.political_stances": {
-      "name": "political_stances",
+    "public.telegrams": {
+      "name": "telegrams",
       "schema": "",
       "columns": {
         "id": {
@@ -706,145 +3026,65 @@
           "primaryKey": true,
           "notNull": true
         },
-        "issue": {
-          "name": "issue",
-          "type": "varchar(100)",
+        "type": {
+          "name": "type",
+          "type": "telegram_type",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
-        "description": {
-          "name": "description",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.presidential_election": {
-      "name": "presidential_election",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "voter_id": {
-          "name": "voter_id",
+        "sender_id": {
+          "name": "sender_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "candidate_id": {
-          "name": "candidate_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "points_won": {
-          "name": "points_won",
+        "recipient_id": {
+          "name": "recipient_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.senate_election": {
-      "name": "senate_election",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
         },
-        "voter_id": {
-          "name": "voter_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "candidate_id": {
-          "name": "candidate_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "points_won": {
-          "name": "points_won",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.users": {
-      "name": "users",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "email": {
-          "name": "email",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "username": {
-          "name": "username",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bio": {
-          "name": "bio",
+        "subject": {
+          "name": "subject",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "political_leaning": {
-          "name": "political_leaning",
-          "type": "varchar(50)",
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action_type": {
+          "name": "action_type",
+          "type": "telegram_action",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
-        "role": {
-          "name": "role",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'Representative'"
-        },
-        "party_id": {
-          "name": "party_id",
+        "league_resolution_id": {
+          "name": "league_resolution_id",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alliance_request_id": {
+          "name": "alliance_request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "read_at": {
+          "name": "read_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actioned_at": {
+          "name": "actioned_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
@@ -854,47 +3094,76 @@
           "primaryKey": false,
           "notNull": false,
           "default": "now()"
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": true
-        },
-        "last_activity": {
-          "name": "last_activity",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false,
-          "default": 0
         }
       },
       "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "users_email_unique": {
-          "name": "users_email_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+      "foreignKeys": {
+        "telegrams_sender_id_accounts_id_fk": {
+          "name": "telegrams_sender_id_accounts_id_fk",
+          "tableFrom": "telegrams",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "sender_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
-        "users_username_unique": {
-          "name": "users_username_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "username"
-          ]
+        "telegrams_recipient_id_accounts_id_fk": {
+          "name": "telegrams_recipient_id_accounts_id_fk",
+          "tableFrom": "telegrams",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "recipient_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "telegrams_league_resolution_id_league_resolutions_id_fk": {
+          "name": "telegrams_league_resolution_id_league_resolutions_id_fk",
+          "tableFrom": "telegrams",
+          "tableTo": "league_resolutions",
+          "columnsFrom": [
+            "league_resolution_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "telegrams_alliance_request_id_alliance_requests_id_fk": {
+          "name": "telegrams_alliance_request_id_alliance_requests_id_fk",
+          "tableFrom": "telegrams",
+          "tableTo": "alliance_requests",
+          "columnsFrom": [
+            "alliance_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "telegrams_dm_has_sender": {
+          "name": "telegrams_dm_has_sender",
+          "value": "\"telegrams\".\"type\" <> 'dm' OR \"telegrams\".\"sender_id\" IS NOT NULL"
+        }
+      },
       "isRLSEnabled": false
     },
-    "public.votes": {
-      "name": "votes",
+    "public.wars": {
+      "name": "wars",
       "schema": "",
       "columns": {
         "id": {
@@ -903,45 +3172,200 @@
           "primaryKey": true,
           "notNull": true
         },
-        "user_id": {
-          "name": "user_id",
+        "nation_a_id": {
+          "name": "nation_a_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "election": {
-          "name": "election",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "candidate_id": {
-          "name": "candidate_id",
+        "nation_b_id": {
+          "name": "nation_b_id",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "votes_user_id_election_candidate_id_unique": {
-          "name": "votes_user_id_election_candidate_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "user_id",
-            "election",
-            "candidate_id"
-          ]
+      "foreignKeys": {
+        "wars_nation_a_id_nations_id_fk": {
+          "name": "wars_nation_a_id_nations_id_fk",
+          "tableFrom": "wars",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_a_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "wars_nation_b_id_nations_id_fk": {
+          "name": "wars_nation_b_id_nations_id_fk",
+          "tableFrom": "wars",
+          "tableTo": "nations",
+          "columnsFrom": [
+            "nation_b_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     }
   },
-  "enums": {},
+  "enums": {
+    "public.alliance_request_status": {
+      "name": "alliance_request_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "accepted",
+        "declined"
+      ]
+    },
+    "public.amendment_status": {
+      "name": "amendment_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "accepted",
+        "rejected"
+      ]
+    },
+    "public.article_status": {
+      "name": "article_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "approved",
+        "changes_requested",
+        "denied"
+      ]
+    },
+    "public.bill_stage": {
+      "name": "bill_stage",
+      "schema": "public",
+      "values": [
+        "house",
+        "senate",
+        "president"
+      ]
+    },
+    "public.bill_stage_outcome": {
+      "name": "bill_stage_outcome",
+      "schema": "public",
+      "values": [
+        "passed",
+        "failed"
+      ]
+    },
+    "public.bill_status": {
+      "name": "bill_status",
+      "schema": "public",
+      "values": [
+        "proposed",
+        "queued",
+        "voting",
+        "ratified",
+        "rejected"
+      ]
+    },
+    "public.election_type": {
+      "name": "election_type",
+      "schema": "public",
+      "values": [
+        "presidential",
+        "senate"
+      ]
+    },
+    "public.nation_event_type": {
+      "name": "nation_event_type",
+      "schema": "public",
+      "values": [
+        "election_held",
+        "primary_held",
+        "office_term_started",
+        "office_term_ended",
+        "bill_ratified",
+        "bill_rejected",
+        "policy_enacted",
+        "party_founded",
+        "party_dissolved",
+        "party_merged",
+        "coalition_formed",
+        "coalition_dissolved",
+        "war_declared",
+        "war_ended",
+        "alliance_formed",
+        "alliance_broken",
+        "league_resolution_passed"
+      ]
+    },
+    "public.office_type": {
+      "name": "office_type",
+      "schema": "public",
+      "values": [
+        "president",
+        "senator",
+        "cabinet"
+      ]
+    },
+    "public.resolution_type": {
+      "name": "resolution_type",
+      "schema": "public",
+      "values": [
+        "sanctions",
+        "relief",
+        "war",
+        "peace"
+      ]
+    },
+    "public.telegram_action": {
+      "name": "telegram_action",
+      "schema": "public",
+      "values": [
+        "league_resolution_vote",
+        "alliance_request_response"
+      ]
+    },
+    "public.telegram_type": {
+      "name": "telegram_type",
+      "schema": "public",
+      "values": [
+        "dm",
+        "alert"
+      ]
+    },
+    "public.vote": {
+      "name": "vote",
+      "schema": "public",
+      "values": [
+        "yes",
+        "no"
+      ]
+    }
+  },
   "schemas": {},
   "sequences": {},
   "roles": {},

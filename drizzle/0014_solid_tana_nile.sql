@@ -1,1 +1,0 @@
-ALTER TABLE "coalitions" ADD COLUMN "logo" varchar(255);

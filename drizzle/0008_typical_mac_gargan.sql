@@ -1,1 +1,0 @@
-ALTER TABLE "companies" ADD COLUMN "creator_id" integer;

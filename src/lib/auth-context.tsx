@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, onAuthStateChanged } from "./firebase";
-import { createSessionCookie, deleteSessionCookie } from "./server/users";
+import {
+  createSessionCookie,
+  deleteSessionCookie,
+} from "@/lib/server/accounts";
 import type { User } from "./firebase";
 
 interface AuthContextType {

@@ -1,23 +1,20 @@
 //  @ts-check
 
-import { tanstackConfig } from "@tanstack/eslint-config";
+import { tanstackConfig } from '@tanstack/eslint-config'
 
 export default [
-  {
-    ignores: [
-      ".output/**",
-      "dist/**",
-      "coverage/**",
-      "eslint.config.js",
-      "prettier.config.js",
-      "src/components/ui/**",
-    ],
-  },
   ...tanstackConfig,
   {
-    files: ["src/**/*.{ts,tsx,js,jsx}"],
     rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off",
+      'import/no-cycle': 'off',
+      'import/order': 'off',
+      'sort-imports': 'off',
+      '@typescript-eslint/array-type': 'off',
+      '@typescript-eslint/require-await': 'off',
+      'pnpm/json-enforce-catalog': 'off',
     },
   },
-];
+  {
+    ignores: ['eslint.config.js', 'prettier.config.js'],
+  },
+]

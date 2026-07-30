@@ -1,16 +1,15 @@
 import { initializeApp } from "firebase/app";
 import {
-  
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
-  updateProfile
+  updateProfile,
 } from "firebase/auth";
 import { env } from "../env";
-import type {User} from "firebase/auth";
+import type { User } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: env.VITE_FIREBASE_API_KEY,

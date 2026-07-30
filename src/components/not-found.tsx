@@ -1,7 +1,20 @@
 import { Link } from "@tanstack/react-router";
 import { Home } from "lucide-react";
 import { motion } from "motion/react";
-import { Button } from "@/components/ui/button";
+// import { Button } from "@/components/ui/button";
+
+// Placeholder
+const Button = ({
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+  <button
+    {...props}
+    className={`bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-2 focus:ring-primary/50 focus:outline-none transition-colors ${props.className}`}
+  >
+    {children}
+  </button>
+);
 
 export function NotFound() {
   return (
@@ -51,9 +64,9 @@ export function NotFound() {
           transition={{ duration: 0.6, delay: 0.3 }}
         >
           <Button
-            size="lg"
+            // size="lg"
             className="text-base font-semibold px-8 py-6 rounded-xl flex items-center gap-2 shadow-lg hover:shadow-xl transition-all group"
-            asChild
+            // asChild
           >
             <Link to="/">
               <Home className="w-5 h-5" />
