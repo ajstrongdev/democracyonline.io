@@ -1,6 +1,8 @@
 import {
   bigint,
   boolean,
+  check,
+  index,
   integer,
   pgTable,
   primaryKey,
@@ -10,7 +12,7 @@ import {
   unique,
   varchar,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // Users table
 export const users = pgTable("users", {
@@ -24,7 +26,6 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
   isActive: boolean("is_active").default(true),
   lastActivity: bigint("last_activity", { mode: "number" }).default(0),
-  money: bigint("money", { mode: "number" }).default(100),
 });
 
 // Parties table
@@ -39,8 +40,6 @@ export const parties = pgTable("parties", {
   leaning: varchar("leaning", { length: 25 }),
   logo: varchar("logo", { length: 100 }),
   discord: varchar("discord", { length: 255 }),
-  partySubs: bigint("party_subs", { mode: "number" }).default(0),
-  money: bigint("money", { mode: "number" }).default(0),
 });
 
 // Political stances table
@@ -68,7 +67,6 @@ export const mergeRequest = pgTable("merge_request", {
   createdAt: timestamp("created_at").defaultNow(),
   leaning: varchar("leaning", { length: 25 }).notNull(),
   logo: varchar("logo", { length: 100 }),
-  partySubs: bigint("party_subs", { mode: "number" }).default(0),
 });
 
 // Merge request stances table
@@ -171,22 +169,168 @@ export const billVotesPresidential = pgTable("bill_votes_presidential", {
 // Elections table
 export const elections = pgTable("elections", {
   election: varchar("election", { length: 50 }).primaryKey(),
-  status: varchar("status", { length: 50 }).default("Candidacy").notNull(),
+  status: varchar("status", { length: 50 }).default("Candidate").notNull(),
   seats: integer("seats"),
   daysLeft: integer("days_left").notNull(),
+  cycle: integer("cycle").default(1).notNull(),
 });
+
+// Immutable election records. Names and affiliations are denormalized so the
+// historical record survives profile, membership, and party changes.
+export const electionHistory = pgTable(
+  "election_history",
+  {
+    id: serial("id").primaryKey(),
+    election: varchar("election", { length: 50 }).notNull(),
+    cycle: integer("cycle").notNull(),
+    seats: integer("seats"),
+    totalBallots: integer("total_ballots").default(0).notNull(),
+    totalPoints: integer("total_points").default(0).notNull(),
+    concludedAt: timestamp("concluded_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("election_history_election_cycle_unique").on(
+      table.election,
+      table.cycle,
+    ),
+    index("election_history_concluded_at_idx").on(table.concludedAt),
+  ],
+);
+
+export const electionCandidateHistory = pgTable(
+  "election_candidate_history",
+  {
+    id: serial("id").primaryKey(),
+    electionHistoryId: integer("election_history_id")
+      .notNull()
+      .references(() => electionHistory.id, { onDelete: "cascade" }),
+    userId: integer("user_id"),
+    username: varchar("username", { length: 255 }).notNull(),
+    partyId: integer("party_id"),
+    partyName: varchar("party_name", { length: 255 }),
+    partyColor: varchar("party_color", { length: 7 }),
+    points: integer("points").default(0).notNull(),
+    firstPreferenceVotes: integer("first_preference_votes")
+      .default(0)
+      .notNull(),
+    placement: integer("placement").notNull(),
+    elected: boolean("elected").default(false).notNull(),
+  },
+  (table) => [
+    unique("election_candidate_history_result_unique").on(
+      table.electionHistoryId,
+      table.userId,
+    ),
+    index("election_candidate_history_user_idx").on(table.userId),
+  ],
+);
+
+export const electionOfficeholderHistory = pgTable(
+  "election_officeholder_history",
+  {
+    id: serial("id").primaryKey(),
+    electionHistoryId: integer("election_history_id")
+      .notNull()
+      .references(() => electionHistory.id, { onDelete: "cascade" }),
+    userId: integer("user_id"),
+    username: varchar("username", { length: 255 }).notNull(),
+    partyId: integer("party_id"),
+    partyName: varchar("party_name", { length: 255 }),
+    partyColor: varchar("party_color", { length: 7 }),
+    office: varchar("office", { length: 50 }).notNull(),
+    selection: varchar("selection", { length: 50 }).notNull(),
+  },
+  (table) => [
+    unique("election_officeholder_history_member_unique").on(
+      table.electionHistoryId,
+      table.userId,
+      table.office,
+    ),
+    index("election_officeholder_history_user_idx").on(table.userId),
+  ],
+);
+
+export const archivedParties = pgTable("archived_parties", {
+  partyId: integer("party_id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  color: varchar("color", { length: 7 }).notNull(),
+  bio: text("bio"),
+  politicalLeaning: varchar("political_leaning", { length: 50 }),
+  leaning: varchar("leaning", { length: 25 }),
+  logo: varchar("logo", { length: 100 }),
+  discord: varchar("discord", { length: 255 }),
+  createdAt: timestamp("created_at"),
+  archivedAt: timestamp("archived_at").defaultNow().notNull(),
+});
+
+export const partyMembershipEvents = pgTable(
+  "party_membership_events",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id"),
+    username: varchar("username", { length: 255 }).notNull(),
+    office: varchar("office", { length: 50 }).notNull(),
+    fromPartyId: integer("from_party_id"),
+    fromPartyName: varchar("from_party_name", { length: 255 }),
+    fromPartyColor: varchar("from_party_color", { length: 7 }),
+    toPartyId: integer("to_party_id"),
+    toPartyName: varchar("to_party_name", { length: 255 }),
+    toPartyColor: varchar("to_party_color", { length: 7 }),
+    occurredAt: timestamp("occurred_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("party_membership_events_user_idx").on(table.userId),
+    index("party_membership_events_from_party_idx").on(table.fromPartyId),
+    index("party_membership_events_to_party_idx").on(table.toPartyId),
+    index("party_membership_events_occurred_at_idx").on(table.occurredAt),
+  ],
+);
+
+export const wikiArticles = pgTable(
+  "wiki_articles",
+  {
+    id: serial("id").primaryKey(),
+    entityType: varchar("entity_type", { length: 30 }).notNull(),
+    entityId: varchar("entity_id", { length: 100 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("wiki_articles_entity_unique").on(table.entityType, table.entityId),
+  ],
+);
+
+export const wikiArticleRevisions = pgTable(
+  "wiki_article_revisions",
+  {
+    id: serial("id").primaryKey(),
+    articleId: integer("article_id")
+      .notNull()
+      .references(() => wikiArticles.id, { onDelete: "cascade" }),
+    editorUserId: integer("editor_user_id"),
+    editorUsername: varchar("editor_username", { length: 255 }).notNull(),
+    content: text("content").notNull(),
+    editSummary: varchar("edit_summary", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("wiki_article_revisions_article_idx").on(
+      table.articleId,
+      table.createdAt,
+    ),
+  ],
+);
 
 // Candidates table
 export const candidates = pgTable(
   "candidates",
   {
     id: serial("id").primaryKey(),
-    userId: integer("user_id"),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
     election: varchar("election", { length: 50 }),
     votes: integer("votes").default(0),
-    votesPerHour: integer("votes_per_hour").default(0),
-    donationsPerHour: integer("donations_per_hour").default(0),
-    donations: bigint("donations", { mode: "number" }).default(0),
     haswon: boolean("haswon"),
   },
   (table) => ({
@@ -194,211 +338,14 @@ export const candidates = pgTable(
   }),
 );
 
-export const donationHistory = pgTable("donation_history", {
-  id: serial("id").primaryKey(),
-  candidateId: integer("candidate_id"),
-  amount: bigint("amount", { mode: "number" }).notNull(),
-  donator: integer("donator"),
-  donatedAt: timestamp("donated_at").defaultNow(),
-});
-
-// Candidate snapshot table for hourly tracking
-export const candidateSnapshots = pgTable("candidate_snapshots", {
-  id: serial("id").primaryKey(),
-  candidateId: integer("candidate_id").notNull(),
-  election: varchar("election", { length: 50 }).notNull(),
-  votes: integer("votes").default(0).notNull(),
-  donations: bigint("donations", { mode: "number" }).default(0).notNull(),
-  snapshotAt: timestamp("snapshot_at").defaultNow().notNull(),
-});
-
-// Transaction history table
-export const transactionHistory = pgTable("transaction_history", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id"),
-  description: text("description"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Party transaction history table
-export const partyTransactionHistory = pgTable("party_transaction_history", {
-  id: serial("id").primaryKey(),
-  partyId: integer("party_id").notNull(),
-  amount: bigint("amount", { mode: "number" }).notNull(),
-  description: text("description").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Items table
-export const items = pgTable("items", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  description: text("description").notNull(),
-  target: varchar("target", { length: 50 }).notNull(), // Donations or Votes per hour
-  increaseAmount: bigint("increase_amount", { mode: "number" }).notNull(),
-  baseCost: bigint("base_cost", { mode: "number" }).notNull(),
-  costMultiplier: bigint("cost_multiplier", { mode: "number" })
-    .default(30)
-    .notNull(),
-});
-
-// Candidate purchases
-export const candidatePurchases = pgTable("candidate_purchases", {
-  id: serial("id").primaryKey(),
-  candidateId: integer("candidate_id").notNull(),
-  itemId: integer("item_id").notNull(),
-  quantity: bigint("quantity", { mode: "number" }).default(0).notNull(),
-  purchasedAt: timestamp("purchased_at").defaultNow(),
-});
-
-// Companies table
-export const companies = pgTable("companies", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  symbol: varchar("symbol", { length: 10 }).notNull().unique(),
-  description: text("description"),
-  capital: bigint("capital", { mode: "number" }).default(0),
-  issuedShares: bigint("issued_shares", { mode: "number" }).default(0),
-  creatorId: integer("creator_id"),
-  logo: varchar("logo", { length: 100 }),
-  color: varchar("color", { length: 7 }).default("#3b82f6"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Stock market table
-export const stocks = pgTable("stocks", {
-  id: serial("id").primaryKey(),
-  companyId: integer("company_id").references(() => companies.id),
-  price: bigint("price", { mode: "number" }).notNull(),
-  broughtToday: bigint("brought_today", { mode: "number" }).default(0),
-  soldToday: bigint("sold_today", { mode: "number" }).default(0),
-});
-
-// User shares (holdings) table
-export const userShares = pgTable(
-  "user_shares",
-  {
-    id: serial("id").primaryKey(),
-    userId: integer("user_id")
-      .notNull()
-      .references(() => users.id),
-    companyId: integer("company_id")
-      .notNull()
-      .references(() => companies.id),
-    quantity: bigint("quantity", { mode: "number" }).default(0).notNull(),
-    acquiredAt: timestamp("acquired_at").defaultNow(),
-  },
-  (table) => ({
-    userCompanyUnique: unique().on(table.userId, table.companyId),
-  }),
-);
-
-export const sharePriceHistory = pgTable("share_price_history", {
-  id: serial("id").primaryKey(),
-  stockId: integer("stock_id"),
-  price: bigint("price", { mode: "number" }).notNull(),
-  recordedAt: timestamp("recorded_at").defaultNow(),
-});
-
-export const shareIssuanceEvents = pgTable("share_issuance_events", {
-  id: serial("id").primaryKey(),
-  companyId: integer("company_id")
-    .notNull()
-    .references(() => companies.id),
-  policy: varchar("policy", { length: 32 }).notNull(),
-  source: varchar("source", { length: 32 }).notNull(),
-  mintedShares: bigint("minted_shares", { mode: "number" }).notNull(),
-  issuedSharesBefore: bigint("issued_shares_before", {
-    mode: "number",
-  }).notNull(),
-  issuedSharesAfter: bigint("issued_shares_after", {
-    mode: "number",
-  }).notNull(),
-  activeHolders: bigint("active_holders", { mode: "number" }).default(0),
-  buyPressureDelta: bigint("buy_pressure_delta", { mode: "number" }).default(0),
-  ownershipDriftBps: bigint("ownership_drift_bps", { mode: "number" }).default(
-    0,
-  ),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Game state (single-row table tracking global game counters)
-export const gameState = pgTable("game_state", {
-  id: serial("id").primaryKey(),
-  currentGameHour: bigint("current_game_hour", { mode: "number" })
-    .default(0)
-    .notNull(),
-});
-
-// Stock orders (buy/sell order book)
-export const stockOrders = pgTable("stock_orders", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => users.id),
-  companyId: integer("company_id")
-    .notNull()
-    .references(() => companies.id),
-  side: varchar("side", { length: 4 }).notNull(), // 'buy' | 'sell'
-  quantity: bigint("quantity", { mode: "number" }).notNull(),
-  filledQuantity: bigint("filled_quantity", { mode: "number" })
-    .default(0)
-    .notNull(),
-  pricePerShare: bigint("price_per_share", { mode: "number" }).notNull(),
-  status: varchar("status", { length: 16 }).default("open").notNull(), // 'open' | 'partial' | 'filled' | 'cancelled'
-  gameHour: bigint("game_hour", { mode: "number" }).default(0).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// Order fill history (records each matched trade between buyer & seller)
-export const orderFills = pgTable("order_fills", {
-  id: serial("id").primaryKey(),
-  buyOrderId: integer("buy_order_id")
-    .notNull()
-    .references(() => stockOrders.id),
-  sellOrderId: integer("sell_order_id")
-    .notNull()
-    .references(() => stockOrders.id),
-  companyId: integer("company_id")
-    .notNull()
-    .references(() => companies.id),
-  buyerUserId: integer("buyer_user_id")
-    .notNull()
-    .references(() => users.id),
-  sellerUserId: integer("seller_user_id")
-    .notNull()
-    .references(() => users.id),
-  quantity: bigint("quantity", { mode: "number" }).notNull(),
-  pricePerShare: bigint("price_per_share", { mode: "number" }).notNull(),
-  totalPrice: bigint("total_price", { mode: "number" }).notNull(),
-  filledAt: timestamp("filled_at").defaultNow(),
-});
-
-export const financeKpiSnapshots = pgTable("finance_kpi_snapshots", {
-  id: serial("id").primaryKey(),
-  companyId: integer("company_id")
-    .notNull()
-    .references(() => companies.id),
-  policy: varchar("policy", { length: 32 }).notNull(),
-  sharePrice: bigint("share_price", { mode: "number" }).notNull(),
-  issuedShares: bigint("issued_shares", { mode: "number" }).notNull(),
-  marketCap: bigint("market_cap", { mode: "number" }).notNull(),
-  hourlyDividendPool: bigint("hourly_dividend_pool", {
-    mode: "number",
-  }).notNull(),
-  dividendPerShareMilli: bigint("dividend_per_share_milli", {
-    mode: "number",
-  }).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 // Primary candidates - players declaring in their party/coalition primary
 export const primaryCandidates = pgTable(
   "primary_candidates",
   {
     id: serial("id").primaryKey(),
-    userId: integer("user_id").notNull(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     partyId: integer("party_id").notNull(),
     /** If the party is in a coalition, this is set so the whole coalition votes together */
     coalitionId: integer("coalition_id"),
@@ -415,8 +362,12 @@ export const primaryVotes = pgTable(
   "primary_votes",
   {
     id: serial("id").primaryKey(),
-    userId: integer("user_id").notNull(),
-    candidateId: integer("candidate_id").notNull(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    candidateId: integer("candidate_id")
+      .notNull()
+      .references(() => primaryCandidates.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({
@@ -424,29 +375,31 @@ export const primaryVotes = pgTable(
   }),
 );
 
-// Remove this later
-export const votes = pgTable("votes", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id"),
-  voteType: varchar("vote_type", { length: 50 }).notNull(),
-  candidateId: integer("candidate_id"),
-});
-
-// Senate election table
-export const senateElection = pgTable("senate_election", {
-  id: serial("id").primaryKey(),
-  voterId: integer("voter_id"),
-  candidateId: integer("candidate_id"),
-  pointsWon: integer("points_won").notNull(),
-});
-
-// Presidential election table
-export const presidentialElection = pgTable("presidential_election", {
-  id: serial("id").primaryKey(),
-  voterId: integer("voter_id"),
-  candidateId: integer("candidate_id"),
-  pointsWon: integer("points_won").notNull(),
-});
+export const votes = pgTable(
+  "votes",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    voteType: varchar("vote_type", { length: 50 }).notNull(),
+    candidateId: integer("candidate_id")
+      .notNull()
+      .references(() => candidates.id, { onDelete: "restrict" }),
+    rank: integer("rank").notNull(),
+    points: integer("points").notNull(),
+  },
+  (table) => ({
+    voterCandidateUnique: unique().on(
+      table.userId,
+      table.voteType,
+      table.candidateId,
+    ),
+    voterRankUnique: unique().on(table.userId, table.voteType, table.rank),
+    rankPositive: check("votes_rank_positive", sql`${table.rank} > 0`),
+    pointsPositive: check("votes_points_positive", sql`${table.points} > 0`),
+  }),
+);
 
 // Chats table
 export const chats = pgTable("chats", {
@@ -505,18 +458,7 @@ export const partiesRelations = relations(parties, ({ one, many }) => ({
   receivedNotifications: many(partyNotifications, {
     relationName: "receiverParty",
   }),
-  transactionHistory: many(partyTransactionHistory),
 }));
-
-export const partyTransactionHistoryRelations = relations(
-  partyTransactionHistory,
-  ({ one }) => ({
-    party: one(parties, {
-      fields: [partyTransactionHistory.partyId],
-      references: [parties.id],
-    }),
-  }),
-);
 
 export const billsRelations = relations(bills, ({ one, many }) => ({
   creator: one(users, {
@@ -567,7 +509,7 @@ export const billVotesPresidentialRelations = relations(
   }),
 );
 
-export const candidatesRelations = relations(candidates, ({ one, many }) => ({
+export const candidatesRelations = relations(candidates, ({ one }) => ({
   user: one(users, {
     fields: [candidates.userId],
     references: [users.id],
@@ -576,12 +518,53 @@ export const candidatesRelations = relations(candidates, ({ one, many }) => ({
     fields: [candidates.election],
     references: [elections.election],
   }),
-  purchases: many(candidatePurchases),
 }));
 
 export const electionsRelations = relations(elections, ({ many }) => ({
   candidates: many(candidates),
 }));
+
+export const electionHistoryRelations = relations(
+  electionHistory,
+  ({ many }) => ({
+    candidates: many(electionCandidateHistory),
+    officeholders: many(electionOfficeholderHistory),
+  }),
+);
+
+export const electionCandidateHistoryRelations = relations(
+  electionCandidateHistory,
+  ({ one }) => ({
+    election: one(electionHistory, {
+      fields: [electionCandidateHistory.electionHistoryId],
+      references: [electionHistory.id],
+    }),
+  }),
+);
+
+export const electionOfficeholderHistoryRelations = relations(
+  electionOfficeholderHistory,
+  ({ one }) => ({
+    election: one(electionHistory, {
+      fields: [electionOfficeholderHistory.electionHistoryId],
+      references: [electionHistory.id],
+    }),
+  }),
+);
+
+export const wikiArticlesRelations = relations(wikiArticles, ({ many }) => ({
+  revisions: many(wikiArticleRevisions),
+}));
+
+export const wikiArticleRevisionsRelations = relations(
+  wikiArticleRevisions,
+  ({ one }) => ({
+    article: one(wikiArticles, {
+      fields: [wikiArticleRevisions.articleId],
+      references: [wikiArticles.id],
+    }),
+  }),
+);
 
 export const partyStancesRelations = relations(partyStances, ({ one }) => ({
   party: one(parties, {
@@ -654,21 +637,3 @@ export const feedRelations = relations(feed, ({ one }) => ({
     references: [users.id],
   }),
 }));
-
-export const itemsRelations = relations(items, ({ many }) => ({
-  purchases: many(candidatePurchases),
-}));
-
-export const candidatePurchasesRelations = relations(
-  candidatePurchases,
-  ({ one }) => ({
-    candidate: one(candidates, {
-      fields: [candidatePurchases.candidateId],
-      references: [candidates.id],
-    }),
-    item: one(items, {
-      fields: [candidatePurchases.itemId],
-      references: [items.id],
-    }),
-  }),
-);

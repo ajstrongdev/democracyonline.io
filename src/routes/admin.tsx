@@ -1,13 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Clock, FileText, Gamepad2, Trash2 } from "lucide-react";
+import { FileText, Gamepad2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   checkIsAdmin,
   listAccessTokens,
   listDatabaseUsers,
   listFirebaseUsers,
-  resetEconomy,
 } from "@/lib/server/admin";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserList from "@/components/admin/user-list";
@@ -71,12 +70,9 @@ function RouteComponent() {
   const [advanceLoading, setAdvanceLoading] = useState<{
     game: boolean;
     bills: boolean;
-    hourly: boolean;
-  }>({ game: false, bills: false, hourly: false });
+  }>({ game: false, bills: false });
   const [gameAdvanceCount, setGameAdvanceCount] = useState(1);
   const [billAdvanceCount, setBillAdvanceCount] = useState(1);
-  const [hourlyAdvanceCount, setHourlyAdvanceCount] = useState(1);
-  const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -214,38 +210,6 @@ function RouteComponent() {
     }
   };
 
-  const runHourlyAdvance = async () => {
-    setAdvanceLoading({ ...advanceLoading, hourly: true });
-    try {
-      const headers = await getManualAdvanceHeaders();
-      let successCount = 0;
-      let failCount = 0;
-
-      for (let i = 0; i < hourlyAdvanceCount; i++) {
-        const response = await fetch("/api/hourly-advance", { headers });
-        const data = await response.json();
-        if (data.success) {
-          successCount++;
-        } else {
-          failCount++;
-          toast.error(
-            `Hourly advance ${i + 1} failed: ${data.error || "Unknown error"}`,
-          );
-        }
-      }
-
-      if (successCount > 0) {
-        toast.success(
-          `Hourly advance completed ${successCount} time(s) successfully`,
-        );
-      }
-    } catch (error) {
-      toast.error(`Error running hourly advance: ${error}`);
-    } finally {
-      setAdvanceLoading({ ...advanceLoading, hourly: false });
-    }
-  };
-
   return (
     <div className="container mx-auto p-4 sm:p-8 max-w-7xl">
       <div className="mb-6">
@@ -257,7 +221,7 @@ function RouteComponent() {
 
       <div className="mb-6 p-4 border rounded-lg bg-card">
         <h2 className="text-xl font-semibold mb-4">Manual Advance Triggers</h2>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-3">
             <Label htmlFor="game-count">Game Advance</Label>
             <Input
@@ -290,9 +254,9 @@ function RouteComponent() {
                     Run Game Advance {gameAdvanceCount} time(s)?
                   </AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will advance the game state (elections, party fees,
-                    inactive users) {gameAdvanceCount} time(s). Are you sure you
-                    want to continue?
+                    This will advance elections and user activity{" "}
+                    {gameAdvanceCount} time(s). Are you sure you want to
+                    continue?
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -351,107 +315,6 @@ function RouteComponent() {
               </AlertDialogContent>
             </AlertDialog>
           </div>
-
-          <div className="space-y-3">
-            <Label htmlFor="hourly-count">Hourly Advance</Label>
-            <Input
-              id="hourly-count"
-              type="number"
-              min={1}
-              max={100}
-              value={hourlyAdvanceCount}
-              onChange={(e) =>
-                setHourlyAdvanceCount(
-                  Math.max(1, parseInt(e.target.value) || 1),
-                )
-              }
-              className="w-full"
-            />
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  disabled={advanceLoading.hourly}
-                  className="w-full flex items-center gap-2"
-                >
-                  <Clock className="w-4 h-4" />
-                  {advanceLoading.hourly
-                    ? "Running..."
-                    : `Run ${hourlyAdvanceCount}x`}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Run Hourly Advance {hourlyAdvanceCount} time(s)?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will advance stock prices, pay dividends, update
-                    campaigns, and record snapshots {hourlyAdvanceCount}{" "}
-                    time(s). Are you sure you want to continue?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={runHourlyAdvance}>
-                    Confirm
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </div>
-
-      <div className="mb-6 p-4 border rounded-lg bg-card border-destructive">
-        <h2 className="text-xl font-semibold mb-4 text-destructive">
-          Danger Zone
-        </h2>
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Reset the entire economy: delete all companies, shares, and price
-            history. All players will receive $2,500 as compensation.
-          </p>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                disabled={resetLoading}
-                className="flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                {resetLoading ? "Resetting..." : "Reset Economy"}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Reset the entire economy?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete all companies, shares, and share
-                  price history. Every player&apos;s balance will be set to
-                  $2,500. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={async () => {
-                    setResetLoading(true);
-                    try {
-                      const result = await resetEconomy();
-                      toast.success(result.message);
-                    } catch (error) {
-                      toast.error(`Failed to reset economy: ${error}`);
-                    } finally {
-                      setResetLoading(false);
-                    }
-                  }}
-                >
-                  Yes, reset everything
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </div>
 

@@ -6,24 +6,19 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
+import { ThemeProvider } from "@ajstrongdev/start-themes";
 import { Toaster } from "sonner";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
 import type { QueryClient } from "@tanstack/react-query";
 import type { User } from "firebase/auth";
 import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import {
-  getThemeServerFn,
   getThemeClasses,
+  getThemeServerFn,
   setThemeServerFn,
 } from "@/lib/server/theme";
-import { ThemeProvider } from "@ajstrongdev/start-themes";
 import { NotFound } from "@/components/not-found";
+import { WikiNavigation } from "@/components/wiki/wiki-header";
 
 type AuthContext = {
   user: User | null;
@@ -78,17 +73,12 @@ function RootLayout() {
       theme={theme}
       onThemeChange={(t) => setThemeServerFn({ data: t })}
     >
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger className="-ml-1" />
-          </header>
-          <div className="flex flex-1 flex-col">
-            <Outlet />
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
+      <div className="flex min-h-svh flex-col">
+        <WikiNavigation />
+        <div className="flex flex-1 flex-col">
+          <Outlet />
+        </div>
+      </div>
     </ThemeProvider>
   );
 }

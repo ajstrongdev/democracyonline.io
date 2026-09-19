@@ -116,7 +116,10 @@ export function SearchResults({
                     size="default"
                     className="shrink-0 w-full sm:w-auto"
                   >
-                    <Link to="/profile/$id" params={{ id: user.id.toString() }}>
+                    <Link
+                      to="/dashboard/players/$playerId"
+                      params={{ playerId: user.id.toString() }}
+                    >
                       View Profile
                     </Link>
                   </Button>

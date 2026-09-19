@@ -256,11 +256,11 @@ export const Route = createFileRoute("/api/bot")({
 
               if (election) {
                 // Validate election parameter
-                if (!["President", "Senate", "House"].includes(election)) {
+                if (!["President", "Senate"].includes(election)) {
                   return new Response(
                     JSON.stringify({
                       error: "Invalid election type",
-                      validElections: ["President", "Senate", "House"],
+                      validElections: ["President", "Senate"],
                     }),
                     {
                       status: 400,
@@ -276,10 +276,7 @@ export const Route = createFileRoute("/api/bot")({
                     userId: candidates.userId,
                     username: users.username,
                     election: candidates.election,
-                    votes: candidates.votes,
-                    donations: candidates.donations,
-                    votesPerHour: candidates.votesPerHour,
-                    donationsPerHour: candidates.donationsPerHour,
+                    points: candidates.votes,
                     partyId: users.partyId,
                     partyName: parties.name,
                     partyColor: parties.color,
@@ -288,7 +285,7 @@ export const Route = createFileRoute("/api/bot")({
                   .leftJoin(users, eq(candidates.userId, users.id))
                   .leftJoin(parties, eq(users.partyId, parties.id))
                   .where(eq(candidates.election, election))
-                  .orderBy(desc(candidates.votes));
+                  .orderBy(desc(candidates.votes), candidates.id);
 
                 return new Response(JSON.stringify(electionCandidates), {
                   status: 200,
@@ -302,10 +299,7 @@ export const Route = createFileRoute("/api/bot")({
                     userId: candidates.userId,
                     username: users.username,
                     election: candidates.election,
-                    votes: candidates.votes,
-                    donations: candidates.donations,
-                    votesPerHour: candidates.votesPerHour,
-                    donationsPerHour: candidates.donationsPerHour,
+                    points: candidates.votes,
                     partyId: users.partyId,
                     partyName: parties.name,
                     partyColor: parties.color,
@@ -313,7 +307,7 @@ export const Route = createFileRoute("/api/bot")({
                   .from(candidates)
                   .leftJoin(users, eq(candidates.userId, users.id))
                   .leftJoin(parties, eq(users.partyId, parties.id))
-                  .orderBy(desc(candidates.votes));
+                  .orderBy(desc(candidates.votes), candidates.id);
 
                 return new Response(JSON.stringify(allCandidates), {
                   status: 200,
@@ -339,8 +333,7 @@ export const Route = createFileRoute("/api/bot")({
                         userId: candidates.userId,
                         username: users.username,
                         election: candidates.election,
-                        votes: candidates.votes,
-                        donations: candidates.donations,
+                        points: candidates.votes,
                         partyId: users.partyId,
                         partyName: parties.name,
                         partyColor: parties.color,
@@ -349,7 +342,7 @@ export const Route = createFileRoute("/api/bot")({
                       .leftJoin(users, eq(candidates.userId, users.id))
                       .leftJoin(parties, eq(users.partyId, parties.id))
                       .where(eq(candidates.election, election.election))
-                      .orderBy(desc(candidates.votes));
+                      .orderBy(desc(candidates.votes), candidates.id);
 
                     return {
                       ...election,

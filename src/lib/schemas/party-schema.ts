@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { nonNegativeMembershipFeeSchema } from "@/lib/schemas/finance-schema";
 
 export const PartySchema = z.object({
   name: z.string().min(1, "Party name is required"),
@@ -9,7 +8,6 @@ export const PartySchema = z.object({
   logo: z.string().nullable().optional(),
   discord: z.string().nullable().optional(),
   leaning: z.string(),
-  membership_fee: nonNegativeMembershipFeeSchema.default(0),
 });
 
 export const PartyStanceInputSchema = z.object({

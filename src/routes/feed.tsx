@@ -35,8 +35,8 @@ function parseContentWithLinks(content: string): Array<ReactNode> {
     parts.push(
       <Link
         key={`bill-${billId}-${match.index}`}
-        to="/bills/$id"
-        params={{ id: billId }}
+        to="/dashboard/bills/$billId"
+        params={{ billId }}
         className="text-primary hover:underline"
       >
         {match[0]}
@@ -137,8 +137,8 @@ function FeedContent() {
                             className="font-bold text-foreground hover:underline cursor-pointer"
                             onClick={() =>
                               navigate({
-                                to: "/profile/$id",
-                                params: { id: String(item.userId) },
+                                to: "/dashboard/players/$playerId",
+                                params: { playerId: String(item.userId) },
                               })
                             }
                           >

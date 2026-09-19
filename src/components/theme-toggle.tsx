@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useTheme } from "@ajstrongdev/start-themes";
 import { themes } from "@/lib/server/theme";
 import type { ThemeId } from "@/lib/server/theme";
-import { SidebarMenuButton } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverTrigger,
@@ -17,12 +17,12 @@ export function ModeToggle() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <SidebarMenuButton>
-          <Palette />
-          <span className="flex-1">Theme</span>
-        </SidebarMenuButton>
+        <Button variant="ghost" size="sm" className="shrink-0 gap-2">
+          <Palette className="h-4 w-4" />
+          <span className="hidden sm:inline">Theme</span>
+        </Button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="start" className="w-52 p-1.5">
+      <PopoverContent align="end" className="w-52 p-1.5">
         <p className="px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
           Choose a theme
         </p>

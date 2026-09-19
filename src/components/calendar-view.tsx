@@ -1,11 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Gamepad2,
-  ScrollText,
-  TrendingUp,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Gamepad2, ScrollText } from "lucide-react";
 import type { CalendarData, CalendarEvent } from "@/lib/server/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -111,10 +105,6 @@ function LiveTimers({
   const simulatedNow = parseDebugTimestamp(simulatedNowInput);
   const effectiveNow = useSimulatedNow && simulatedNow ? simulatedNow : now;
 
-  const nextMarket = getNextUtcTimeFromCron(
-    timerSchedules.hourlyAdvance,
-    effectiveNow,
-  );
   const nextBills = getNextUtcTimeFromCron(
     timerSchedules.billAdvance,
     effectiveNow,
@@ -125,16 +115,6 @@ function LiveTimers({
   );
 
   const timers = [
-    {
-      icon: TrendingUp,
-      label: "Hourly tick",
-      time: nextMarket,
-      color: "text-emerald-500",
-      bg: "bg-linear-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20",
-      iconBg: "bg-emerald-500/10",
-      description:
-        "Dividends, stock prices, order matching, and election campaign ticks.",
-    },
     {
       icon: ScrollText,
       label: "Bills progress",
@@ -270,8 +250,7 @@ function LiveTimers({
                   Effective now (UTC): {effectiveNow.toISOString()}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Schedules (UTC): hourly={timerSchedules.hourlyAdvance}, bills=
-                  {timerSchedules.billAdvance}, game=
+                  Schedules (UTC): bills={timerSchedules.billAdvance}, game=
                   {timerSchedules.gameAdvance}
                 </p>
                 <p className="text-xs text-muted-foreground">

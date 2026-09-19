@@ -13,7 +13,7 @@ import { primaryCandidates, primaryVotes } from "@/db/schema";
  * party/coalition group becomes a presidential candidate.
  * Returns the list of auto-registered presidential candidate user IDs.
  */
-export async function resolvePrimaries(): Promise<number[]> {
+export async function resolvePrimaries(): Promise<Array<number>> {
   const allCandidates = await db
     .select({
       id: primaryCandidates.id,
@@ -25,6 +25,17 @@ export async function resolvePrimaries(): Promise<number[]> {
     .from(primaryCandidates)
     .orderBy(desc(primaryCandidates.votes));
 
+  return resolvePrimaryWinners(allCandidates);
+}
+
+export function resolvePrimaryWinners(
+  allCandidates: Array<{
+    userId: number;
+    partyId: number;
+    coalitionId: number | null;
+    votes: number;
+  }>,
+): Array<number> {
   if (allCandidates.length === 0) return [];
 
   // Group by coalition ID or party ID
@@ -38,7 +49,7 @@ export async function resolvePrimaries(): Promise<number[]> {
     groups.get(key)!.push(c);
   }
 
-  const winnerUserIds: number[] = [];
+  const winnerUserIds: Array<number> = [];
 
   for (const [, groupCandidates] of groups) {
     const topVotes = groupCandidates[0].votes;

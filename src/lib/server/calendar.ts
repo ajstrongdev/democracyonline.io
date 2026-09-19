@@ -6,16 +6,11 @@ import { env } from "@/env";
 import {
   DEFAULT_BILL_ADVANCE_SCHEDULE_UTC,
   DEFAULT_GAME_ADVANCE_SCHEDULE_UTC,
-  DEFAULT_HOURLY_ADVANCE_SCHEDULE_UTC,
   getNextUtcTimeFromCron,
   getSingleDailyUtcAnchor,
   resolveUtcCronSchedule,
 } from "@/lib/utils/utc-schedule";
 
-const HOURLY_ADVANCE_SCHEDULE_UTC = resolveUtcCronSchedule(
-  env.HOURLY_ADVANCE_SCHEDULE_UTC,
-  DEFAULT_HOURLY_ADVANCE_SCHEDULE_UTC,
-);
 const BILL_ADVANCE_SCHEDULE_UTC = resolveUtcCronSchedule(
   env.BILL_ADVANCE_SCHEDULE_UTC,
   DEFAULT_BILL_ADVANCE_SCHEDULE_UTC,
@@ -25,7 +20,9 @@ const GAME_ADVANCE_SCHEDULE_UTC = resolveUtcCronSchedule(
   DEFAULT_GAME_ADVANCE_SCHEDULE_UTC,
 );
 
-const gameAdvanceDailyAnchor = getSingleDailyUtcAnchor(GAME_ADVANCE_SCHEDULE_UTC);
+const gameAdvanceDailyAnchor = getSingleDailyUtcAnchor(
+  GAME_ADVANCE_SCHEDULE_UTC,
+);
 const GAME_ADVANCE_HOUR_UTC = gameAdvanceDailyAnchor?.hour ?? 20;
 const GAME_ADVANCE_MINUTE_UTC = gameAdvanceDailyAnchor?.minute ?? 0;
 
@@ -81,7 +78,6 @@ export type CalendarEvent = {
 export type CalendarData = {
   serverNow: Date;
   timerSchedules: {
-    hourlyAdvance: string;
     billAdvance: string;
     gameAdvance: string;
   };
@@ -375,7 +371,6 @@ export const getCalendarData = createServerFn().handler(
     return {
       serverNow: now,
       timerSchedules: {
-        hourlyAdvance: HOURLY_ADVANCE_SCHEDULE_UTC,
         billAdvance: BILL_ADVANCE_SCHEDULE_UTC,
         gameAdvance: GAME_ADVANCE_SCHEDULE_UTC,
       },

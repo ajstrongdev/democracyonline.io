@@ -7,7 +7,6 @@ import {
   parties,
   partyNotifications,
   partyStances,
-  partyTransactionHistory,
   users,
 } from "@/db/schema";
 import { db } from "@/db";
@@ -161,7 +160,6 @@ export const createMergeRequest = createServerFn()
           logo: mergedPartyData.logo,
           leaderId: senderParty[0].leaderId,
           politicalLeaning: mergedPartyData.leaning,
-          partySubs: mergedPartyData.membership_fee ?? 0,
         })
         .returning();
 
@@ -232,23 +230,7 @@ export const acceptMergeRequest = createServerFn()
 
     // Perform the merge in a transaction
     const newPartyId = await db.transaction(async (tx) => {
-      // Get both parties' balances to merge
-      const [senderParty] = await tx
-        .select({ money: parties.money })
-        .from(parties)
-        .where(eq(parties.id, notification.senderPartyId))
-        .limit(1);
-
-      const [receiverParty] = await tx
-        .select({ money: parties.money })
-        .from(parties)
-        .where(eq(parties.id, notification.receiverPartyId))
-        .limit(1);
-
-      const combinedBalance =
-        (senderParty?.money ?? 0) + (receiverParty?.money ?? 0);
-
-      // Create new party with merged data and combined balance
+      // Create the merged party.
       const [newParty] = await tx
         .insert(parties)
         .values({
@@ -259,8 +241,6 @@ export const acceptMergeRequest = createServerFn()
           logo: mergeData.logo,
           leaderId: mergeData.leaderId,
           politicalLeaning: mergeData.politicalLeaning,
-          partySubs: mergeData.partySubs ?? 0,
-          money: combinedBalance,
         })
         .returning();
 
@@ -322,15 +302,6 @@ export const acceptMergeRequest = createServerFn()
         userId: null,
         content: `Two parties have merged to form ${newParty.name}!`,
       });
-
-      // Record merged balance as transaction if there was any money
-      if (combinedBalance > 0) {
-        await tx.insert(partyTransactionHistory).values({
-          partyId: newParty.id,
-          amount: combinedBalance,
-          description: `Combined treasury from party merger`,
-        });
-      }
 
       return newParty.id;
     });

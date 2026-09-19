@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { env } from "@/env";
 import { authMiddleware } from "@/middleware/auth";
 import { getAdminAuth } from "@/lib/firebase-admin";
@@ -13,20 +13,9 @@ import {
   bills,
   candidates,
   chats,
-  companies,
+  elections,
   feed,
-  financeKpiSnapshots,
-  gameState,
-  orderFills,
   parties,
-  presidentialElection,
-  senateElection,
-  shareIssuanceEvents,
-  sharePriceHistory,
-  stockOrders,
-  stocks,
-  transactionHistory,
-  userShares,
   users,
   votes,
 } from "@/db/schema";
@@ -176,6 +165,33 @@ export const purgeUserFromDatabase = createServerFn({ method: "POST" })
       if (!email || !isAdminEmail(email)) {
         throw new Error("Unauthorized");
       }
+
+      const [submittedBallot] = await db
+        .select({ id: votes.id })
+        .from(votes)
+        .where(eq(votes.userId, data.userId))
+        .limit(1);
+      if (submittedBallot) {
+        throw new Error(
+          "Cannot purge a user while their election ballot is active",
+        );
+      }
+
+      const [lockedCandidacy] = await db
+        .select({ id: candidates.id })
+        .from(candidates)
+        .innerJoin(elections, eq(elections.election, candidates.election))
+        .where(
+          and(
+            eq(candidates.userId, data.userId),
+            inArray(elections.status, ["Voting", "Concluded"]),
+          ),
+        )
+        .limit(1);
+      if (lockedCandidacy) {
+        throw new Error("Cannot purge a candidate during an active election");
+      }
+
       // Delete bill votes
       await db
         .delete(billVotesHouse)
@@ -186,14 +202,6 @@ export const purgeUserFromDatabase = createServerFn({ method: "POST" })
       await db
         .delete(billVotesPresidential)
         .where(eq(billVotesPresidential.voterId, data.userId));
-
-      // Delete election votes
-      await db
-        .delete(senateElection)
-        .where(eq(senateElection.voterId, data.userId));
-      await db
-        .delete(presidentialElection)
-        .where(eq(presidentialElection.voterId, data.userId));
 
       // Delete votes
       await db.delete(votes).where(eq(votes.userId, data.userId));
@@ -278,51 +286,3 @@ export const deleteAccessToken = createServerFn({ method: "POST" })
       return { success: true };
     },
   );
-
-export const resetEconomy = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    const email = context.user?.email;
-    if (!email || !isAdminEmail(email)) {
-      throw new Error("Unauthorized");
-    }
-
-    // Delete order fills (references stockOrders and companies)
-    await db.delete(orderFills);
-
-    // Delete stock orders (references companies)
-    await db.delete(stockOrders);
-
-    // Delete finance KPI snapshots (references companies)
-    await db.delete(financeKpiSnapshots);
-
-    // Delete share issuance events (references companies)
-    await db.delete(shareIssuanceEvents);
-
-    // Delete share price history
-    await db.delete(sharePriceHistory);
-
-    // Delete all user share holdings
-    await db.delete(userShares);
-
-    // Delete all stock entries
-    await db.delete(stocks);
-
-    // Delete all companies
-    await db.delete(companies);
-
-    // Reset game state
-    await db.delete(gameState);
-
-    // Delete transaction history (contains company creation records used for cooldowns)
-    await db.delete(transactionHistory);
-
-    // Reset all players' money to $2500
-    await db.update(users).set({ money: 2500 });
-
-    return {
-      success: true,
-      message:
-        "Economy reset: all companies, shares, and price history deleted. All players given $2,500.",
-    };
-  });

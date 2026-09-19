@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setCookie } from "@tanstack/react-start/server";
-import { and, desc, eq, getTableColumns, or, sql } from "drizzle-orm";
+import { eq, getTableColumns, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   accessTokens,
@@ -8,16 +8,12 @@ import {
   billVotesPresidential,
   billVotesSenate,
   bills,
-  stocks,
-  transactionHistory,
-  userShares,
   users,
 } from "@/db/schema";
 import { db } from "@/db";
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { UpdateUserProfileSchema } from "@/lib/schemas/user-schema";
 import { SearchUsersSchema } from "@/lib/schemas/user-search-schema";
-import { positiveMoneyAmountSchema } from "@/lib/schemas/finance-schema";
 import { normalizeEmail, userEmailEquals } from "@/lib/server/user-email";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware";
 import { env } from "@/env";
@@ -61,7 +57,9 @@ export const createUser = createServerFn({ method: "POST" })
     }
 
     if (
-      existingUser.some((user) => normalizeEmail(user.email) === normalizedEmail)
+      existingUser.some(
+        (user) => normalizeEmail(user.email) === normalizedEmail,
+      )
     ) {
       throw new Error("Email already exists");
     }
@@ -354,235 +352,3 @@ export const deleteSessionCookie = createServerFn({ method: "POST" }).handler(
     return { success: true };
   },
 );
-
-export const getTopRichestUsers = createServerFn()
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    try {
-      // Subquery: total stock value per user = SUM(quantity * stock price)
-      const stockValue = db
-        .select({
-          userId: userShares.userId,
-          totalStockValue:
-            sql<number>`COALESCE(SUM(${userShares.quantity} * ${stocks.price}), 0)`.as(
-              "total_stock_value",
-            ),
-        })
-        .from(userShares)
-        .innerJoin(stocks, eq(stocks.companyId, userShares.companyId))
-        .groupBy(userShares.userId)
-        .as("stock_value");
-
-      const richestUsers = await db
-        .select({
-          id: users.id,
-          username: users.username,
-          money: users.money,
-          partyId: users.partyId,
-          politicalLeaning: users.politicalLeaning,
-          stockValue: sql<number>`COALESCE(${stockValue.totalStockValue}, 0)`,
-          netWorth: sql<number>`COALESCE(${users.money}, 0) + COALESCE(${stockValue.totalStockValue}, 0)`,
-        })
-        .from(users)
-        .leftJoin(stockValue, eq(stockValue.userId, users.id))
-        .where(sql`${users.username} NOT LIKE 'Banned User%'`)
-        .orderBy(
-          sql`COALESCE(${users.money}, 0) + COALESCE(${stockValue.totalStockValue}, 0) DESC NULLS LAST`,
-        )
-        .limit(10);
-
-      // If user is logged in, find their rank
-      let currentUserRank: {
-        rank: number;
-        id: number;
-        username: string;
-        money: number | null;
-        partyId: number | null;
-        politicalLeaning: string | null;
-        stockValue: number;
-        netWorth: number;
-      } | null = null;
-
-      if (context.user?.email) {
-        const [currentUser] = await db
-          .select({ id: users.id })
-          .from(users)
-          .where(
-            eq(sql`lower(${users.email})`, sql`lower(${context.user.email})`),
-          )
-          .limit(1);
-
-        if (currentUser) {
-          const isInTop10 = richestUsers.some((u) => u.id === currentUser.id);
-
-          if (!isInTop10) {
-            // Get the user's net worth and rank
-            const [userData] = await db
-              .select({
-                id: users.id,
-                username: users.username,
-                money: users.money,
-                partyId: users.partyId,
-                politicalLeaning: users.politicalLeaning,
-                stockValue: sql<number>`COALESCE(${stockValue.totalStockValue}, 0)`,
-                netWorth: sql<number>`COALESCE(${users.money}, 0) + COALESCE(${stockValue.totalStockValue}, 0)`,
-              })
-              .from(users)
-              .leftJoin(stockValue, eq(stockValue.userId, users.id))
-              .where(eq(users.id, currentUser.id));
-
-            if (userData) {
-              // Count how many users have a higher net worth
-              const [rankResult] = await db
-                .select({
-                  rank: sql<number>`COUNT(*) + 1`,
-                })
-                .from(users)
-                .leftJoin(stockValue, eq(stockValue.userId, users.id))
-                .where(
-                  sql`${users.username} NOT LIKE 'Banned User%' AND (COALESCE(${users.money}, 0) + COALESCE(${stockValue.totalStockValue}, 0)) > ${userData.netWorth}`,
-                );
-
-              currentUserRank = {
-                rank: Number(rankResult?.rank || 0),
-                ...userData,
-              };
-            }
-          }
-        }
-      }
-
-      return { richestUsers, currentUserRank };
-    } catch (error) {
-      console.error("Error fetching richest users:", error);
-      throw new Error("Failed to fetch richest users");
-    }
-  });
-
-/** Get a single user's net worth (cash + stock holdings value) */
-export const getUserNetWorth = createServerFn()
-  .middleware([requireAuthMiddleware])
-  .handler(async ({ context }) => {
-    if (!context.user?.email) throw new Error("Authentication required");
-
-    const [user] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(sql`lower(${users.email})`, sql`lower(${context.user.email})`))
-      .limit(1);
-
-    if (!user) return { stockValue: 0, netWorth: 0 };
-
-    const [result] = await db
-      .select({
-        totalStockValue: sql<number>`COALESCE(SUM(${userShares.quantity} * ${stocks.price}), 0)`,
-      })
-      .from(userShares)
-      .innerJoin(stocks, eq(stocks.companyId, userShares.companyId))
-      .where(eq(userShares.userId, user.id));
-
-    const stockVal = Number(result?.totalStockValue || 0);
-
-    return { stockValue: stockVal };
-  });
-
-export const getUserTransactionHistory = createServerFn()
-  .inputValidator(
-    (data: { userId: number; offset?: number; limit?: number }) => data,
-  )
-  .handler(async ({ data }) => {
-    const limit = data.limit || 10;
-    const offset = data.offset || 0;
-
-    const transactions = await db
-      .select({
-        id: transactionHistory.id,
-        description: transactionHistory.description,
-        createdAt: transactionHistory.createdAt,
-      })
-      .from(transactionHistory)
-      .where(eq(transactionHistory.userId, data.userId))
-      .orderBy(desc(transactionHistory.createdAt))
-      .limit(limit)
-      .offset(offset);
-
-    return transactions;
-  });
-
-export const transferMoney = createServerFn({ method: "POST" })
-  .middleware([requireAuthMiddleware])
-  .inputValidator(
-    z.object({
-      recipientUsername: z.string().min(1, "Recipient username is required"),
-      amount: positiveMoneyAmountSchema,
-    }),
-  )
-  .handler(async ({ context, data }) => {
-    if (!context.user?.email) {
-      throw new Error("Unauthorized");
-    }
-    const senderEmail = context.user.email;
-
-    return db.transaction(async (tx) => {
-      const [sender] = await tx
-        .select({ id: users.id, username: users.username })
-        .from(users)
-        .where(eq(users.email, senderEmail))
-        .limit(1);
-
-      if (!sender) {
-        throw new Error("Sender not found");
-      }
-
-      const [recipient] = await tx
-        .select({ id: users.id, username: users.username })
-        .from(users)
-        .where(eq(users.username, data.recipientUsername))
-        .limit(1);
-
-      if (!recipient) {
-        throw new Error("Recipient not found");
-      }
-
-      if (sender.id === recipient.id) {
-        throw new Error("Cannot transfer money to yourself");
-      }
-
-      const debitedSender = await tx
-        .update(users)
-        .set({ money: sql`${users.money} - ${data.amount}` })
-        .where(
-          and(eq(users.id, sender.id), sql`${users.money} >= ${data.amount}`),
-        )
-        .returning({ id: users.id, money: users.money });
-
-      if (debitedSender.length === 0) {
-        throw new Error("Insufficient funds");
-      }
-
-      const creditedRecipient = await tx
-        .update(users)
-        .set({ money: sql`${users.money} + ${data.amount}` })
-        .where(eq(users.id, recipient.id))
-        .returning({ id: users.id });
-
-      if (creditedRecipient.length === 0) {
-        throw new Error("Recipient not found");
-      }
-
-      await tx.insert(transactionHistory).values({
-        userId: sender.id,
-        description: `Sent $${data.amount.toLocaleString()} to ${recipient.username}`,
-      });
-
-      await tx.insert(transactionHistory).values({
-        userId: recipient.id,
-        description: `Received $${data.amount.toLocaleString()} from ${sender.username}`,
-      });
-
-      return {
-        success: true,
-        newBalance: Number(debitedSender[0].money || 0),
-      };
-    });
-  });

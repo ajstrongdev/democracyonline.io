@@ -83,7 +83,10 @@ function SettingsPage() {
         });
         setIsEditingProfile(false);
         // Navigate to profile to see updated data
-        navigate({ to: "/profile/$id", params: { id: String(user?.id || 0) } });
+        navigate({
+          to: "/dashboard/players/$playerId",
+          params: { playerId: String(user?.id || 0) },
+        });
       } catch (error) {
         console.error("Error updating profile:", error);
         alert("Failed to update profile. Please try again.");

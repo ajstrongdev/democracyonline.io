@@ -1,4 +1,5 @@
 import { CheckCircle2, XCircle } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import {
   Card,
   CardContent,
@@ -66,9 +67,14 @@ function VoterCard({
         <Button
           size="sm"
           className="text-xs sm:text-sm w-full sm:w-auto whitespace-nowrap"
-          onClick={() => (window.location.href = `/profile/${voter.id}`)}
+          asChild
         >
-          View Profile
+          <Link
+            to="/dashboard/players/$playerId"
+            params={{ playerId: String(voter.id) }}
+          >
+            View article
+          </Link>
         </Button>
       </div>
     </div>

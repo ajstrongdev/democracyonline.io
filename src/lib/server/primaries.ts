@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq, inArray, sql, desc } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   coalitionMembers,
+  candidates as electionCandidates,
   elections,
   parties,
   primaryCandidates,
@@ -34,7 +35,9 @@ async function getPartyCoalitionId(partyId: number): Promise<number | null> {
   return row?.coalitionId ?? null;
 }
 
-async function getCoalitionPartyIds(coalitionId: number): Promise<number[]> {
+async function getCoalitionPartyIds(
+  coalitionId: number,
+): Promise<Array<number>> {
   const rows = await db
     .select({ partyId: coalitionMembers.partyId })
     .from(coalitionMembers)
@@ -62,7 +65,7 @@ export const getPrimariesData = createServerFn()
     // The user's party & coalition
     const partyId = user.partyId;
     let coalitionId: number | null = null;
-    let eligiblePartyIds: number[] = [];
+    let eligiblePartyIds: Array<number> = [];
 
     if (partyId) {
       coalitionId = await getPartyCoalitionId(partyId);
@@ -170,8 +173,8 @@ export const declarePrimaryCandidate = createServerFn({ method: "POST" })
     if (!context.user?.email) throw new Error("Authentication required");
     const user = await resolveUser(context.user.email);
     if (!user) throw new Error("User not found");
-    if (!user.partyId)
-      throw new Error("You must be in a party to run in a primary");
+    const partyId = user.partyId;
+    if (!partyId) throw new Error("You must be in a party to run in a primary");
 
     // Must be Candidate phase
     const [electionInfo] = await db
@@ -189,27 +192,49 @@ export const declarePrimaryCandidate = createServerFn({ method: "POST" })
       throw new Error("Senators cannot run for President");
     }
 
-    // Check not already a primary candidate
-    const [existing] = await db
-      .select({ id: primaryCandidates.id })
-      .from(primaryCandidates)
-      .where(eq(primaryCandidates.userId, user.id))
-      .limit(1);
+    const coalitionId = await getPartyCoalitionId(partyId);
 
-    if (existing) throw new Error("You are already a primary candidate");
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${user.id})`);
+      await tx.execute(
+        sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = 'President' FOR UPDATE`,
+      );
 
-    const coalitionId = await getPartyCoalitionId(user.partyId);
+      const [lockedElection] = await tx
+        .select({ status: elections.status })
+        .from(elections)
+        .where(eq(elections.election, "President"))
+        .limit(1);
+      if (lockedElection?.status !== "Candidate") {
+        throw new Error("Primaries are only open during the Candidate phase");
+      }
 
-    const [newCandidate] = await db
-      .insert(primaryCandidates)
-      .values({
-        userId: user.id,
-        partyId: user.partyId,
-        coalitionId,
-      })
-      .returning();
+      const [existing] = await tx
+        .select({ id: primaryCandidates.id })
+        .from(primaryCandidates)
+        .where(eq(primaryCandidates.userId, user.id))
+        .limit(1);
+      if (existing) throw new Error("You are already a primary candidate");
 
-    return newCandidate;
+      const [generalCandidacy] = await tx
+        .select({ id: electionCandidates.id })
+        .from(electionCandidates)
+        .where(eq(electionCandidates.userId, user.id))
+        .limit(1);
+      if (generalCandidacy) {
+        throw new Error("You are already a candidate in another election");
+      }
+
+      const [newCandidate] = await tx
+        .insert(primaryCandidates)
+        .values({
+          userId: user.id,
+          partyId,
+          coalitionId,
+        })
+        .returning();
+      return newCandidate;
+    });
   });
 
 export const withdrawPrimaryCandidate = createServerFn({ method: "POST" })
@@ -220,28 +245,38 @@ export const withdrawPrimaryCandidate = createServerFn({ method: "POST" })
     const user = await resolveUser(context.user.email);
     if (!user) throw new Error("User not found");
 
-    const [electionInfo] = await db
-      .select({ status: elections.status })
-      .from(elections)
-      .where(eq(elections.election, "President"))
-      .limit(1);
-
-    if (electionInfo?.status !== "Candidate") {
-      throw new Error("Cannot withdraw outside the Candidate phase");
-    }
-
-    const [candidate] = await db
-      .select({ id: primaryCandidates.id, votes: primaryCandidates.votes })
-      .from(primaryCandidates)
-      .where(eq(primaryCandidates.userId, user.id))
-      .limit(1);
-
-    if (!candidate) throw new Error("You are not a primary candidate");
-
     await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = 'President' FOR UPDATE`,
+      );
+      const [electionInfo] = await tx
+        .select({ status: elections.status })
+        .from(elections)
+        .where(eq(elections.election, "President"))
+        .limit(1);
+      if (electionInfo?.status !== "Candidate") {
+        throw new Error("Cannot withdraw outside the Candidate phase");
+      }
+
+      const [candidate] = await tx
+        .select({
+          id: primaryCandidates.id,
+          votes: primaryCandidates.votes,
+          partyId: primaryCandidates.partyId,
+          coalitionId: primaryCandidates.coalitionId,
+        })
+        .from(primaryCandidates)
+        .where(eq(primaryCandidates.userId, user.id))
+        .limit(1);
+      if (!candidate) throw new Error("You are not a primary candidate");
+
       if (data.endorseCandidateId) {
         const [endorsed] = await tx
-          .select({ id: primaryCandidates.id })
+          .select({
+            id: primaryCandidates.id,
+            partyId: primaryCandidates.partyId,
+            coalitionId: primaryCandidates.coalitionId,
+          })
           .from(primaryCandidates)
           .where(eq(primaryCandidates.id, data.endorseCandidateId))
           .limit(1);
@@ -249,6 +284,12 @@ export const withdrawPrimaryCandidate = createServerFn({ method: "POST" })
         if (!endorsed) throw new Error("Endorsed candidate not found");
         if (endorsed.id === candidate.id)
           throw new Error("You cannot endorse yourself");
+        const samePrimary = candidate.coalitionId
+          ? endorsed.coalitionId === candidate.coalitionId
+          : !endorsed.coalitionId && endorsed.partyId === candidate.partyId;
+        if (!samePrimary) {
+          throw new Error("You can only endorse a candidate in your primary");
+        }
 
         // Transfer votes
         await tx
@@ -283,51 +324,52 @@ export const voteInPrimary = createServerFn({ method: "POST" })
     if (!context.user?.email) throw new Error("Authentication required");
     const user = await resolveUser(context.user.email);
     if (!user) throw new Error("User not found");
-    if (!user.partyId) throw new Error("You must be in a party to vote");
-
-    const [electionInfo] = await db
-      .select({ status: elections.status })
-      .from(elections)
-      .where(eq(elections.election, "President"))
-      .limit(1);
-
-    if (electionInfo?.status !== "Candidate") {
-      throw new Error("Voting is only open during the Candidate phase");
-    }
-
-    const [existingVote] = await db
-      .select({ id: primaryVotes.id })
-      .from(primaryVotes)
-      .where(eq(primaryVotes.userId, user.id))
-      .limit(1);
-
-    if (existingVote) throw new Error("You have already voted in this primary");
-
-    const [candidate] = await db
-      .select({
-        id: primaryCandidates.id,
-        partyId: primaryCandidates.partyId,
-        coalitionId: primaryCandidates.coalitionId,
-      })
-      .from(primaryCandidates)
-      .where(eq(primaryCandidates.id, data.candidateId))
-      .limit(1);
-
-    if (!candidate) throw new Error("Candidate not found");
-
-    const voterCoalitionId = await getPartyCoalitionId(user.partyId);
-
-    if (candidate.coalitionId) {
-      if (voterCoalitionId !== candidate.coalitionId) {
-        throw new Error("You can only vote in your own coalition's primary");
-      }
-    } else {
-      if (user.partyId !== candidate.partyId) {
-        throw new Error("You can only vote in your own party's primary");
-      }
-    }
+    const partyId = user.partyId;
+    if (!partyId) throw new Error("You must be in a party to vote");
+    const voterCoalitionId = await getPartyCoalitionId(partyId);
 
     await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = 'President' FOR UPDATE`,
+      );
+      const [electionInfo] = await tx
+        .select({ status: elections.status })
+        .from(elections)
+        .where(eq(elections.election, "President"))
+        .limit(1);
+      if (electionInfo?.status !== "Candidate") {
+        throw new Error("Voting is only open during the Candidate phase");
+      }
+
+      const [existingVote] = await tx
+        .select({ id: primaryVotes.id })
+        .from(primaryVotes)
+        .where(eq(primaryVotes.userId, user.id))
+        .limit(1);
+      if (existingVote)
+        throw new Error("You have already voted in this primary");
+
+      const [candidate] = await tx
+        .select({
+          id: primaryCandidates.id,
+          partyId: primaryCandidates.partyId,
+          coalitionId: primaryCandidates.coalitionId,
+        })
+        .from(primaryCandidates)
+        .where(eq(primaryCandidates.id, data.candidateId))
+        .limit(1);
+      if (!candidate) throw new Error("Candidate not found");
+
+      if (
+        candidate.coalitionId
+          ? voterCoalitionId !== candidate.coalitionId
+          : partyId !== candidate.partyId
+      ) {
+        throw new Error(
+          "You can only vote in your own party or coalition primary",
+        );
+      }
+
       await tx.insert(primaryVotes).values({
         userId: user.id,
         candidateId: data.candidateId,

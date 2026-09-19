@@ -113,6 +113,62 @@
       "when": 1774657500000,
       "tag": "0015_case_insensitive_user_email",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789757568486,
+      "tag": "0016_mighty_the_santerians",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789757698458,
+      "tag": "0017_happy_outlaw_kid",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789758353880,
+      "tag": "0018_foamy_blizzard",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789759001576,
+      "tag": "0019_closed_miss_america",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789759499308,
+      "tag": "0020_vote_type_not_null",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789765758253,
+      "tag": "0021_overrated_morlun",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1789769788884,
+      "tag": "0022_massive_prism",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789770785974,
+      "tag": "0023_goofy_wong",
+      "breakpoints": true
     }
   ]
 }

@@ -57,7 +57,7 @@ export function SignupForm() {
               politicalLeaning: leanings[leaningValue[0]],
             },
           });
-          navigate({ to: "/profile" });
+          navigate({ to: "/dashboard" });
         } catch (dbError: any) {
           form.setErrorMap({
             onSubmit: dbError.message || "Failed to create user profile",

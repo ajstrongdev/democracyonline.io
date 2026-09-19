@@ -1,10 +1,16 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, redirect } from "@tanstack/react-router";
 import { ArrowRight, CheckCircle2, Crown, Handshake, Vote } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { getCurrentUserInfo } from "@/lib/server/users";
 
 export const Route = createFileRoute("/")({
+  loader: async () => {
+    if (await getCurrentUserInfo()) {
+      throw redirect({ to: "/dashboard" });
+    }
+  },
   component: RouteComponent,
 });
 

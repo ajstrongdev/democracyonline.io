@@ -1,4 +1,3 @@
-export const DEFAULT_HOURLY_ADVANCE_SCHEDULE_UTC = "0 * * * *";
 export const DEFAULT_BILL_ADVANCE_SCHEDULE_UTC = "0 4,12,20 * * *";
 export const DEFAULT_GAME_ADVANCE_SCHEDULE_UTC = "0 20 * * *";
 

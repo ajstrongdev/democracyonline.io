@@ -175,12 +175,6 @@ variable "bill_advance_schedule" {
   default     = "0 4,12,20 * * *"
 }
 
-variable "hourly_advance_schedule" {
-  description = "Cron schedule for hourly advance Cloud Scheduler job"
-  type        = string
-  default     = "0 * * * *"
-}
-
 variable "deployed_env" {
   description = "Deployment environment identifier passed to the application (dev or prod)"
   type        = string

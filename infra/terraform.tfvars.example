@@ -56,4 +56,3 @@ enable_custom_domain = false
 # Cloud Scheduler Configuration
 game_advance_schedule  = "0 20 * * *"
 bill_advance_schedule  = "0 4,12,20 * * *"
-hourly_advance_schedule = "0 * * * *"

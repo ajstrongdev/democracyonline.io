@@ -33,31 +33,6 @@ export const env = createEnv({
     SITE_URL: z.url().default("http://localhost:3000"),
     CRON_SCHEDULER_TOKEN: z.string().optional().default(""),
     CRON_LOCAL_TOKEN: z.string().optional().default(""),
-    SHARE_ISSUANCE_POLICY: z
-      .enum(["legacy-hourly", "event-conditional"])
-      .default("legacy-hourly"),
-    ENABLE_BUY_PRESSURE_MINT_TRIGGER: z
-      .string()
-      .optional()
-      .default("false")
-      .transform((val) => val === "true"),
-    BUY_PRESSURE_MINT_THRESHOLD: z
-      .string()
-      .optional()
-      .default("25")
-      .transform((val) => Number.parseInt(val, 10))
-      .refine((val) => Number.isFinite(val) && val > 0, {
-        message: "BUY_PRESSURE_MINT_THRESHOLD must be a positive integer",
-      }),
-    DAILY_COMPANY_MINT_CAP: z
-      .string()
-      .optional()
-      .default("10000")
-      .transform((val) => Number.parseInt(val, 10))
-      .refine((val) => Number.isFinite(val) && val > 0, {
-        message: "DAILY_COMPANY_MINT_CAP must be a positive integer",
-      }),
-    HOURLY_ADVANCE_SCHEDULE_UTC: z.string().optional().default("0 * * * *"),
     BILL_ADVANCE_SCHEDULE_UTC: z.string().optional().default("0 4,12,20 * * *"),
     GAME_ADVANCE_SCHEDULE_UTC: z.string().optional().default("0 20 * * *"),
     DEPLOYED_ENV: z.string().optional().default("local"),
@@ -94,12 +69,6 @@ export const env = createEnv({
     SITE_URL: process.env.SITE_URL,
     CRON_SCHEDULER_TOKEN: process.env.CRON_SCHEDULER_TOKEN,
     CRON_LOCAL_TOKEN: process.env.CRON_LOCAL_TOKEN,
-    SHARE_ISSUANCE_POLICY: process.env.SHARE_ISSUANCE_POLICY,
-    ENABLE_BUY_PRESSURE_MINT_TRIGGER:
-      process.env.ENABLE_BUY_PRESSURE_MINT_TRIGGER,
-    BUY_PRESSURE_MINT_THRESHOLD: process.env.BUY_PRESSURE_MINT_THRESHOLD,
-    DAILY_COMPANY_MINT_CAP: process.env.DAILY_COMPANY_MINT_CAP,
-    HOURLY_ADVANCE_SCHEDULE_UTC: process.env.HOURLY_ADVANCE_SCHEDULE_UTC,
     BILL_ADVANCE_SCHEDULE_UTC: process.env.BILL_ADVANCE_SCHEDULE_UTC,
     GAME_ADVANCE_SCHEDULE_UTC: process.env.GAME_ADVANCE_SCHEDULE_UTC,
     DEPLOYED_ENV: process.env.DEPLOYED_ENV,

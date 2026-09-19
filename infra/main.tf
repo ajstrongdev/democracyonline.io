@@ -477,11 +477,6 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
-        name  = "HOURLY_ADVANCE_SCHEDULE_UTC"
-        value = var.hourly_advance_schedule
-      }
-
-      env {
         name  = "BILL_ADVANCE_SCHEDULE_UTC"
         value = var.bill_advance_schedule
       }
@@ -685,40 +680,6 @@ resource "google_cloud_scheduler_job" "bill_advance" {
   ]
 }
 
-# Hourly step for stock market and other stuff
-resource "google_cloud_scheduler_job" "hourly_advance" {
-  name             = "${local.resource_name}-hourly-advance"
-  description      = "Trigger hourly advancement at the top of every hour"
-  schedule         = var.hourly_advance_schedule
-  time_zone        = "UTC"
-  attempt_deadline = "320s"
-  region           = var.region
-
-  retry_config {
-    retry_count = 3
-  }
-
-  http_target {
-    http_method = "GET"
-    uri         = "${local.custom_domain_enabled ? "https://${var.custom_domain}" : google_cloud_run_v2_service.app.uri}/api/hourly-advance"
-
-    headers = {
-      "x-scheduler-token" = var.cron_scheduler_token
-    }
-
-    oidc_token {
-      service_account_email = google_service_account.scheduler_sa.email
-      audience              = local.custom_domain_enabled ? "https://${var.custom_domain}" : google_cloud_run_v2_service.app.uri
-    }
-  }
-
-  depends_on = [
-    google_project_service.required_apis,
-    google_cloud_run_v2_service.app,
-  ]
-}
-
-
 # ============================================
 # LOAD BALANCER & CUSTOM DOMAIN
 # ============================================
@@ -890,11 +851,6 @@ output "scheduler_job_name" {
 output "bill_scheduler_job_name" {
   description = "The name of the Cloud Scheduler job for bill advancement"
   value       = google_cloud_scheduler_job.bill_advance.name
-}
-
-output "hourly_scheduler_job_name" {
-  description = "The name of the Cloud Scheduler job for hourly advancement"
-  value       = google_cloud_scheduler_job.hourly_advance.name
 }
 
 output "load_balancer_ip" {
