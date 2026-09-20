@@ -363,41 +363,6 @@ async function seed() {
       ]);
     }
 
-    const stanceRows = await insertRows(
-      "political_stances",
-      ["issue", "description"],
-      [
-        ["Healthcare", "How should healthcare coverage be provided?"],
-        ["Taxation", "How should public revenue be raised?"],
-        ["Climate", "How aggressively should emissions be reduced?"],
-        ["Education", "What role should government play in education?"],
-        ["Civil Rights", "How should individual rights be protected?"],
-        ["Infrastructure", "How should infrastructure investment be funded?"],
-        ["Immigration", "What should immigration policy prioritize?"],
-        ["Foreign Policy", "How should the country engage internationally?"],
-      ],
-      true,
-    );
-    const stanceIds = stanceRows.map((row) => Number(row.id));
-    await insertRows(
-      "party_stances",
-      ["party_id", "stance_id", "value"],
-      partyIds.flatMap((partyId, partyIndex) =>
-        stanceIds.map((stanceId, stanceIndex) => [
-          partyId,
-          stanceId,
-          `${partyDefinitions[partyIndex][0]} position ${stanceIndex + 1}: ${pick(
-            [
-              "Prioritize local control with transparent national standards.",
-              "Expand public investment while measuring outcomes.",
-              "Use market incentives with strong consumer protections.",
-              "Protect individual liberty and equal access.",
-            ],
-          )}`,
-        ]),
-      ),
-    );
-
     const coalitionRows = await insertRows(
       "coalitions",
       ["name", "color", "bio"],
@@ -440,52 +405,6 @@ async function seed() {
           index < 4 ? "Pending" : "Declined",
           daysAgo(3 + index),
         ]),
-    );
-
-    const mergeRows = await insertRows(
-      "merge_request",
-      ["leader_id", "name", "color", "bio", "political_leaning", "leaning"],
-      [
-        [
-          generatedUserIds[14],
-          "United Reform Party",
-          "#14B8A6",
-          "A proposed reform merger.",
-          "Center",
-          "Center",
-        ],
-        [
-          generatedUserIds[20],
-          "People's Coalition",
-          "#E11D48",
-          "A proposed coalition party.",
-          "Center Left",
-          "Center Left",
-        ],
-      ],
-      true,
-    );
-    const mergeIds = mergeRows.map((row) => Number(row.id));
-    await insertRows(
-      "merge_request_stances",
-      ["merge_request_id", "stance_id", "value"],
-      mergeIds.flatMap((mergeId, index) =>
-        stanceIds
-          .slice(0, 4)
-          .map((stanceId) => [
-            mergeId,
-            stanceId,
-            `Shared platform proposal ${index + 1}`,
-          ]),
-      ),
-    );
-    await insertRows(
-      "party_notifications",
-      ["sender_party_id", "receiver_party_id", "merge_request_id", "status"],
-      [
-        [partyIds[6], partyIds[8], mergeIds[0], "Pending"],
-        [partyIds[7], partyIds[9], mergeIds[1], "Accepted"],
-      ],
     );
 
     const isPrimaryScenario =
@@ -1193,12 +1112,12 @@ async function seed() {
       ...partyRows.map((party) => ({
         entityType: "party",
         entityId: String(party.id),
-        content: `## History\n\n**${String(party.name)}** was organized as a durable political association in Democracy Online. Its electoral record and representation are generated from certified results below.\n\n### Identity\n\nThe party is represented by the color \`${String(party.color)}\`.`,
+        content: `## Platform\n\n**${String(party.name)}** organizes around the following statement of purpose:\n\n> ${String(party.bio)}\n\n### Governing principles\n\n- Protect individual liberty and equal access.\n- Publish measurable goals and transparent results.\n- Build durable institutions through democratic participation.`,
       })),
       {
         entityType: "party",
         entityId: String(archivedParty.party_id),
-        content: `## History\n\n**${String(archivedParty.name)}** was a political association in Democracy Online. It is retained in the archive after its dissolution.\n\n### Identity\n\nThe party was represented by the color \`${String(archivedParty.color)}\`.`,
+        content: `## Archived platform\n\n**${String(archivedParty.name)}** organized around civic participation, accountable government, and equal access. This platform is retained after the party's dissolution.`,
       },
       ...billRows.map((bill) => ({
         entityType: "bill",

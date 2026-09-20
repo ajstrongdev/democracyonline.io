@@ -74,7 +74,6 @@ democracy-online/
 │   │   ├── server/             # Server functions
 │   │   │   ├── bills.ts        # Bill-related server logic
 │   │   │   ├── party.ts        # Party-related server logic
-│   │   │   ├── party-merge.ts  # Party merging logic
 │   │   │   ├── theme.ts        # Theme management
 │   │   │   └── users.ts        # User management
 │   │   └── utils/              # Utility functions
@@ -170,8 +169,7 @@ The application uses a relational PostgreSQL database with the following main en
 
 - **Users**: User accounts, profiles, and authentication data
 - **Parties**: Political party information and leadership
-- **Party Stances**: Political positions on various issues
-- **Merge Requests**: Party merger proposals and negotiations
+- **Party Platforms**: Revisioned Markdown published on party wiki pages
 - **Bills**: Legislative proposals and content
 - **Bill Votes**: Votes on bills at different legislative stages
 - **Elections**: Electoral contests for government positions
@@ -221,19 +219,10 @@ See [src/db/schema.ts](../src/db/schema.ts) for complete schema definitions.
 
 - Create and manage political parties
 - Join parties and collaborate with members
-- Define party platforms and political stances
+- Publish revisioned party platforms in Markdown
 - Party leadership and governance
 
-### 3. Party Merging
-
-[Detailed Documentation](features/party-merging.md)
-
-- Propose mergers between multiple parties
-- Negotiate terms of merged party
-- Multi-party approval process
-- Automatic member migration
-
-### 4. Legislative System
+### 3. Legislative System
 
 [Detailed Documentation](features/legislative-system.md)
 
@@ -242,7 +231,7 @@ See [src/db/schema.ts](../src/db/schema.ts) for complete schema definitions.
 - Track bill progress through legislative process
 - Vote counting and bill advancement
 
-### 5. Elections System
+### 4. Elections System
 
 [Detailed Documentation](features/elections-system.md)
 
@@ -251,7 +240,7 @@ See [src/db/schema.ts](../src/db/schema.ts) for complete schema definitions.
 - Multiple election types (House, Senate, Presidential)
 - Automatic role assignment for winners
 
-### 6. Theme System
+### 5. Theme System
 
 [Detailed Documentation](features/theme-system.md)
 
@@ -367,7 +356,6 @@ All server-side logic is organized into domain-specific modules:
 
 - `src/lib/server/bills.ts` - Bill creation, voting, advancement
 - `src/lib/server/party.ts` - Party CRUD operations
-- `src/lib/server/party-merge.ts` - Party merger logic
 - `src/lib/server/users.ts` - User management
 - `src/lib/server/theme.ts` - Theme preferences
 

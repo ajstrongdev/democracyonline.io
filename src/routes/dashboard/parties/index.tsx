@@ -1,13 +1,24 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useDeferredValue, useState } from "react";
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
+import { BarChart3 } from "lucide-react";
+import type { ChartConfig } from "@/components/ui/chart";
 import { WikiHeader } from "@/components/wiki/wiki-header";
-import { WikiPage, WikiSearch } from "@/components/wiki/wiki-layout";
+import {
+  WikiPage,
+  WikiSearch,
+  WikiSection,
+} from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { getWikiParties } from "@/lib/server/history";
 import { getCurrentUserInfo } from "@/lib/server/users";
-import { getPoliticalStances } from "@/lib/server/party";
 import { NewPartyDialog } from "@/components/wiki/new-party-dialog";
 
 export const Route = createFileRoute("/dashboard/parties/")({
@@ -16,18 +27,17 @@ export const Route = createFileRoute("/dashboard/parties/")({
       ? { create: true as const }
       : {},
   loader: async () => {
-    const [parties, currentUser, stances] = await Promise.all([
+    const [parties, currentUser] = await Promise.all([
       getWikiParties(),
       getCurrentUserInfo(),
-      getPoliticalStances(),
     ]);
-    return { parties, currentUser, stances };
+    return { parties, currentUser };
   },
   component: PartyIndex,
 });
 
 function PartyIndex() {
-  const { parties, currentUser, stances } = Route.useLoaderData();
+  const { parties, currentUser } = Route.useLoaderData();
   const { create } = Route.useSearch();
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
@@ -46,11 +56,7 @@ function PartyIndex() {
         description="Current and historical parties, their electoral records, representation, membership, and community-written histories."
       />
       <nav className="flex flex-wrap gap-2 border-y bg-card px-4 py-3">
-        <NewPartyDialog
-          user={currentUser}
-          stances={stances}
-          autoOpen={create}
-        />
+        <NewPartyDialog user={currentUser} autoOpen={create} />
         <Button asChild size="sm" variant="outline">
           <Link to="/dashboard/parties/primaries">Presidential primaries</Link>
         </Button>
@@ -64,9 +70,59 @@ function PartyIndex() {
         placeholder="Search the party archive"
         resultCount={filtered.length}
       />
-      <PartySection title="Current parties" parties={current} />
+      <PartyComparison parties={parties} />
+      <PartySection title="Active parties" parties={current} />
       <PartySection title="Archived parties" parties={archived} />
     </WikiPage>
+  );
+}
+
+const comparisonConfig = {
+  memberCount: { label: "Members", color: "var(--chart-1)" },
+} satisfies ChartConfig;
+
+function PartyComparison({ parties }: { parties: Array<PartySummary> }) {
+  if (!parties.length) return null;
+  const height = Math.max(300, parties.length * 48);
+
+  return (
+    <WikiSection
+      title="Party comparison"
+      description="Current membership across current and archived parties."
+      icon={BarChart3}
+    >
+      <div className="overflow-x-auto">
+        <ChartContainer
+          config={comparisonConfig}
+          className="min-w-[42rem] w-full"
+          style={{ height }}
+        >
+          <BarChart
+            accessibilityLayer
+            data={parties}
+            layout="vertical"
+            margin={{ left: 8, right: 16 }}
+          >
+            <CartesianGrid horizontal={false} />
+            <XAxis type="number" allowDecimals={false} />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={132}
+              tickLine={false}
+              axisLine={false}
+              tick={{ fontSize: 12 }}
+            />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Bar dataKey="memberCount" radius={[0, 3, 3, 0]}>
+              {parties.map((party) => (
+                <Cell key={party.id} fill={party.color} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ChartContainer>
+      </div>
+    </WikiSection>
   );
 }
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
-  createFileRoute,
   Link,
+  createFileRoute,
   redirect,
   useNavigate,
 } from "@tanstack/react-router";
@@ -15,9 +15,9 @@ import {
   X,
 } from "lucide-react";
 import {
-  getCoalitionDetails,
   acceptJoinRequest,
   declineJoinRequest,
+  getCoalitionDetails,
   leaveCoalition,
   requestJoinCoalition,
   updateCoalition,
@@ -26,7 +26,6 @@ import { getCurrentUserInfo } from "@/lib/server/users";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -42,6 +41,14 @@ import { useUserData } from "@/lib/hooks/use-user-data";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { icons } from "@/lib/utils/logo-helper";
+import { WikiHeader } from "@/components/wiki/wiki-header";
+import {
+  WikiEmpty,
+  WikiPage,
+  WikiSection,
+  WikiStat,
+  WikiStatGrid,
+} from "@/components/wiki/wiki-layout";
 
 export const Route = createFileRoute("/dashboard/parties/coalitions/$id")({
   loader: async ({ params }) => {
@@ -106,12 +113,17 @@ function CoalitionPage() {
   if (!coalition) {
     return (
       <ProtectedRoute>
-        <div className="p-6 text-center">
-          <p className="text-muted-foreground text-lg">Coalition not found.</p>
-          <Button asChild variant="link" className="mt-4">
-            <Link to="/dashboard/parties">Back to Parties</Link>
-          </Button>
-        </div>
+        <WikiPage>
+          <WikiEmpty>
+            Coalition not found.{" "}
+            <Link
+              to="/dashboard/parties/coalitions"
+              className="text-primary underline"
+            >
+              Return to the coalition archive.
+            </Link>
+          </WikiEmpty>
+        </WikiPage>
       </ProtectedRoute>
     );
   }
@@ -189,10 +201,12 @@ function CoalitionPage() {
 
   return (
     <ProtectedRoute>
-      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
+      <WikiPage>
+        <WikiHeader
+          eyebrow="Political coalition"
+          title={coalition.name}
+          description={coalition.bio || "No description has been recorded."}
+          status={
             <CoalitionLogo
               coalition_id={coalition.id}
               size={64}
@@ -200,54 +214,51 @@ function CoalitionPage() {
               logo={coalition.logo}
               name={coalition.name}
             />
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold">
-                {coalition.name}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {coalition.bio || "No description"}
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {isMemberPartyLeader && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditing(!editing)}
-              >
-                <Pencil className="mr-2 h-4 w-4" />
-                {editing ? "Cancel Edit" : "Edit Coalition"}
-              </Button>
-            )}
-            {isMemberPartyLeader && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowLeaveDialog(true)}
-              >
-                <DoorOpen className="mr-2 h-4 w-4" />
-                Leave Coalition
-              </Button>
-            )}
-            {canJoin && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setShowJoinDialog(true)}
-              >
-                <Handshake className="mr-2 h-4 w-4" />
-                Request to Join
-              </Button>
-            )}
-          </div>
-        </div>
+          }
+        />
+        <nav className="flex flex-wrap gap-2 border-y bg-card px-4 py-3">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/dashboard/parties/coalitions">Coalition archive</Link>
+          </Button>
+          {isMemberPartyLeader && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditing(!editing)}
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              {editing ? "Cancel edit" : "Edit coalition"}
+            </Button>
+          )}
+          {isMemberPartyLeader && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowLeaveDialog(true)}
+            >
+              <DoorOpen className="mr-2 h-4 w-4" />
+              Leave coalition
+            </Button>
+          )}
+          {canJoin && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setShowJoinDialog(true)}
+            >
+              <Handshake className="mr-2 h-4 w-4" />
+              Request to join
+            </Button>
+          )}
+        </nav>
 
         {/* Edit Form */}
         {editing && (
-          <Card>
+          <Card className="rounded-sm shadow-none">
             <CardHeader>
-              <CardTitle className="text-base">Edit Coalition</CardTitle>
+              <CardTitle className="font-serif text-2xl">
+                Edit coalition
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -322,45 +333,15 @@ function CoalitionPage() {
           </Card>
         )}
 
-        {/* Stats */}
-        <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Member Parties
-              </CardTitle>
-              <Handshake className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{memberParties.length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Members
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalCoalitionMembers}</div>
-              <p className="text-xs text-muted-foreground">
-                Across all member parties
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Pending Requests
-              </CardTitle>
-              <Crown className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingRequests.length}</div>
-            </CardContent>
-          </Card>
-        </div>
+        <WikiStatGrid>
+          <WikiStat label="Member parties" value={memberParties.length} />
+          <WikiStat
+            label="Total members"
+            value={totalCoalitionMembers}
+            detail="Across all member parties"
+          />
+          <WikiStat label="Pending requests" value={pendingRequests.length} />
+        </WikiStatGrid>
 
         {/* Tabs: Parties | Join Requests */}
         <Tabs defaultValue="parties" className="w-full">
@@ -377,21 +358,17 @@ function CoalitionPage() {
           </TabsList>
 
           <TabsContent value="parties">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base md:text-lg">
-                  Member Parties
-                </CardTitle>
-                <CardDescription className="text-xs md:text-sm">
-                  Parties that form this coalition.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="px-2 md:px-6">
+            <WikiSection
+              title="Member parties"
+              description="Parties that form this coalition."
+              icon={Handshake}
+            >
+              <div>
                 <div className="space-y-3 md:space-y-4">
                   {memberParties.map((party) => (
                     <div
                       key={party.id}
-                      className="flex flex-col sm:flex-row sm:items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border bg-card transition-colors"
+                      className="flex flex-col gap-3 border-b bg-card p-3 transition-colors last:border-b-0 sm:flex-row sm:items-center md:gap-4 md:p-4"
                       style={{
                         borderLeftWidth: "4px",
                         borderLeftColor: party.color,
@@ -446,28 +423,27 @@ function CoalitionPage() {
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </WikiSection>
           </TabsContent>
 
           <TabsContent value="requests">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base md:text-lg">
-                  Pending Join Requests
-                </CardTitle>
-                <CardDescription className="text-xs md:text-sm">
+            <WikiSection
+              title="Pending join requests"
+              icon={Crown}
+              description={`Parties requesting to join this coalition.${!isMemberPartyLeader ? " Only coalition member party leaders can accept or decline." : ""}`}
+            >
+              <div>
+                <p className="sr-only">
                   Parties requesting to join this coalition.
                   {!isMemberPartyLeader &&
                     " Only coalition member party leaders can accept or decline."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="px-2 md:px-6">
+                </p>
                 <div className="space-y-3 md:space-y-4">
                   {pendingRequests.map((req) => (
                     <div
                       key={req.id}
-                      className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border bg-card"
+                      className="flex flex-col items-start gap-3 border-b bg-card p-3 last:border-b-0 sm:flex-row sm:items-center md:gap-4 md:p-4"
                       style={{
                         borderLeftWidth: "4px",
                         borderLeftColor: req.partyColor,
@@ -519,8 +495,8 @@ function CoalitionPage() {
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </WikiSection>
           </TabsContent>
         </Tabs>
 
@@ -542,7 +518,7 @@ function CoalitionPage() {
           confirmText="Send Request"
           onConfirm={handleJoin}
         />
-      </div>
+      </WikiPage>
     </ProtectedRoute>
   );
 }

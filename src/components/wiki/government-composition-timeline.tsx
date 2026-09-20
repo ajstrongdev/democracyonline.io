@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { PartyCompositionBar } from "@/components/wiki/party-composition-bar";
 
 type Composition = {
   key: string;
@@ -30,63 +31,71 @@ export function GovernmentCompositionTimeline({
   snapshots: Array<Snapshot>;
 }) {
   return (
-    <section className="wiki-section px-4 py-6 sm:px-8">
-      <div className="mb-7 border-b pb-4">
-        <h2 className="font-serif text-2xl font-semibold">Government record</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Seat totals after each election or recorded membership change. Changes
-          are measured against the preceding government.
-        </p>
+    <section className="wiki-section overflow-hidden">
+      <header className="wiki-section-header">
+        <div>
+          <h2 className="wiki-section-title">Government record</h2>
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            Seat totals after each election or recorded membership change.
+            Changes are measured against the preceding government.
+          </p>
+        </div>
+        <span className="shrink-0 font-mono text-xs text-muted-foreground">
+          Latest first
+        </span>
+      </header>
+      <div className="wiki-section-content px-3 py-6 sm:px-6 sm:py-8">
+        {snapshots.length ? (
+          <div className="ml-2 border-l-2 border-primary/25 sm:ml-3">
+            {snapshots.map((snapshot, index) => (
+              <article
+                key={snapshot.id}
+                className="relative pb-9 pl-6 last:pb-0 sm:pl-9"
+              >
+                <span className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-background bg-primary ring-2 ring-primary/20" />
+                <header className="mb-4 flex flex-col gap-2 border-b pb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+                  <div className="min-w-0">
+                    <span className="wiki-kicker mb-1 block">
+                      {snapshot.type}
+                    </span>
+                    {snapshot.electionId ? (
+                      <Link
+                        to="/dashboard/elections/$electionId"
+                        params={{ electionId: String(snapshot.electionId) }}
+                        className="font-serif text-xl font-semibold hover:text-primary sm:text-2xl"
+                      >
+                        {snapshot.label}
+                      </Link>
+                    ) : (
+                      <h3 className="font-serif text-xl font-semibold sm:text-2xl">
+                        {snapshot.label}
+                      </h3>
+                    )}
+                  </div>
+                  <time className="shrink-0 font-mono text-xs text-muted-foreground">
+                    {snapshot.date}
+                  </time>
+                </header>
+                <div className="grid gap-3 lg:grid-cols-3">
+                  {chambers.map((chamber) => (
+                    <Chamber
+                      key={chamber.key}
+                      title={chamber.title}
+                      office={chamber.key}
+                      composition={snapshot.composition}
+                      previous={snapshots[index + 1]?.composition}
+                    />
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">
+            No certified governments have been recorded yet.
+          </p>
+        )}
       </div>
-      <div className="ml-2 border-l-2 border-primary/25 sm:ml-3">
-        {snapshots.map((snapshot, index) => (
-          <article
-            key={snapshot.id}
-            className="relative pb-9 pl-6 last:pb-0 sm:pl-9"
-          >
-            <span className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-background bg-primary ring-2 ring-primary/20" />
-            <header className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <div>
-                <span className="mb-1 block text-[0.65rem] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                  {snapshot.type}
-                </span>
-                {snapshot.electionId ? (
-                  <Link
-                    to="/dashboard/elections/$electionId"
-                    params={{ electionId: String(snapshot.electionId) }}
-                    className="font-serif text-xl font-semibold hover:text-primary"
-                  >
-                    {snapshot.label}
-                  </Link>
-                ) : (
-                  <h3 className="font-serif text-xl font-semibold">
-                    {snapshot.label}
-                  </h3>
-                )}
-              </div>
-              <time className="font-mono text-xs text-muted-foreground">
-                {snapshot.date}
-              </time>
-            </header>
-            <div className="grid gap-3 lg:grid-cols-3">
-              {chambers.map((chamber) => (
-                <Chamber
-                  key={chamber.key}
-                  title={chamber.title}
-                  office={chamber.key}
-                  composition={snapshot.composition}
-                  previous={snapshots[index + 1]?.composition}
-                />
-              ))}
-            </div>
-          </article>
-        ))}
-      </div>
-      {!snapshots.length && (
-        <p className="text-sm text-muted-foreground">
-          No certified governments have been recorded yet.
-        </p>
-      )}
     </section>
   );
 }
@@ -123,11 +132,30 @@ function Chamber({
     );
 
   return (
-    <div className="rounded-lg border bg-background/60 p-4">
-      <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
-        {title}
-      </h3>
-      <div className="space-y-2">
+    <div className="rounded-sm border bg-background/60 p-3 shadow-none sm:p-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+          {title}
+        </h3>
+        <span className="font-mono text-[0.65rem] text-muted-foreground">
+          {rows.reduce(
+            (sum, party) => sum + (currentSeats.get(party.key) ?? 0),
+            0,
+          )}{" "}
+          seats
+        </span>
+      </div>
+      <div className="mt-3">
+        <PartyCompositionBar
+          groups={rows.map((party) => ({
+            name: party.name,
+            color: party.color,
+            count: currentSeats.get(party.key) ?? 0,
+          }))}
+          label={`${title} composition`}
+        />
+      </div>
+      <div className="mt-4 space-y-2 border-t pt-3">
         {rows.map((party) => {
           const seats = currentSeats.get(party.key) ?? 0;
           const change = previous

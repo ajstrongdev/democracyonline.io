@@ -44,7 +44,6 @@ import { Route as DashboardPlayersIndexRouteImport } from './routes/dashboard/pl
 import { Route as DashboardPartiesIndexRouteImport } from './routes/dashboard/parties/index'
 import { Route as DashboardElectionsIndexRouteImport } from './routes/dashboard/elections/index'
 import { Route as DashboardBillsIndexRouteImport } from './routes/dashboard/bills/index'
-import { Route as PartiesMergeIdRouteImport } from './routes/parties/merge/$id'
 import { Route as PartiesManageIdRouteImport } from './routes/parties/manage/$id'
 import { Route as PartiesCoalitionsCreateRouteImport } from './routes/parties/coalitions/create'
 import { Route as PartiesCoalitionsIdRouteImport } from './routes/parties/coalitions/$id'
@@ -62,7 +61,6 @@ import { Route as DashboardBillsBillIdRouteImport } from './routes/dashboard/bil
 import { Route as BillsEditIdRouteImport } from './routes/bills/edit/$id'
 import { Route as DashboardPartiesCoalitionsIndexRouteImport } from './routes/dashboard/parties/coalitions/index'
 import { Route as DashboardRevisionsEntityTypeEntityIdRouteImport } from './routes/dashboard/revisions/$entityType/$entityId'
-import { Route as DashboardPartiesMergeIdRouteImport } from './routes/dashboard/parties/merge/$id'
 import { Route as DashboardPartiesManageIdRouteImport } from './routes/dashboard/parties/manage/$id'
 import { Route as DashboardPartiesCoalitionsCreateRouteImport } from './routes/dashboard/parties/coalitions/create'
 import { Route as DashboardPartiesCoalitionsIdRouteImport } from './routes/dashboard/parties/coalitions/$id'
@@ -244,11 +242,6 @@ const DashboardBillsIndexRoute = DashboardBillsIndexRouteImport.update({
   path: '/dashboard/bills/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PartiesMergeIdRoute = PartiesMergeIdRouteImport.update({
-  id: '/parties/merge/$id',
-  path: '/parties/merge/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PartiesManageIdRoute = PartiesManageIdRouteImport.update({
   id: '/parties/manage/$id',
   path: '/parties/manage/$id',
@@ -342,11 +335,6 @@ const DashboardRevisionsEntityTypeEntityIdRoute =
     path: '/dashboard/revisions/$entityType/$entityId',
     getParentRoute: () => rootRouteImport,
   } as any)
-const DashboardPartiesMergeIdRoute = DashboardPartiesMergeIdRouteImport.update({
-  id: '/dashboard/parties/merge/$id',
-  path: '/dashboard/parties/merge/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DashboardPartiesManageIdRoute =
   DashboardPartiesManageIdRouteImport.update({
     id: '/dashboard/parties/manage/$id',
@@ -417,7 +405,6 @@ export interface FileRoutesByFullPath {
   '/parties/coalitions/$id': typeof PartiesCoalitionsIdRoute
   '/parties/coalitions/create': typeof PartiesCoalitionsCreateRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
-  '/parties/merge/$id': typeof PartiesMergeIdRoute
   '/dashboard/bills/': typeof DashboardBillsIndexRoute
   '/dashboard/elections/': typeof DashboardElectionsIndexRoute
   '/dashboard/parties/': typeof DashboardPartiesIndexRoute
@@ -427,7 +414,6 @@ export interface FileRoutesByFullPath {
   '/dashboard/parties/coalitions/$id': typeof DashboardPartiesCoalitionsIdRoute
   '/dashboard/parties/coalitions/create': typeof DashboardPartiesCoalitionsCreateRoute
   '/dashboard/parties/manage/$id': typeof DashboardPartiesManageIdRoute
-  '/dashboard/parties/merge/$id': typeof DashboardPartiesMergeIdRoute
   '/dashboard/revisions/$entityType/$entityId': typeof DashboardRevisionsEntityTypeEntityIdRoute
   '/dashboard/parties/coalitions/': typeof DashboardPartiesCoalitionsIndexRoute
 }
@@ -477,7 +463,6 @@ export interface FileRoutesByTo {
   '/parties/coalitions/$id': typeof PartiesCoalitionsIdRoute
   '/parties/coalitions/create': typeof PartiesCoalitionsCreateRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
-  '/parties/merge/$id': typeof PartiesMergeIdRoute
   '/dashboard/bills': typeof DashboardBillsIndexRoute
   '/dashboard/elections': typeof DashboardElectionsIndexRoute
   '/dashboard/parties': typeof DashboardPartiesIndexRoute
@@ -487,7 +472,6 @@ export interface FileRoutesByTo {
   '/dashboard/parties/coalitions/$id': typeof DashboardPartiesCoalitionsIdRoute
   '/dashboard/parties/coalitions/create': typeof DashboardPartiesCoalitionsCreateRoute
   '/dashboard/parties/manage/$id': typeof DashboardPartiesManageIdRoute
-  '/dashboard/parties/merge/$id': typeof DashboardPartiesMergeIdRoute
   '/dashboard/revisions/$entityType/$entityId': typeof DashboardRevisionsEntityTypeEntityIdRoute
   '/dashboard/parties/coalitions': typeof DashboardPartiesCoalitionsIndexRoute
 }
@@ -538,7 +522,6 @@ export interface FileRoutesById {
   '/parties/coalitions/$id': typeof PartiesCoalitionsIdRoute
   '/parties/coalitions/create': typeof PartiesCoalitionsCreateRoute
   '/parties/manage/$id': typeof PartiesManageIdRoute
-  '/parties/merge/$id': typeof PartiesMergeIdRoute
   '/dashboard/bills/': typeof DashboardBillsIndexRoute
   '/dashboard/elections/': typeof DashboardElectionsIndexRoute
   '/dashboard/parties/': typeof DashboardPartiesIndexRoute
@@ -548,7 +531,6 @@ export interface FileRoutesById {
   '/dashboard/parties/coalitions/$id': typeof DashboardPartiesCoalitionsIdRoute
   '/dashboard/parties/coalitions/create': typeof DashboardPartiesCoalitionsCreateRoute
   '/dashboard/parties/manage/$id': typeof DashboardPartiesManageIdRoute
-  '/dashboard/parties/merge/$id': typeof DashboardPartiesMergeIdRoute
   '/dashboard/revisions/$entityType/$entityId': typeof DashboardRevisionsEntityTypeEntityIdRoute
   '/dashboard/parties/coalitions/': typeof DashboardPartiesCoalitionsIndexRoute
 }
@@ -600,7 +582,6 @@ export interface FileRouteTypes {
     | '/parties/coalitions/$id'
     | '/parties/coalitions/create'
     | '/parties/manage/$id'
-    | '/parties/merge/$id'
     | '/dashboard/bills/'
     | '/dashboard/elections/'
     | '/dashboard/parties/'
@@ -610,7 +591,6 @@ export interface FileRouteTypes {
     | '/dashboard/parties/coalitions/$id'
     | '/dashboard/parties/coalitions/create'
     | '/dashboard/parties/manage/$id'
-    | '/dashboard/parties/merge/$id'
     | '/dashboard/revisions/$entityType/$entityId'
     | '/dashboard/parties/coalitions/'
   fileRoutesByTo: FileRoutesByTo
@@ -660,7 +640,6 @@ export interface FileRouteTypes {
     | '/parties/coalitions/$id'
     | '/parties/coalitions/create'
     | '/parties/manage/$id'
-    | '/parties/merge/$id'
     | '/dashboard/bills'
     | '/dashboard/elections'
     | '/dashboard/parties'
@@ -670,7 +649,6 @@ export interface FileRouteTypes {
     | '/dashboard/parties/coalitions/$id'
     | '/dashboard/parties/coalitions/create'
     | '/dashboard/parties/manage/$id'
-    | '/dashboard/parties/merge/$id'
     | '/dashboard/revisions/$entityType/$entityId'
     | '/dashboard/parties/coalitions'
   id:
@@ -720,7 +698,6 @@ export interface FileRouteTypes {
     | '/parties/coalitions/$id'
     | '/parties/coalitions/create'
     | '/parties/manage/$id'
-    | '/parties/merge/$id'
     | '/dashboard/bills/'
     | '/dashboard/elections/'
     | '/dashboard/parties/'
@@ -730,7 +707,6 @@ export interface FileRouteTypes {
     | '/dashboard/parties/coalitions/$id'
     | '/dashboard/parties/coalitions/create'
     | '/dashboard/parties/manage/$id'
-    | '/dashboard/parties/merge/$id'
     | '/dashboard/revisions/$entityType/$entityId'
     | '/dashboard/parties/coalitions/'
   fileRoutesById: FileRoutesById
@@ -781,7 +757,6 @@ export interface RootRouteChildren {
   PartiesCoalitionsIdRoute: typeof PartiesCoalitionsIdRoute
   PartiesCoalitionsCreateRoute: typeof PartiesCoalitionsCreateRoute
   PartiesManageIdRoute: typeof PartiesManageIdRoute
-  PartiesMergeIdRoute: typeof PartiesMergeIdRoute
   DashboardBillsIndexRoute: typeof DashboardBillsIndexRoute
   DashboardElectionsIndexRoute: typeof DashboardElectionsIndexRoute
   DashboardPartiesIndexRoute: typeof DashboardPartiesIndexRoute
@@ -791,7 +766,6 @@ export interface RootRouteChildren {
   DashboardPartiesCoalitionsIdRoute: typeof DashboardPartiesCoalitionsIdRoute
   DashboardPartiesCoalitionsCreateRoute: typeof DashboardPartiesCoalitionsCreateRoute
   DashboardPartiesManageIdRoute: typeof DashboardPartiesManageIdRoute
-  DashboardPartiesMergeIdRoute: typeof DashboardPartiesMergeIdRoute
   DashboardRevisionsEntityTypeEntityIdRoute: typeof DashboardRevisionsEntityTypeEntityIdRoute
   DashboardPartiesCoalitionsIndexRoute: typeof DashboardPartiesCoalitionsIndexRoute
 }
@@ -1043,13 +1017,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardBillsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/parties/merge/$id': {
-      id: '/parties/merge/$id'
-      path: '/parties/merge/$id'
-      fullPath: '/parties/merge/$id'
-      preLoaderRoute: typeof PartiesMergeIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/parties/manage/$id': {
       id: '/parties/manage/$id'
       path: '/parties/manage/$id'
@@ -1169,13 +1136,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRevisionsEntityTypeEntityIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/parties/merge/$id': {
-      id: '/dashboard/parties/merge/$id'
-      path: '/dashboard/parties/merge/$id'
-      fullPath: '/dashboard/parties/merge/$id'
-      preLoaderRoute: typeof DashboardPartiesMergeIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/dashboard/parties/manage/$id': {
       id: '/dashboard/parties/manage/$id'
       path: '/dashboard/parties/manage/$id'
@@ -1254,7 +1214,6 @@ const rootRouteChildren: RootRouteChildren = {
   PartiesCoalitionsIdRoute: PartiesCoalitionsIdRoute,
   PartiesCoalitionsCreateRoute: PartiesCoalitionsCreateRoute,
   PartiesManageIdRoute: PartiesManageIdRoute,
-  PartiesMergeIdRoute: PartiesMergeIdRoute,
   DashboardBillsIndexRoute: DashboardBillsIndexRoute,
   DashboardElectionsIndexRoute: DashboardElectionsIndexRoute,
   DashboardPartiesIndexRoute: DashboardPartiesIndexRoute,
@@ -1264,7 +1223,6 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardPartiesCoalitionsIdRoute: DashboardPartiesCoalitionsIdRoute,
   DashboardPartiesCoalitionsCreateRoute: DashboardPartiesCoalitionsCreateRoute,
   DashboardPartiesManageIdRoute: DashboardPartiesManageIdRoute,
-  DashboardPartiesMergeIdRoute: DashboardPartiesMergeIdRoute,
   DashboardRevisionsEntityTypeEntityIdRoute:
     DashboardRevisionsEntityTypeEntityIdRoute,
   DashboardPartiesCoalitionsIndexRoute: DashboardPartiesCoalitionsIndexRoute,

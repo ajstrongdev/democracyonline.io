@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageDialog } from "@/components/message-dialog";
+import { PartyCompositionBar } from "@/components/wiki/party-composition-bar";
 import { createBill } from "@/lib/server/bills";
 import { hasVotedOnHouseBill, voteOnHouseBill } from "@/lib/server/house-bills";
 import {
@@ -263,7 +264,7 @@ export function BillDeskDialog({
                   {chamberData.bills.length} active
                 </span>
               </div>
-              <div className="divide-y border-y">
+              <div className="divide-y border-b">
                 {chamberData.bills.map((bill) => (
                   <div key={bill.id} className="space-y-3 px-2 py-4 sm:px-3">
                     <div className="flex flex-col justify-between gap-2 sm:flex-row">
@@ -339,6 +340,12 @@ export function BillDeskDialog({
                 <p className="mt-3 text-sm text-destructive">{error}</p>
               )}
             </section>
+            {chamber !== "Presidential" && (
+              <CompositionGraph
+                chamber={chamber}
+                members={chamberData.members}
+              />
+            )}
             <section>
               <div className="mb-3 flex items-baseline justify-between border-b pb-2">
                 <h3 className="font-serif text-2xl font-bold">
@@ -404,6 +411,83 @@ export function BillDeskDialog({
         }}
       />
     </>
+  );
+}
+
+function CompositionGraph({
+  chamber,
+  members,
+}: {
+  chamber: "House" | "Senate";
+  members: Array<DeskMember>;
+}) {
+  const groups = members.reduce<
+    Array<{ name: string; color: string; count: number }>
+  >((current, member) => {
+    const name = member.partyName ?? "Independent";
+    const color = member.partyColor ?? "#64748b";
+    const existing = current.find((group) => group.name === name);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      current.push({ name, color, count: 1 });
+    }
+    return current;
+  }, []);
+  groups.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  const total = members.length;
+
+  return (
+    <section>
+      <div className="mb-3 flex items-baseline justify-between border-b pb-2">
+        <h3 className="font-serif text-2xl font-bold">{chamber} composition</h3>
+        <span className="font-mono text-xs text-muted-foreground">
+          {total} seats
+        </span>
+      </div>
+      {total ? (
+        <div className="space-y-4">
+          <PartyCompositionBar
+            groups={groups}
+            label={`${chamber} composition`}
+          />
+          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+            {groups.map((group) => {
+              const percentage = Math.round((group.count / total) * 100);
+              return (
+                <div key={group.name} className="min-w-0">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: group.color }}
+                      />
+                      <span className="truncate">{group.name}</span>
+                    </span>
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                      {group.count} · {percentage}%
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1 overflow-hidden bg-muted">
+                    <div
+                      className="h-full"
+                      style={{
+                        width: `${percentage}%`,
+                        backgroundColor: group.color,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <p className="border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+          No seats are currently filled.
+        </p>
+      )}
+    </section>
   );
 }
 

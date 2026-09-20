@@ -3,11 +3,14 @@ import {
   ArrowRight,
   ArrowRightLeft,
   Building2,
-  ExternalLink,
   Users,
   Vote,
 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { WikiArticleSection } from "@/components/wiki/wiki-article-section";
+import { ManagePartyDialog } from "@/components/wiki/manage-party-dialog";
+import { MessageDialog } from "@/components/message-dialog";
 import { ResultBar, WikiHeader } from "@/components/wiki/wiki-header";
 import {
   WikiInfobox,
@@ -20,12 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWikiParty } from "@/lib/server/history";
 import { getWikiArticle } from "@/lib/server/wiki-articles";
 import { getCurrentUserInfo } from "@/lib/server/users";
-import {
-  becomePartyLeader,
-  getPartyStances,
-  joinParty,
-  leaveParty,
-} from "@/lib/server/party";
+import { becomePartyLeader, joinParty, leaveParty } from "@/lib/server/party";
 import {
   formatElectionTitle,
   formatWikiDate,
@@ -37,16 +35,15 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
     const id = Number(params.partyId);
     if (!Number.isInteger(id))
       throw new Response("Party not found", { status: 404 });
-    const [party, article, currentUser, stances] = await Promise.all([
+    const [party, article, currentUser] = await Promise.all([
       getWikiParty({ data: { id } }),
       getWikiArticle({
         data: { entityType: "party", entityId: params.partyId },
       }),
       getCurrentUserInfo(),
-      getPartyStances({ data: { partyId: id } }),
     ]);
     if (!party) throw new Response("Party not found", { status: 404 });
-    return { ...party, article, currentUser, stances };
+    return { ...party, article, currentUser };
   },
   component: PartyArticle,
 });
@@ -60,8 +57,10 @@ function PartyArticle() {
     defections,
     article,
     currentUser,
-    stances,
   } = Route.useLoaderData();
+  const leader = party.leaderId
+    ? members.find((member) => member.id === party.leaderId)
+    : null;
   return (
     <WikiPage width="article">
       <WikiHeader
@@ -92,6 +91,19 @@ function PartyArticle() {
           <WikiInfoboxRow label="Position">
             {party.leaning ?? "Not recorded"}
           </WikiInfoboxRow>
+          <WikiInfoboxRow label="Leader">
+            {leader ? (
+              <Link
+                to="/dashboard/players/$playerId"
+                params={{ playerId: String(leader.id) }}
+                className="text-primary hover:underline"
+              >
+                {leader.username}
+              </Link>
+            ) : (
+              "No leader"
+            )}
+          </WikiInfoboxRow>
           <WikiInfoboxRow label="Members">{members.length}</WikiInfoboxRow>
           {party.current && party.discord && (
             <WikiInfoboxRow label="Community">
@@ -117,23 +129,6 @@ function PartyArticle() {
           )}
         </WikiInfobox>
       </div>
-      {party.current && stances.length > 0 && (
-        <Card className="rounded-sm shadow-none">
-          <CardHeader>
-            <CardTitle className="font-serif text-2xl">Platform</CardTitle>
-          </CardHeader>
-          <CardContent className="divide-y border-y">
-            {stances.map((stance) => (
-              <div key={stance.stanceId} className="py-3">
-                <h3 className="font-semibold">{stance.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {stance.value}
-                </p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
       <section className="grid gap-6 lg:grid-cols-2">
         <Card className="rounded-sm shadow-none">
           <CardHeader>
@@ -295,6 +290,12 @@ function PartyActions({
   party: {
     id: number;
     leaderId: number | null;
+    name: string;
+    color: string;
+    bio: string | null;
+    discord: string | null;
+    logo: string | null;
+    leaning: string | null;
   };
   currentUser: {
     id: number;
@@ -305,29 +306,37 @@ function PartyActions({
   const isMember = currentUser.partyId === party.id;
   const isLeader = party.leaderId === currentUser.id;
   const refresh = () => router.invalidate();
+  const [showMembershipDialog, setShowMembershipDialog] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const isDefecting = !isMember && currentUser.partyId !== null;
+
+  const changeMembership = async () => {
+    setSubmitting(true);
+    try {
+      if (isMember) {
+        await leaveParty({ data: { userId: currentUser.id } });
+        toast.success("You are now an independent");
+      } else {
+        await joinParty({
+          data: { userId: currentUser.id, partyId: party.id },
+        });
+        toast.success(
+          isDefecting ? "Party defection recorded" : "Party joined",
+        );
+      }
+      await refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not update membership",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col items-end gap-1">
-      {isLeader && (
-        <>
-          <Button variant="link" className="h-auto p-0" asChild>
-            <Link
-              to="/dashboard/parties/manage/$id"
-              params={{ id: String(party.id) }}
-            >
-              Manage <ExternalLink className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
-          <Button variant="link" className="h-auto p-0" asChild>
-            <Link
-              to="/dashboard/parties/merge/$id"
-              params={{ id: String(party.id) }}
-            >
-              Merge requests
-            </Link>
-          </Button>
-        </>
-      )}
+      {isLeader && <ManagePartyDialog party={party} />}
       {isMember && !party.leaderId && (
         <Button
           variant="link"
@@ -346,31 +355,42 @@ function PartyActions({
         <Button
           variant="link"
           className="h-auto p-0 text-red-700 dark:text-red-400"
-          onClick={async () => {
-            await leaveParty({ data: { userId: currentUser.id } });
-            await refresh();
-          }}
+          onClick={() => setShowMembershipDialog(true)}
+          disabled={submitting}
         >
           Leave party
         </Button>
-      ) : currentUser.partyId ? (
-        <span className="text-xs text-muted-foreground">
-          Leave your current party first
-        </span>
       ) : (
         <Button
           variant="link"
           className="h-auto p-0"
-          onClick={async () => {
-            await joinParty({
-              data: { userId: currentUser.id, partyId: party.id },
-            });
-            await refresh();
-          }}
+          onClick={() => setShowMembershipDialog(true)}
+          disabled={submitting}
         >
-          Join party
+          {isDefecting ? "Defect" : "Join party"}
         </Button>
       )}
+      <MessageDialog
+        open={showMembershipDialog}
+        onOpenChange={setShowMembershipDialog}
+        title={
+          isMember
+            ? "Leave party"
+            : isDefecting
+              ? `Defect to ${party.name}`
+              : `Join ${party.name}`
+        }
+        description={
+          isMember
+            ? "You will become an independent. If you lead this party, its leadership will become vacant."
+            : isDefecting
+              ? `You will leave your current party and immediately join ${party.name}. This will be recorded as a defection.`
+              : `You will join ${party.name}.`
+        }
+        confirmText={isMember ? "Leave party" : isDefecting ? "Defect" : "Join"}
+        variant={isMember || isDefecting ? "destructive" : "default"}
+        onConfirm={changeMembership}
+      />
     </div>
   );
 }

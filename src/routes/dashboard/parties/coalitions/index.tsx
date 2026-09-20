@@ -10,15 +10,17 @@ import {
   YAxis,
 } from "recharts";
 import { Suspense } from "react";
-import { Crown, Handshake, Users } from "lucide-react";
+import { BarChart3, Handshake, Users } from "lucide-react";
 import type { ChartConfig } from "@/components/ui/chart";
+import { WikiHeader } from "@/components/wiki/wiki-header";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  WikiEmpty,
+  WikiPage,
+  WikiSection,
+  WikiStat,
+  WikiStatGrid,
+} from "@/components/wiki/wiki-layout";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
@@ -99,206 +101,173 @@ function CoalitionsContent() {
 
   return (
     <ProtectedRoute>
-      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">Coalitions</h1>
-          <p className="text-sm md:text-base text-muted-foreground">
-            Browse coalitions and their member parties
-          </p>
-        </div>
-
-        <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Coalitions
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{coalitions.length}</div>
-              <p className="text-xs text-muted-foreground">Active coalitions</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Member Parties
-              </CardTitle>
-              <Handshake className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalCoalitionParties}</div>
-              <p className="text-xs text-muted-foreground">
-                Parties in coalitions
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Largest Coalition
-              </CardTitle>
-              <Crown className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold truncate">
-                {coalitions[0]?.name || "N/A"}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {coalitions[0]?.memberCount || 0} parties
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Coalition Membership Distribution Chart */}
-        {coalitions.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base md:text-lg">
-                Coalition Membership Distribution
-              </CardTitle>
-              <CardDescription className="text-xs md:text-sm">
-                Number of member parties per coalition.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-2 md:px-6">
-              <Tabs defaultValue="bar" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="bar">Bar Chart</TabsTrigger>
-                  <TabsTrigger value="pie">Pie Chart</TabsTrigger>
-                </TabsList>
-                <TabsContent value="bar">
-                  <ChartContainer
-                    config={coalitionBarConfig}
-                    className="h-[300px] md:h-[400px] w-full"
-                  >
-                    <BarChart
-                      data={cBarData}
-                      margin={{
-                        top: 10,
-                        right: 10,
-                        bottom: 10,
-                        left: 0,
-                      }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        className="stroke-muted"
-                      />
-                      <YAxis
-                        tick={{ fill: "hsl(var(--foreground))" }}
-                        className="text-[10px] md:text-xs"
-                        width={30}
-                      />
-                      <ChartTooltip
-                        content={
-                          <ChartTooltipContent
-                            labelFormatter={(value, payload) => {
-                              return payload?.[0]?.payload?.name || value;
-                            }}
-                          />
-                        }
-                      />
-                      <Bar dataKey="memberCount" radius={[8, 8, 0, 0]} />
-                    </BarChart>
-                  </ChartContainer>
-                </TabsContent>
-                <TabsContent value="pie">
-                  <div className="flex items-center justify-center">
-                    <ChartContainer
-                      config={coalitionPieConfig}
-                      className="h-[300px] md:h-[400px] w-full"
-                    >
-                      <PieChart>
-                        <Pie
-                          data={cPieData}
-                          dataKey="value"
-                          nameKey="name"
-                          innerRadius="40%"
-                          outerRadius="70%"
-                          paddingAngle={2}
-                        >
-                          {cPieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
-                          <Label
-                            content={({ viewBox }) => {
-                              if (
-                                viewBox &&
-                                "cx" in viewBox &&
-                                "cy" in viewBox
-                              ) {
-                                return (
-                                  <text
-                                    x={viewBox.cx}
-                                    y={viewBox.cy}
-                                    textAnchor="middle"
-                                    dominantBaseline="middle"
-                                  >
-                                    <tspan
-                                      x={viewBox.cx}
-                                      y={viewBox.cy}
-                                      className="fill-foreground text-2xl md:text-3xl font-bold"
-                                    >
-                                      {totalCoalitionParties}
-                                    </tspan>
-                                    <tspan
-                                      x={viewBox.cx}
-                                      y={(viewBox.cy || 0) + 20}
-                                      className="fill-muted-foreground text-xs md:text-sm"
-                                    >
-                                      Total Parties
-                                    </tspan>
-                                  </text>
-                                );
-                              }
-                            }}
-                          />
-                        </Pie>
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                      </PieChart>
-                    </ChartContainer>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card>
-          <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-            <div>
-              <CardTitle className="text-base md:text-lg">
-                All Coalitions
-              </CardTitle>
-              <CardDescription className="text-xs md:text-sm">
-                Coalitions ranked by number of member parties.
-              </CardDescription>
-            </div>
-            {isInParty && (
-              <Button asChild variant="default" size="sm" className="shrink-0">
+      <WikiPage>
+        <WikiHeader
+          eyebrow={`${coalitions.length} organizations`}
+          title="Political coalitions"
+          description="Alliances of political parties, their membership, and their place in the Democracy Online political record."
+          status={
+            isInParty ? (
+              <Button asChild size="sm">
                 <Link to="/dashboard/parties/coalitions/create">
-                  <Users className="mr-2 h-4 w-4" />
-                  Create Coalition
+                  <Users className="h-4 w-4" />
+                  Create coalition
                 </Link>
               </Button>
-            )}
-          </CardHeader>
-          <CardContent className="px-2 md:px-6">
-            <div className="space-y-3 md:space-y-4">
+            ) : undefined
+          }
+        />
+
+        <WikiStatGrid>
+          <WikiStat
+            label="Coalitions"
+            value={coalitions.length}
+            detail="Active organizations"
+          />
+          <WikiStat
+            label="Member parties"
+            value={totalCoalitionParties}
+            detail="Across all coalitions"
+          />
+          <WikiStat
+            label="Largest coalition"
+            value={coalitions[0]?.name || "Not recorded"}
+            detail={`${coalitions[0]?.memberCount || 0} parties`}
+          />
+        </WikiStatGrid>
+
+        {coalitions.length > 0 && (
+          <WikiSection
+            title="Membership distribution"
+            description="Number of member parties represented in each coalition."
+            icon={BarChart3}
+          >
+            <Card className="rounded-sm shadow-none">
+              <CardContent className="px-2 py-4 sm:px-6">
+                <Tabs defaultValue="bar" className="w-full">
+                  <TabsList className="mb-4 grid w-full grid-cols-2 rounded-sm sm:ml-auto sm:w-72">
+                    <TabsTrigger value="bar">Bar chart</TabsTrigger>
+                    <TabsTrigger value="pie">Pie chart</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="bar">
+                    <ChartContainer
+                      config={coalitionBarConfig}
+                      className="h-[300px] md:h-[400px] w-full"
+                    >
+                      <BarChart
+                        data={cBarData}
+                        margin={{
+                          top: 10,
+                          right: 10,
+                          bottom: 10,
+                          left: 0,
+                        }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          className="stroke-muted"
+                        />
+                        <YAxis
+                          tick={{ fill: "hsl(var(--foreground))" }}
+                          className="text-[10px] md:text-xs"
+                          width={30}
+                        />
+                        <ChartTooltip
+                          content={
+                            <ChartTooltipContent
+                              labelFormatter={(value, payload) => {
+                                return payload?.[0]?.payload?.name || value;
+                              }}
+                            />
+                          }
+                        />
+                        <Bar dataKey="memberCount" radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ChartContainer>
+                  </TabsContent>
+                  <TabsContent value="pie">
+                    <div className="flex items-center justify-center">
+                      <ChartContainer
+                        config={coalitionPieConfig}
+                        className="h-[300px] md:h-[400px] w-full"
+                      >
+                        <PieChart>
+                          <Pie
+                            data={cPieData}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius="40%"
+                            outerRadius="70%"
+                            paddingAngle={2}
+                          >
+                            {cPieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                            <Label
+                              content={({ viewBox }) => {
+                                if (
+                                  viewBox &&
+                                  "cx" in viewBox &&
+                                  "cy" in viewBox
+                                ) {
+                                  return (
+                                    <text
+                                      x={viewBox.cx}
+                                      y={viewBox.cy}
+                                      textAnchor="middle"
+                                      dominantBaseline="middle"
+                                    >
+                                      <tspan
+                                        x={viewBox.cx}
+                                        y={viewBox.cy}
+                                        className="fill-foreground font-serif text-2xl font-bold md:text-3xl"
+                                      >
+                                        {totalCoalitionParties}
+                                      </tspan>
+                                      <tspan
+                                        x={viewBox.cx}
+                                        y={(viewBox.cy || 0) + 20}
+                                        className="fill-muted-foreground text-xs md:text-sm"
+                                      >
+                                        Total parties
+                                      </tspan>
+                                    </text>
+                                  );
+                                }
+                              }}
+                            />
+                          </Pie>
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                        </PieChart>
+                      </ChartContainer>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </WikiSection>
+        )}
+
+        <WikiSection
+          title="Coalition directory"
+          description="Coalitions ranked by number of member parties."
+          icon={Handshake}
+        >
+          {coalitions.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2">
               {coalitions.map((coalition) => (
-                <div
+                <Link
                   key={coalition.id}
-                  className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border bg-card transition-colors"
+                  to="/dashboard/parties/coalitions/$id"
+                  params={{ id: coalition.id.toString() }}
+                  className="group flex min-w-0 flex-col rounded-sm border bg-card shadow-none transition-colors hover:border-primary"
                   style={{
-                    borderLeftWidth: "4px",
-                    borderLeftColor: coalition.color,
+                    borderTopWidth: "4px",
+                    borderTopColor: coalition.color,
                   }}
                 >
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <div className="shrink-0">
+                  <div className="flex min-w-0 items-start gap-4 p-4 sm:p-5">
+                    <div className="shrink-0 rounded-sm border bg-background p-1">
                       <CoalitionLogo
                         coalition_id={coalition.id}
                         size={48}
@@ -307,75 +276,37 @@ function CoalitionsContent() {
                         name={coalition.name}
                       />
                     </div>
-                    <div className="flex-1 min-w-0 sm:hidden">
-                      <h3 className="font-semibold text-base truncate">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate font-serif text-xl font-bold group-hover:text-primary">
                         {coalition.name}
                       </h3>
-                      <p className="text-xs text-muted-foreground line-clamp-1">
-                        {coalition.bio || "No description"}
+                      <p className="mt-1 line-clamp-2 text-sm leading-5 text-muted-foreground">
+                        {coalition.bio || "No summary has been written."}
                       </p>
                     </div>
                   </div>
-                  <div className="hidden sm:block sm:flex-1 min-w-0">
-                    <h3 className="font-semibold text-base md:text-lg truncate">
-                      {coalition.name}
-                    </h3>
-                    <p className="text-xs md:text-sm text-muted-foreground line-clamp-1">
-                      {coalition.bio || "No description"}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between w-full sm:w-auto gap-3 sm:gap-6">
-                    <div className="flex flex-col items-start sm:items-end gap-1">
-                      <div className="flex items-center gap-2">
-                        <Handshake className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-                        <span className="text-xl md:text-2xl font-bold">
-                          {coalition.memberCount}
-                        </span>
-                      </div>
-                      <span className="text-[10px] md:text-xs text-muted-foreground">
-                        member parties
-                      </span>
+                  <div className="mt-auto grid grid-cols-2 divide-x border-t text-center font-mono text-xs text-muted-foreground">
+                    <div className="px-3 py-3">
+                      <strong className="block text-lg text-foreground">
+                        {coalition.memberCount}
+                      </strong>
+                      member parties
                     </div>
-                    <div className="flex flex-col items-start sm:items-end gap-1">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-                        <span className="text-xl md:text-2xl font-bold">
-                          {coalition.totalMembers}
-                        </span>
-                      </div>
-                      <span className="text-[10px] md:text-xs text-muted-foreground">
-                        total members
-                      </span>
+                    <div className="px-3 py-3">
+                      <strong className="block text-lg text-foreground">
+                        {coalition.totalMembers}
+                      </strong>
+                      total members
                     </div>
-                    <Button
-                      asChild
-                      variant="default"
-                      size="sm"
-                      className="whitespace-nowrap"
-                    >
-                      <Link
-                        to="/dashboard/parties/coalitions/$id"
-                        params={{
-                          id: coalition.id.toString(),
-                        }}
-                      >
-                        View Details
-                      </Link>
-                    </Button>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
-            {coalitions.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground text-lg">
-                  No coalitions yet. Be the first to create one!
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          ) : (
+            <WikiEmpty>No coalitions have been formed yet.</WikiEmpty>
+          )}
+        </WikiSection>
+      </WikiPage>
     </ProtectedRoute>
   );
 }

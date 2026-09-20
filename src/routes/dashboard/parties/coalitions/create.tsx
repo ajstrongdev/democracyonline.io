@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
+import { Handshake } from "lucide-react";
 import { getCurrentUserInfo } from "@/lib/server/users";
 import { createCoalition } from "@/lib/server/coalitions";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { icons } from "@/lib/utils/logo-helper";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
+import { WikiHeader } from "@/components/wiki/wiki-header";
+import {
+  WikiEmpty,
+  WikiPage,
+  WikiSection,
+} from "@/components/wiki/wiki-layout";
 
 export const Route = createFileRoute("/dashboard/parties/coalitions/create")({
   loader: async () => {
@@ -62,29 +69,33 @@ function CreateCoalitionPage() {
   if (!userData?.partyId) {
     return (
       <ProtectedRoute>
-        <div className="container mx-auto py-8 px-4 text-center">
-          <p className="text-muted-foreground text-lg">
-            You must be in a party to create a coalition.
-          </p>
-        </div>
+        <WikiPage>
+          <WikiHeader
+            eyebrow="Political coalitions"
+            title="Create a coalition"
+            description="Form an alliance of political parties around a shared identity and purpose."
+          />
+          <WikiEmpty>You must be in a party to create a coalition.</WikiEmpty>
+        </WikiPage>
       </ProtectedRoute>
     );
   }
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto py-8 px-4">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">
-            Create a Coalition
-          </h1>
-          <p className="text-muted-foreground">
-            Form a new coalition. Your party will be the founding member.
-          </p>
-        </div>
-        <div className="mx-auto bg-card p-8 rounded-lg shadow space-y-8">
+      <WikiPage width="article">
+        <WikiHeader
+          eyebrow="Political coalitions"
+          title="Create a coalition"
+          description="Form a new coalition. Your party will be recorded as its founding member."
+        />
+        <WikiSection
+          title="Coalition charter"
+          description="Set the public identity shown in the coalition archive."
+          icon={Handshake}
+        >
           <form
-            className="space-y-8"
+            className="mx-auto max-w-3xl space-y-7"
             onSubmit={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -107,7 +118,7 @@ function CreateCoalitionPage() {
                 <div className="grid grid-cols-1 gap-2">
                   <Label
                     htmlFor={field.name}
-                    className="text-lg font-medium text-foreground"
+                    className="font-medium text-foreground"
                   >
                     Coalition Name<span className="text-red-500">*</span>
                   </Label>
@@ -145,7 +156,7 @@ function CreateCoalitionPage() {
                 <div className="grid grid-cols-1 gap-2">
                   <Label
                     htmlFor={field.name}
-                    className="text-lg font-medium text-foreground"
+                    className="font-medium text-foreground"
                   >
                     Coalition Color<span className="text-red-500">*</span>
                   </Label>
@@ -193,7 +204,7 @@ function CreateCoalitionPage() {
                 <div className="grid grid-cols-1 gap-2">
                   <Label
                     htmlFor={field.name}
-                    className="text-lg font-medium text-foreground"
+                    className="font-medium text-foreground"
                   >
                     Description
                   </Label>
@@ -217,14 +228,14 @@ function CreateCoalitionPage() {
 
             {/* Coalition Logo */}
             <div className="space-y-6">
-              <Label className="text-lg font-medium text-foreground">
+              <Label className="font-medium text-foreground">
                 Coalition Logo
               </Label>
               <div className="flex flex-wrap justify-center gap-3">
                 <button
                   type="button"
                   onClick={() => setSelectedLogo(null)}
-                  className={`flex items-center justify-center w-14 h-14 rounded-md border p-2 text-sm hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${
+                  className={`flex h-14 w-14 items-center justify-center rounded-sm border p-2 text-sm hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary ${
                     selectedLogo === null
                       ? "ring-2 ring-offset-2 ring-primary"
                       : ""
@@ -242,7 +253,7 @@ function CreateCoalitionPage() {
                       key={ic.name}
                       type="button"
                       onClick={() => setSelectedLogo(ic.name)}
-                      className={`flex items-center justify-center w-14 h-14 rounded-md border p-2 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${
+                      className={`flex h-14 w-14 items-center justify-center rounded-sm border p-2 hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary ${
                         selectedLogo === ic.name
                           ? "ring-2 ring-offset-2 ring-primary"
                           : ""
@@ -259,8 +270,8 @@ function CreateCoalitionPage() {
 
             {/* Submit Error */}
             {submitError && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-600">{submitError}</p>
+              <div className="border border-destructive/30 bg-destructive/10 p-4">
+                <p className="text-sm text-destructive">{submitError}</p>
               </div>
             )}
 
@@ -271,16 +282,16 @@ function CreateCoalitionPage() {
               {([isSubmitting, canSubmit]) => (
                 <Button
                   type="submit"
-                  className="w-full py-3"
+                  className="w-full"
                   disabled={isSubmitting || !canSubmit}
                 >
-                  {isSubmitting ? "Creating Coalition..." : "Create Coalition"}
+                  {isSubmitting ? "Creating coalition..." : "Create coalition"}
                 </Button>
               )}
             </form.Subscribe>
           </form>
-        </div>
-      </div>
+        </WikiSection>
+      </WikiPage>
     </ProtectedRoute>
   );
 }

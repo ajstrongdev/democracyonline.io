@@ -35,6 +35,7 @@ export function WikiArticleSection({
   const [content, setContent] = useState(article.content);
   const [summary, setSummary] = useState("");
   const [saving, setSaving] = useState(false);
+  const isPartyPlatform = entityType === "party";
 
   const cancel = () => {
     setContent(article.content);
@@ -72,7 +73,8 @@ export function WikiArticleSection({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="wiki-section-title">
-              <BookOpen className="h-5 w-5" /> Article
+              <BookOpen className="h-5 w-5" />
+              {isPartyPlatform ? "Platform" : "Article"}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
               {article.updatedAt
@@ -116,7 +118,11 @@ export function WikiArticleSection({
                   onChange={(event) => setContent(event.target.value)}
                   className="min-h-80 font-mono text-sm"
                   maxLength={50_000}
-                  placeholder="Write the history, context, and lore for this subject in Markdown..."
+                  placeholder={
+                    isPartyPlatform
+                      ? "Write the party platform in Markdown..."
+                      : "Write the history, context, and lore for this subject in Markdown..."
+                  }
                 />
               </TabsContent>
               <TabsContent
@@ -126,7 +132,7 @@ export function WikiArticleSection({
                 {content ? (
                   <MarkdownContent content={content} />
                 ) : (
-                  <EmptyArticle />
+                  <EmptyArticle isPartyPlatform={isPartyPlatform} />
                 )}
               </TabsContent>
             </Tabs>
@@ -137,11 +143,7 @@ export function WikiArticleSection({
               placeholder="Briefly describe your changes"
             />
             <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={cancel}
-                disabled={saving}
-              >
+              <Button variant="outline" onClick={cancel} disabled={saving}>
                 <X className="h-4 w-4" /> Cancel
               </Button>
               <Button
@@ -156,19 +158,29 @@ export function WikiArticleSection({
         ) : article.content ? (
           <MarkdownContent content={article.content} />
         ) : (
-          <EmptyArticle />
+          <EmptyArticle isPartyPlatform={isPartyPlatform} />
         )}
       </div>
     </section>
   );
 }
 
-function EmptyArticle() {
+function EmptyArticle({
+  isPartyPlatform = false,
+}: {
+  isPartyPlatform?: boolean;
+}) {
   return (
     <div className="py-10 text-center text-muted-foreground">
-      <p className="font-serif text-lg">No narrative has been written yet.</p>
+      <p className="font-serif text-lg">
+        {isPartyPlatform
+          ? "No platform has been published yet."
+          : "No narrative has been written yet."}
+      </p>
       <p className="mt-1 text-sm">
-        Sign in to add sourced history, context, and lore.
+        {isPartyPlatform
+          ? "Sign in to publish the party's Markdown platform."
+          : "Sign in to add sourced history, context, and lore."}
       </p>
     </div>
   );
