@@ -72,8 +72,6 @@ function formatFeedTime(value: Date | string) {
 }
 
 function toBallotCandidate(race: Race, candidate: Race["candidates"][number]) {
-  const party = candidate.affiliation.type === "Party";
-  const coalition = candidate.affiliation.type === "Coalition";
   return {
     id: candidate.id,
     userId: candidate.userId,
@@ -81,14 +79,14 @@ function toBallotCandidate(race: Race, candidate: Race["candidates"][number]) {
     votes: null,
     haswon: false,
     username: candidate.username,
-    partyId: party ? candidate.affiliation.id : null,
-    partyName: party ? candidate.affiliation.name : null,
-    partyColor: party ? candidate.affiliation.color : null,
-    partyLogo: party ? candidate.affiliation.logo : null,
-    coalitionId: coalition ? candidate.affiliation.id : null,
-    coalitionName: coalition ? candidate.affiliation.name : null,
-    coalitionColor: coalition ? candidate.affiliation.color : null,
-    coalitionLogo: coalition ? candidate.affiliation.logo : null,
+    partyId: candidate.party?.id ?? null,
+    partyName: candidate.party?.name ?? null,
+    partyColor: candidate.party?.color ?? null,
+    partyLogo: candidate.party?.logo ?? null,
+    coalitionId: candidate.coalition?.id ?? null,
+    coalitionName: candidate.coalition?.name ?? null,
+    coalitionColor: candidate.coalition?.color ?? null,
+    coalitionLogo: candidate.coalition?.logo ?? null,
   } satisfies Candidate;
 }
 
@@ -522,12 +520,13 @@ function CompactConcludedStatus({ race }: { race: Race }) {
           <span
             className="inline-block h-2 w-2 shrink-0 rounded-full"
             style={{
-              backgroundColor: w.affiliation.color ?? "var(--muted-foreground)",
+              backgroundColor: w.party?.color ?? w.affiliation.color ?? "var(--muted-foreground)",
             }}
           />
           <span className="font-semibold">{w.username}</span>
           <span className="text-muted-foreground">
-            {w.affiliation.name ?? "Independent"}
+            {w.party?.name ?? w.affiliation.name ?? "Independent"}
+            {w.coalition?.name ? ` (${w.coalition.name})` : ""}
           </span>
         </span>
       ))}
@@ -651,7 +650,7 @@ function ElectionNightCard({
                   data={standings.map((c) => ({
                     name: c.username,
                     value: c.points ?? 0,
-                    color: c.affiliation.color ?? "var(--muted-foreground)",
+                    color: c.party?.color ?? c.affiliation.color ?? "var(--muted-foreground)",
                   }))}
                   dataKey="value"
                   cx="50%"
@@ -663,7 +662,7 @@ function ElectionNightCard({
                   {standings.map((c, i) => (
                     <Cell
                       key={i}
-                      fill={c.affiliation.color ?? "var(--muted-foreground)"}
+                      fill={c.party?.color ?? c.affiliation.color ?? "var(--muted-foreground)"}
                       fillOpacity={0.9}
                     />
                   ))}
@@ -683,7 +682,7 @@ function ElectionNightCard({
                         className="h-2 w-2 shrink-0 rounded-full"
                         style={{
                           backgroundColor:
-                            c.affiliation.color ?? "var(--muted-foreground)",
+                            c.party?.color ?? c.affiliation.color ?? "var(--muted-foreground)",
                         }}
                       />
                       <span className="text-white/70">{c.username}</span>
@@ -735,7 +734,7 @@ function ElectionNightCard({
                       style={{
                         width: `${share}%`,
                         backgroundColor:
-                          candidate.affiliation.color ?? "var(--primary)",
+                          candidate.party?.color ?? candidate.affiliation.color ?? "var(--primary)",
                       }}
                     />
                   </div>
@@ -784,11 +783,17 @@ function ElectionNightCandidateIdentity({
 }: {
   candidate: Race["candidates"][number];
 }) {
+  const color = candidate.party?.color ?? candidate.affiliation.color ?? "#64748b";
+  const label = candidate.party?.name
+    ? candidate.coalition?.name
+      ? `${candidate.party.name} / ${candidate.coalition.name}`
+      : candidate.party.name
+    : candidate.affiliation.name ?? "Independent";
   const content = (
     <>
       <span
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border font-serif font-bold text-white"
-        style={{ backgroundColor: candidate.affiliation.color ?? "#64748b" }}
+        style={{ backgroundColor: color }}
         aria-hidden="true"
       >
         {candidate.username.slice(0, 1).toUpperCase()}
@@ -798,7 +803,7 @@ function ElectionNightCandidateIdentity({
           {candidate.username}
         </span>
         <span className="block truncate text-xs text-white/50">
-          {candidate.affiliation.name ?? "Independent"}
+          {label}
         </span>
       </span>
     </>
@@ -825,14 +830,16 @@ function partySeatSummary(
   const seatCounts = new Map<string, number>();
   const partyColor = new Map<string, string>();
   for (const candidate of top) {
-    const party =
-      candidate.affiliation.type === "Party" ||
-      candidate.affiliation.type === "Coalition"
+    const partyName = candidate.party?.name
+      ? candidate.coalition?.name
+        ? `${candidate.party.name} / ${candidate.coalition.name}`
+        : candidate.party.name
+      : candidate.affiliation.type === "Party" || candidate.affiliation.type === "Coalition"
         ? (candidate.affiliation.name ?? "Unknown")
         : "Independent";
-    const color = candidate.affiliation.color ?? "";
-    seatCounts.set(party, (seatCounts.get(party) ?? 0) + 1);
-    if (!partyColor.has(party)) partyColor.set(party, color);
+    const color = candidate.party?.color ?? candidate.affiliation.color ?? "";
+    seatCounts.set(partyName, (seatCounts.get(partyName) ?? 0) + 1);
+    if (!partyColor.has(partyName)) partyColor.set(partyName, color);
   }
   const entries = [...seatCounts.entries()].sort(
     (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),

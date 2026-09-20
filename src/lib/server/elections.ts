@@ -508,21 +508,31 @@ export const getCurrentElectionDashboard = createServerFn()
         const raceCandidates = candidateRows
           .filter((candidate) => candidate.election === raceType)
           .map((candidate) => {
-            const affiliation = candidate.coalitionId
+            const party = candidate.partyId
               ? {
-                  type: "Coalition" as const,
+                  id: candidate.partyId,
+                  name: candidate.partyName,
+                  color: candidate.partyColor,
+                  logo: candidate.partyLogo,
+                }
+              : null;
+            const coalition = candidate.coalitionId
+              ? {
                   id: candidate.coalitionId,
                   name: candidate.coalitionName,
                   color: candidate.coalitionColor,
                   logo: candidate.coalitionLogo,
                 }
-              : candidate.partyId
+              : null;
+            const affiliation = coalition
+              ? {
+                  type: "Coalition" as const,
+                  ...coalition,
+                }
+              : party
                 ? {
                     type: "Party" as const,
-                    id: candidate.partyId,
-                    name: candidate.partyName,
-                    color: candidate.partyColor,
-                    logo: candidate.partyLogo,
+                    ...party,
                   }
                 : {
                     type: "Independent" as const,
@@ -541,6 +551,8 @@ export const getCurrentElectionDashboard = createServerFn()
               id: candidate.id,
               userId: candidate.userId,
               username: candidate.username,
+              party,
+              coalition,
               affiliation,
               points,
               hasWon: election.status === "CONCLUDED" ? candidate.hasWon : null,
