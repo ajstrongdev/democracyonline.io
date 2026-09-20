@@ -5,14 +5,18 @@ import {
   Building2,
   CalendarDays,
   CheckCircle2,
+  ClipboardCheck,
   Flag,
   Landmark,
   Radio,
   ScrollText,
-  Settings,
   Users,
   Vote,
 } from "lucide-react";
+import {
+  DashboardElectionHub,
+  isElectionNightActive,
+} from "@/components/dashboard-election-hub";
 import { WikiHeader } from "@/components/wiki/wiki-header";
 import {
   WikiEmpty,
@@ -22,42 +26,18 @@ import {
   WikiStatGrid,
 } from "@/components/wiki/wiki-layout";
 import { getDashboardData } from "@/lib/server/dashboard";
-import { formatElectionTitle, formatWikiDate } from "@/lib/utils/history";
+import { formatWikiDate } from "@/lib/utils/history";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard/")({
   loader: () => getDashboardData(),
   component: Dashboard,
 });
 
-const archiveSections = [
-  {
-    to: "/dashboard/players",
-    title: "Players",
-    key: "players",
-    description: "Officeholders, candidacies, authored bills, and votes.",
-    icon: Users,
-  },
-  {
-    to: "/dashboard/bills",
-    title: "Bill archive",
-    key: "bills",
-    description: "Legislation and complete roll-call records.",
-    icon: ScrollText,
-  },
-  {
-    to: "/dashboard/elections",
-    title: "Election archive",
-    key: "elections",
-    description: "Live races and immutable certified results.",
-    icon: Landmark,
-  },
-  {
-    to: "/dashboard/parties",
-    title: "Party archive",
-    key: "parties",
-    description: "Party histories, representation, and membership.",
-    icon: Flag,
-  },
+const quickAccessLinks = [
+  { label: "Government", to: "/dashboard/government", icon: Building2 },
+  { label: "Nation", to: "/dashboard/nation", icon: Flag },
+  { label: "Calendar", to: "/calendar", icon: CalendarDays },
 ] as const;
 
 function LiveLabel() {
@@ -76,16 +56,27 @@ function Dashboard() {
   const {
     currentUser,
     pendingBillVotes,
-    pendingElectionBallots,
+    pendingCommitteeAssessments,
     activity,
-    electionRows,
+    electionDashboard,
     counts,
-    recentElections,
+    nation,
   } = Route.useLoaderData();
-  const actionCount = pendingBillVotes.length + pendingElectionBallots.length;
+  const actionCount =
+    pendingBillVotes.length + pendingCommitteeAssessments.length;
+  const electionNight = isElectionNightActive(electionDashboard);
 
   return (
-    <WikiPage>
+    <WikiPage className={cn(electionNight && "dark")}>
+      {electionNight && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-600/10 px-4 py-3">
+          <Radio className="h-4 w-4 text-red-500 animate-pulse" />
+          <p className="text-sm font-semibold text-red-400">
+            Election night is live — results are coming in now
+          </p>
+        </div>
+      )}
+
       <WikiHeader
         eyebrow={
           currentUser
@@ -99,11 +90,20 @@ function Dashboard() {
         }
         description={
           currentUser
-            ? "Your next moves, the live state of the game, and the permanent public record in one place."
+            ? electionNight
+              ? "Election night is underway. Watch the results roll in below."
+              : "Your next moves, the live state of the game, and the permanent public record in one place."
             : "The live state and permanent public record of Democracy Online. Sign in to see your next moves."
         }
-        status={<LiveLabel />}
+        status={!electionNight ? <LiveLabel /> : undefined}
       />
+
+      {electionNight && (
+        <DashboardElectionHub
+          initialData={electionDashboard}
+          currentUser={currentUser}
+        />
+      )}
 
       {currentUser && (
         <WikiSection
@@ -121,8 +121,10 @@ function Dashboard() {
               {pendingBillVotes.map((bill) => (
                 <Link
                   key={`bill-${bill.id}`}
-                  to={bill.route as "/dashboard/bills"}
-                  search={{ desk: bill.stage }}
+                  to={bill.route}
+                  search={{
+                    desk: bill.stage,
+                  }}
                   className="group flex flex-col gap-3 px-3 py-4 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:px-4"
                 >
                   <div className="flex min-w-0 gap-3">
@@ -140,27 +142,25 @@ function Dashboard() {
                   </span>
                 </Link>
               ))}
-              {pendingElectionBallots.map((election) => (
+              {pendingCommitteeAssessments.map((bill) => (
                 <Link
-                  key={`election-${election.election}`}
-                  to="/dashboard/elections/participate"
+                  key={`assessment-${bill.id}`}
+                  to="/dashboard/bills/$billId"
+                  params={{ billId: String(bill.id) }}
                   className="group flex flex-col gap-3 px-3 py-4 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:px-4"
                 >
                   <div className="flex min-w-0 gap-3">
-                    <Landmark className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                    <div>
-                      <p className="font-semibold">
-                        Elections are open: submit your{" "}
-                        {election.election.toLowerCase()} ballot
-                      </p>
+                    <ClipboardCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                    <div className="min-w-0">
+                      <p className="font-semibold">Assess {bill.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        {election.candidateCount} candidates ·{" "}
-                        {election.daysLeft} days remaining
+                        The Committee is waiting for your assessment of this
+                        bill's national effects.
                       </p>
                     </div>
                   </div>
                   <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
-                    Open ballot{" "}
+                    Open assessment
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </span>
                 </Link>
@@ -169,10 +169,17 @@ function Dashboard() {
           ) : (
             <div className="flex items-center gap-3 border border-dashed px-4 py-6 text-sm text-muted-foreground">
               <CheckCircle2 className="h-5 w-5 text-primary" />
-              You are caught up. New votes and ballots will appear here.
+              You are caught up. New legislative actions will appear here.
             </div>
           )}
         </WikiSection>
+      )}
+
+      {!electionNight && (
+        <DashboardElectionHub
+          initialData={electionDashboard}
+          currentUser={currentUser}
+        />
       )}
 
       {currentUser && (
@@ -199,59 +206,48 @@ function Dashboard() {
         </WikiStatGrid>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(19rem,0.6fr)]">
-        <WikiSection title="Game status" icon={Radio} aside={<LiveLabel />}>
-          <div className="divide-y border-y">
-            {electionRows.map((election) => (
-              <Link
-                key={election.election}
-                to="/dashboard/elections"
-                className="wiki-record-row flex items-center justify-between gap-4 hover:text-primary"
-              >
-                <span>
-                  <strong>{election.election}</strong>
-                  <span className="ml-2 text-sm text-muted-foreground">
-                    {election.status}
-                  </span>
-                </span>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {election.daysLeft} days
-                </span>
-              </Link>
-            ))}
+      {nation && (
+        <WikiSection
+          title={nation.name}
+          icon={Landmark}
+          description="The current national picture, shaped by legislation passed in the game."
+          aside={
             <Link
-              to="/calendar"
-              className="wiki-record-row flex items-center justify-between gap-4 hover:text-primary"
+              to="/dashboard/nation"
+              className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
             >
-              <span className="inline-flex items-center gap-2 font-semibold">
-                <CalendarDays className="h-4 w-4" /> Full game calendar
-              </span>
-              <ArrowRight className="h-4 w-4" />
+              Explore nation <ArrowRight className="h-4 w-4" />
             </Link>
-          </div>
+          }
+        >
+          <Link to="/dashboard/nation" className="group block">
+            <div className="divide-y border-y bg-card">
+              <NationPulse label="Civil rights" value={nation.civilRights} />
+              <NationPulse label="Economy" value={nation.economy} />
+              <NationPulse
+                label="Political freedoms"
+                value={nation.politicalFreedoms}
+              />
+            </div>
+          </Link>
         </WikiSection>
+      )}
 
-        <WikiSection title="Quick access" icon={Building2}>
-          <nav className="grid grid-cols-2 gap-px overflow-hidden border bg-border text-sm">
-            {[
-              ["Bills", "/dashboard/bills", ScrollText],
-              ["Elections", "/dashboard/elections", Landmark],
-              ["Parties", "/dashboard/parties", Flag],
-              ["Primaries", "/dashboard/parties/primaries", Vote],
-              ["Find players", "/dashboard/players", Users],
-              ["Settings", "/settings", Settings],
-            ].map(([label, to, Icon]) => (
-              <Link
-                key={to as string}
-                to={to as "/dashboard/bills"}
-                className="flex items-center gap-2 bg-card px-3 py-4 font-semibold hover:bg-muted/50 hover:text-primary"
-              >
-                <Icon className="h-4 w-4" /> {label as string}
-              </Link>
-            ))}
-          </nav>
-        </WikiSection>
-      </div>
+      <WikiSection title="Quick access" icon={Users}>
+        <nav className="divide-y border-y bg-card text-sm">
+          {quickAccessLinks.map(({ label, to, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              className="group flex items-center gap-3 px-4 py-3.5 hover:bg-muted/50"
+            >
+              <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+              <span className="font-semibold">{label}</span>
+              <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
+            </Link>
+          ))}
+        </nav>
+      </WikiSection>
 
       <WikiSection
         title="Latest activity"
@@ -290,51 +286,77 @@ function Dashboard() {
 
       <WikiSection
         title="Official record"
-        icon={Building2}
+        icon={ScrollText}
         description="Continuously updated public records and certified history."
-        aside={<LiveLabel />}
       >
-        <div className="grid gap-px overflow-hidden border bg-border sm:grid-cols-2 xl:grid-cols-4">
-          {archiveSections.map(
-            ({ to, title, key, description, icon: Icon }) => (
-              <Link
-                key={to}
-                to={to}
-                className="group bg-card p-4 hover:bg-muted/40"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <Icon className="h-5 w-5 text-primary" />
-                  <span className="font-mono text-2xl font-bold">
-                    {counts[key]}
-                  </span>
-                </div>
-                <h3 className="mt-4 font-serif text-lg font-bold">{title}</h3>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {description}
-                </p>
-              </Link>
-            ),
-          )}
-        </div>
-        <div className="mt-5">
-          <h3 className="wiki-kicker mb-2">Latest certified results</h3>
-          {recentElections.map((election) => (
+        <div className="divide-y border-y bg-card">
+          {[
+            {
+              to: "/dashboard/players",
+              title: "Players",
+              count: counts.players,
+              description:
+                "Officeholders, candidacies, authored bills, and votes.",
+              icon: Users,
+            },
+            {
+              to: "/dashboard/bills",
+              title: "Bill archive",
+              count: counts.bills,
+              description: "Legislation and complete roll-call records.",
+              icon: ScrollText,
+            },
+            {
+              to: "/dashboard/elections",
+              title: "Election archive",
+              count: counts.elections,
+              description: "Live national races and certified results.",
+              icon: Landmark,
+            },
+            {
+              to: "/dashboard/parties",
+              title: "Party archive",
+              count: counts.parties,
+              description: "Party histories, representation, and membership.",
+              icon: Vote,
+            },
+          ].map(({ to, title, count, description, icon: Icon }) => (
             <Link
-              key={election.id}
-              to="/dashboard/elections/$electionId"
-              params={{ electionId: String(election.id) }}
-              className="wiki-record-row flex items-center justify-between gap-4 hover:text-primary"
+              key={to}
+              to={to}
+              className="group flex items-center gap-4 px-4 py-4 hover:bg-muted/40 sm:px-5"
             >
-              <span className="font-semibold">
-                {formatElectionTitle(election.election, election.cycle)}
-              </span>
-              <span className="font-mono text-xs text-muted-foreground">
-                {formatWikiDate(election.concludedAt)}
+              <Icon className="h-5 w-5 shrink-0 text-muted-foreground group-hover:text-primary" />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">{title}</p>
+                <p className="text-xs text-muted-foreground">{description}</p>
+              </div>
+              <span className="shrink-0 font-mono text-2xl font-bold tabular-nums text-muted-foreground">
+                {count}
               </span>
             </Link>
           ))}
         </div>
       </WikiSection>
     </WikiPage>
+  );
+}
+
+function NationPulse({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center gap-4 px-4 py-3.5 transition-colors group-hover:bg-muted/30 sm:px-5">
+      <span className="wiki-kicker shrink-0">{label}</span>
+      <div className="min-w-0 flex-1">
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-[width]"
+            style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+          />
+        </div>
+      </div>
+      <strong className="shrink-0 font-mono text-sm tabular-nums">
+        {Math.round(value)}
+      </strong>
+    </div>
   );
 }

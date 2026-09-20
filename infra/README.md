@@ -197,7 +197,9 @@ gcloud builds submit --config=cloudbuild.yaml
 
 ## Database Setup
 
-After deployment, you may need to run migrations or seed data:
+Run migrations before sending traffic to a new application revision. Runtime
+initialization repairs missing President and Senate schedule rows, but it does
+not create or migrate the database schema.
 
 1. **Connect to Cloud SQL**
 
@@ -216,9 +218,20 @@ After deployment, you may need to run migrations or seed data:
 2. **Run migrations from another terminal**
 
    ```bash
-   # Get database credentials from Secret Manager or Terraform output
-   # Then connect with psql or your migration tool
+   # Set DATABASE_URL using the credentials from Secret Manager, then run:
+   pnpm db:migrate
    ```
+
+## Scheduled Game Processing
+
+Terraform provisions two authenticated Cloud Scheduler jobs:
+
+- `game-advance` once daily for inactivity cleanup and an election safety check.
+- `bill-advance` at 04:00, 12:00, and 20:00 UTC. One of three voting pools
+  advances each run, giving each bill a 24-hour vote in each chamber.
+All jobs use the same scheduler service account and shared scheduler token.
+The application validates the OIDC token against the origin of the requested
+endpoint, so both custom-domain and direct Cloud Run deployments work.
 
 ## Updating the Infrastructure
 

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { bills, candidates, elections, parties, users } from "@/db/schema";
 
@@ -276,7 +276,9 @@ export const Route = createFileRoute("/api/bot")({
                     userId: candidates.userId,
                     username: users.username,
                     election: candidates.election,
-                    points: candidates.votes,
+                    points: sql<
+                      number | null
+                    >`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} else null end`,
                     partyId: users.partyId,
                     partyName: parties.name,
                     partyColor: parties.color,
@@ -284,8 +286,15 @@ export const Route = createFileRoute("/api/bot")({
                   .from(candidates)
                   .leftJoin(users, eq(candidates.userId, users.id))
                   .leftJoin(parties, eq(users.partyId, parties.id))
+                  .leftJoin(
+                    elections,
+                    eq(candidates.election, elections.election),
+                  )
                   .where(eq(candidates.election, election))
-                  .orderBy(desc(candidates.votes), candidates.id);
+                  .orderBy(
+                    sql`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} end desc nulls last`,
+                    candidates.id,
+                  );
 
                 return new Response(JSON.stringify(electionCandidates), {
                   status: 200,
@@ -299,7 +308,9 @@ export const Route = createFileRoute("/api/bot")({
                     userId: candidates.userId,
                     username: users.username,
                     election: candidates.election,
-                    points: candidates.votes,
+                    points: sql<
+                      number | null
+                    >`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} else null end`,
                     partyId: users.partyId,
                     partyName: parties.name,
                     partyColor: parties.color,
@@ -307,7 +318,14 @@ export const Route = createFileRoute("/api/bot")({
                   .from(candidates)
                   .leftJoin(users, eq(candidates.userId, users.id))
                   .leftJoin(parties, eq(users.partyId, parties.id))
-                  .orderBy(desc(candidates.votes), candidates.id);
+                  .leftJoin(
+                    elections,
+                    eq(candidates.election, elections.election),
+                  )
+                  .orderBy(
+                    sql`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} end desc nulls last`,
+                    candidates.id,
+                  );
 
                 return new Response(JSON.stringify(allCandidates), {
                   status: 200,
@@ -319,12 +337,13 @@ export const Route = createFileRoute("/api/bot")({
             case "game-state": {
               const electionStates = await db.select().from(elections);
 
-              // Fetch candidates for elections in Voting or Concluded status
+              // Unrevealed totals remain sealed until an election concludes.
               const enrichedStates = await Promise.all(
                 electionStates.map(async (election) => {
                   if (
-                    election.status === "Voting" ||
-                    election.status === "Concluded"
+                    election.status === "CANDIDACY" ||
+                    election.status === "VOTING" ||
+                    election.status === "CONCLUDED"
                   ) {
                     // Get candidates for this election with user and party info
                     const electionCandidates = await db
@@ -333,7 +352,9 @@ export const Route = createFileRoute("/api/bot")({
                         userId: candidates.userId,
                         username: users.username,
                         election: candidates.election,
-                        points: candidates.votes,
+                        points: sql<
+                          number | null
+                        >`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} else null end`,
                         partyId: users.partyId,
                         partyName: parties.name,
                         partyColor: parties.color,
@@ -341,8 +362,15 @@ export const Route = createFileRoute("/api/bot")({
                       .from(candidates)
                       .leftJoin(users, eq(candidates.userId, users.id))
                       .leftJoin(parties, eq(users.partyId, parties.id))
+                      .leftJoin(
+                        elections,
+                        eq(candidates.election, elections.election),
+                      )
                       .where(eq(candidates.election, election.election))
-                      .orderBy(desc(candidates.votes), candidates.id);
+                      .orderBy(
+                        sql`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} end desc nulls last`,
+                        candidates.id,
+                      );
 
                     return {
                       ...election,

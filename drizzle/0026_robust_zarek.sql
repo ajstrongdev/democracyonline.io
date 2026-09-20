@@ -1,0 +1,1 @@
+ALTER TABLE "elections" ADD CONSTRAINT "elections_status_valid" CHECK ("elections"."status" in ('CANDIDACY', 'VOTING', 'ELECTION_NIGHT', 'CONCLUDED'));

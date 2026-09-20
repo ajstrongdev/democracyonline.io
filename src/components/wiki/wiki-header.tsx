@@ -1,9 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
-  Building2,
-  CalendarDays,
   Flag,
+  House,
   Landmark,
   ScrollText,
   Users,
@@ -13,12 +12,11 @@ import { ModeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/auth/user-menu";
 
 const links = [
-  { to: "/dashboard/players", label: "Players", icon: Users },
+  { to: "/dashboard", label: "Home", icon: House },
   { to: "/dashboard/bills", label: "Bills", icon: ScrollText },
   { to: "/dashboard/elections", label: "Elections", icon: Landmark },
   { to: "/dashboard/parties", label: "Parties", icon: Flag },
-  { to: "/dashboard/government", label: "Government", icon: Building2 },
-  { to: "/calendar", label: "Calendar", icon: CalendarDays },
+  { to: "/dashboard/players", label: "Players", icon: Users },
 ] as const;
 
 export function WikiNavigation() {
@@ -27,17 +25,21 @@ export function WikiNavigation() {
       <div className="mx-auto flex max-w-7xl items-center border-x">
         <Link
           to="/dashboard"
+          aria-label="Democracy Online home"
           className="inline-flex shrink-0 items-center gap-2 border-r px-3 py-3 font-serif text-sm font-bold tracking-wide hover:text-primary sm:px-5"
         >
           <BookOpen className="h-4 w-4 text-primary" />
           <span className="hidden sm:inline">Democracy Online</span>
         </Link>
-        <nav className="flex min-w-0 flex-1 overflow-x-auto px-1 sm:px-2">
+        <nav
+          aria-label="Primary navigation"
+          className="flex min-w-0 flex-1 overflow-x-auto px-1 sm:px-2"
+        >
           {links.map(({ to, label, icon: Icon }) => (
             <Link
               key={to}
               to={to}
-              activeOptions={{ exact: false }}
+              activeOptions={{ exact: to === "/dashboard" }}
               activeProps={{ className: "border-primary text-foreground" }}
               className="inline-flex shrink-0 items-center gap-1.5 border-b-2 border-transparent px-2.5 py-3 text-xs font-semibold text-muted-foreground hover:text-foreground sm:px-3"
             >

@@ -240,6 +240,38 @@ See [src/db/schema.ts](../src/db/schema.ts) for complete schema definitions.
 - Multiple election types (House, Senate, Presidential)
 - Automatic role assignment for winners
 
+#### Election lifecycle and demo
+
+Each presidential and Senate race advances through four persisted stages:
+`CANDIDACY`, `VOTING`, `ELECTION_NIGHT`, and `CONCLUDED`. Stage changes use the
+authoritative `*_starts_at`, `*_ends_at`, and `concluded_at` timestamps rather
+than a browser timer. Normal election night is intended to run for 12 hours,
+from 20:00 to 08:00 in `Europe/London`.
+
+At the end of voting, final Borda totals are calculated from complete ranked
+ballots. The server uses the pure reveal engine in
+`src/lib/elections/reveal.ts` with the race's persisted reporting seed, then
+stores the resulting events and their reveal timestamps in
+`election_night_updates`. Dashboard polling reads only events whose timestamp
+has passed, so a process does not need to stay running and a restart does not
+change the reveal order.
+
+For a five-minute local demonstration after applying migrations and seeding:
+
+```bash
+pnpm election:dry-run
+pnpm election:dry-run --player ajstrongdev
+pnpm election:dry-run --player 1
+```
+
+The command replaces only the current Senate race's candidates, ballots, and
+election-night updates. It reuses existing active users and parties, creates
+one valid complete ballot per active user, submits the selected player's
+ballot automatically, and prints the real dashboard URL. It refuses to run
+when `NODE_ENV=production`; a non-local `DATABASE_URL` also requires the
+explicit `ELECTION_DEMO_ALLOW_REMOTE=true` override. It never truncates users,
+parties, bills, nation data, or other application state.
+
 ### 5. Theme System
 
 [Detailed Documentation](features/theme-system.md)

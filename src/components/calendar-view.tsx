@@ -122,7 +122,8 @@ function LiveTimers({
       color: "text-blue-500",
       bg: "bg-linear-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20",
       iconBg: "bg-blue-500/10",
-      description: "A bill progresses to the next stage.",
+      description:
+        "One voting pool advances. Each bill receives a 24-hour stage vote.",
     },
     {
       icon: Gamepad2,

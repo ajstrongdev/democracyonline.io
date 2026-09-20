@@ -46,15 +46,48 @@ describe("authorizeCronRequest", () => {
       },
     });
 
+    const verifySchedulerIdToken = vi.fn(async () => ({
+      email: "game-scheduler@proj.iam.gserviceaccount.com",
+    }));
     const result = await authorizeCronRequest({
       request,
       env: defaultEnv,
-      verifySchedulerIdToken: vi.fn(async () => ({
-        email: "game-scheduler@proj.iam.gserviceaccount.com",
-      })),
+      verifySchedulerIdToken,
     });
 
     expect(result).toBeNull();
+    expect(verifySchedulerIdToken).toHaveBeenCalledWith({
+      idToken: "valid-token",
+      audience: "https://democracyonline.io",
+    });
+  });
+
+  it("uses the request origin as the OIDC audience", async () => {
+    const request = new Request(
+      "https://service-hash.a.run.app/api/election-advance",
+      {
+        method: "POST",
+        headers: {
+          "x-scheduler-token": "prod-token",
+          authorization: "Bearer valid-token",
+        },
+      },
+    );
+    const verifySchedulerIdToken = vi.fn(async () => ({
+      email: "game-scheduler@proj.iam.gserviceaccount.com",
+    }));
+
+    const result = await authorizeCronRequest({
+      request,
+      env: defaultEnv,
+      verifySchedulerIdToken,
+    });
+
+    expect(result).toBeNull();
+    expect(verifySchedulerIdToken).toHaveBeenCalledWith({
+      idToken: "valid-token",
+      audience: "https://service-hash.a.run.app",
+    });
   });
 
   it("accepts local non-production requests with local scheduler token only", async () => {

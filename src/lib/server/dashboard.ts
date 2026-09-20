@@ -1,19 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   billVotesHouse,
   billVotesPresidential,
   billVotesSenate,
   bills,
-  candidates,
-  elections,
+  committeeAssessments,
+  electionCandidateHistory,
   feed,
+  nations,
   parties,
   users,
-  votes,
 } from "@/db/schema";
 import { authMiddleware } from "@/middleware/auth";
+import { getCurrentElectionDashboard } from "@/lib/server/elections";
 import { userEmailEquals } from "@/lib/server/user-email";
 import { getWikiHome } from "@/lib/server/history";
 
@@ -41,7 +42,7 @@ const officeVotingConfig = {
 export const getDashboardData = createServerFn()
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    const [record, activity, electionRows] = await Promise.all([
+    const [record, activity, electionDashboard, nation] = await Promise.all([
       getWikiHome(),
       db
         .select({
@@ -55,19 +56,46 @@ export const getDashboardData = createServerFn()
         .leftJoin(users, eq(feed.userId, users.id))
         .orderBy(desc(feed.createdAt))
         .limit(6),
+      getCurrentElectionDashboard(),
       db
-        .select()
-        .from(elections)
-        .where(inArray(elections.election, ["President", "Senate"])),
+        .select({
+          name: nations.name,
+          civilRights: nations.civilRights,
+          economy: nations.economy,
+          politicalFreedoms: nations.politicalFreedoms,
+        })
+        .from(nations)
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
     ]);
+
+    const recentElectionCandidateData = await Promise.all(
+      record.recentElections.map(async (election) => {
+        const historyId = election.id;
+        const candidates = await db
+          .select({
+            username: electionCandidateHistory.username,
+            partyName: electionCandidateHistory.partyName,
+            partyColor: electionCandidateHistory.partyColor,
+            points: electionCandidateHistory.points,
+            haswon: electionCandidateHistory.elected,
+          })
+          .from(electionCandidateHistory)
+          .where(eq(electionCandidateHistory.electionHistoryId, historyId))
+          .orderBy(desc(electionCandidateHistory.points));
+        return { election, candidates };
+      }),
+    );
 
     if (!context.user?.email) {
       return {
         currentUser: null,
         pendingBillVotes: [],
-        pendingElectionBallots: [],
+        pendingCommitteeAssessments: [],
         activity,
-        electionRows,
+        electionDashboard,
+        nation,
+        recentElectionCandidateData,
         ...record,
       };
     }
@@ -78,6 +106,7 @@ export const getDashboardData = createServerFn()
         username: users.username,
         role: users.role,
         politicalLeaning: users.politicalLeaning,
+        active: users.isActive,
         partyId: parties.id,
         partyName: parties.name,
         partyColor: parties.color,
@@ -91,16 +120,18 @@ export const getDashboardData = createServerFn()
       return {
         currentUser: null,
         pendingBillVotes: [],
-        pendingElectionBallots: [],
+        pendingCommitteeAssessments: [],
         activity,
-        electionRows,
+        electionDashboard,
+        nation,
+        recentElectionCandidateData,
         ...record,
       };
     }
 
     const config =
       officeVotingConfig[currentUser.role as keyof typeof officeVotingConfig];
-    const [pendingBillVotes, ballotRows, candidateCounts] = await Promise.all([
+    const [pendingBillVotes, pendingCommitteeAssessments] = await Promise.all([
       config
         ? db
             .select({ id: bills.id, title: bills.title })
@@ -114,37 +145,19 @@ export const getDashboardData = createServerFn()
             )
             .orderBy(bills.createdAt)
         : Promise.resolve([]),
-      db
-        .select({ voteType: votes.voteType })
-        .from(votes)
-        .where(eq(votes.userId, currentUser.id))
-        .groupBy(votes.voteType),
-      db
-        .select({
-          election: candidates.election,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(candidates)
-        .where(inArray(candidates.election, ["President", "Senate"]))
-        .groupBy(candidates.election),
+      currentUser.role === "Senator" && currentUser.active
+        ? db
+            .select({ id: bills.id, title: bills.title })
+            .from(bills)
+            .where(
+              and(
+                eq(bills.status, "Committee"),
+                sql`not exists (select 1 from ${committeeAssessments} where ${committeeAssessments.billId} = ${bills.id} and ${committeeAssessments.senatorId} = ${currentUser.id})`,
+              ),
+            )
+            .orderBy(bills.createdAt)
+        : Promise.resolve([]),
     ]);
-
-    const votedIn = new Set(ballotRows.map((row) => row.voteType));
-    const countsByElection = new Map(
-      candidateCounts.map((row) => [row.election, row.count]),
-    );
-    const pendingElectionBallots = electionRows
-      .filter(
-        (election) =>
-          election.status === "Voting" &&
-          !votedIn.has(election.election) &&
-          (countsByElection.get(election.election) ?? 0) > 0,
-      )
-      .map((election) => ({
-        election: election.election,
-        daysLeft: election.daysLeft,
-        candidateCount: countsByElection.get(election.election) ?? 0,
-      }));
 
     return {
       currentUser,
@@ -154,9 +167,11 @@ export const getDashboardData = createServerFn()
         route: config?.route ?? "/bills",
         stage: config?.stage ?? "House",
       })),
-      pendingElectionBallots,
+      pendingCommitteeAssessments,
       activity,
-      electionRows,
+      electionDashboard,
+      nation,
+      recentElectionCandidateData,
       ...record,
     };
   });

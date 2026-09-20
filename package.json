@@ -19,6 +19,10 @@
     "db:seed:candidate-signup": "tsx scripts/seed.ts candidate-signup",
     "db:seed:primary-winner": "tsx scripts/seed.ts primary-winner",
     "db:seed:midterms": "tsx scripts/seed.ts midterms",
+    "db:seed:committee-test": "tsx scripts/seed.ts committee-test",
+    "seed:fresh": "tsx scripts/seed-fresh.ts",
+    "nation:randomize": "tsx scripts/randomize-nation.ts",
+    "election:dry-run": "tsx scripts/election-dry-run.ts",
     "db:push": "drizzle-kit push",
     "db:pull": "drizzle-kit pull",
     "db:studio": "drizzle-kit studio"

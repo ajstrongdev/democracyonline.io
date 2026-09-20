@@ -25,17 +25,19 @@ export function PartyCompositionBar({
         .map((group) => `${group.name} ${group.count}`)
         .join(", ")}`}
     >
-      {groups.map((group) => (
-        <div
-          key={group.name}
-          className="min-w-1 border-r border-background/70 last:border-r-0"
-          style={{
-            width: `${(group.count / total) * 100}%`,
-            backgroundColor: group.color,
-          }}
-          title={`${group.name}: ${group.count}`}
-        />
-      ))}
+      {groups
+        .filter((group) => group.count > 0)
+        .map((group) => (
+          <div
+            key={group.name}
+            className="min-w-1 border-r border-background/70 last:border-r-0"
+            style={{
+              width: `${(group.count / total) * 100}%`,
+              backgroundColor: group.color,
+            }}
+            title={`${group.name}: ${group.count}`}
+          />
+        ))}
     </div>
   );
 }

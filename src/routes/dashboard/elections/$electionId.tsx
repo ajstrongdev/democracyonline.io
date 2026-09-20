@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, Clock3, LockKeyhole } from "lucide-react";
 import { WikiArticleSection } from "@/components/wiki/wiki-article-section";
+import { CandidatesChart } from "@/components/candidates-chart";
 import {
   PartyMark,
   ResultBar,
@@ -45,12 +46,39 @@ function ElectionArticle() {
     0,
   );
   const title = formatElectionTitle(election.election, election.cycle);
+  const currentElection = electionData.current ? electionData.election : null;
+  const currentDeadline = currentElection
+    ? currentElection.status === "CANDIDACY"
+      ? currentElection.candidacyEndsAt
+      : currentElection.status === "VOTING"
+        ? currentElection.votingEndsAt
+        : currentElection.status === "ELECTION_NIGHT"
+          ? currentElection.electionNightEndsAt
+          : null
+    : null;
   const description = electionData.current
-    ? `${electionData.election.status} phase with ${electionData.election.daysLeft} days remaining. Figures update as ballots are cast.`
+    ? `${electionData.election.status.replaceAll("_", " ")} phase${currentDeadline ? ` until ${formatWikiDate(currentDeadline)}` : ""}. Published figures update as the race progresses.`
     : `Concluded ${formatWikiDate(electionData.election.concludedAt)}. This certified result is preserved as part of the permanent record.`;
   const entityId = electionData.current
     ? `current-${electionData.election.election}`
     : String(electionData.election.id);
+
+  const chartCandidates = candidates.map((c, index) => ({
+    id: (c as { id?: number }).id ?? index,
+    userId: (c as { userId?: number }).userId ?? null,
+    election: election.election as "President" | "Senate",
+    votes: (c as { points?: number }).points ?? 0,
+    haswon: (c as { elected?: boolean }).elected ?? false,
+    username: c.username,
+    partyId: (c as { partyId?: number }).partyId ?? null,
+    partyName: c.partyName,
+    partyColor: c.partyColor,
+    partyLogo: null,
+    coalitionId: null,
+    coalitionName: null,
+    coalitionColor: null,
+    coalitionLogo: null,
+  }));
 
   return (
     <WikiPage>
@@ -73,6 +101,18 @@ function ElectionArticle() {
           </Badge>
         }
       />
+
+      {!electionData.current && candidates.length > 0 && (
+        <div className="mb-6">
+          <CandidatesChart
+            election={election.election as "President" | "Senate"}
+            candidates={chartCandidates}
+            seats={election.seats ?? 1}
+            status="Concluded"
+          />
+        </div>
+      )}
+
       <WikiStatGrid>
         <WikiStat label="Ballots" value={totalBallots} />
         <WikiStat label="Ranked points" value={totalPoints} />
@@ -85,7 +125,11 @@ function ElectionArticle() {
       />
       <WikiSection
         title="Candidate results"
-        description="Ranked-ballot points and first-preference totals."
+        description={
+          electionData.current
+            ? "Ranked-ballot points and first-preference totals."
+            : "Ranked-ballot points and first-preference totals."
+        }
       >
         <div>
           {candidates.map((candidate) => {

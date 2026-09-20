@@ -274,8 +274,8 @@ export const getBillForEdit = createServerFn()
       throw new Error("You are not authorized to edit this bill");
     }
 
-    if (bill[0].status !== "Queued") {
-      throw new Error("Only bills with 'Queued' status can be edited");
+    if (bill[0].status !== "Committee") {
+      throw new Error("Only bills in Committee can be edited");
     }
 
     return bill[0];
@@ -300,8 +300,8 @@ export const updateBill = createServerFn()
       throw new Error("You are not authorized to edit this bill");
     }
 
-    if (existingBill[0].status !== "Queued") {
-      throw new Error("Only bills with 'Queued' status can be edited");
+    if (existingBill[0].status !== "Committee") {
+      throw new Error("Only bills in Committee can be edited");
     }
 
     // Update only title and content

@@ -1,12 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { FileText, Gamepad2 } from "lucide-react";
+import { Clock3, FileText, Gamepad2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   checkIsAdmin,
+  forceNextElectionStage,
   listAccessTokens,
   listDatabaseUsers,
   listFirebaseUsers,
+  setElectionStageDeadline,
 } from "@/lib/server/admin";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserList from "@/components/admin/user-list";
@@ -70,7 +72,8 @@ function RouteComponent() {
   const [advanceLoading, setAdvanceLoading] = useState<{
     game: boolean;
     bills: boolean;
-  }>({ game: false, bills: false });
+    elections: boolean;
+  }>({ game: false, bills: false, elections: false });
   const [gameAdvanceCount, setGameAdvanceCount] = useState(1);
   const [billAdvanceCount, setBillAdvanceCount] = useState(1);
 
@@ -210,6 +213,53 @@ function RouteComponent() {
     }
   };
 
+  const processElectionDeadlines = async () => {
+    setAdvanceLoading((current) => ({ ...current, elections: true }));
+    try {
+      const headers = await getManualAdvanceHeaders();
+      const response = await fetch("/api/election-advance", {
+        method: "POST",
+        headers,
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Election heartbeat failed");
+      }
+      toast.success("Due election deadlines processed");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Election heartbeat failed",
+      );
+    } finally {
+      setAdvanceLoading((current) => ({ ...current, elections: false }));
+    }
+  };
+
+  const forceNextStage = async (election: "President" | "Senate") => {
+    setAdvanceLoading((current) => ({ ...current, elections: true }));
+    try {
+      await forceNextElectionStage({ data: { election } });
+      toast.success(`${election} election advanced to its next stage`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Advance failed");
+    } finally {
+      setAdvanceLoading((current) => ({ ...current, elections: false }));
+    }
+  };
+
+  const scheduleNextStage = async (election: "President" | "Senate") => {
+    setAdvanceLoading((current) => ({ ...current, elections: true }));
+    try {
+      await setElectionStageDeadline({ data: { election, seconds: 10 } });
+      toast.success(`${election} stage will end in 10 seconds`);
+      window.setTimeout(() => void processElectionDeadlines(), 10_500);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Override failed");
+    } finally {
+      setAdvanceLoading((current) => ({ ...current, elections: false }));
+    }
+  };
+
   return (
     <div className="container mx-auto p-4 sm:p-8 max-w-7xl">
       <div className="mb-6">
@@ -221,7 +271,54 @@ function RouteComponent() {
 
       <div className="mb-6 p-4 border rounded-lg bg-card">
         <h2 className="text-xl font-semibold mb-4">Manual Advance Triggers</h2>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-3">
+            <Label>Election heartbeat</Label>
+            <p className="min-h-10 text-sm text-muted-foreground">
+              Process timestamp deadlines now. This does not skip time or force
+              a phase change.
+            </p>
+            <Button
+              variant="outline"
+              disabled={advanceLoading.elections}
+              className="w-full flex items-center gap-2"
+              onClick={processElectionDeadlines}
+            >
+              <Clock3 className="w-4 h-4" />
+              {advanceLoading.elections ? "Processing..." : "Process due stages"}
+            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                disabled={advanceLoading.elections}
+                onClick={() => scheduleNextStage("President")}
+              >
+                President in 10s
+              </Button>
+              <Button
+                variant="outline"
+                disabled={advanceLoading.elections}
+                onClick={() => scheduleNextStage("Senate")}
+              >
+                Senate in 10s
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={advanceLoading.elections}
+                onClick={() => forceNextStage("President")}
+              >
+                Next President stage
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={advanceLoading.elections}
+                onClick={() => forceNextStage("Senate")}
+              >
+                Next Senate stage
+              </Button>
+            </div>
+          </div>
+
           <div className="space-y-3">
             <Label htmlFor="game-count">Game Advance</Label>
             <Input
@@ -254,9 +351,9 @@ function RouteComponent() {
                     Run Game Advance {gameAdvanceCount} time(s)?
                   </AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will advance elections and user activity{" "}
-                    {gameAdvanceCount} time(s). Are you sure you want to
-                    continue?
+                    This runs daily user activity and party maintenance{" "}
+                    {gameAdvanceCount} time(s). Election stages only change when
+                    their timestamp deadline is due. Continue?
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

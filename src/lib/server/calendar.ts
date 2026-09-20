@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { elections, gameTracker } from "@/db/schema";
 import { env } from "@/env";
+import { ensureElectionSchedule } from "@/lib/server/election-schedule";
 import {
   DEFAULT_BILL_ADVANCE_SCHEDULE_UTC,
   DEFAULT_GAME_ADVANCE_SCHEDULE_UTC,
@@ -19,50 +20,11 @@ const GAME_ADVANCE_SCHEDULE_UTC = resolveUtcCronSchedule(
   env.GAME_ADVANCE_SCHEDULE_UTC,
   DEFAULT_GAME_ADVANCE_SCHEDULE_UTC,
 );
-
 const gameAdvanceDailyAnchor = getSingleDailyUtcAnchor(
   GAME_ADVANCE_SCHEDULE_UTC,
 );
 const GAME_ADVANCE_HOUR_UTC = gameAdvanceDailyAnchor?.hour ?? 20;
 const GAME_ADVANCE_MINUTE_UTC = gameAdvanceDailyAnchor?.minute ?? 0;
-
-function getNextAdvanceTime(daysLeft: number, now: Date): Date {
-  const todayAdvance = new Date(
-    Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate(),
-      GAME_ADVANCE_HOUR_UTC,
-      GAME_ADVANCE_MINUTE_UTC,
-      0,
-      0,
-    ),
-  );
-
-  // If today's advance time hasn't passed yet and daysLeft is 0, use today
-  if (daysLeft === 0 && now < todayAdvance) {
-    return todayAdvance;
-  }
-
-  // Otherwise calculate based on daysLeft
-  let daysToAdd = daysLeft;
-  if (now >= todayAdvance && daysLeft > 0) {
-    // Today's advance has passed, so countdown to next occurrence
-    daysToAdd = daysLeft - 1;
-  }
-
-  return new Date(
-    Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() + daysToAdd,
-      GAME_ADVANCE_HOUR_UTC,
-      GAME_ADVANCE_MINUTE_UTC,
-      0,
-      0,
-    ),
-  );
-}
 
 function getNextBillAdvanceTime(now: Date): Date {
   return getNextUtcTimeFromCron(BILL_ADVANCE_SCHEDULE_UTC, now);
@@ -83,13 +45,13 @@ export type CalendarData = {
   };
   senateElection: {
     status: string;
-    daysLeft: number;
+    daysRemaining: number;
     nextStageTime: Date;
     nextStageName: string;
   } | null;
   presidentialElection: {
     status: string;
-    daysLeft: number;
+    daysRemaining: number;
     nextStageTime: Date;
     nextStageName: string;
   } | null;
@@ -101,11 +63,13 @@ export type CalendarData = {
 };
 
 function getNextStageName(status: string, electionType: string): string {
-  if (status === "Candidate" || status === "Candidacy") {
+  if (status === "CANDIDACY") {
     return `${electionType} Elections - Time until Voting`;
-  } else if (status === "Voting") {
-    return `${electionType} Elections - Time until Results`;
-  } else if (status === "Concluded") {
+  } else if (status === "VOTING") {
+    return `${electionType} Elections - Time until Election Night`;
+  } else if (status === "ELECTION_NIGHT") {
+    return `${electionType} Elections - Time until Declaration`;
+  } else if (status === "CONCLUDED") {
     return `${electionType} Elections - Time until Campaigning`;
   }
   return "Unknown Stage";
@@ -114,6 +78,7 @@ function getNextStageName(status: string, electionType: string): string {
 export const getCalendarData = createServerFn().handler(
   async (): Promise<CalendarData> => {
     const now = new Date();
+    await ensureElectionSchedule({ now });
 
     const [senateData] = await db
       .select()
@@ -130,13 +95,43 @@ export const getCalendarData = createServerFn().handler(
     const [gameData] = await db.select().from(gameTracker).limit(1);
     const currentPool = gameData?.billPool || 1;
     const billAdvanceTime = getNextBillAdvanceTime(now);
+    const currentStageTiming = (
+      election: NonNullable<typeof senateData>,
+      concludedDays: number,
+    ) => {
+      let deadline: Date | null = null;
+      if (election.status === "CANDIDACY") {
+        deadline = election.candidacyEndsAt;
+      } else if (election.status === "VOTING") {
+        deadline = election.votingEndsAt;
+      } else if (election.status === "ELECTION_NIGHT") {
+        deadline = election.electionNightEndsAt;
+      } else if (election.status === "CONCLUDED" && election.concludedAt) {
+        deadline = new Date(
+          election.concludedAt.getTime() + concludedDays * 24 * 60 * 60 * 1000,
+        );
+      }
+      if (!deadline) {
+        throw new Error(`Missing timestamp for ${election.election} ${election.status}`);
+      }
+      const nextStageTime = deadline;
+      return {
+        nextStageTime,
+        daysRemaining: Math.max(
+          0,
+          Math.ceil(
+            (nextStageTime.getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
+          ),
+        ),
+      };
+    };
 
     let senateElection = null;
     if (senateData) {
+      const timing = currentStageTiming(senateData, 6);
       senateElection = {
         status: senateData.status || "Unknown",
-        daysLeft: senateData.daysLeft,
-        nextStageTime: getNextAdvanceTime(senateData.daysLeft, now),
+        ...timing,
         nextStageName: getNextStageName(senateData.status || "", "Senate"),
       };
     }
@@ -144,10 +139,10 @@ export const getCalendarData = createServerFn().handler(
     // Process presidential election
     let presidentialElection = null;
     if (presidentData) {
+      const timing = currentStageTiming(presidentData, 8);
       presidentialElection = {
         status: presidentData.status || "Unknown",
-        daysLeft: presidentData.daysLeft,
-        nextStageTime: getNextAdvanceTime(presidentData.daysLeft, now),
+        ...timing,
         nextStageName: getNextStageName(
           presidentData.status || "",
           "Presidential",
@@ -180,40 +175,50 @@ export const getCalendarData = createServerFn().handler(
         let prevStatus = "";
         let prevDuration = 0;
 
-        if (pastStatus === "Candidate" || pastStatus === "Candidacy") {
-          prevStatus = "Concluded";
+        if (pastStatus === "CANDIDACY") {
+          prevStatus = "CONCLUDED";
           prevDuration = 6;
-        } else if (pastStatus === "Voting") {
-          prevStatus = "Candidate";
+        } else if (pastStatus === "VOTING") {
+          prevStatus = "CANDIDACY";
           prevDuration = 4;
-        } else if (pastStatus === "Concluded") {
-          prevStatus = "Voting";
-          prevDuration = 4;
+        } else if (pastStatus === "ELECTION_NIGHT") {
+          prevStatus = "VOTING";
+          prevDuration = 1;
+        } else if (pastStatus === "CONCLUDED") {
+          prevStatus = "ELECTION_NIGHT";
+          prevDuration = 1;
         }
 
         totalDaysBack += prevDuration;
 
         if (totalDaysBack <= 28) {
           const eventDate = getEventDate(-totalDaysBack);
-          if (prevStatus === "Concluded") {
+          if (prevStatus === "CONCLUDED") {
             upcomingEvents.push({
               date: eventDate,
               title: "Senate Candidacy Opens",
               description: "New senate election candidacy period starts",
               type: "senate",
             });
-          } else if (prevStatus === "Candidate") {
+          } else if (prevStatus === "CANDIDACY") {
             upcomingEvents.push({
               date: eventDate,
               title: "Senate Voting Begins",
               description: "Candidacy period ends and voting opens",
               type: "senate",
             });
-          } else if (prevStatus === "Voting") {
+          } else if (prevStatus === "VOTING") {
             upcomingEvents.push({
               date: eventDate,
-              title: "Senate Election Results",
-              description: "Winners announced, new senators elected",
+              title: "Senate Election Night",
+              description: "Polls close and progressive reporting begins",
+              type: "results",
+            });
+          } else if (prevStatus === "ELECTION_NIGHT") {
+            upcomingEvents.push({
+              date: eventDate,
+              title: "Senate Result Declared",
+              description: "The final Senate result is certified",
               type: "results",
             });
           }
@@ -224,11 +229,11 @@ export const getCalendarData = createServerFn().handler(
       }
 
       let status = senateElection.status;
-      let daysUntilNextEvent = senateElection.daysLeft;
+      let daysUntilNextEvent = senateElection.daysRemaining;
       let totalDaysFromNow = 0;
 
       while (totalDaysFromNow < 365) {
-        if (status === "Candidate" || status === "Candidacy") {
+        if (status === "CANDIDACY") {
           totalDaysFromNow += daysUntilNextEvent;
           if (totalDaysFromNow <= 365) {
             upcomingEvents.push({
@@ -238,21 +243,33 @@ export const getCalendarData = createServerFn().handler(
               type: "senate",
             });
           }
-          status = "Voting";
+          status = "VOTING";
           daysUntilNextEvent = 4;
-        } else if (status === "Voting") {
+        } else if (status === "VOTING") {
           totalDaysFromNow += daysUntilNextEvent;
           if (totalDaysFromNow <= 365) {
             upcomingEvents.push({
               date: getEventDate(totalDaysFromNow),
-              title: "Senate Election Results",
-              description: "Winners announced, new senators elected",
+              title: "Senate Election Night",
+              description: "Polls close and progressive reporting begins",
               type: "results",
             });
           }
-          status = "Concluded";
+          status = "ELECTION_NIGHT";
+          daysUntilNextEvent = 1;
+        } else if (status === "ELECTION_NIGHT") {
+          totalDaysFromNow += daysUntilNextEvent;
+          if (totalDaysFromNow <= 365) {
+            upcomingEvents.push({
+              date: getEventDate(totalDaysFromNow),
+              title: "Senate Result Declared",
+              description: "The final Senate result is certified",
+              type: "results",
+            });
+          }
+          status = "CONCLUDED";
           daysUntilNextEvent = 6;
-        } else if (status === "Concluded") {
+        } else if (status === "CONCLUDED") {
           totalDaysFromNow += daysUntilNextEvent;
           if (totalDaysFromNow <= 365) {
             upcomingEvents.push({
@@ -262,7 +279,7 @@ export const getCalendarData = createServerFn().handler(
               type: "senate",
             });
           }
-          status = "Candidate";
+          status = "CANDIDACY";
           daysUntilNextEvent = 4;
         }
       }
@@ -277,40 +294,50 @@ export const getCalendarData = createServerFn().handler(
         let prevStatus = "";
         let prevDuration = 0;
 
-        if (pastStatus === "Candidate" || pastStatus === "Candidacy") {
-          prevStatus = "Concluded";
+        if (pastStatus === "CANDIDACY") {
+          prevStatus = "CONCLUDED";
           prevDuration = 8;
-        } else if (pastStatus === "Voting") {
-          prevStatus = "Candidate";
+        } else if (pastStatus === "VOTING") {
+          prevStatus = "CANDIDACY";
           prevDuration = 10;
-        } else if (pastStatus === "Concluded") {
-          prevStatus = "Voting";
-          prevDuration = 10;
+        } else if (pastStatus === "ELECTION_NIGHT") {
+          prevStatus = "VOTING";
+          prevDuration = 1;
+        } else if (pastStatus === "CONCLUDED") {
+          prevStatus = "ELECTION_NIGHT";
+          prevDuration = 1;
         }
 
         totalDaysBack += prevDuration;
 
         if (totalDaysBack <= 28) {
           const eventDate = getEventDate(-totalDaysBack);
-          if (prevStatus === "Concluded") {
+          if (prevStatus === "CONCLUDED") {
             upcomingEvents.push({
               date: eventDate,
               title: "Presidential Candidacy Opens",
               description: "New presidential election candidacy period starts",
               type: "president",
             });
-          } else if (prevStatus === "Candidate") {
+          } else if (prevStatus === "CANDIDACY") {
             upcomingEvents.push({
               date: eventDate,
               title: "Presidential Voting Begins",
               description: "Candidacy period ends and voting opens",
               type: "president",
             });
-          } else if (prevStatus === "Voting") {
+          } else if (prevStatus === "VOTING") {
             upcomingEvents.push({
               date: eventDate,
-              title: "Presidential Election Results",
-              description: "Winner announced, new president elected",
+              title: "Presidential Election Night",
+              description: "Polls close and progressive reporting begins",
+              type: "results",
+            });
+          } else if (prevStatus === "ELECTION_NIGHT") {
+            upcomingEvents.push({
+              date: eventDate,
+              title: "Presidential Result Declared",
+              description: "The final presidential result is certified",
               type: "results",
             });
           }
@@ -321,11 +348,11 @@ export const getCalendarData = createServerFn().handler(
       }
 
       let status = presidentialElection.status;
-      let daysUntilNextEvent = presidentialElection.daysLeft;
+      let daysUntilNextEvent = presidentialElection.daysRemaining;
       let totalDaysFromNow = 0;
 
       while (totalDaysFromNow < 365) {
-        if (status === "Candidate" || status === "Candidacy") {
+        if (status === "CANDIDACY") {
           totalDaysFromNow += daysUntilNextEvent;
           if (totalDaysFromNow <= 365) {
             upcomingEvents.push({
@@ -335,21 +362,33 @@ export const getCalendarData = createServerFn().handler(
               type: "president",
             });
           }
-          status = "Voting";
+          status = "VOTING";
           daysUntilNextEvent = 10;
-        } else if (status === "Voting") {
+        } else if (status === "VOTING") {
           totalDaysFromNow += daysUntilNextEvent;
           if (totalDaysFromNow <= 365) {
             upcomingEvents.push({
               date: getEventDate(totalDaysFromNow),
-              title: "Presidential Election Results",
-              description: "Winner announced, new president elected",
+              title: "Presidential Election Night",
+              description: "Polls close and progressive reporting begins",
               type: "results",
             });
           }
-          status = "Concluded";
+          status = "ELECTION_NIGHT";
+          daysUntilNextEvent = 1;
+        } else if (status === "ELECTION_NIGHT") {
+          totalDaysFromNow += daysUntilNextEvent;
+          if (totalDaysFromNow <= 365) {
+            upcomingEvents.push({
+              date: getEventDate(totalDaysFromNow),
+              title: "Presidential Result Declared",
+              description: "The final presidential result is certified",
+              type: "results",
+            });
+          }
+          status = "CONCLUDED";
           daysUntilNextEvent = 8;
-        } else if (status === "Concluded") {
+        } else if (status === "CONCLUDED") {
           totalDaysFromNow += daysUntilNextEvent;
           if (totalDaysFromNow <= 365) {
             upcomingEvents.push({
@@ -359,7 +398,7 @@ export const getCalendarData = createServerFn().handler(
               type: "president",
             });
           }
-          status = "Candidate";
+          status = "CANDIDACY";
           daysUntilNextEvent = 10;
         }
       }

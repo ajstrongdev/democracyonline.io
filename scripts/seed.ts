@@ -1,5 +1,13 @@
 import { loadEnvFile } from "node:process";
 import pg from "pg";
+import {
+  POLICY_DEFINITIONS,
+  STAT_DEFINITIONS,
+} from "../src/lib/nation/catalog";
+import {
+  applyDiminishingEffect,
+  calculateHeadlineIndices,
+} from "../src/lib/nation/simulation";
 
 loadEnvFile();
 
@@ -19,6 +27,7 @@ type SqlValue = boolean | Date | null | number | string;
 type Row = Record<string, unknown>;
 type SeedScenario =
   | "candidate-signup"
+  | "committee-test"
   | "elections"
   | "elections-finished"
   | "midterms"
@@ -26,6 +35,7 @@ type SeedScenario =
 
 const scenarios = new Set<SeedScenario>([
   "candidate-signup",
+  "committee-test",
   "elections",
   "elections-finished",
   "midterms",
@@ -39,21 +49,22 @@ if (!scenarios.has(requestedScenario as SeedScenario)) {
 }
 const scenario = requestedScenario as SeedScenario;
 
-type ElectionStatus = "Candidate" | "Concluded" | "Voting";
+type ElectionStatus = "CANDIDACY" | "CONCLUDED" | "VOTING";
 type ElectionCycleStage = { status: ElectionStatus; duration: number };
 
 const presidentialCycle: Array<ElectionCycleStage> = [
-  { status: "Candidate", duration: 10 },
-  { status: "Voting", duration: 10 },
-  { status: "Concluded", duration: 8 },
+  { status: "CANDIDACY", duration: 10 },
+  { status: "VOTING", duration: 10 },
+  { status: "CONCLUDED", duration: 8 },
 ];
 const senateCycle: Array<ElectionCycleStage> = [
-  { status: "Candidate", duration: 4 },
-  { status: "Voting", duration: 4 },
-  { status: "Concluded", duration: 6 },
+  { status: "CANDIDACY", duration: 4 },
+  { status: "VOTING", duration: 4 },
+  { status: "CONCLUDED", duration: 6 },
 ];
 const scenarioCycleDays: Record<SeedScenario, number> = {
   "candidate-signup": 0,
+  "committee-test": 18,
   elections: 18,
   "elections-finished": 22,
   midterms: 20,
@@ -72,7 +83,11 @@ function getElectionState(
 
   for (const stage of cycle) {
     if (dayInCycle < stage.duration) {
-      return { status: stage.status, daysLeft: stage.duration - dayInCycle };
+      return {
+        status: stage.status,
+        daysLeft: stage.duration - dayInCycle,
+        elapsedDays: dayInCycle,
+      };
     }
     dayInCycle -= stage.duration;
   }
@@ -252,9 +267,12 @@ async function seed() {
   try {
     await client.query(`
       TRUNCATE TABLE
+        "nation_changes", "bill_locked_policy_effects", "bill_locked_stat_effects",
+        "committee_policy_assessments", "committee_stat_assessments", "committee_assessments",
+        "nation_policy_values", "nation_stat_values", "nation_policy_definitions", "nation_stat_definitions", "nations",
         "wiki_article_revisions", "wiki_articles",
         "party_membership_events", "archived_parties",
-        "election_candidate_history", "election_officeholder_history", "election_history",
+        "election_night_updates", "election_candidate_history", "election_officeholder_history", "election_history",
         "votes", "primary_votes", "primary_candidates", "candidates",
         "bill_votes_house", "bill_votes_senate", "bill_votes_presidential",
         "party_notifications", "merge_request_stances", "merge_request",
@@ -263,6 +281,99 @@ async function seed() {
         "access_tokens", "game_tracker", "elections", "users", "parties"
       RESTART IDENTITY CASCADE
     `);
+
+    await insertRows(
+      "nation_stat_definitions",
+      [
+        "key",
+        "name",
+        "category",
+        "default_value",
+        "min",
+        "max",
+        "headline",
+        "headline_weight",
+        "headline_direction",
+        "flavour",
+      ],
+      STAT_DEFINITIONS.map((definition) => [
+        definition.key,
+        definition.name,
+        definition.category,
+        definition.defaultValue,
+        definition.min,
+        definition.max,
+        definition.headline,
+        definition.headlineWeight,
+        definition.headlineDirection,
+        definition.flavour,
+      ]),
+    );
+    await insertRows(
+      "nation_policy_definitions",
+      [
+        "key",
+        "name",
+        "category",
+        "type",
+        "options",
+        "min",
+        "max",
+        "default_value",
+      ],
+      POLICY_DEFINITIONS.map((definition) => [
+        definition.key,
+        definition.name,
+        definition.category,
+        definition.type,
+        definition.options ? JSON.stringify(definition.options) : null,
+        definition.min,
+        definition.max,
+        JSON.stringify(definition.defaultValue),
+      ]),
+    );
+    const initialStatValues = new Map(
+      STAT_DEFINITIONS.map((definition) => [
+        definition.key,
+        definition.defaultValue,
+      ]),
+    );
+    const initialHeadlines = calculateHeadlineIndices(
+      STAT_DEFINITIONS,
+      initialStatValues,
+    );
+    const [nationRow] = await insertRows(
+      "nations",
+      ["name", "civil_rights", "economy", "political_freedoms"],
+      [
+        [
+          "The Commonwealth of Democracy Online",
+          initialHeadlines.civil_rights,
+          initialHeadlines.economy,
+          initialHeadlines.political_freedoms,
+        ],
+      ],
+      true,
+    );
+    const nationId = Number(nationRow.id);
+    await insertRows(
+      "nation_stat_values",
+      ["nation_id", "stat_key", "value"],
+      STAT_DEFINITIONS.map((definition) => [
+        nationId,
+        definition.key,
+        definition.defaultValue,
+      ]),
+    );
+    await insertRows(
+      "nation_policy_values",
+      ["nation_id", "policy_key", "value"],
+      POLICY_DEFINITIONS.map((definition) => [
+        nationId,
+        definition.key,
+        JSON.stringify(definition.defaultValue),
+      ]),
+    );
 
     const partyRows = await insertRows(
       "parties",
@@ -664,12 +775,85 @@ async function seed() {
     const cycleDay = scenarioCycleDays[scenario];
     const presidentState = getElectionState(presidentialCycle, cycleDay);
     const senateState = getElectionState(senateCycle, cycleDay);
+    const electionTimestamps = (
+      state: ReturnType<typeof getElectionState>,
+      candidacyDays: number,
+      votingDays: number,
+    ) => {
+      const dayMs = 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      if (state.status === "CANDIDACY") {
+        return [
+          new Date(now - state.elapsedDays * dayMs),
+          new Date(now + state.daysLeft * dayMs),
+          null,
+          null,
+          null,
+          null,
+          null,
+        ];
+      }
+      if (state.status === "VOTING") {
+        const votingStartsAt = new Date(now - state.elapsedDays * dayMs);
+        return [
+          new Date(votingStartsAt.getTime() - candidacyDays * dayMs),
+          votingStartsAt,
+          votingStartsAt,
+          new Date(now + state.daysLeft * dayMs),
+          null,
+          null,
+          null,
+        ];
+      }
+      const concludedAt = new Date(now - state.elapsedDays * dayMs);
+      const electionNightStartsAt = new Date(
+        concludedAt.getTime() - 12 * 60 * 60 * 1000,
+      );
+      const votingStartsAt = new Date(
+        electionNightStartsAt.getTime() - votingDays * dayMs,
+      );
+      return [
+        new Date(votingStartsAt.getTime() - candidacyDays * dayMs),
+        votingStartsAt,
+        votingStartsAt,
+        electionNightStartsAt,
+        electionNightStartsAt,
+        concludedAt,
+        concludedAt,
+      ];
+    };
+    const presidentTimestamps = electionTimestamps(presidentState, 10, 10);
+    const senateTimestamps = electionTimestamps(senateState, 4, 4);
     await insertRows(
       "elections",
-      ["election", "status", "seats", "days_left", "cycle"],
       [
-        ["President", presidentState.status, 1, presidentState.daysLeft, 4],
-        ["Senate", senateState.status, 9, senateState.daysLeft, 7],
+        "election",
+        "status",
+        "seats",
+        "cycle",
+        "candidacy_starts_at",
+        "candidacy_ends_at",
+        "voting_starts_at",
+        "voting_ends_at",
+        "election_night_starts_at",
+        "election_night_ends_at",
+        "concluded_at",
+      ],
+      [
+        [
+          "President",
+          presidentState.status,
+          1,
+          4,
+          ...presidentTimestamps,
+        ],
+        [
+          "Senate",
+          senateState.status,
+          9,
+          7,
+          ...senateTimestamps,
+        ],
       ],
     );
 
@@ -703,9 +887,9 @@ async function seed() {
       const cycle = election === "President" ? 4 : 7;
       const candidateIds =
         election === "President" ? presidentialUserIds : senateUserIds;
-      if (state.status === "Candidate" || candidateIds.length === 0) continue;
+      if (state.status === "CANDIDACY" || candidateIds.length === 0) continue;
       const voterIds =
-        state.status === "Concluded"
+        state.status === "CONCLUDED"
           ? allUserIds
           : allUserIds.filter((userId) => userId !== ajId).slice(0, 32);
       const result = buildRankedResult(candidateIds, voterIds, cycle, election);
@@ -730,13 +914,13 @@ async function seed() {
           `UPDATE candidates SET votes = $1, haswon = $2 WHERE id = $3`,
           [
             candidate.points,
-            state.status === "Concluded" &&
+            state.status === "CONCLUDED" &&
               index < (election === "President" ? 1 : 9),
             candidateIdByUser.get(candidate.userId),
           ],
         );
       }
-      if (state.status === "Concluded") {
+      if (state.status === "CONCLUDED") {
         await archiveFixtureElection({
           election,
           cycle,
@@ -746,6 +930,27 @@ async function seed() {
           rankedResult: result,
         });
       }
+    }
+
+    if (scenario === "committee-test" && roleByUser.get(ajId) !== "Senator") {
+      const senatorToReplace = [...roleByUser].find(
+        ([userId, role]) => userId !== ajId && role === "Senator",
+      )?.[0];
+      if (!senatorToReplace)
+        throw new Error("No Senator available for test role");
+
+      if (roleByUser.get(ajId) === "President") {
+        const replacementPresident = [...roleByUser].find(
+          ([userId, role]) => userId !== ajId && role === "Representative",
+        )?.[0];
+        if (!replacementPresident) {
+          throw new Error("No Representative available for the presidency");
+        }
+        roleByUser.set(replacementPresident, "President");
+      }
+
+      roleByUser.set(senatorToReplace, "Representative");
+      roleByUser.set(ajId, "Senator");
     }
 
     await client.query(`UPDATE users SET role = 'Representative'`);
@@ -934,16 +1139,16 @@ async function seed() {
           3,
         ],
         [
-          "Queued",
+          "Committee",
           "House",
-          "Public Parks Act",
+          "National Cheese Investment Act",
           generatedUserIds[22],
-          "Expands urban and rural park grants.",
+          "Invests in agricultural production and establishes national cheese subsidies.",
           daysAgo(1),
           4,
         ],
         [
-          "Queued",
+          "Committee",
           "House",
           "Small Business Filing Act",
           generatedUserIds[23],
@@ -952,7 +1157,7 @@ async function seed() {
           4,
         ],
         [
-          "Queued",
+          "Committee",
           "House",
           "Library Access Act",
           generatedUserIds[24],
@@ -1007,6 +1212,146 @@ async function seed() {
     ) {
       throw new Error("Seeded government must contain a 41/9/1 roster");
     }
+    const fixtureSenatorIds = currentSenatorIds.filter(
+      (userId) => scenario !== "committee-test" || userId !== ajId,
+    );
+    if (fixtureSenatorIds.length < 3) {
+      throw new Error("Seeded Committee fixtures require three Senators");
+    }
+
+    const committeeAssessmentRows = await insertRows(
+      "committee_assessments",
+      ["bill_id", "senator_id", "created_at", "updated_at"],
+      [
+        [billIds[9], fixtureSenatorIds[0], daysAgo(0.8), daysAgo(0.8)],
+        [billIds[10], fixtureSenatorIds[0], daysAgo(0.7), daysAgo(0.7)],
+        [billIds[10], fixtureSenatorIds[1], daysAgo(0.6), daysAgo(0.6)],
+        [billIds[10], fixtureSenatorIds[2], daysAgo(0.5), daysAgo(0.5)],
+      ],
+      true,
+    );
+    const committeeAssessmentIds = committeeAssessmentRows.map((row) =>
+      Number(row.id),
+    );
+    await insertRows(
+      "committee_stat_assessments",
+      ["assessment_id", "stat_key", "effect"],
+      [
+        [committeeAssessmentIds[0], "cheese_production", 2],
+        [committeeAssessmentIds[0], "agricultural_output", 1],
+        [committeeAssessmentIds[0], "government_spending", 1],
+        [committeeAssessmentIds[1], "small_business_activity", 2],
+        [committeeAssessmentIds[2], "small_business_activity", 1],
+        [committeeAssessmentIds[3], "small_business_activity", 2],
+      ],
+    );
+    await insertRows(
+      "committee_policy_assessments",
+      ["assessment_id", "policy_key", "proposed_value"],
+      [[committeeAssessmentIds[0], "cheese_subsidies", JSON.stringify(true)]],
+    );
+
+    await client.query(
+      `UPDATE bills SET committee_closed_at = created_at + interval '1 day', committee_participant_count = 2 WHERE status <> 'Committee'`,
+    );
+    await insertRows(
+      "bill_locked_stat_effects",
+      ["bill_id", "stat_key", "effect"],
+      [
+        [billIds[0], "internet_access", 1.5],
+        [billIds[0], "government_spending", 0.8],
+        [billIds[6], "privacy", 1.4],
+        [billIds[6], "surveillance", -0.8],
+        [billIds[12], "water_quality", 1.6],
+      ],
+    );
+    await insertRows(
+      "bill_locked_policy_effects",
+      ["bill_id", "policy_key", "previous_value", "new_value"],
+      [
+        [
+          billIds[6],
+          "data_protection_law",
+          JSON.stringify(false),
+          JSON.stringify(true),
+        ],
+        [
+          billIds[12],
+          "clean_water_standards",
+          JSON.stringify(false),
+          JSON.stringify(true),
+        ],
+      ],
+    );
+
+    const waterDefinition = STAT_DEFINITIONS.find(
+      ({ key }) => key === "water_quality",
+    )!;
+    const oldWater = initialStatValues.get("water_quality")!;
+    const newWater = applyDiminishingEffect(
+      oldWater,
+      1.6,
+      waterDefinition.min,
+      waterDefinition.max,
+    );
+    initialStatValues.set("water_quality", newWater);
+    const appliedHeadlines = calculateHeadlineIndices(
+      STAT_DEFINITIONS,
+      initialStatValues,
+    );
+    await client.query(
+      `UPDATE nation_stat_values SET value = $1 WHERE nation_id = $2 AND stat_key = 'water_quality'`,
+      [newWater, nationId],
+    );
+    await client.query(
+      `UPDATE nation_policy_values SET value = 'true'::jsonb WHERE nation_id = $1 AND policy_key = 'clean_water_standards'`,
+      [nationId],
+    );
+    await client.query(
+      `UPDATE nations SET civil_rights = $1, economy = $2, political_freedoms = $3 WHERE id = $4`,
+      [
+        appliedHeadlines.civil_rights,
+        appliedHeadlines.economy,
+        appliedHeadlines.political_freedoms,
+        nationId,
+      ],
+    );
+    await client.query(
+      `UPDATE bills SET nation_effects_applied_at = created_at + interval '3 days' WHERE id = $1`,
+      [billIds[12]],
+    );
+    await insertRows(
+      "nation_changes",
+      [
+        "nation_id",
+        "bill_id",
+        "kind",
+        "key",
+        "previous_value",
+        "new_value",
+        "created_at",
+      ],
+      [
+        [
+          nationId,
+          billIds[12],
+          "stat",
+          "water_quality",
+          JSON.stringify(oldWater),
+          JSON.stringify(newWater),
+          daysAgo(9),
+        ],
+        [
+          nationId,
+          billIds[12],
+          "policy",
+          "clean_water_standards",
+          JSON.stringify(false),
+          JSON.stringify(true),
+          daysAgo(9),
+        ],
+      ],
+    );
 
     const houseVotingBillIds = billIds.slice(0, 4);
     const housePassedBillIds = [
@@ -1070,7 +1415,27 @@ async function seed() {
       ],
     );
 
-    if (scenario === "elections") {
+    if (scenario === "committee-test") {
+      await assertNoRows(
+        "ajstrongdev Committee test eligibility",
+        `
+          SELECT u.id
+          FROM users u
+          WHERE u.id = ${ajId}
+            AND (
+              u.role <> 'Senator'
+              OR u.is_active IS NOT TRUE
+              OR EXISTS (
+                SELECT 1
+                FROM committee_assessments assessment
+                JOIN bills bill ON bill.id = assessment.bill_id
+                WHERE assessment.senator_id = u.id
+                  AND bill.status = 'Committee'
+              )
+            )
+        `,
+      );
+    } else if (scenario === "elections") {
       await assertNoRows(
         "ajstrongdev next moves",
         `
@@ -1290,7 +1655,7 @@ async function seed() {
         )
         SELECT id
         FROM roll_calls
-        WHERE (status = 'Queued' AND house_yes + house_no + senate_yes + senate_no + president_yes + president_no > 0)
+        WHERE (status = 'Committee' AND house_yes + house_no + senate_yes + senate_no + president_yes + president_no > 0)
           OR (stage IN ('Senate', 'Presidential') AND house_yes <= house_no)
           OR (stage = 'Presidential' AND senate_yes <= senate_no)
           OR (status = 'Passed' AND president_yes <= president_no)
@@ -1309,7 +1674,11 @@ async function seed() {
     console.log(`Database seed complete: ${scenario}`);
     console.log(`Users: ${userRows.length} (50 generated + ajstrongdev)`);
     console.log(`Parties: ${partyRows.length}`);
-    if (scenario === "elections") {
+    if (scenario === "committee-test") {
+      console.log(
+        "Committee test: ajstrongdev is an active Senator with unassessed Committee bills",
+      );
+    } else if (scenario === "elections") {
       console.log(
         `Elections: President Voting (${presidentialUserIds.length} candidates), Senate Voting (${candidateRows.length - presidentialUserIds.length} candidates)`,
       );

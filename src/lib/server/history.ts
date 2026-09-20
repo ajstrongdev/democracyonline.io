@@ -3,6 +3,8 @@ import { and, asc, desc, eq, getTableColumns, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { getOfficeholderSelection } from "@/lib/utils/history";
+import { getElectionCoverage } from "@/lib/server/election-coverage";
+import { ensureElectionSchedule } from "@/lib/server/election-schedule";
 import {
   archivedParties,
   billVotesHouse,
@@ -376,6 +378,7 @@ function getBillRollCall(
 }
 
 export const getWikiElections = createServerFn().handler(async () => {
+  await ensureElectionSchedule();
   const [archived, current] = await Promise.all([
     db
       .select()
@@ -409,14 +412,19 @@ export const getWikiElection = createServerFn()
         .where(eq(elections.election, electionName))
         .limit(1);
       if (!election) return null;
+      const coverage =
+        election.status === "ELECTION_NIGHT"
+          ? await getElectionCoverage(electionName, election.cycle)
+          : null;
       const liveCandidates = await db
         .select({
+          id: candidates.id,
           userId: users.id,
           username: users.username,
           partyId: parties.id,
           partyName: parties.name,
           partyColor: parties.color,
-          points: sql<number>`coalesce(${candidates.votes}, 0)::int`,
+          certifiedPoints: sql<number>`coalesce(${candidates.votes}, 0)::int`,
           firstPreferenceVotes: sql<number>`count(${votes.id}) filter (where ${votes.rank} = 1)::int`,
           elected: candidates.haswon,
         })
@@ -436,9 +444,23 @@ export const getWikiElection = createServerFn()
         election,
         candidates: liveCandidates.map((candidate, index) => ({
           ...candidate,
+          points:
+            election.status === "ELECTION_NIGHT"
+              ? (coverage?.cumulativeTotals[String(candidate.id)] ?? 0)
+              : election.status === "CONCLUDED"
+                ? candidate.certifiedPoints
+                : 0,
+          firstPreferenceVotes:
+            election.status === "CONCLUDED"
+              ? candidate.firstPreferenceVotes
+              : 0,
           placement: index + 1,
         })),
-        totalBallots: ballots?.count ?? 0,
+        totalBallots:
+          election.status === "ELECTION_NIGHT" ||
+          election.status === "CONCLUDED"
+            ? (ballots?.count ?? 0)
+            : 0,
       };
     }
 

@@ -21,6 +21,7 @@ import { CandidatesChart } from "@/components/candidates-chart";
 import { CandidateAffiliationBadges } from "@/components/candidate-affiliation-badges";
 import PartyLogo from "@/components/party-logo";
 import { RankedBallot } from "@/components/ranked-ballot";
+import { DashboardElectionCountdown } from "@/components/dashboard-election-countdown";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -348,6 +349,14 @@ function ElectionPanel({
   const standings = getStandings(candidates);
   const seats = election === "Senate" ? (data.electionInfo?.seats ?? 1) : 1;
   const Icon = election === "President" ? Crown : Landmark;
+  const stageDeadline =
+    data.electionInfo?.status === "CANDIDACY"
+      ? data.electionInfo.candidacyEndsAt
+      : data.electionInfo?.status === "VOTING"
+        ? data.electionInfo.votingEndsAt
+        : data.electionInfo?.status === "ELECTION_NIGHT"
+          ? data.electionInfo.electionNightEndsAt
+          : null;
 
   const changeCandidacy = async () => {
     setSubmitting(true);
@@ -404,7 +413,14 @@ function ElectionPanel({
         <div className="flex flex-wrap gap-2 md:justify-end">
           <Badge variant="outline" className="gap-1.5 px-3 py-1.5">
             <Clock3 className="h-3.5 w-3.5" />
-            {data.electionInfo.daysLeft} days left
+            {stageDeadline ? (
+              <DashboardElectionCountdown
+                target={stageDeadline}
+                onExpire={() => router.invalidate()}
+              />
+            ) : (
+              "Awaiting next cycle"
+            )}
           </Badge>
           <Badge className="gap-1.5 px-3 py-1.5">
             <Vote className="h-3.5 w-3.5" />

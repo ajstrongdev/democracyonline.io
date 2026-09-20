@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { LogOut, Settings, User } from "lucide-react";
+import { LogIn, LogOut, Settings, User } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { logOut } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,14 @@ export function UserMenu() {
 
   if (!user) {
     return (
-      <div className="hidden items-center gap-2 lg:flex">
-        <Button variant="ghost" asChild>
-          <Link to="/login">Sign In</Link>
+      <div className="flex items-center gap-1 lg:gap-2">
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/login" aria-label="Sign in">
+            <LogIn className="size-4" />
+            <span className="hidden lg:inline">Sign In</span>
+          </Link>
         </Button>
-        <Button asChild>
+        <Button className="hidden lg:inline-flex" asChild>
           <Link to="/register">Sign Up</Link>
         </Button>
       </div>
@@ -29,10 +32,10 @@ export function UserMenu() {
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex items-center gap-2">
+    <div className="flex min-w-0 items-center gap-1 sm:gap-2">
+      <div className="hidden min-w-0 items-center gap-2 md:flex">
         <User className="size-4" />
-        <span className="text-sm font-medium">
+        <span className="max-w-32 truncate text-sm font-medium">
           {user.displayName || user.email}
         </span>
       </div>
@@ -41,7 +44,12 @@ export function UserMenu() {
           <Settings className="size-4" />
         </Link>
       </Button>
-      <Button variant="ghost" size="icon" onClick={handleLogout}>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleLogout}
+        aria-label="Sign out"
+      >
         <LogOut className="size-4" />
       </Button>
     </div>

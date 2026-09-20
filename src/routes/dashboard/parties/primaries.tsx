@@ -14,6 +14,7 @@ import {
   WikiStatGrid,
 } from "@/components/wiki/wiki-layout";
 import { WikiHeader } from "@/components/wiki/wiki-header";
+import { DashboardElectionCountdown } from "@/components/dashboard-election-countdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +64,7 @@ function PrimariesPage() {
 
   const {
     electionStatus,
-    daysLeft,
+    candidacyEndsAt,
     partyId,
     coalitionId: _coalitionId,
     candidates,
@@ -77,7 +78,7 @@ function PrimariesPage() {
     isCoalitionPrimary,
   } = data;
 
-  const isCandidatePhase = electionStatus === "Candidate";
+  const isCandidatePhase = electionStatus === "CANDIDACY";
   const totalVotes = candidates.reduce((sum, c) => sum + c.votes, 0);
 
   const handleDeclare = async () => {
@@ -177,7 +178,7 @@ function PrimariesPage() {
                 Check back when the next election cycle begins.
               </p>
               <Button asChild variant="outline">
-                <Link to="/dashboard/elections">View Elections</Link>
+                <Link to="/dashboard">View Elections</Link>
               </Button>
             </CardContent>
           </Card>
@@ -207,7 +208,7 @@ function PrimariesPage() {
             <Link to="/dashboard/parties">Party archive</Link>
           </Button>
           <Button asChild size="sm" variant="outline">
-            <Link to="/dashboard/elections">Election archive</Link>
+            <Link to="/dashboard">Election desk</Link>
           </Button>
         </nav>
 
@@ -221,7 +222,11 @@ function PrimariesPage() {
                 {groupName} {isCoalitionPrimary ? "coalition" : "party"} primary
               </CardTitle>
               <span className="font-mono text-xs text-muted-foreground">
-                {daysLeft} day{daysLeft !== 1 ? "s" : ""} remaining
+                <DashboardElectionCountdown
+                  target={candidacyEndsAt}
+                  onExpire={() => router.invalidate()}
+                />{" "}
+                remaining
               </span>
             </div>
           </CardHeader>
@@ -293,7 +298,7 @@ function PrimariesPage() {
               </p>
             )}
             <Button asChild variant="outline">
-              <Link to="/dashboard/elections">View Elections</Link>
+              <Link to="/dashboard">View Elections</Link>
             </Button>
           </div>
         </WikiSection>

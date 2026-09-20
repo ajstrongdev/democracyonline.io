@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { env } from "@/env";
 import { authMiddleware } from "@/middleware/auth";
 import { getAdminAuth } from "@/lib/firebase-admin";
@@ -13,12 +13,16 @@ import {
   bills,
   candidates,
   chats,
+  electionNightUpdates,
   elections,
   feed,
   parties,
   users,
   votes,
 } from "@/db/schema";
+import { DEFAULT_ELECTION_TIMING } from "@/lib/elections/timing";
+import { generateElectionNightPlan } from "@/lib/elections/reveal";
+import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
 
 function isAdminEmail(email: string) {
   return env.ADMIN_EMAILS.some(
@@ -41,6 +45,244 @@ export const checkIsAdmin = createServerFn()
 export function getAdminEmails(): Array<string> {
   return env.ADMIN_EMAILS;
 }
+
+export const forceNextElectionStage = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((data: { election: "President" | "Senate" }) => data)
+  .handler(async ({ context, data }) => {
+    const email = context.user?.email;
+    if (!email || !isAdminEmail(email)) throw new Error("Unauthorized");
+
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = ${data.election} FOR UPDATE`,
+      );
+      const [election] = await tx
+        .select({ status: elections.status, cycle: elections.cycle })
+        .from(elections)
+        .where(eq(elections.election, data.election))
+        .limit(1);
+      if (!election) throw new Error("Election not found");
+
+      if (election.status === "CANDIDACY") {
+        await tx
+          .update(elections)
+          .set({ candidacyEndsAt: now })
+          .where(eq(elections.election, data.election));
+      } else if (election.status === "VOTING") {
+        const seed = `${data.election}:${election.cycle}:election-night-v1`;
+        const voteTotals = await tx
+          .select({
+            candidateId: votes.candidateId,
+            total: sql<number>`coalesce(sum(${votes.points}), 0)::int`,
+          })
+          .from(votes)
+          .innerJoin(candidates, eq(votes.candidateId, candidates.id))
+          .where(
+            and(
+              eq(votes.voteType, data.election),
+              eq(candidates.election, data.election),
+            ),
+          )
+          .groupBy(votes.candidateId);
+        const totalsMap = new Map(
+          voteTotals.map((row) => [row.candidateId, row.total]),
+        );
+        const roster = await tx
+          .select({ id: candidates.id, name: users.username })
+          .from(candidates)
+          .innerJoin(users, eq(candidates.userId, users.id))
+          .where(eq(candidates.election, data.election))
+          .orderBy(candidates.id);
+        const trueTotals = roster.map((c) => ({
+          id: c.id,
+          name: c.name,
+          total: totalsMap.get(c.id) ?? 0,
+        }));
+        const endsAt = new Date(
+          now.getTime() + DEFAULT_ELECTION_TIMING.electionNightDurationMs,
+        );
+        const plan = generateElectionNightPlan(trueTotals, {
+          seed,
+          startsAt: now,
+          durationMs: DEFAULT_ELECTION_TIMING.electionNightDurationMs,
+        });
+        if (plan.length) {
+          await tx
+            .insert(electionNightUpdates)
+            .values(
+              plan.map((u) => ({
+                election: data.election,
+                cycle: election.cycle,
+                sequence: u.sequence,
+                revealAt: u.revealAt,
+                type: u.type,
+                headline: u.headline,
+                cumulativeTotals: u.cumulativeTotals,
+                totalPoints: u.totalPoints,
+              })),
+            )
+            .onConflictDoNothing();
+        }
+        await tx
+          .update(elections)
+          .set({
+            status: "ELECTION_NIGHT",
+            votingEndsAt: now,
+            electionNightStartsAt: now,
+            electionNightEndsAt: endsAt,
+            reportingSeed: seed,
+          })
+          .where(eq(elections.election, data.election));
+      } else if (election.status === "ELECTION_NIGHT") {
+        await tx
+          .update(elections)
+          .set({ electionNightEndsAt: now })
+          .where(eq(elections.election, data.election));
+      } else if (election.status === "CONCLUDED") {
+        await tx
+          .update(elections)
+          .set({
+            concludedAt: new Date(
+              now.getTime() -
+                DEFAULT_ELECTION_TIMING.concludedDurationMs[data.election],
+            ),
+          })
+          .where(eq(elections.election, data.election));
+      }
+    });
+
+    await advanceElectionLifecycle({ now });
+    return { success: true };
+  });
+
+export const setElectionStageDeadline = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(
+    (data: { election: "President" | "Senate"; seconds: number }) => data,
+  )
+  .handler(async ({ context, data }) => {
+    const email = context.user?.email;
+    if (!email || !isAdminEmail(email)) throw new Error("Unauthorized");
+    if (!Number.isInteger(data.seconds) || data.seconds < 5 || data.seconds > 300) {
+      throw new Error("Test deadline must be between 5 and 300 seconds");
+    }
+
+    const now = new Date();
+    const deadline = new Date(now.getTime() + data.seconds * 1_000);
+    await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = ${data.election} FOR UPDATE`,
+      );
+      const [election] = await tx
+        .select({ status: elections.status, cycle: elections.cycle })
+        .from(elections)
+        .where(eq(elections.election, data.election))
+        .limit(1);
+      if (!election) throw new Error("Election not found");
+
+      if (election.status === "CANDIDACY") {
+        await tx
+          .update(elections)
+          .set({ candidacyEndsAt: deadline })
+          .where(eq(elections.election, data.election));
+      } else if (election.status === "VOTING") {
+        const seed = `${data.election}:${election.cycle}:election-night-v1`;
+        const voteTotals = await tx
+          .select({
+            candidateId: votes.candidateId,
+            total: sql<number>`coalesce(sum(${votes.points}), 0)::int`,
+          })
+          .from(votes)
+          .innerJoin(candidates, eq(votes.candidateId, candidates.id))
+          .where(
+            and(
+              eq(votes.voteType, data.election),
+              eq(candidates.election, data.election),
+            ),
+          )
+          .groupBy(votes.candidateId);
+        const totalsMap = new Map(
+          voteTotals.map((row) => [row.candidateId, row.total]),
+        );
+        const roster = await tx
+          .select({ id: candidates.id, name: users.username })
+          .from(candidates)
+          .innerJoin(users, eq(candidates.userId, users.id))
+          .where(eq(candidates.election, data.election))
+          .orderBy(candidates.id);
+        const trueTotals = roster.map((c) => ({
+          id: c.id,
+          name: c.name,
+          total: totalsMap.get(c.id) ?? 0,
+        }));
+        const plan = generateElectionNightPlan(trueTotals, {
+          seed,
+          startsAt: now,
+          durationMs: data.seconds * 1_000,
+        });
+        if (plan.length) {
+          await tx
+            .insert(electionNightUpdates)
+            .values(
+              plan.map((u) => ({
+                election: data.election,
+                cycle: election.cycle,
+                sequence: u.sequence,
+                revealAt: u.revealAt,
+                type: u.type,
+                headline: u.headline,
+                cumulativeTotals: u.cumulativeTotals,
+                totalPoints: u.totalPoints,
+              })),
+            )
+            .onConflictDoNothing();
+        }
+        await tx
+          .update(elections)
+          .set({
+            status: "ELECTION_NIGHT",
+            votingEndsAt: now,
+            electionNightStartsAt: now,
+            electionNightEndsAt: deadline,
+            reportingSeed: seed,
+          })
+          .where(eq(elections.election, data.election));
+        return { success: true, deadline };
+      } else if (election.status === "ELECTION_NIGHT") {
+        await tx
+          .update(elections)
+          .set({ electionNightEndsAt: deadline })
+          .where(eq(elections.election, data.election));
+        await tx.execute(sql`
+          UPDATE "election_night_updates"
+          SET "reveal_at" = ${now}::timestamptz
+            + (${data.seconds} * interval '1 second')
+            * "sequence"::double precision
+            / GREATEST((
+                SELECT max(updates.sequence) + 1
+                FROM "election_night_updates" updates
+                WHERE updates.election = ${data.election}
+                  AND updates.cycle = ${election.cycle}
+              ), 1)
+          WHERE "election" = ${data.election}
+            AND "cycle" = ${election.cycle}
+        `);
+      } else if (election.status === "CONCLUDED") {
+        const concludedDuration =
+          DEFAULT_ELECTION_TIMING.concludedDurationMs[data.election];
+        await tx
+          .update(elections)
+          .set({
+            concludedAt: new Date(deadline.getTime() - concludedDuration),
+          })
+          .where(eq(elections.election, data.election));
+      }
+    });
+
+    return { success: true, deadline };
+  });
 
 // Firebase Users Management
 export const listFirebaseUsers = createServerFn()
@@ -184,7 +426,11 @@ export const purgeUserFromDatabase = createServerFn({ method: "POST" })
         .where(
           and(
             eq(candidates.userId, data.userId),
-            inArray(elections.status, ["Voting", "Concluded"]),
+            inArray(elections.status, [
+              "VOTING",
+              "ELECTION_NIGHT",
+              "CONCLUDED",
+            ]),
           ),
         )
         .limit(1);

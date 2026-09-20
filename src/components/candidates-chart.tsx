@@ -55,6 +55,7 @@ export function CandidatesChart({
     (total, candidate) => total + candidate.points,
     0,
   );
+  const chartEntries = chartData.filter((entry) => entry.points > 0);
   const winners =
     status === "Concluded"
       ? chartData.filter((entry) => entry.candidate.haswon)
@@ -62,7 +63,7 @@ export function CandidatesChart({
         ? chartData.slice(0, seats)
         : [];
   const winnerLabel = status === "Concluded" ? "Elected" : "Projected";
-  const chartHeight = Math.max(340, chartData.length * 24);
+  const chartHeight = Math.max(340, chartEntries.length * 24);
 
   return (
     <Card className="overflow-hidden border-border/70 bg-card/80 shadow-sm">
@@ -135,14 +136,14 @@ export function CandidatesChart({
               >
                 <PieChart accessibilityLayer>
                   <Pie
-                    data={chartData}
+                    data={chartEntries}
                     dataKey="points"
                     nameKey="name"
                     innerRadius="50%"
                     outerRadius="78%"
                     paddingAngle={2}
                   >
-                    {chartData.map((entry) => (
+                    {chartEntries.map((entry) => (
                       <Cell
                         key={entry.id}
                         fill={entry.color}
@@ -207,7 +208,7 @@ export function CandidatesChart({
               >
                 <BarChart
                   accessibilityLayer
-                  data={chartData}
+                  data={chartEntries}
                   layout="vertical"
                   margin={{ left: 8, right: 24, top: 16, bottom: 8 }}
                 >
@@ -226,7 +227,7 @@ export function CandidatesChart({
                     content={<ChartTooltipContent hideLabel />}
                   />
                   <Bar dataKey="points" radius={[0, 6, 6, 0]}>
-                    {chartData.map((entry) => (
+                    {chartEntries.map((entry) => (
                       <Cell
                         key={entry.id}
                         fill={entry.color}

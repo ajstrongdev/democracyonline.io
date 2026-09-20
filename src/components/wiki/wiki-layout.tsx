@@ -6,14 +6,17 @@ import { cn } from "@/lib/utils";
 
 export function WikiPage({
   children,
+  className,
 }: {
   children: ReactNode;
   width?: "article" | "wide";
+  className?: string;
 }) {
   return (
     <main
       className={cn(
         "wiki-page mx-auto w-full max-w-7xl space-y-6 px-3 py-5 sm:px-6 sm:py-8",
+        className,
       )}
     >
       {children}

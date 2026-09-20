@@ -53,7 +53,7 @@ function EditBillNotFound() {
           </h1>
           <p className="text-muted-foreground mb-6">
             The bill you're looking for could not be found, you don't have
-            permission to edit it, or it is no longer in "Queued" status.
+            permission to edit it, or it is no longer in Committee.
           </p>
           <div className="flex gap-4 justify-center">
             <Button

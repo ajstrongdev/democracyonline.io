@@ -13,26 +13,29 @@ import { Badge } from "@/components/ui/badge";
 import { getWikiBill } from "@/lib/server/history";
 import { getWikiArticle } from "@/lib/server/wiki-articles";
 import { formatWikiDate } from "@/lib/utils/history";
+import { getCommitteeData } from "@/lib/server/committee";
+import { CommitteeOutcome } from "@/components/wiki/committee-outcome";
 
 export const Route = createFileRoute("/dashboard/bills/$billId")({
   loader: async ({ params }) => {
     const id = Number(params.billId);
     if (!Number.isInteger(id))
       throw new Response("Bill not found", { status: 404 });
-    const [billData, article] = await Promise.all([
+    const [billData, article, committee] = await Promise.all([
       getWikiBill({ data: { id } }),
       getWikiArticle({
         data: { entityType: "bill", entityId: params.billId },
       }),
+      getCommitteeData({ data: { billId: id } }),
     ]);
     if (!billData) throw new Response("Bill not found", { status: 404 });
-    return { billData, article };
+    return { billData, article, committee };
   },
   component: BillArticle,
 });
 
 function BillArticle() {
-  const { billData, article } = Route.useLoaderData();
+  const { billData, article, committee } = Route.useLoaderData();
   const { bill, rollCalls } = billData;
   return (
     <WikiPage width="article">
@@ -67,6 +70,7 @@ function BillArticle() {
           {bill.content}
         </div>
       </WikiSection>
+      {committee && <CommitteeOutcome billId={bill.id} data={committee} />}
       <section className="grid gap-4 lg:grid-cols-3">
         <RollCall title="House of Representatives" votes={rollCalls.house} />
         <RollCall title="Senate" votes={rollCalls.senate} />

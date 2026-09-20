@@ -11,6 +11,9 @@ import {
   users,
 } from "@/db/schema";
 import { requireAuthMiddleware } from "@/middleware";
+import { canDeclareCandidacy } from "@/lib/elections/lifecycle";
+import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
+import { ensureElectionSchedule } from "@/lib/server/election-schedule";
 
 async function resolveUser(email: string) {
   const [user] = await db
@@ -48,6 +51,7 @@ async function getCoalitionPartyIds(
 export const getPrimariesData = createServerFn()
   .middleware([requireAuthMiddleware])
   .handler(async ({ context }) => {
+    await ensureElectionSchedule();
     if (!context.user?.email) throw new Error("Authentication required");
     const user = await resolveUser(context.user.email);
     if (!user) throw new Error("User not found");
@@ -60,7 +64,7 @@ export const getPrimariesData = createServerFn()
       .limit(1);
 
     const status = electionInfo?.status ?? null;
-    const daysLeft = electionInfo?.daysLeft ?? 0;
+    const candidacyEndsAt = electionInfo?.candidacyEndsAt ?? null;
 
     // The user's party & coalition
     const partyId = user.partyId;
@@ -152,7 +156,7 @@ export const getPrimariesData = createServerFn()
 
     return {
       electionStatus: status,
-      daysLeft,
+      candidacyEndsAt,
       partyId,
       coalitionId,
       candidates,
@@ -170,6 +174,7 @@ export const getPrimariesData = createServerFn()
 export const declarePrimaryCandidate = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
   .handler(async ({ context }) => {
+    await advanceElectionLifecycle();
     if (!context.user?.email) throw new Error("Authentication required");
     const user = await resolveUser(context.user.email);
     if (!user) throw new Error("User not found");
@@ -178,12 +183,22 @@ export const declarePrimaryCandidate = createServerFn({ method: "POST" })
 
     // Must be Candidate phase
     const [electionInfo] = await db
-      .select({ status: elections.status })
+      .select({
+        status: elections.status,
+        candidacyEndsAt: elections.candidacyEndsAt,
+      })
       .from(elections)
       .where(eq(elections.election, "President"))
       .limit(1);
 
-    if (electionInfo?.status !== "Candidate") {
+    if (
+      !electionInfo ||
+      !canDeclareCandidacy(
+        electionInfo.status,
+        electionInfo.candidacyEndsAt,
+        new Date(),
+      )
+    ) {
       throw new Error("Primaries are only open during the Candidate phase");
     }
 
@@ -201,11 +216,21 @@ export const declarePrimaryCandidate = createServerFn({ method: "POST" })
       );
 
       const [lockedElection] = await tx
-        .select({ status: elections.status })
+        .select({
+          status: elections.status,
+          candidacyEndsAt: elections.candidacyEndsAt,
+        })
         .from(elections)
         .where(eq(elections.election, "President"))
         .limit(1);
-      if (lockedElection?.status !== "Candidate") {
+      if (
+        !lockedElection ||
+        !canDeclareCandidacy(
+          lockedElection.status,
+          lockedElection.candidacyEndsAt,
+          new Date(),
+        )
+      ) {
         throw new Error("Primaries are only open during the Candidate phase");
       }
 
@@ -241,6 +266,7 @@ export const withdrawPrimaryCandidate = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { endorseCandidateId?: number | null }) => data ?? {})
   .handler(async ({ data, context }) => {
+    await advanceElectionLifecycle();
     if (!context.user?.email) throw new Error("Authentication required");
     const user = await resolveUser(context.user.email);
     if (!user) throw new Error("User not found");
@@ -250,11 +276,21 @@ export const withdrawPrimaryCandidate = createServerFn({ method: "POST" })
         sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = 'President' FOR UPDATE`,
       );
       const [electionInfo] = await tx
-        .select({ status: elections.status })
+        .select({
+          status: elections.status,
+          candidacyEndsAt: elections.candidacyEndsAt,
+        })
         .from(elections)
         .where(eq(elections.election, "President"))
         .limit(1);
-      if (electionInfo?.status !== "Candidate") {
+      if (
+        !electionInfo ||
+        !canDeclareCandidacy(
+          electionInfo.status,
+          electionInfo.candidacyEndsAt,
+          new Date(),
+        )
+      ) {
         throw new Error("Cannot withdraw outside the Candidate phase");
       }
 
@@ -321,6 +357,7 @@ export const voteInPrimary = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { candidateId: number }) => data)
   .handler(async ({ data, context }) => {
+    await advanceElectionLifecycle();
     if (!context.user?.email) throw new Error("Authentication required");
     const user = await resolveUser(context.user.email);
     if (!user) throw new Error("User not found");
@@ -333,11 +370,21 @@ export const voteInPrimary = createServerFn({ method: "POST" })
         sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = 'President' FOR UPDATE`,
       );
       const [electionInfo] = await tx
-        .select({ status: elections.status })
+        .select({
+          status: elections.status,
+          candidacyEndsAt: elections.candidacyEndsAt,
+        })
         .from(elections)
         .where(eq(elections.election, "President"))
         .limit(1);
-      if (electionInfo?.status !== "Candidate") {
+      if (
+        !electionInfo ||
+        !canDeclareCandidacy(
+          electionInfo.status,
+          electionInfo.candidacyEndsAt,
+          new Date(),
+        )
+      ) {
         throw new Error("Voting is only open during the Candidate phase");
       }
 

@@ -33,6 +33,7 @@ describe("historical election calculations", () => {
       "Fourth presidential election",
     );
     expect(formatElectionTitle("Senate", 7)).toBe("Seventh Senate election");
+    expect(formatElectionTitle("President", 0)).toBe("Provisional Government");
   });
 
   it("formats historical dates with numeric ordinals in UTC", () => {

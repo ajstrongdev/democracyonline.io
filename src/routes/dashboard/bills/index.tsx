@@ -110,7 +110,7 @@ function BillsIndex() {
         resultCount={filtered.length}
       />
       <div className="flex flex-wrap gap-2">
-        {["All", "Queued", "Voting", "Passed", "Defeated"].map((value) => (
+        {["All", "Committee", "Voting", "Passed", "Defeated"].map((value) => (
           <Button
             key={value}
             size="sm"
@@ -178,7 +178,7 @@ function BillsIndex() {
                     </Link>
                   </Button>
                   {currentUser?.id === bill.creatorId &&
-                    bill.status === "Queued" && (
+                    bill.status === "Committee" && (
                       <Button asChild variant="ghost" size="sm">
                         <Link
                           to="/dashboard/bills/edit/$id"

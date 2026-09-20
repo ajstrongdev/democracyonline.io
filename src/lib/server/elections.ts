@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, like, not, sql } from "drizzle-orm";
+import { and, eq, inArray, like, not, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
@@ -13,6 +13,13 @@ import {
   votes,
 } from "@/db/schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
+import {
+  canDeclareCandidacy,
+  canSubmitBallot,
+} from "@/lib/elections/lifecycle";
+import { getElectionCoverage } from "@/lib/server/election-coverage";
+import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
+import { ensureElectionSchedule } from "@/lib/server/election-schedule";
 import { addFeedItem } from "@/lib/server/feed";
 import { scoreRankedBallot } from "@/lib/utils/ranked-choice";
 
@@ -22,7 +29,10 @@ export type ElectionInfo = {
   election: string;
   status: string;
   seats: number | null;
-  daysLeft: number;
+  candidacyEndsAt: Date | null;
+  votingEndsAt: Date | null;
+  electionNightEndsAt: Date | null;
+  concludedAt: Date | null;
 };
 
 export type Candidate = {
@@ -84,36 +94,50 @@ export const getElectionInfo = createServerFn()
 
 export const getCandidates = createServerFn()
   .inputValidator(z.object({ election: electionTypeSchema }))
-  .handler(async ({ data }) =>
-    db
-      .select({
-        id: candidates.id,
-        userId: candidates.userId,
-        election: candidates.election,
-        votes: candidates.votes,
-        haswon: candidates.haswon,
-        username: users.username,
-        partyId: users.partyId,
-        partyName: parties.name,
-        partyColor: parties.color,
-        partyLogo: parties.logo,
-        coalitionId: coalitionMembers.coalitionId,
-        coalitionName: coalitions.name,
-        coalitionColor: coalitions.color,
-        coalitionLogo: coalitions.logo,
-      })
-      .from(candidates)
-      .innerJoin(users, eq(candidates.userId, users.id))
-      .leftJoin(parties, eq(users.partyId, parties.id))
-      .leftJoin(coalitionMembers, eq(parties.id, coalitionMembers.partyId))
-      .leftJoin(coalitions, eq(coalitionMembers.coalitionId, coalitions.id))
-      .where(
-        and(
-          eq(candidates.election, data.election),
-          not(like(users.username, "Banned User%")),
+  .handler(async ({ data }) => {
+    const [[election], candidateRows] = await Promise.all([
+      db
+        .select({ status: elections.status })
+        .from(elections)
+        .where(eq(elections.election, data.election))
+        .limit(1),
+      db
+        .select({
+          id: candidates.id,
+          userId: candidates.userId,
+          election: candidates.election,
+          votes: candidates.votes,
+          haswon: candidates.haswon,
+          username: users.username,
+          partyId: users.partyId,
+          partyName: parties.name,
+          partyColor: parties.color,
+          partyLogo: parties.logo,
+          coalitionId: coalitionMembers.coalitionId,
+          coalitionName: coalitions.name,
+          coalitionColor: coalitions.color,
+          coalitionLogo: coalitions.logo,
+        })
+        .from(candidates)
+        .innerJoin(users, eq(candidates.userId, users.id))
+        .leftJoin(parties, eq(users.partyId, parties.id))
+        .leftJoin(coalitionMembers, eq(parties.id, coalitionMembers.partyId))
+        .leftJoin(coalitions, eq(coalitionMembers.coalitionId, coalitions.id))
+        .where(
+          and(
+            eq(candidates.election, data.election),
+            not(like(users.username, "Banned User%")),
+          ),
         ),
-      ),
-  );
+    ]);
+    const publicStatus = election?.status.toUpperCase();
+    const hideTotals =
+      publicStatus === "VOTING" || publicStatus === "ELECTION_NIGHT";
+    return candidateRows.map((candidate) => ({
+      ...candidate,
+      votes: hideTotals ? null : candidate.votes,
+    }));
+  });
 
 export const declareCandidate = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
@@ -124,6 +148,7 @@ export const declareCandidate = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
+    await advanceElectionLifecycle();
     const userId = await getAuthenticatedUserId(context.user?.email);
     rejectForgedUserId(data.userId, userId);
 
@@ -134,11 +159,21 @@ export const declareCandidate = createServerFn({ method: "POST" })
       );
 
       const [election] = await tx
-        .select({ status: elections.status })
+        .select({
+          status: elections.status,
+          candidacyEndsAt: elections.candidacyEndsAt,
+        })
         .from(elections)
         .where(eq(elections.election, data.election))
         .limit(1);
-      if (!election || election.status !== "Candidate") {
+      if (
+        !election ||
+        !canDeclareCandidacy(
+          election.status,
+          election.candidacyEndsAt,
+          new Date(),
+        )
+      ) {
         throw new Error("Candidacy is not open for this election");
       }
 
@@ -201,6 +236,7 @@ export const revokeCandidate = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
+    await advanceElectionLifecycle();
     const userId = await getAuthenticatedUserId(context.user?.email);
     rejectForgedUserId(data.userId, userId);
 
@@ -209,11 +245,21 @@ export const revokeCandidate = createServerFn({ method: "POST" })
         sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = ${data.election} FOR UPDATE`,
       );
       const [election] = await tx
-        .select({ status: elections.status })
+        .select({
+          status: elections.status,
+          candidacyEndsAt: elections.candidacyEndsAt,
+        })
         .from(elections)
         .where(eq(elections.election, data.election))
         .limit(1);
-      if (!election || election.status !== "Candidate") {
+      if (
+        !election ||
+        !canDeclareCandidacy(
+          election.status,
+          election.candidacyEndsAt,
+          new Date(),
+        )
+      ) {
         throw new Error(
           "Candidacy can only be withdrawn during the candidacy phase",
         );
@@ -249,6 +295,7 @@ export const submitRankedBallot = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
+    await advanceElectionLifecycle();
     const userId = await getAuthenticatedUserId(context.user?.email);
 
     return db.transaction(async (tx) => {
@@ -256,11 +303,17 @@ export const submitRankedBallot = createServerFn({ method: "POST" })
         sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = ${data.election} FOR UPDATE`,
       );
       const [election] = await tx
-        .select({ status: elections.status })
+        .select({
+          status: elections.status,
+          votingEndsAt: elections.votingEndsAt,
+        })
         .from(elections)
         .where(eq(elections.election, data.election))
         .limit(1);
-      if (!election || election.status !== "Voting") {
+      if (
+        !election ||
+        !canSubmitBallot(election.status, election.votingEndsAt, new Date())
+      ) {
         throw new Error("This election is not accepting ballots");
       }
 
@@ -372,3 +425,159 @@ export const electionPageData = createServerFn()
       isCandidateInAny,
     };
   });
+
+export const getCurrentElectionDashboard = createServerFn()
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await ensureElectionSchedule();
+    const now = new Date();
+    const electionRows = await db
+      .select()
+      .from(elections)
+      .where(inArray(elections.election, ["President", "Senate"]));
+    const raceTypes = ["President", "Senate"] as const;
+    const currentUserId = context.user?.email
+      ? await db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            eq(sql`lower(${users.email})`, sql`lower(${context.user.email})`),
+          )
+          .limit(1)
+          .then((rows) => rows[0]?.id ?? null)
+      : null;
+    const candidateRows = await db
+      .select({
+        id: candidates.id,
+        userId: candidates.userId,
+        election: candidates.election,
+        certifiedPoints: candidates.votes,
+        hasWon: candidates.haswon,
+        username: users.username,
+        partyId: parties.id,
+        partyName: parties.name,
+        partyColor: parties.color,
+        partyLogo: parties.logo,
+        coalitionId: coalitions.id,
+        coalitionName: coalitions.name,
+        coalitionColor: coalitions.color,
+        coalitionLogo: coalitions.logo,
+      })
+      .from(candidates)
+      .innerJoin(users, eq(candidates.userId, users.id))
+      .leftJoin(parties, eq(users.partyId, parties.id))
+      .leftJoin(coalitionMembers, eq(parties.id, coalitionMembers.partyId))
+      .leftJoin(coalitions, eq(coalitionMembers.coalitionId, coalitions.id))
+      .where(
+        and(
+          inArray(candidates.election, [...raceTypes]),
+          not(like(users.username, "Banned User%")),
+        ),
+      );
+    const [ballotRows, primaryCandidacy] = currentUserId
+      ? await Promise.all([
+          db
+            .select({ voteType: votes.voteType })
+            .from(votes)
+            .where(
+              and(
+                eq(votes.userId, currentUserId),
+                inArray(votes.voteType, [...raceTypes]),
+              ),
+            )
+            .groupBy(votes.voteType),
+          db
+            .select({ id: primaryCandidates.id })
+            .from(primaryCandidates)
+            .where(eq(primaryCandidates.userId, currentUserId))
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
+        ])
+      : [[], null];
+    const votedIn = new Set(ballotRows.map((row) => row.voteType));
+
+    const races = await Promise.all(
+      raceTypes.map(async (raceType) => {
+        const election = electionRows.find((row) => row.election === raceType);
+        if (!election) return null;
+        const coverage = await getElectionCoverage(
+          raceType,
+          election.cycle,
+          now,
+        );
+        const raceCandidates = candidateRows
+          .filter((candidate) => candidate.election === raceType)
+          .map((candidate) => {
+            const affiliation = candidate.coalitionId
+              ? {
+                  type: "Coalition" as const,
+                  id: candidate.coalitionId,
+                  name: candidate.coalitionName,
+                  color: candidate.coalitionColor,
+                  logo: candidate.coalitionLogo,
+                }
+              : candidate.partyId
+                ? {
+                    type: "Party" as const,
+                    id: candidate.partyId,
+                    name: candidate.partyName,
+                    color: candidate.partyColor,
+                    logo: candidate.partyLogo,
+                  }
+                : {
+                    type: "Independent" as const,
+                    id: null,
+                    name: "Independent",
+                    color: null,
+                    logo: null,
+                  };
+            const points =
+              election.status === "CONCLUDED"
+                ? candidate.certifiedPoints
+                : election.status === "ELECTION_NIGHT"
+                  ? (coverage.cumulativeTotals[String(candidate.id)] ?? 0)
+                  : null;
+            return {
+              id: candidate.id,
+              userId: candidate.userId,
+              username: candidate.username,
+              affiliation,
+              points,
+              hasWon: election.status === "CONCLUDED" ? candidate.hasWon : null,
+            };
+          });
+        return {
+          election: raceType,
+          status: election.status,
+          cycle: election.cycle,
+          seats: election.seats,
+          timestamps: {
+            candidacyStartsAt: election.candidacyStartsAt,
+            candidacyEndsAt: election.candidacyEndsAt,
+            votingStartsAt: election.votingStartsAt,
+            votingEndsAt: election.votingEndsAt,
+            electionNightStartsAt: election.electionNightStartsAt,
+            electionNightEndsAt: election.electionNightEndsAt,
+            concludedAt: election.concludedAt,
+          },
+          player: {
+            isCandidate: currentUserId
+              ? raceCandidates.some(
+                  (candidate) => candidate.userId === currentUserId,
+                )
+              : false,
+            hasVoted: votedIn.has(raceType),
+            isPrimaryCandidate: primaryCandidacy !== null,
+          },
+          candidates: raceCandidates,
+          coverage,
+        };
+      }),
+    );
+
+    return { asOf: now, races: races.filter((race) => race !== null) };
+  });
+
+export type CurrentElectionDashboard = Awaited<
+  ReturnType<typeof getCurrentElectionDashboard>
+>;

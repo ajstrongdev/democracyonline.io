@@ -2,8 +2,10 @@ import {
   bigint,
   boolean,
   check,
+  doublePrecision,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   serial,
@@ -133,14 +135,197 @@ export const joinRequests = pgTable("join_requests", {
 // Bills table
 export const bills = pgTable("bills", {
   id: serial("id").primaryKey(),
-  status: varchar("status", { length: 50 }).default("Queued").notNull(),
+  status: varchar("status", { length: 50 }).default("Committee").notNull(),
   stage: varchar("stage", { length: 50 }).default("House").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   creatorId: integer("creator_id"),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   pool: integer("pool"),
+  committeeClosedAt: timestamp("committee_closed_at"),
+  committeeParticipantCount: integer("committee_participant_count"),
+  nationEffectsAppliedAt: timestamp("nation_effects_applied_at"),
 });
+
+export const nations = pgTable("nations", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  civilRights: doublePrecision("civil_rights").default(50).notNull(),
+  economy: doublePrecision("economy").default(50).notNull(),
+  politicalFreedoms: doublePrecision("political_freedoms")
+    .default(50)
+    .notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const nationStatDefinitions = pgTable("nation_stat_definitions", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
+  defaultValue: doublePrecision("default_value").notNull(),
+  min: doublePrecision("min").notNull(),
+  max: doublePrecision("max").notNull(),
+  headline: varchar("headline", { length: 50 }),
+  headlineWeight: doublePrecision("headline_weight").default(0).notNull(),
+  headlineDirection: varchar("headline_direction", { length: 20 }),
+  flavour: boolean("flavour").default(false).notNull(),
+});
+
+export const nationStatValues = pgTable(
+  "nation_stat_values",
+  {
+    nationId: integer("nation_id")
+      .notNull()
+      .references(() => nations.id, { onDelete: "cascade" }),
+    statKey: varchar("stat_key", { length: 100 })
+      .notNull()
+      .references(() => nationStatDefinitions.key),
+    value: doublePrecision("value").notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.nationId, table.statKey] })],
+);
+
+export const nationPolicyDefinitions = pgTable("nation_policy_definitions", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
+  type: varchar("type", { length: 20 }).notNull(),
+  options: jsonb("options").$type<Array<string> | null>(),
+  min: doublePrecision("min"),
+  max: doublePrecision("max"),
+  defaultValue: jsonb("default_value")
+    .$type<boolean | number | string>()
+    .notNull(),
+});
+
+export const nationPolicyValues = pgTable(
+  "nation_policy_values",
+  {
+    nationId: integer("nation_id")
+      .notNull()
+      .references(() => nations.id, { onDelete: "cascade" }),
+    policyKey: varchar("policy_key", { length: 100 })
+      .notNull()
+      .references(() => nationPolicyDefinitions.key),
+    value: jsonb("value").$type<boolean | number | string>().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.nationId, table.policyKey] })],
+);
+
+export const committeeAssessments = pgTable(
+  "committee_assessments",
+  {
+    id: serial("id").primaryKey(),
+    billId: integer("bill_id")
+      .notNull()
+      .references(() => bills.id, { onDelete: "cascade" }),
+    senatorId: integer("senator_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("committee_assessment_bill_senator_unique").on(
+      table.billId,
+      table.senatorId,
+    ),
+  ],
+);
+
+export const committeeStatAssessments = pgTable(
+  "committee_stat_assessments",
+  {
+    assessmentId: integer("assessment_id")
+      .notNull()
+      .references(() => committeeAssessments.id, { onDelete: "cascade" }),
+    statKey: varchar("stat_key", { length: 100 })
+      .notNull()
+      .references(() => nationStatDefinitions.key),
+    effect: integer("effect").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.assessmentId, table.statKey] }),
+    check("committee_stat_effect_range", sql`${table.effect} between -2 and 2`),
+  ],
+);
+
+export const committeePolicyAssessments = pgTable(
+  "committee_policy_assessments",
+  {
+    assessmentId: integer("assessment_id")
+      .notNull()
+      .references(() => committeeAssessments.id, { onDelete: "cascade" }),
+    policyKey: varchar("policy_key", { length: 100 })
+      .notNull()
+      .references(() => nationPolicyDefinitions.key),
+    proposedValue: jsonb("proposed_value")
+      .$type<boolean | number | string>()
+      .notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.assessmentId, table.policyKey] })],
+);
+
+export const billLockedStatEffects = pgTable(
+  "bill_locked_stat_effects",
+  {
+    billId: integer("bill_id")
+      .notNull()
+      .references(() => bills.id, { onDelete: "cascade" }),
+    statKey: varchar("stat_key", { length: 100 })
+      .notNull()
+      .references(() => nationStatDefinitions.key),
+    effect: doublePrecision("effect").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.billId, table.statKey] })],
+);
+
+export const billLockedPolicyEffects = pgTable(
+  "bill_locked_policy_effects",
+  {
+    billId: integer("bill_id")
+      .notNull()
+      .references(() => bills.id, { onDelete: "cascade" }),
+    policyKey: varchar("policy_key", { length: 100 })
+      .notNull()
+      .references(() => nationPolicyDefinitions.key),
+    previousValue: jsonb("previous_value")
+      .$type<boolean | number | string>()
+      .notNull(),
+    newValue: jsonb("new_value").$type<boolean | number | string>().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.billId, table.policyKey] })],
+);
+
+export const nationChanges = pgTable(
+  "nation_changes",
+  {
+    id: serial("id").primaryKey(),
+    nationId: integer("nation_id")
+      .notNull()
+      .references(() => nations.id, { onDelete: "cascade" }),
+    billId: integer("bill_id")
+      .notNull()
+      .references(() => bills.id),
+    kind: varchar("kind", { length: 20 }).notNull(),
+    key: varchar("key", { length: 100 }).notNull(),
+    previousValue: jsonb("previous_value")
+      .$type<boolean | number | string>()
+      .notNull(),
+    newValue: jsonb("new_value").$type<boolean | number | string>().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("nation_change_bill_kind_key_unique").on(
+      table.billId,
+      table.kind,
+      table.key,
+    ),
+    index("nation_change_created_at_idx").on(table.createdAt),
+  ],
+);
 
 // Bill votes house table
 export const billVotesHouse = pgTable("bill_votes_house", {
@@ -167,13 +352,66 @@ export const billVotesPresidential = pgTable("bill_votes_presidential", {
 });
 
 // Elections table
-export const elections = pgTable("elections", {
-  election: varchar("election", { length: 50 }).primaryKey(),
-  status: varchar("status", { length: 50 }).default("Candidate").notNull(),
-  seats: integer("seats"),
-  daysLeft: integer("days_left").notNull(),
-  cycle: integer("cycle").default(1).notNull(),
-});
+export const elections = pgTable(
+  "elections",
+  {
+    election: varchar("election", { length: 50 }).primaryKey(),
+    status: varchar("status", { length: 50 }).default("CANDIDACY").notNull(),
+    seats: integer("seats"),
+    cycle: integer("cycle").default(1).notNull(),
+    candidacyStartsAt: timestamp("candidacy_starts_at", {
+      withTimezone: true,
+    }),
+    candidacyEndsAt: timestamp("candidacy_ends_at", { withTimezone: true }),
+    votingStartsAt: timestamp("voting_starts_at", { withTimezone: true }),
+    votingEndsAt: timestamp("voting_ends_at", { withTimezone: true }),
+    electionNightStartsAt: timestamp("election_night_starts_at", {
+      withTimezone: true,
+    }),
+    electionNightEndsAt: timestamp("election_night_ends_at", {
+      withTimezone: true,
+    }),
+    concludedAt: timestamp("concluded_at", { withTimezone: true }),
+    reportingSeed: varchar("reporting_seed", { length: 100 }),
+  },
+  (table) => [
+    check(
+      "elections_status_valid",
+      sql`${table.status} in ('CANDIDACY', 'VOTING', 'ELECTION_NIGHT', 'CONCLUDED')`,
+    ),
+  ],
+);
+
+export const electionNightUpdates = pgTable(
+  "election_night_updates",
+  {
+    id: serial("id").primaryKey(),
+    election: varchar("election", { length: 50 })
+      .notNull()
+      .references(() => elections.election, { onDelete: "cascade" }),
+    cycle: integer("cycle").notNull(),
+    sequence: integer("sequence").notNull(),
+    revealAt: timestamp("reveal_at", { withTimezone: true }).notNull(),
+    type: varchar("type", { length: 50 }).notNull(),
+    headline: text("headline").notNull(),
+    cumulativeTotals: jsonb("cumulative_totals")
+      .$type<Record<string, number>>()
+      .notNull(),
+    totalPoints: integer("total_points").notNull(),
+  },
+  (table) => [
+    unique("election_night_update_sequence_unique").on(
+      table.election,
+      table.cycle,
+      table.sequence,
+    ),
+    index("election_night_update_reveal_idx").on(
+      table.election,
+      table.cycle,
+      table.revealAt,
+    ),
+  ],
+);
 
 // Immutable election records. Names and affiliations are denormalized so the
 // historical record survives profile, membership, and party changes.
@@ -522,7 +760,18 @@ export const candidatesRelations = relations(candidates, ({ one }) => ({
 
 export const electionsRelations = relations(elections, ({ many }) => ({
   candidates: many(candidates),
+  electionNightUpdates: many(electionNightUpdates),
 }));
+
+export const electionNightUpdatesRelations = relations(
+  electionNightUpdates,
+  ({ one }) => ({
+    election: one(elections, {
+      fields: [electionNightUpdates.election],
+      references: [elections.election],
+    }),
+  }),
+);
 
 export const electionHistoryRelations = relations(
   electionHistory,

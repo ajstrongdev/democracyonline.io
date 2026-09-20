@@ -118,7 +118,7 @@ export async function authorizeCronRequest({
   try {
     const payload = await verifySchedulerIdToken({
       idToken: token,
-      audience: env.SITE_URL,
+      audience: new URL(request.url).origin,
     });
 
     if (!payload.email || !SCHEDULER_EMAIL_PATTERN.test(payload.email)) {

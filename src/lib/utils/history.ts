@@ -46,6 +46,7 @@ export function formatOrdinal(value: number) {
 }
 
 export function formatElectionTitle(election: string, number: number) {
+  if (number === 0) return "Provisional Government";
   const office = election === "President" ? "presidential" : "Senate";
   return `${formatOrdinal(number)} ${office} election`;
 }
@@ -126,7 +127,10 @@ export function getPartyTerms(
     (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime(),
   );
   const terms: Array<
-    PartyHistoryPoint & { startAt: Date | string | null; endAt: Date | string | null }
+    PartyHistoryPoint & {
+      startAt: Date | string | null;
+      endAt: Date | string | null;
+    }
   > = [];
 
   for (const point of ordered) {
@@ -138,7 +142,12 @@ export function getPartyTerms(
 
   const active = terms.at(-1);
   if (!active) {
-    terms.push({ ...current, at: createdAt ?? new Date(0), startAt: createdAt, endAt: null });
+    terms.push({
+      ...current,
+      at: createdAt ?? new Date(0),
+      startAt: createdAt,
+      endAt: null,
+    });
   } else if (active.partyId !== current.partyId) {
     active.endAt = null;
     terms.push({ ...current, at: new Date(0), startAt: null, endAt: null });
