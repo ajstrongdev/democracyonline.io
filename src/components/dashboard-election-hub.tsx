@@ -21,6 +21,7 @@ import {
   getCurrentElectionDashboard,
   revokeCandidate,
 } from "@/lib/server/elections";
+import { DEFAULT_ELECTION_TIMING } from "@/lib/elections/timing";
 import { DashboardElectionCountdown } from "@/components/dashboard-election-countdown";
 import { RankedBallot } from "@/components/ranked-ballot";
 import { Badge } from "@/components/ui/badge";
@@ -286,6 +287,23 @@ function CompactRaceRow({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:justify-end">
+        {race.status === "CONCLUDED" && race.timestamps.concludedAt && (
+          <Badge variant="outline" className="gap-1.5 text-xs">
+            <Clock3 className="h-3 w-3" />
+            Nominations in{" "}
+            <DashboardElectionCountdown
+              target={
+                new Date(
+                  new Date(race.timestamps.concludedAt).getTime() +
+                    DEFAULT_ELECTION_TIMING.concludedDurationMs[
+                      race.election as "President" | "Senate"
+                    ],
+                )
+              }
+              onExpire={onRefresh}
+            />
+          </Badge>
+        )}
         {deadline && race.status !== "CONCLUDED" && (
           <Badge variant="outline" className="gap-1.5 text-xs">
             <Clock3 className="h-3 w-3" />
@@ -512,22 +530,55 @@ function CompactConcludedStatus({ race }: { race: Race }) {
     );
   }
 
+  if (race.election === "President") {
+    const w = winners[0];
+    const affiliation = [
+      w.party?.name,
+      w.coalition?.name ? `(${w.coalition.name})` : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <Trophy className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+        <span className="flex items-center gap-1.5 text-xs">
+          <span
+            className="inline-block h-2 w-2 shrink-0 rounded-full"
+            style={{ backgroundColor: w.party?.color ?? "var(--muted-foreground)" }}
+          />
+          <span className="font-semibold">{w.username}</span>
+          {affiliation && (
+            <span className="text-muted-foreground">{affiliation}</span>
+          )}
+        </span>
+      </div>
+    );
+  }
+
+  const partyTotals = new Map<string, { count: number; color: string }>();
+  for (const w of winners) {
+    const name = w.party?.name ?? "Independent";
+    const color = w.party?.color ?? "var(--muted-foreground)";
+    const existing = partyTotals.get(name);
+    if (existing) {
+      existing.count++;
+    } else {
+      partyTotals.set(name, { count: 1, color });
+    }
+  }
+  const sorted = [...partyTotals.entries()].sort((a, b) => b[1].count - a[1].count);
+
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
       <Trophy className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-      {winners.map((w) => (
-        <span key={w.id} className="flex items-center gap-1.5 text-xs">
+      {sorted.map(([name, { count, color }]) => (
+        <span key={name} className="flex items-center gap-1.5 text-xs">
           <span
             className="inline-block h-2 w-2 shrink-0 rounded-full"
-            style={{
-              backgroundColor: w.party?.color ?? w.affiliation.color ?? "var(--muted-foreground)",
-            }}
+            style={{ backgroundColor: color }}
           />
-          <span className="font-semibold">{w.username}</span>
-          <span className="text-muted-foreground">
-            {w.party?.name ?? w.affiliation.name ?? "Independent"}
-            {w.coalition?.name ? ` (${w.coalition.name})` : ""}
-          </span>
+          <span className="font-semibold">{count}</span>
+          <span className="text-muted-foreground">{name}</span>
         </span>
       ))}
     </div>
