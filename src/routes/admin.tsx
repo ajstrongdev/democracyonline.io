@@ -1,11 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Clock3, FileText, Gamepad2 } from "lucide-react";
+import { Clock3, FileText, Gamepad2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import {
   checkIsAdmin,
   forceNextElectionStage,
-  listAccessTokens,
   listDatabaseUsers,
   listFirebaseUsers,
   setElectionStageDeadline,
@@ -13,7 +12,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserList from "@/components/admin/user-list";
 import DBUserList from "@/components/admin/db-user-list";
-import AccessTokenManager from "@/components/admin/access-token-manager";
 import GenericSkeleton from "@/components/generic-skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -51,13 +49,8 @@ interface DatabaseUser {
   email: string;
   username: string;
   role: string | null;
+  moderationRole: string;
   partyId: number | null;
-  createdAt: Date | null;
-}
-
-interface AccessToken {
-  id: number;
-  token: string;
   createdAt: Date | null;
 }
 
@@ -67,7 +60,6 @@ function RouteComponent() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [firebaseUsers, setFirebaseUsers] = useState<Array<FirebaseUser>>([]);
   const [dbUsers, setDbUsers] = useState<Array<DatabaseUser>>([]);
-  const [tokens, setTokens] = useState<Array<AccessToken>>([]);
   const [loading, setLoading] = useState(true);
   const [advanceLoading, setAdvanceLoading] = useState<{
     game: boolean;
@@ -99,15 +91,13 @@ function RouteComponent() {
           return;
         }
 
-        const [fbUsers, databaseUsers, accessTokens] = await Promise.all([
+        const [fbUsers, databaseUsers] = await Promise.all([
           listFirebaseUsers(),
           listDatabaseUsers(),
-          listAccessTokens(),
         ]);
 
         setFirebaseUsers(fbUsers.users);
         setDbUsers(databaseUsers.users);
-        setTokens(accessTokens.tokens);
       } catch {
         navigate({ to: "/" });
       } finally {
@@ -130,11 +120,6 @@ function RouteComponent() {
   const refreshDbUsers = async () => {
     const result = await listDatabaseUsers();
     setDbUsers(result.users);
-  };
-
-  const refreshTokens = async () => {
-    const result = await listAccessTokens();
-    setTokens(result.tokens);
   };
 
   const getManualAdvanceHeaders = async () => {
@@ -265,9 +250,17 @@ function RouteComponent() {
       <div className="mb-6">
         <h1 className="text-3xl sm:text-4xl font-bold mb-2">Admin Dashboard</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Manage users and access tokens
+          Manage users, game operations, and moderation
         </p>
       </div>
+
+      <Button
+        variant="outline"
+        className="mb-6"
+        onClick={() => navigate({ to: "/moderation" })}
+      >
+        <ShieldCheck className="h-4 w-4" /> Open moderation queue
+      </Button>
 
       <div className="mb-6 p-4 border rounded-lg bg-card">
         <h2 className="text-xl font-semibold mb-4">Manual Advance Triggers</h2>
@@ -285,7 +278,9 @@ function RouteComponent() {
               onClick={processElectionDeadlines}
             >
               <Clock3 className="w-4 h-4" />
-              {advanceLoading.elections ? "Processing..." : "Process due stages"}
+              {advanceLoading.elections
+                ? "Processing..."
+                : "Process due stages"}
             </Button>
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -416,23 +411,16 @@ function RouteComponent() {
       </div>
 
       <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+        <TabsList className="grid w-full max-w-xl grid-cols-2">
           <TabsTrigger value="users">
             Users ({firebaseUsers.length})
           </TabsTrigger>
-          <TabsTrigger value="tokens">Tokens ({tokens.length})</TabsTrigger>
           <TabsTrigger value="dbusers">DB Users ({dbUsers.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="users" className="mt-6">
           <UserList
             initialUsers={firebaseUsers}
             onRefresh={refreshFirebaseUsers}
-          />
-        </TabsContent>
-        <TabsContent value="tokens" className="mt-6">
-          <AccessTokenManager
-            initialTokens={tokens}
-            onRefresh={refreshTokens}
           />
         </TabsContent>
         <TabsContent value="dbusers" className="mt-6">

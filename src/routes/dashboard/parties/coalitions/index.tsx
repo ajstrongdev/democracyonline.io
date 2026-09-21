@@ -30,18 +30,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import GenericSkeleton from "@/components/generic-skeleton";
 import CoalitionLogo from "@/components/coalition-logo";
-import { getCoalitions } from "@/lib/server/coalitions";
+import {
+  getCoalitionManagementState,
+  getCoalitions,
+} from "@/lib/server/coalitions";
 import { getCurrentUserInfo } from "@/lib/server/users";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
 
 export const Route = createFileRoute("/dashboard/parties/coalitions/")({
   loader: async () => {
-    const [coalitionsList, userInfo] = await Promise.all([
+    const [coalitionsList, userInfo, management] = await Promise.all([
       getCoalitions(),
       getCurrentUserInfo(),
+      getCoalitionManagementState(),
     ]);
-    return { coalitions: coalitionsList, userInfo };
+    return { coalitions: coalitionsList, userInfo, management };
   },
   component: CoalitionsPage,
 });
@@ -57,11 +61,20 @@ function CoalitionsPage() {
 }
 
 function CoalitionsContent() {
-  const { coalitions, userInfo } = Route.useLoaderData();
+  const { coalitions, userInfo, management } = Route.useLoaderData();
+  const activeCoalitions = coalitions.filter(
+    (coalition) => !coalition.archivedAt,
+  );
+  const archivedCoalitions = coalitions.filter(
+    (coalition) => coalition.archivedAt,
+  );
   const userData = useUserData(userInfo);
-  const isInParty = userData?.partyId != null;
+  const canCreate =
+    userData?.partyId === management.partyId &&
+    management.isPartyLeader &&
+    management.coalitionId == null;
 
-  const totalCoalitionParties = coalitions.reduce(
+  const totalCoalitionParties = activeCoalitions.reduce(
     (sum, c) => sum + Number(c.memberCount || 0),
     0,
   );
@@ -74,7 +87,7 @@ function CoalitionsContent() {
     },
   };
 
-  const coalitionPieConfig: ChartConfig = coalitions.reduce(
+  const coalitionPieConfig: ChartConfig = activeCoalitions.reduce(
     (config, c, idx) => {
       config[c.id.toString()] = {
         label: c.name,
@@ -85,13 +98,13 @@ function CoalitionsContent() {
     {} as ChartConfig,
   );
 
-  const cBarData = coalitions.map((c) => ({
+  const cBarData = activeCoalitions.map((c) => ({
     name: c.name,
     memberCount: Number(c.memberCount || 0),
     fill: c.color || "hsl(var(--chart-1))",
   }));
 
-  const cPieData = coalitions
+  const cPieData = activeCoalitions
     .filter((c) => Number(c.memberCount || 0) > 0)
     .map((c) => ({
       name: c.name,
@@ -107,7 +120,7 @@ function CoalitionsContent() {
           title="Political coalitions"
           description="Alliances of political parties, their membership, and their place in the Democracy Online political record."
           status={
-            isInParty ? (
+            canCreate ? (
               <Button asChild size="sm">
                 <Link to="/dashboard/parties/coalitions/create">
                   <Users className="h-4 w-4" />
@@ -121,7 +134,7 @@ function CoalitionsContent() {
         <WikiStatGrid>
           <WikiStat
             label="Coalitions"
-            value={coalitions.length}
+            value={activeCoalitions.length}
             detail="Active organizations"
           />
           <WikiStat
@@ -131,12 +144,12 @@ function CoalitionsContent() {
           />
           <WikiStat
             label="Largest coalition"
-            value={coalitions[0]?.name || "Not recorded"}
-            detail={`${coalitions[0]?.memberCount || 0} parties`}
+            value={activeCoalitions[0]?.name || "Not recorded"}
+            detail={`${activeCoalitions[0]?.memberCount || 0} parties`}
           />
         </WikiStatGrid>
 
-        {coalitions.length > 0 && (
+        {activeCoalitions.length > 0 && (
           <WikiSection
             title="Membership distribution"
             description="Number of member parties represented in each coalition."
@@ -253,9 +266,9 @@ function CoalitionsContent() {
           description="Coalitions ranked by number of member parties."
           icon={Handshake}
         >
-          {coalitions.length > 0 ? (
+          {activeCoalitions.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
-              {coalitions.map((coalition) => (
+              {activeCoalitions.map((coalition) => (
                 <Link
                   key={coalition.id}
                   to="/dashboard/parties/coalitions/$id"
@@ -304,6 +317,51 @@ function CoalitionsContent() {
             </div>
           ) : (
             <WikiEmpty>No coalitions have been formed yet.</WikiEmpty>
+          )}
+        </WikiSection>
+        <WikiSection
+          title="Archived coalitions"
+          description="Coalitions retained after their final member party departed."
+          icon={Handshake}
+        >
+          {archivedCoalitions.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {archivedCoalitions.map((coalition) => (
+                <Link
+                  key={coalition.id}
+                  to="/dashboard/parties/coalitions/$id"
+                  params={{ id: coalition.id.toString() }}
+                  className="group flex min-w-0 flex-col rounded-sm border bg-card opacity-90 shadow-none transition-colors hover:border-primary"
+                  style={{
+                    borderTopWidth: "4px",
+                    borderTopColor: coalition.color,
+                  }}
+                >
+                  <div className="flex min-w-0 items-start gap-4 p-4 sm:p-5">
+                    <CoalitionLogo
+                      coalition_id={coalition.id}
+                      size={48}
+                      color={coalition.color}
+                      logo={coalition.logo}
+                      name={coalition.name}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate font-serif text-xl font-bold group-hover:text-primary">
+                        {coalition.name}
+                      </h3>
+                      <p className="mt-1 line-clamp-2 text-sm leading-5 text-muted-foreground">
+                        {coalition.bio || "No summary has been written."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-auto border-t px-4 py-3 font-mono text-xs text-muted-foreground">
+                    Archived organization
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <WikiEmpty>No coalitions have been archived.</WikiEmpty>
           )}
         </WikiSection>
       </WikiPage>

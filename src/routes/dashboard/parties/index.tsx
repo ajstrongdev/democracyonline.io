@@ -70,7 +70,7 @@ function PartyIndex() {
         placeholder="Search the party archive"
         resultCount={filtered.length}
       />
-      <PartyComparison parties={parties} />
+      <PartyComparison parties={parties.filter((party) => party.current)} />
       <PartySection title="Active parties" parties={current} />
       <PartySection title="Archived parties" parties={archived} />
     </WikiPage>
@@ -88,7 +88,7 @@ function PartyComparison({ parties }: { parties: Array<PartySummary> }) {
   return (
     <WikiSection
       title="Party comparison"
-      description="Current membership across current and archived parties."
+      description="Current membership across active parties."
       icon={BarChart3}
     >
       <div className="overflow-x-auto">

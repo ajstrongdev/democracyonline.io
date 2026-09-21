@@ -224,12 +224,17 @@ not create or migrate the database schema.
 
 ## Scheduled Game Processing
 
-Terraform provisions two authenticated Cloud Scheduler jobs:
+Terraform provisions two authenticated Cloud Scheduler jobs and one Cloud
+Tasks queue:
 
 - `game-advance` once daily for inactivity cleanup and an election safety check.
 - `bill-advance` at 04:00, 12:00, and 20:00 UTC. One of three voting pools
   advances each run, giving each bill a 24-hour vote in each chamber.
-All jobs use the same scheduler service account and shared scheduler token.
+- `election-conclusion` receives one idempotent task for each election-night
+  deadline and calls the election lifecycle exactly when results finish.
+
+Both jobs and queued tasks use the same scheduler service account and shared
+scheduler token.
 The application validates the OIDC token against the origin of the requested
 endpoint, so both custom-domain and direct Cloud Run deployments work.
 

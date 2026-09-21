@@ -1,8 +1,7 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Suspense, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import type { ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,46 +12,9 @@ import {
 import GenericSkeleton from "@/components/generic-skeleton";
 import { getFeedItems } from "@/lib/server/feed";
 import ProtectedRoute from "@/components/auth/protected-route";
+import { EntityReferenceText } from "@/components/entity-reference-text";
 
 dayjs.extend(relativeTime);
-
-// Helper function to parse content and create links for bill references
-function parseContentWithLinks(content: string): Array<ReactNode> {
-  // Match patterns like "Bill #123", "bill #123", "Bill 123", etc.
-  const billPattern = /\b[Bb]ill\s*#?(\d+)\b/g;
-  const parts: Array<ReactNode> = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = billPattern.exec(content)) !== null) {
-    // Add text before the match
-    if (match.index > lastIndex) {
-      parts.push(content.substring(lastIndex, match.index));
-    }
-
-    // Add the bill link
-    const billId = match[1];
-    parts.push(
-      <Link
-        key={`bill-${billId}-${match.index}`}
-        to="/dashboard/bills/$billId"
-        params={{ billId }}
-        className="text-primary hover:underline"
-      >
-        {match[0]}
-      </Link>,
-    );
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Add remaining text
-  if (lastIndex < content.length) {
-    parts.push(content.substring(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : [content];
-}
 
 export const Route = createFileRoute("/feed")({
   loader: async () => {
@@ -131,7 +93,7 @@ function FeedContent() {
                 <CardContent className="p-4">
                   <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
                     <div className="flex-1">
-                      <p className="wrap-anywhere">
+                      <div className="wrap-anywhere">
                         {item.userId ? (
                           <span
                             className="font-bold text-foreground hover:underline cursor-pointer"
@@ -151,9 +113,9 @@ function FeedContent() {
                         )}
                         {": "}
                         <span className="text-muted-foreground">
-                          {parseContentWithLinks(item.content)}
+                          <EntityReferenceText content={item.content} />
                         </span>
-                      </p>
+                      </div>
                     </div>
                     <div className="text-sm text-muted-foreground md:text-right shrink-0">
                       {item.createdAt ? (

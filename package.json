@@ -21,6 +21,7 @@
     "db:seed:midterms": "tsx scripts/seed.ts midterms",
     "db:seed:committee-test": "tsx scripts/seed.ts committee-test",
     "seed:fresh": "tsx scripts/seed-fresh.ts",
+    "db:seed:fresh": "tsx scripts/seed-fresh.ts",
     "nation:randomize": "tsx scripts/randomize-nation.ts",
     "election:dry-run": "tsx scripts/election-dry-run.ts",
     "db:push": "drizzle-kit push",

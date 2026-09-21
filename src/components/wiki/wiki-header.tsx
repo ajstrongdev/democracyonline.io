@@ -64,7 +64,7 @@ export function WikiHeader({
 }: {
   eyebrow?: string;
   title: string;
-  description: string;
+  description: ReactNode;
   status?: ReactNode;
 }) {
   return (

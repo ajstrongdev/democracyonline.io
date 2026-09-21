@@ -25,14 +25,17 @@ import {
 
 export const Route = createFileRoute("/dashboard/elections/$electionId")({
   loader: async ({ params }) => {
-    const [electionData, article] = await Promise.all([
-      getWikiElection({ data: { id: params.electionId } }),
-      getWikiArticle({
-        data: { entityType: "election", entityId: params.electionId },
-      }),
-    ]);
+    const electionData = await getWikiElection({
+      data: { id: params.electionId },
+    });
     if (!electionData)
       throw new Response("Election not found", { status: 404 });
+    const entityId = electionData.current
+      ? `current-${electionData.election.election}`
+      : String(electionData.election.id);
+    const article = await getWikiArticle({
+      data: { entityType: "election", entityId },
+    });
     return { electionData, article };
   },
   component: ElectionArticle,

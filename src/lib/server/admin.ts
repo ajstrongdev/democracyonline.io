@@ -23,8 +23,9 @@ import {
 import { DEFAULT_ELECTION_TIMING } from "@/lib/elections/timing";
 import { generateElectionNightPlan } from "@/lib/elections/reveal";
 import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
+import { archivePartyIfEmpty } from "@/lib/server/organization-lifecycle";
 
-function isAdminEmail(email: string) {
+export function isAdminEmail(email: string) {
   return env.ADMIN_EMAILS.some(
     (adminEmail) => adminEmail.toLowerCase() === email.toLowerCase(),
   );
@@ -45,6 +46,60 @@ export const checkIsAdmin = createServerFn()
 export function getAdminEmails(): Array<string> {
   return env.ADMIN_EMAILS;
 }
+
+export const listAccessTokens = createServerFn()
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    const email = context.user?.email;
+    if (!email || !isAdminEmail(email)) {
+      throw new Error("Unauthorized");
+    }
+
+    const tokens = await db
+      .select({
+        id: accessTokens.id,
+        token: accessTokens.token,
+        createdAt: accessTokens.createdAt,
+        redeemedAt: accessTokens.redeemedAt,
+      })
+      .from(accessTokens);
+
+    return { tokens };
+  });
+
+export const createAccessToken = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    const email = context.user?.email;
+    if (!email || !isAdminEmail(email)) {
+      throw new Error("Unauthorized");
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+
+    const [newToken] = await db
+      .insert(accessTokens)
+      .values({ token })
+      .returning();
+
+    return { token: newToken };
+  });
+
+export const deleteAccessToken = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((data: { tokenId: number }) => data)
+  .handler(
+    async ({ context, data }: { context: any; data: { tokenId: number } }) => {
+      const email = context.user?.email;
+      if (!email || !isAdminEmail(email)) {
+        throw new Error("Unauthorized");
+      }
+
+      await db.delete(accessTokens).where(eq(accessTokens.id, data.tokenId));
+
+      return { success: true };
+    },
+  );
 
 export const forceNextElectionStage = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -165,7 +220,11 @@ export const setElectionStageDeadline = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const email = context.user?.email;
     if (!email || !isAdminEmail(email)) throw new Error("Unauthorized");
-    if (!Number.isInteger(data.seconds) || data.seconds < 5 || data.seconds > 300) {
+    if (
+      !Number.isInteger(data.seconds) ||
+      data.seconds < 5 ||
+      data.seconds > 300
+    ) {
       throw new Error("Test deadline must be between 5 and 300 seconds");
     }
 
@@ -281,6 +340,7 @@ export const setElectionStageDeadline = createServerFn({ method: "POST" })
       }
     });
 
+    await advanceElectionLifecycle({ now });
     return { success: true, deadline };
   });
 
@@ -390,6 +450,7 @@ export const listDatabaseUsers = createServerFn()
         email: users.email,
         username: users.username,
         role: users.role,
+        moderationRole: users.moderationRole,
         partyId: users.partyId,
         createdAt: users.createdAt,
       })
@@ -464,71 +525,27 @@ export const purgeUserFromDatabase = createServerFn({ method: "POST" })
       // Delete bills created by user
       await db.delete(bills).where(eq(bills.creatorId, data.userId));
 
-      // Update parties where user is leader (set leader to null)
-      await db
-        .update(parties)
-        .set({ leaderId: null })
-        .where(eq(parties.leaderId, data.userId));
+      const [userMembership] = await db
+        .select({ partyId: users.partyId })
+        .from(users)
+        .where(eq(users.id, data.userId))
+        .limit(1);
 
-      // Finally, delete the user
-      await db.delete(users).where(eq(users.id, data.userId));
+      await db.transaction(async (tx) => {
+        if (userMembership?.partyId) {
+          await tx
+            .update(users)
+            .set({ partyId: null })
+            .where(eq(users.id, data.userId));
+          await archivePartyIfEmpty(tx, userMembership.partyId);
+        }
+        await tx
+          .update(parties)
+          .set({ leaderId: null })
+          .where(eq(parties.leaderId, data.userId));
+        await tx.delete(users).where(eq(users.id, data.userId));
+      });
 
       return { success: true, message: "User purged from database" };
-    },
-  );
-
-export const listAccessTokens = createServerFn()
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    const email = context.user?.email;
-    if (!email || !isAdminEmail(email)) {
-      throw new Error("Unauthorized");
-    }
-
-    const tokens = await db
-      .select({
-        id: accessTokens.id,
-        token: accessTokens.token,
-        createdAt: accessTokens.createdAt,
-      })
-      .from(accessTokens);
-
-    return { tokens };
-  });
-
-export const createAccessToken = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    const email = context.user?.email;
-    if (!email || !isAdminEmail(email)) {
-      throw new Error("Unauthorized");
-    }
-
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    const bytes = crypto.randomBytes(41);
-    const token = Array.from(bytes, (b) => chars[b % chars.length]).join("");
-
-    const [newToken] = await db
-      .insert(accessTokens)
-      .values({ token })
-      .returning();
-
-    return { token: newToken };
-  });
-
-export const deleteAccessToken = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .inputValidator((data: { tokenId: number }) => data)
-  .handler(
-    async ({ context, data }: { context: any; data: { tokenId: number } }) => {
-      const email = context.user?.email;
-      if (!email || !isAdminEmail(email)) {
-        throw new Error("Unauthorized");
-      }
-
-      await db.delete(accessTokens).where(eq(accessTokens.id, data.tokenId));
-
-      return { success: true };
     },
   );

@@ -23,6 +23,10 @@ provider "google" {
   region  = var.region
 }
 
+data "google_project" "current" {
+  project_id = var.project_id
+}
+
 # ============================================
 # LOCALS - Configuration and Data
 # ============================================
@@ -31,6 +35,7 @@ locals {
   resource_name          = var.name_suffix != "" ? "${var.app_name}-${var.name_suffix}" : var.app_name
   firebase_secret_prefix = var.app_name
   custom_domain_enabled  = var.enable_custom_domain && length(trimspace(var.custom_domain)) > 0
+  application_origin     = local.custom_domain_enabled ? "https://${var.custom_domain}" : "https://${local.resource_name}-${data.google_project.current.number}.${var.region}.run.app"
   load_balancer_ip       = local.custom_domain_enabled ? google_compute_global_address.default[0].address : ""
 
   firebase_secret_ids = {
@@ -188,6 +193,7 @@ resource "google_project_service" "required_apis" {
     "cloudbuild.googleapis.com",
     "compute.googleapis.com",
     "cloudscheduler.googleapis.com",
+    "cloudtasks.googleapis.com",
     "certificatemanager.googleapis.com",
     "cloudtrace.googleapis.com",
   ])
@@ -376,6 +382,12 @@ resource "google_project_iam_member" "cloud_run_trace_agent" {
   member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
 }
 
+resource "google_project_iam_member" "cloud_run_tasks_enqueuer" {
+  project = var.project_id
+  role    = "roles/cloudtasks.enqueuer"
+  member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+}
+
 resource "google_cloud_run_v2_service" "app" {
   name                 = local.resource_name
   location             = var.region
@@ -472,8 +484,28 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
+
+      env {
+        name  = "CLOUD_TASKS_LOCATION"
+        value = var.region
+      }
+
+      env {
+        name  = "ELECTION_TASK_QUEUE"
+        value = google_cloud_tasks_queue.election_conclusion.name
+      }
+
+      env {
+        name  = "ELECTION_TASK_SERVICE_ACCOUNT"
+        value = google_service_account.scheduler_sa.email
+      }
+
+      env {
         name  = "SITE_URL"
-        value = local.custom_domain_enabled ? "https://${var.custom_domain}" : ""
+        value = local.application_origin
       }
 
       env {
@@ -593,13 +625,33 @@ resource "google_cloud_run_v2_service_iam_member" "public_access" {
 }
 
 # ============================================
-# CLOUD SCHEDULER
+# SCHEDULED PROCESSING
 # ============================================
 
 # Service account for Cloud Scheduler
 resource "google_service_account" "scheduler_sa" {
   account_id   = "${local.resource_name}-scheduler"
   display_name = "Service Account for ${local.resource_name} Cloud Scheduler"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_service_account_iam_member" "cloud_run_acts_as_scheduler" {
+  service_account_id = google_service_account.scheduler_sa.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+}
+
+resource "google_cloud_tasks_queue" "election_conclusion" {
+  name     = "${local.resource_name}-election-conclusion"
+  location = var.region
+
+  retry_config {
+    max_attempts       = 5
+    min_backoff        = "5s"
+    max_backoff        = "300s"
+    max_doublings      = 5
+  }
 
   depends_on = [google_project_service.required_apis]
 }

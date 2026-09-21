@@ -55,14 +55,15 @@ try {
       "committee_policy_assessments", "committee_stat_assessments", "committee_assessments",
       "nation_policy_values", "nation_stat_values", "nation_policy_definitions", "nation_stat_definitions", "nations",
       "wiki_article_revisions", "wiki_articles",
-      "party_membership_events", "archived_parties",
+      "organization_lifecycle_events", "party_membership_events", "archived_parties",
       "election_night_updates", "election_candidate_history", "election_officeholder_history", "election_history",
       "votes", "primary_votes", "primary_candidates", "candidates",
       "bill_votes_house", "bill_votes_senate", "bill_votes_presidential",
       "party_notifications", "merge_request_stances", "merge_request",
-      "join_requests", "coalition_members", "coalitions",
+      "join_requests", "coalition_members", "coalition_former_members", "coalitions",
+      "moderation_audit_log", "moderation_flags", "player_reports", "player_invitations",
       "party_stances", "political_stances", "chats", "feed", "bills",
-      "access_tokens", "game_tracker", "elections", "users", "parties"
+      "game_tracker", "elections", "users", "parties"
     restart identity cascade
   `);
 
@@ -162,10 +163,26 @@ try {
 
   const userRows = await insertRows(
     "users",
-    ["email", "username", "role", "is_active", "last_activity"],
     [
-      ["ajstrongdev@pm.me", "ajstrongdev", "Senator", true, 0],
-      ["jenewland1999@gmail.com", "jenewland1999", "President", true, 0],
+      "email",
+      "username",
+      "role",
+      "is_active",
+      "last_activity",
+      "moderation_role",
+      "is_ancestry_root",
+    ],
+    [
+      ["ajstrongdev@pm.me", "ajstrongdev", "Senator", true, 0, "admin", true],
+      [
+        "jenewland1999@gmail.com",
+        "jenewland1999",
+        "President",
+        true,
+        0,
+        "admin",
+        true,
+      ],
     ],
     true,
   );
@@ -210,14 +227,7 @@ try {
       "candidacy_ends_at",
     ],
     [
-      [
-        "Senate",
-        "CANDIDACY",
-        9,
-        1,
-        now,
-        new Date(now.getTime() + fourDaysMs),
-      ],
+      ["Senate", "CANDIDACY", 9, 1, now, new Date(now.getTime() + fourDaysMs)],
       [
         "President",
         "CANDIDACY",
@@ -254,6 +264,9 @@ try {
 
   await client.query("commit");
   console.log("Fresh database seed complete.");
+  console.log(
+    "Admin Firebase identities must be provisioned manually before login.",
+  );
   console.log("Government: Provisional Government");
   console.log(
     "Officeholders: ajstrongdev (Senator), jenewland1999 (President)",

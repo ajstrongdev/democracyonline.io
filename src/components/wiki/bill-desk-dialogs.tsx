@@ -26,6 +26,7 @@ import {
   hasVotedOnSenateBill,
   voteOnSenateBill,
 } from "@/lib/server/senate-bills";
+import { ReferenceInsert } from "@/components/reference-insert";
 
 export type BillDeskChamber = "House" | "Senate" | "Presidential";
 
@@ -119,7 +120,14 @@ export function NewBillDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="new-bill-content">Official text</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="new-bill-content">Official text</Label>
+              <ReferenceInsert
+                textareaId="new-bill-content"
+                value={content}
+                onChange={setContent}
+              />
+            </div>
             <Textarea
               id="new-bill-content"
               value={content}

@@ -23,6 +23,8 @@ import { leanings } from "@/lib/constants";
 import { useAuth } from "@/lib/auth-context";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import ProtectedRoute from "@/components/auth/protected-route";
+import { InvitationManager } from "@/components/settings/invitation-manager";
+import { ReferenceInsert } from "@/components/reference-insert";
 
 export const Route = createFileRoute("/settings")({
   loader: async ({ context }) => {
@@ -259,9 +261,16 @@ function SettingsPage() {
                 >
                   {(field) => (
                     <div className="space-y-2">
-                      <Label htmlFor={field.name}>
-                        Bio<span className="text-red-500">*</span>
-                      </Label>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor={field.name}>
+                          Bio<span className="text-red-500">*</span>
+                        </Label>
+                        <ReferenceInsert
+                          textareaId={field.name}
+                          value={field.state.value}
+                          onChange={field.handleChange}
+                        />
+                      </div>
                       <Textarea
                         id={field.name}
                         name={field.name}
@@ -416,6 +425,8 @@ function SettingsPage() {
             )}
           </CardContent>
         </Card>
+
+        <InvitationManager />
       </div>
     </ProtectedRoute>
   );

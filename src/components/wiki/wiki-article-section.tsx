@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { MarkdownContent } from "./markdown-content";
 import type { WikiEntityType } from "@/lib/server/wiki-articles";
+import { ReferenceInsert } from "@/components/reference-insert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -36,6 +37,7 @@ export function WikiArticleSection({
   const [summary, setSummary] = useState("");
   const [saving, setSaving] = useState(false);
   const isPartyPlatform = entityType === "party";
+  const editorId = `wiki-article-${entityType}-${entityId}`;
 
   const cancel = () => {
     setContent(article.content);
@@ -113,7 +115,15 @@ export function WikiArticleSection({
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="edit">
+                <div className="mb-2 flex justify-end">
+                  <ReferenceInsert
+                    textareaId={editorId}
+                    value={content}
+                    onChange={setContent}
+                  />
+                </div>
                 <Textarea
+                  id={editorId}
                   value={content}
                   onChange={(event) => setContent(event.target.value)}
                   className="min-h-80 font-mono text-sm"

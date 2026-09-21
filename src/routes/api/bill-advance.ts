@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
-import { and, asc, eq, notExists, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   billVotesHouse,
@@ -8,10 +8,8 @@ import {
   billVotesSenate,
   bills,
   gameTracker,
-  parties,
-  partyStances,
-  users,
 } from "@/db/schema";
+import { archiveEmptyParties } from "@/lib/server/organization-lifecycle";
 import { env } from "@/env";
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { authorizeCronRequest } from "@/lib/server/cron-auth";
@@ -162,24 +160,9 @@ export const Route = createFileRoute("/api/bill-advance")({
           });
 
           try {
-            const emptyParties = await db
-              .select({ id: parties.id })
-              .from(parties)
-              .where(
-                notExists(
-                  db.select().from(users).where(eq(users.partyId, parties.id)),
-                ),
-              );
-
-            for (const party of emptyParties) {
-              await db
-                .delete(partyStances)
-                .where(eq(partyStances.partyId, party.id));
-              await db.delete(parties).where(eq(parties.id, party.id));
-              console.log(`Deleted empty party with ID: ${party.id}`);
-            }
+            await db.transaction((tx) => archiveEmptyParties(tx));
           } catch (error) {
-            console.error("Error deleting zero-member parties:", error);
+            console.error("Error archiving zero-member parties:", error);
           }
 
           return new Response(JSON.stringify({ success: true }), {

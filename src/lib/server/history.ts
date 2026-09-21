@@ -402,8 +402,41 @@ export const getWikiElections = createServerFn().handler(async () => {
 export const getWikiElection = createServerFn()
   .inputValidator(z.object({ id: z.string().min(1) }))
   .handler(async ({ data }) => {
-    if (data.id.startsWith("current-")) {
-      const electionName = data.id.slice(8);
+    let requestedId = data.id;
+    const alias = /^(president|senate)-(\d+)$/i.exec(requestedId);
+    if (alias) {
+      const electionName =
+        alias[1].toLowerCase() === "president" ? "President" : "Senate";
+      const cycle = Number(alias[2]);
+      const [archived] = await db
+        .select({ id: electionHistory.id })
+        .from(electionHistory)
+        .where(
+          and(
+            eq(electionHistory.election, electionName),
+            eq(electionHistory.cycle, cycle),
+          ),
+        )
+        .limit(1);
+      if (archived) requestedId = String(archived.id);
+      else {
+        const [current] = await db
+          .select({ election: elections.election })
+          .from(elections)
+          .where(
+            and(
+              eq(elections.election, electionName),
+              eq(elections.cycle, cycle),
+            ),
+          )
+          .limit(1);
+        if (!current) return null;
+        requestedId = `current-${electionName}`;
+      }
+    }
+
+    if (requestedId.startsWith("current-")) {
+      const electionName = requestedId.slice(8);
       if (electionName !== "President" && electionName !== "Senate")
         return null;
       const [election] = await db
@@ -464,7 +497,7 @@ export const getWikiElection = createServerFn()
       };
     }
 
-    const id = Number(data.id);
+    const id = Number(requestedId);
     if (!Number.isInteger(id) || id <= 0) return null;
     const [election] = await db
       .select()
@@ -486,7 +519,7 @@ export const getWikiElection = createServerFn()
   });
 
 export const getWikiParties = createServerFn().handler(async () => {
-  const [current, archived, historical] = await Promise.all([
+  const [stored, legacyArchived, historical] = await Promise.all([
     db
       .select({
         id: parties.id,
@@ -494,6 +527,7 @@ export const getWikiParties = createServerFn().handler(async () => {
         color: parties.color,
         bio: parties.bio,
         leaning: parties.leaning,
+        archivedAt: parties.archivedAt,
         memberCount: sql<number>`count(${users.id})::int`,
       })
       .from(parties)
@@ -531,16 +565,16 @@ export const getWikiParties = createServerFn().handler(async () => {
       archivedAt: Date | null;
     }
   >();
-  for (const party of current) {
+  for (const party of stored) {
     records.set(party.id, {
       ...party,
       appearances: 0,
       victories: 0,
-      current: true,
-      archivedAt: null,
+      current: !party.archivedAt,
     });
   }
-  for (const party of archived) {
+  for (const party of legacyArchived) {
+    if (records.has(party.partyId)) continue;
     records.set(party.partyId, {
       id: party.partyId,
       name: party.name,
@@ -581,12 +615,12 @@ export const getWikiParties = createServerFn().handler(async () => {
 export const getWikiParty = createServerFn()
   .inputValidator(z.object({ id: z.number().int().positive() }))
   .handler(async ({ data }) => {
-    const [currentParty] = await db
+    const [storedParty] = await db
       .select()
       .from(parties)
       .where(eq(parties.id, data.id))
       .limit(1);
-    const [archivedParty] = currentParty
+    const [archivedParty] = storedParty
       ? []
       : await db
           .select()
@@ -644,7 +678,7 @@ export const getWikiParty = createServerFn()
           electionOfficeholderHistory.partyColor,
         )
         .orderBy(desc(electionHistory.concludedAt)),
-      currentParty
+      storedParty && !storedParty.archivedAt
         ? db
             .select({
               id: users.id,
@@ -674,23 +708,34 @@ export const getWikiParty = createServerFn()
       archivedParty?.color ??
       results[0]?.partyColor ??
       representation[0]?.partyColor;
-    if (!currentParty && (!historicalName || !historicalColor)) return null;
-    const name = currentParty?.name ?? historicalName;
-    const color = currentParty?.color ?? historicalColor;
+    if (!storedParty && (!historicalName || !historicalColor)) return null;
+    const name = storedParty?.name ?? historicalName;
+    const color = storedParty?.color ?? historicalColor;
     if (!name || !color) return null;
+    const leaderId =
+      storedParty?.leaderId ?? storedParty?.formerLeaderId ?? null;
+    const [leader] = leaderId
+      ? await db
+          .select({ id: users.id, username: users.username })
+          .from(users)
+          .where(eq(users.id, leaderId))
+          .limit(1)
+      : [];
     return {
       party: {
         id: data.id,
         name,
         color,
-        bio: currentParty?.bio ?? archivedParty?.bio ?? null,
-        leaning: currentParty?.leaning ?? archivedParty?.leaning ?? null,
-        logo: currentParty?.logo ?? archivedParty?.logo ?? null,
-        discord: currentParty?.discord ?? null,
-        leaderId: currentParty?.leaderId ?? null,
-        current: Boolean(currentParty),
-        archivedAt: archivedParty?.archivedAt ?? null,
+        bio: storedParty?.bio ?? archivedParty?.bio ?? null,
+        leaning: storedParty?.leaning ?? archivedParty?.leaning ?? null,
+        logo: storedParty?.logo ?? archivedParty?.logo ?? null,
+        discord: storedParty?.discord ?? null,
+        leaderId,
+        current: Boolean(storedParty && !storedParty.archivedAt),
+        archivedAt:
+          storedParty?.archivedAt ?? archivedParty?.archivedAt ?? null,
       },
+      leader: leader ?? null,
       members,
       results,
       representation,

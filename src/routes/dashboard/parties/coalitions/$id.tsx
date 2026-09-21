@@ -9,26 +9,32 @@ import {
   Check,
   Crown,
   DoorOpen,
+  FileText,
   Handshake,
   Pencil,
+  RotateCcw,
+  ThumbsDown,
+  ThumbsUp,
   Users,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   acceptJoinRequest,
   declineJoinRequest,
   getCoalitionDetails,
   leaveCoalition,
   requestJoinCoalition,
+  reviveCoalition,
   updateCoalition,
 } from "@/lib/server/coalitions";
-import { getCurrentUserInfo } from "@/lib/server/users";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  castVote,
+  getCoalitionProposals,
+  resolveProposal,
+} from "@/lib/server/coalition-proposals";
+import { getCurrentUserInfo } from "@/lib/server/users";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +55,9 @@ import {
   WikiStat,
   WikiStatGrid,
 } from "@/components/wiki/wiki-layout";
+import { EntityReferenceText } from "@/components/entity-reference-text";
+import { ReferenceInsert } from "@/components/reference-insert";
+import { formatWikiDate } from "@/lib/utils/history";
 
 export const Route = createFileRoute("/dashboard/parties/coalitions/$id")({
   loader: async ({ params }) => {
@@ -57,16 +66,13 @@ export const Route = createFileRoute("/dashboard/parties/coalitions/$id")({
       throw redirect({ to: "/dashboard/parties" });
     }
 
-    const userInfo = await getCurrentUserInfo();
+    const [userInfo, details, proposals] = await Promise.all([
+      getCurrentUserInfo(),
+      getCoalitionDetails({ data: { coalitionId } }),
+      getCoalitionProposals({ data: { coalitionId } }),
+    ]);
 
-    const details = await getCoalitionDetails({
-      data: {
-        coalitionId,
-        userId: userInfo?.id ?? null,
-      },
-    });
-
-    return { ...details, userInfo };
+    return { ...details, userInfo, proposals };
   },
   gcTime: 0,
   component: CoalitionPage,
@@ -77,9 +83,12 @@ function CoalitionPage() {
     coalition,
     memberParties,
     pendingRequests,
+    isCallerPartyLeader,
     callerPartyId: loaderCallerPartyId,
     callerCoalitionId: loaderCallerCoalitionId,
     userInfo: loaderUserInfo,
+    canRevive,
+    proposals,
   } = Route.useLoaderData();
   const userInfo = useUserData(loaderUserInfo);
   const navigate = useNavigate();
@@ -89,11 +98,10 @@ function CoalitionPage() {
   const memberPartyIds = memberParties.map((p) => p.id);
   const isInThisCoalition =
     callerPartyId != null && memberPartyIds.includes(callerPartyId);
-  const callerParty = memberParties.find((p) => p.id === callerPartyId);
-  const isMemberPartyLeader =
-    isInThisCoalition && callerParty?.leaderId === userInfo?.id;
+  const isMemberPartyLeader = isInThisCoalition && isCallerPartyLeader;
   const canJoin =
     callerPartyId != null &&
+    isCallerPartyLeader &&
     !isInThisCoalition &&
     loaderCallerCoalitionId == null;
 
@@ -109,6 +117,7 @@ function CoalitionPage() {
   // Dialogs
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [showReviveDialog, setShowReviveDialog] = useState(false);
 
   if (!coalition) {
     return (
@@ -170,6 +179,23 @@ function CoalitionPage() {
     }
   };
 
+  const handleRevive = async () => {
+    try {
+      await reviveCoalition({ data: { coalitionId: coalition.id } });
+      toast.success(
+        `${coalition.name} revived with your party as its sole member`,
+      );
+      navigate({
+        to: "/dashboard/parties/coalitions/$id",
+        params: { id: coalition.id.toString() },
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not revive coalition",
+      );
+    }
+  };
+
   const handleAccept = async (requestId: number) => {
     try {
       await acceptJoinRequest({ data: { requestId } });
@@ -194,6 +220,33 @@ function CoalitionPage() {
     }
   };
 
+  const handleVote = async (proposalId: number, vote: boolean) => {
+    try {
+      await castVote({ data: { proposalId, vote } });
+      navigate({
+        to: "/dashboard/parties/coalitions/$id",
+        params: { id: coalition.id.toString() },
+      });
+    } catch (e: any) {
+      toast.error(e instanceof Error ? e.message : "Could not cast vote");
+    }
+  };
+
+  const handleResolve = async (proposalId: number) => {
+    try {
+      const result = await resolveProposal({ data: { proposalId } });
+      toast.success(
+        result.approved ? "Proposal approved" : "Proposal rejected",
+      );
+      navigate({
+        to: "/dashboard/parties/coalitions/$id",
+        params: { id: coalition.id.toString() },
+      });
+    } catch (e: any) {
+      toast.error(e instanceof Error ? e.message : "Could not resolve proposal");
+    }
+  };
+
   const totalCoalitionMembers = memberParties.reduce(
     (sum, p) => sum + Number(p.memberCount || 0),
     0,
@@ -203,24 +256,37 @@ function CoalitionPage() {
     <ProtectedRoute>
       <WikiPage>
         <WikiHeader
-          eyebrow="Political coalition"
+          eyebrow={
+            coalition.archivedAt
+              ? "Archived political coalition"
+              : "Political coalition"
+          }
           title={coalition.name}
-          description={coalition.bio || "No description has been recorded."}
-          status={
-            <CoalitionLogo
-              coalition_id={coalition.id}
-              size={64}
-              color={coalition.color}
-              logo={coalition.logo}
-              name={coalition.name}
+          description={
+            <EntityReferenceText
+              content={coalition.bio || "No description has been recorded."}
             />
+          }
+          status={
+            <div className="flex items-center gap-3">
+              <Badge variant={coalition.archivedAt ? "secondary" : "default"}>
+                {coalition.archivedAt ? "Archived" : "Active"}
+              </Badge>
+              <CoalitionLogo
+                coalition_id={coalition.id}
+                size={64}
+                color={coalition.color}
+                logo={coalition.logo}
+                name={coalition.name}
+              />
+            </div>
           }
         />
         <nav className="flex flex-wrap gap-2 border-y bg-card px-4 py-3">
           <Button asChild variant="outline" size="sm">
             <Link to="/dashboard/parties/coalitions">Coalition archive</Link>
           </Button>
-          {isMemberPartyLeader && (
+          {!coalition.archivedAt && isMemberPartyLeader && (
             <Button
               variant="outline"
               size="sm"
@@ -230,7 +296,7 @@ function CoalitionPage() {
               {editing ? "Cancel edit" : "Edit coalition"}
             </Button>
           )}
-          {isMemberPartyLeader && (
+          {!coalition.archivedAt && isMemberPartyLeader && (
             <Button
               variant="destructive"
               size="sm"
@@ -240,7 +306,7 @@ function CoalitionPage() {
               Leave coalition
             </Button>
           )}
-          {canJoin && (
+          {!coalition.archivedAt && canJoin && (
             <Button
               variant="default"
               size="sm"
@@ -248,6 +314,12 @@ function CoalitionPage() {
             >
               <Handshake className="mr-2 h-4 w-4" />
               Request to join
+            </Button>
+          )}
+          {coalition.archivedAt && canRevive && (
+            <Button size="sm" onClick={() => setShowReviveDialog(true)}>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Revive with your party
             </Button>
           )}
         </nav>
@@ -286,7 +358,14 @@ function CoalitionPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-bio">Description</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="edit-bio">Description</Label>
+                  <ReferenceInsert
+                    textareaId="edit-bio"
+                    value={editBio}
+                    onChange={setEditBio}
+                  />
+                </div>
                 <Textarea
                   id="edit-bio"
                   value={editBio}
@@ -334,33 +413,71 @@ function CoalitionPage() {
         )}
 
         <WikiStatGrid>
-          <WikiStat label="Member parties" value={memberParties.length} />
+          <WikiStat
+            label={
+              coalition.archivedAt ? "Former member parties" : "Member parties"
+            }
+            value={memberParties.length}
+          />
           <WikiStat
             label="Total members"
             value={totalCoalitionMembers}
             detail="Across all member parties"
           />
           <WikiStat label="Pending requests" value={pendingRequests.length} />
+          {coalition.archivedAt && (
+            <WikiStat
+              label="Archived"
+              value={formatWikiDate(coalition.archivedAt)}
+            />
+          )}
         </WikiStatGrid>
 
-        {/* Tabs: Parties | Join Requests */}
+        {/* Tabs: Parties | Join Requests | Proposals */}
         <Tabs defaultValue="parties" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="parties">Member Parties</TabsTrigger>
-            <TabsTrigger value="requests">
-              Join Requests
-              {pendingRequests.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {pendingRequests.length}
-                </Badge>
-              )}
+          <TabsList
+            className={`grid w-full ${coalition.archivedAt ? "grid-cols-1" : "grid-cols-3"} mb-4`}
+          >
+            <TabsTrigger value="parties">
+              {coalition.archivedAt
+                ? "Former Member Parties"
+                : "Member Parties"}
             </TabsTrigger>
+            {!coalition.archivedAt && (
+              <TabsTrigger value="requests">
+                Join Requests
+                {pendingRequests.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {pendingRequests.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            )}
+            {!coalition.archivedAt && (
+              <TabsTrigger value="proposals">
+                <FileText className="mr-1 h-3 w-3" />
+                Proposals
+                {proposals.filter((p) => p.status === "open").length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {proposals.filter((p) => p.status === "open").length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="parties">
             <WikiSection
-              title="Member parties"
-              description="Parties that form this coalition."
+              title={
+                coalition.archivedAt
+                  ? "Former member parties"
+                  : "Member parties"
+              }
+              description={
+                coalition.archivedAt
+                  ? "Parties retained in this coalition's membership record. Revival restores only the sponsoring party."
+                  : "Parties that form this coalition."
+              }
               icon={Handshake}
             >
               <div>
@@ -498,9 +615,121 @@ function CoalitionPage() {
               </div>
             </WikiSection>
           </TabsContent>
-        </Tabs>
 
-        {/* Dialogs */}
+          <TabsContent value="proposals">
+            <WikiSection
+              title="Coalition proposals"
+              icon={FileText}
+              description="Decisions requiring majority approval by member-party leaders."
+            >
+              <div>
+                <div className="space-y-3 md:space-y-4">
+                  {proposals.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">
+                        No proposals have been submitted.
+                      </p>
+                    </div>
+                  )}
+                  {proposals.map((proposal) => {
+                    const canVote =
+                      isMemberPartyLeader && proposal.status === "open";
+                    return (
+                      <div
+                        key={proposal.id}
+                        className="border-b bg-card p-3 last:border-b-0 sm:p-4"
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant={
+                                  proposal.status === "approved"
+                                    ? "default"
+                                    : proposal.status === "rejected"
+                                      ? "destructive"
+                                      : "secondary"
+                                }
+                              >
+                                {proposal.status}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground">
+                                Proposal #{proposal.id}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                by {proposal.proposerPartyName}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-sm">
+                              {proposal.proposalType === "join_request" &&
+                                `Join request for party #${proposal.targetId}`}
+                              {proposal.proposalType === "edit" &&
+                                "Edit coalition details"}
+                              {proposal.proposalType === "leave" &&
+                                `Leave coalition (party #${proposal.targetId})`}
+                            </p>
+                            <div className="mt-2 flex items-center gap-4 text-sm">
+                              <span className="flex items-center gap-1 text-emerald-600">
+                                <ThumbsUp className="h-3 w-3" />
+                                {proposal.votesFor} for
+                              </span>
+                              <span className="flex items-center gap-1 text-red-600">
+                                <ThumbsDown className="h-3 w-3" />
+                                {proposal.votesAgainst} against
+                              </span>
+                              <span className="text-muted-foreground text-xs">
+                                {proposal.createdAt
+                                  ? new Date(
+                                      proposal.createdAt,
+                                    ).toLocaleDateString()
+                                  : ""}
+                              </span>
+                            </div>
+                          </div>
+                          {canVote && (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() =>
+                                  handleVote(proposal.id, true)
+                                }
+                              >
+                                <ThumbsUp className="mr-1 h-4 w-4" />
+                                For
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() =>
+                                  handleVote(proposal.id, false)
+                                }
+                              >
+                                <ThumbsDown className="mr-1 h-4 w-4" />
+                                Against
+                              </Button>
+                              {isMemberPartyLeader && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleResolve(proposal.id)
+                                  }
+                                >
+                                  Resolve
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </WikiSection>
+          </TabsContent>
+        </Tabs>
         <MessageDialog
           open={showLeaveDialog}
           onOpenChange={setShowLeaveDialog}
@@ -509,6 +738,14 @@ function CoalitionPage() {
           confirmText="Leave"
           variant="destructive"
           onConfirm={handleLeave}
+        />
+        <MessageDialog
+          open={showReviveDialog}
+          onOpenChange={setShowReviveDialog}
+          title={`Revive ${coalition.name}`}
+          description="This restores the coalition with your current party as its sole member. Former member parties are not automatically rejoined."
+          confirmText="Revive coalition"
+          onConfirm={handleRevive}
         />
         <MessageDialog
           open={showJoinDialog}

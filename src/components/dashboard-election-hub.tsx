@@ -295,9 +295,7 @@ function CompactRaceRow({
               target={
                 new Date(
                   new Date(race.timestamps.concludedAt).getTime() +
-                    DEFAULT_ELECTION_TIMING.concludedDurationMs[
-                      race.election as "President" | "Senate"
-                    ],
+                    DEFAULT_ELECTION_TIMING.concludedDurationMs[race.election],
                 )
               }
               onExpire={onRefresh}

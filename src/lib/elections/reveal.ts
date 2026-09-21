@@ -81,7 +81,7 @@ export function getRevealUpdateCount(durationMs: number): number {
 }
 
 function choose<T>(items: ReadonlyArray<T>, random: () => number): T {
-  return items[Math.floor(random() * items.length)]!;
+  return items[Math.floor(random() * items.length)];
 }
 
 export function generateElectionNightPlan(
@@ -183,7 +183,7 @@ export function generateElectionNightPlan(
         a.id - b.id,
     );
     const margin = ordered[1]
-      ? (cumulative[String(ordered[0]!.id)] ?? 0) -
+      ? (cumulative[String(ordered[0].id)] ?? 0) -
         (cumulative[String(ordered[1].id)] ?? 0)
       : reported;
     const marginShare = reported > 0 ? margin / reported : 1;

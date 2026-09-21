@@ -3,6 +3,7 @@ import {
   ArrowRight,
   ArrowRightLeft,
   Building2,
+  RotateCcw,
   Users,
   Vote,
 } from "lucide-react";
@@ -23,7 +24,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWikiParty } from "@/lib/server/history";
 import { getWikiArticle } from "@/lib/server/wiki-articles";
 import { getCurrentUserInfo } from "@/lib/server/users";
-import { becomePartyLeader, joinParty, leaveParty } from "@/lib/server/party";
+import {
+  becomePartyLeader,
+  getPartyRevivalState,
+  joinParty,
+  leaveParty,
+  reviveParty,
+} from "@/lib/server/party";
+import { getPartyCoalition } from "@/lib/server/coalitions";
+import { EntityReferenceText } from "@/components/entity-reference-text";
 import {
   formatElectionTitle,
   formatWikiDate,
@@ -35,15 +44,19 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
     const id = Number(params.partyId);
     if (!Number.isInteger(id))
       throw new Response("Party not found", { status: 404 });
-    const [party, article, currentUser] = await Promise.all([
-      getWikiParty({ data: { id } }),
-      getWikiArticle({
-        data: { entityType: "party", entityId: params.partyId },
-      }),
-      getCurrentUserInfo(),
-    ]);
+    const [party, article, currentUser, coalition, revival] = await Promise.all(
+      [
+        getWikiParty({ data: { id } }),
+        getWikiArticle({
+          data: { entityType: "party", entityId: params.partyId },
+        }),
+        getCurrentUserInfo(),
+        getPartyCoalition({ data: { partyId: id } }),
+        getPartyRevivalState({ data: { partyId: id } }),
+      ],
+    );
     if (!party) throw new Response("Party not found", { status: 404 });
-    return { ...party, article, currentUser };
+    return { ...party, article, currentUser, coalition, revival };
   },
   component: PartyArticle,
 });
@@ -57,10 +70,10 @@ function PartyArticle() {
     defections,
     article,
     currentUser,
+    coalition,
+    revival,
+    leader,
   } = Route.useLoaderData();
-  const leader = party.leaderId
-    ? members.find((member) => member.id === party.leaderId)
-    : null;
   return (
     <WikiPage width="article">
       <WikiHeader
@@ -69,8 +82,12 @@ function PartyArticle() {
         }
         title={party.name}
         description={
-          party.bio ||
-          `${party.name} is documented in the Democracy Online political record.`
+          <EntityReferenceText
+            content={
+              party.bio ||
+              `${party.name} is documented in the Democracy Online political record.`
+            }
+          />
         }
         status={
           <Badge variant={party.current ? "default" : "secondary"}>
@@ -104,6 +121,17 @@ function PartyArticle() {
               "No leader"
             )}
           </WikiInfoboxRow>
+          {party.current && coalition && (
+            <WikiInfoboxRow label="Coalition">
+              <Link
+                to="/dashboard/parties/coalitions/$id"
+                params={{ id: String(coalition.id) }}
+                className="text-primary hover:underline"
+              >
+                {coalition.name}
+              </Link>
+            </WikiInfoboxRow>
+          )}
           <WikiInfoboxRow label="Members">{members.length}</WikiInfoboxRow>
           {party.current && party.discord && (
             <WikiInfoboxRow label="Community">
@@ -125,6 +153,11 @@ function PartyArticle() {
           {party.current && currentUser && (
             <WikiInfoboxRow label="Organization">
               <PartyActions party={party} currentUser={currentUser} />
+            </WikiInfoboxRow>
+          )}
+          {!party.current && revival.canRevive && (
+            <WikiInfoboxRow label="Organization">
+              <RevivePartyButton partyId={party.id} partyName={party.name} />
             </WikiInfoboxRow>
           )}
         </WikiInfobox>
@@ -280,6 +313,53 @@ function PartyArticle() {
         </Card>
       )}
     </WikiPage>
+  );
+}
+
+function RevivePartyButton({
+  partyId,
+  partyName,
+}: {
+  partyId: number;
+  partyName: string;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  return (
+    <>
+      <Button
+        variant="link"
+        className="h-auto p-0"
+        disabled={submitting}
+        onClick={() => setOpen(true)}
+      >
+        <RotateCcw className="mr-1 h-3.5 w-3.5" />
+        Revive party
+      </Button>
+      <MessageDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={`Revive ${partyName}`}
+        description="This restores the party with you as its sole member and leader. Its identity, platform, and stances remain intact."
+        confirmText="Revive party"
+        onConfirm={async () => {
+          setSubmitting(true);
+          try {
+            await reviveParty({ data: { partyId } });
+            toast.success(`${partyName} revived`);
+            await router.invalidate();
+          } catch (error) {
+            toast.error(
+              error instanceof Error ? error.message : "Could not revive party",
+            );
+          } finally {
+            setSubmitting(false);
+          }
+        }}
+      />
+    </>
   );
 }
 

@@ -28,6 +28,7 @@ import {
 import { getDashboardData } from "@/lib/server/dashboard";
 import { formatWikiDate } from "@/lib/utils/history";
 import { cn } from "@/lib/utils";
+import { EntityReferenceText } from "@/components/entity-reference-text";
 
 export const Route = createFileRoute("/dashboard/")({
   loader: () => getDashboardData(),
@@ -86,7 +87,7 @@ function Dashboard() {
         title={
           currentUser
             ? `Welcome back, ${currentUser.username}`
-            : "Democracy Online"
+            : "to democracyonline.io"
         }
         description={
           currentUser
@@ -97,90 +98,6 @@ function Dashboard() {
         }
         status={!electionNight ? <LiveLabel /> : undefined}
       />
-
-      {electionNight && (
-        <DashboardElectionHub
-          initialData={electionDashboard}
-          currentUser={currentUser}
-        />
-      )}
-
-      {currentUser && (
-        <WikiSection
-          title="Your next moves"
-          icon={BellRing}
-          description="Only actions currently available to your account appear here."
-          aside={
-            <span className="font-mono text-xs text-muted-foreground">
-              {actionCount} pending
-            </span>
-          }
-        >
-          {actionCount ? (
-            <div className="divide-y border-y">
-              {pendingBillVotes.map((bill) => (
-                <Link
-                  key={`bill-${bill.id}`}
-                  to={bill.route}
-                  search={{
-                    desk: bill.stage,
-                  }}
-                  className="group flex flex-col gap-3 px-3 py-4 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:px-4"
-                >
-                  <div className="flex min-w-0 gap-3">
-                    <Vote className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                    <div className="min-w-0">
-                      <p className="font-semibold">Vote on {bill.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        A vote is waiting in the {bill.chamber}.
-                      </p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
-                    Go to chamber{" "}
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </span>
-                </Link>
-              ))}
-              {pendingCommitteeAssessments.map((bill) => (
-                <Link
-                  key={`assessment-${bill.id}`}
-                  to="/dashboard/bills/$billId"
-                  params={{ billId: String(bill.id) }}
-                  className="group flex flex-col gap-3 px-3 py-4 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:px-4"
-                >
-                  <div className="flex min-w-0 gap-3">
-                    <ClipboardCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                    <div className="min-w-0">
-                      <p className="font-semibold">Assess {bill.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        The Committee is waiting for your assessment of this
-                        bill's national effects.
-                      </p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
-                    Open assessment
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 border border-dashed px-4 py-6 text-sm text-muted-foreground">
-              <CheckCircle2 className="h-5 w-5 text-primary" />
-              You are caught up. New legislative actions will appear here.
-            </div>
-          )}
-        </WikiSection>
-      )}
-
-      {!electionNight && (
-        <DashboardElectionHub
-          initialData={electionDashboard}
-          currentUser={currentUser}
-        />
-      )}
 
       {currentUser && (
         <WikiStatGrid>
@@ -206,32 +123,112 @@ function Dashboard() {
         </WikiStatGrid>
       )}
 
-      {nation && (
-        <WikiSection
-          title={nation.name}
-          icon={Landmark}
-          description="The current national picture, shaped by legislation passed in the game."
-          aside={
-            <Link
-              to="/dashboard/nation"
-              className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+      {(currentUser || nation) && (
+        <div className="grid items-start gap-6 lg:grid-cols-2">
+          {currentUser && (
+            <WikiSection
+              title="Your next moves"
+              icon={BellRing}
+              description="Only actions currently available to your account appear here."
+              aside={
+                <span className="font-mono text-xs text-muted-foreground">
+                  {actionCount} pending
+                </span>
+              }
             >
-              Explore nation <ArrowRight className="h-4 w-4" />
-            </Link>
-          }
-        >
-          <Link to="/dashboard/nation" className="group block">
-            <div className="divide-y border-y bg-card">
-              <NationPulse label="Civil rights" value={nation.civilRights} />
-              <NationPulse label="Economy" value={nation.economy} />
-              <NationPulse
-                label="Political freedoms"
-                value={nation.politicalFreedoms}
-              />
-            </div>
-          </Link>
-        </WikiSection>
+              {actionCount ? (
+                <div className="divide-y border-y">
+                  {pendingBillVotes.map((bill) => (
+                    <Link
+                      key={`bill-${bill.id}`}
+                      to={bill.route}
+                      search={{ desk: bill.stage }}
+                      className="group flex flex-col gap-3 px-3 py-4 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:px-4"
+                    >
+                      <div className="flex min-w-0 gap-3">
+                        <Vote className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                        <div className="min-w-0">
+                          <p className="font-semibold">Vote on {bill.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            A vote is waiting in the {bill.chamber}.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                        Go to chamber
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </span>
+                    </Link>
+                  ))}
+                  {pendingCommitteeAssessments.map((bill) => (
+                    <Link
+                      key={`assessment-${bill.id}`}
+                      to="/dashboard/bills/$billId"
+                      params={{ billId: String(bill.id) }}
+                      className="group flex flex-col gap-3 px-3 py-4 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:px-4"
+                    >
+                      <div className="flex min-w-0 gap-3">
+                        <ClipboardCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                        <div className="min-w-0">
+                          <p className="font-semibold">Assess {bill.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            The Committee is waiting for your assessment of this
+                            bill's national effects.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                        Open assessment
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 border border-dashed px-4 py-6 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
+                  You are caught up. New legislative actions will appear here.
+                </div>
+              )}
+            </WikiSection>
+          )}
+
+          {nation && (
+            <WikiSection
+              title="National health"
+              icon={Landmark}
+              description={nation.name}
+              aside={
+                <Link
+                  to="/dashboard/nation"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+                >
+                  Explore <ArrowRight className="h-4 w-4" />
+                </Link>
+              }
+            >
+              <Link to="/dashboard/nation" className="group block">
+                <div className="divide-y border-y bg-card">
+                  <NationPulse
+                    label="Civil rights"
+                    value={nation.civilRights}
+                  />
+                  <NationPulse label="Economy" value={nation.economy} />
+                  <NationPulse
+                    label="Political freedoms"
+                    value={nation.politicalFreedoms}
+                  />
+                </div>
+              </Link>
+            </WikiSection>
+          )}
+        </div>
       )}
+
+      <DashboardElectionHub
+        initialData={electionDashboard}
+        currentUser={currentUser}
+      />
 
       <WikiSection title="Quick access" icon={Users}>
         <nav className="divide-y border-y bg-card text-sm">
@@ -265,7 +262,9 @@ function Dashboard() {
                   {item.username ?? "System"}
                 </span>
                 {": "}
-                <span className="text-muted-foreground">{item.content}</span>
+                <span className="text-muted-foreground">
+                  <EntityReferenceText content={item.content} />
+                </span>
               </p>
               <time className="shrink-0 font-mono text-xs text-muted-foreground">
                 {item.createdAt ? formatWikiDate(item.createdAt) : "Unknown"}

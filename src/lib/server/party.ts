@@ -1,13 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
-  coalitionMembers,
-  coalitions,
-  joinRequests,
+  feed,
+  organizationLifecycleEvents,
   parties,
-  partyNotifications,
-  partyStances,
   users,
   wikiArticleRevisions,
   wikiArticles,
@@ -18,7 +15,10 @@ import {
   UpdatePartySchema,
 } from "@/lib/schemas/party-schema";
 import { userEmailEquals } from "@/lib/server/user-email";
-import { requireAuthMiddleware } from "@/middleware";
+import { authMiddleware, requireAuthMiddleware } from "@/middleware";
+import { isAdminEmail } from "@/lib/server/admin";
+import { canReviveParty } from "@/lib/organizations/lifecycle";
+import { archivePartyIfEmpty } from "@/lib/server/organization-lifecycle";
 
 // Data fetching
 export const partyPageData = createServerFn()
@@ -37,6 +37,7 @@ export const getParties = createServerFn().handler(async () => {
     })
     .from(parties)
     .leftJoin(users, eq(users.partyId, parties.id))
+    .where(isNull(parties.archivedAt))
     .groupBy(parties.id)
     .orderBy(sql`count(${users.id}) desc`);
   return rows;
@@ -71,7 +72,7 @@ export const checkIfUserIsPartyLeader = createServerFn()
     const [party] = await db
       .select({ leaderId: parties.leaderId })
       .from(parties)
-      .where(eq(parties.id, data.partyId))
+      .where(and(eq(parties.id, data.partyId), isNull(parties.archivedAt)))
       .limit(1);
     return party?.leaderId === data.userId;
   });
@@ -91,7 +92,12 @@ export const getMembershipStatus = createServerFn()
 export const getPartyMembers = createServerFn()
   .inputValidator((data: { partyId: number }) => data)
   .handler(async ({ data }) => {
-    const { email, ...userColumns } = getTableColumns(users);
+    const {
+      email,
+      isAncestryRoot,
+      moderationRole,
+      ...userColumns
+    } = getTableColumns(users);
     const members = await db
       .select(userColumns)
       .from(users)
@@ -149,6 +155,18 @@ export const createParty = createServerFn()
         .where(eq(users.id, creator.id))
         .returning();
 
+      await tx.insert(organizationLifecycleEvents).values({
+        organizationType: "party",
+        organizationId: newParty.id,
+        organizationName: newParty.name,
+        action: "created",
+        actorUserId: creator.id,
+      });
+      await tx.insert(feed).values({
+        userId: creator.id,
+        content: `formed ${newParty.name}`,
+      });
+
       if (platform) {
         const [article] = await tx
           .insert(wikiArticles)
@@ -189,7 +207,7 @@ export const updateParty = createServerFn()
     const [party] = await db
       .select({ leaderId: parties.leaderId })
       .from(parties)
-      .where(eq(parties.id, data.party.id))
+      .where(and(eq(parties.id, data.party.id), isNull(parties.archivedAt)))
       .limit(1);
 
     if (!party || party.leaderId !== currentUser.id) {
@@ -210,48 +228,6 @@ export const updateParty = createServerFn()
       .where(eq(parties.id, partyData.id));
     return true;
   });
-
-async function removeEmptyParty(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  partyId: number,
-) {
-  const [membership] = await tx
-    .select({ coalitionId: coalitionMembers.coalitionId })
-    .from(coalitionMembers)
-    .where(eq(coalitionMembers.partyId, partyId))
-    .limit(1);
-
-  await tx.delete(joinRequests).where(eq(joinRequests.partyId, partyId));
-  await tx
-    .delete(coalitionMembers)
-    .where(eq(coalitionMembers.partyId, partyId));
-  await tx.delete(partyStances).where(eq(partyStances.partyId, partyId));
-  await tx
-    .delete(partyNotifications)
-    .where(
-      or(
-        eq(partyNotifications.senderPartyId, partyId),
-        eq(partyNotifications.receiverPartyId, partyId),
-      ),
-    );
-  await tx.delete(parties).where(eq(parties.id, partyId));
-
-  if (membership) {
-    const [remaining] = await tx
-      .select({ partyId: coalitionMembers.partyId })
-      .from(coalitionMembers)
-      .where(eq(coalitionMembers.coalitionId, membership.coalitionId))
-      .limit(1);
-    if (!remaining) {
-      await tx
-        .delete(joinRequests)
-        .where(eq(joinRequests.coalitionId, membership.coalitionId));
-      await tx
-        .delete(coalitions)
-        .where(eq(coalitions.id, membership.coalitionId));
-    }
-  }
-}
 
 export const leaveParty = createServerFn()
   .middleware([requireAuthMiddleware])
@@ -274,49 +250,25 @@ export const leaveParty = createServerFn()
     if (!currentUser.partyId) return true;
     await db.transaction(async (tx) => {
       await tx
-        .update(parties)
-        .set({ leaderId: null })
-        .where(
-          and(
-            eq(parties.id, currentUser.partyId!),
-            eq(parties.leaderId, currentUser.id),
-          ),
-        );
-      await tx
         .update(users)
         .set({ partyId: null })
         .where(eq(users.id, currentUser.id));
-      const [remaining] = await tx
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.partyId, currentUser.partyId!))
-        .limit(1);
-      if (!remaining) await removeEmptyParty(tx, currentUser.partyId!);
-    });
-    return true;
-  });
-
-export const deleteParty = createServerFn()
-  .middleware([requireAuthMiddleware])
-  .inputValidator((data: { partyId: number }) => data)
-  .handler(async ({ data }) => {
-    await db.transaction(async (tx) => {
-      await tx
-        .update(users)
-        .set({ partyId: null })
-        .where(eq(users.partyId, data.partyId));
-      await tx
-        .delete(partyStances)
-        .where(eq(partyStances.partyId, data.partyId));
-      await tx
-        .delete(partyNotifications)
-        .where(
-          or(
-            eq(partyNotifications.senderPartyId, data.partyId),
-            eq(partyNotifications.receiverPartyId, data.partyId),
-          ),
-        );
-      await tx.delete(parties).where(eq(parties.id, data.partyId));
+      const archived = await archivePartyIfEmpty(
+        tx,
+        currentUser.partyId!,
+        currentUser.id,
+      );
+      if (!archived) {
+        await tx
+          .update(parties)
+          .set({ leaderId: null })
+          .where(
+            and(
+              eq(parties.id, currentUser.partyId!),
+              eq(parties.leaderId, currentUser.id),
+            ),
+          );
+      }
     });
     return true;
   });
@@ -341,37 +293,42 @@ export const joinParty = createServerFn()
     }
 
     if (currentUser.partyId === data.partyId) return true;
-    const [targetParty] = await db
-      .select({ id: parties.id })
-      .from(parties)
-      .where(eq(parties.id, data.partyId))
-      .limit(1);
-    if (!targetParty) throw new Error("Party not found");
-
     await db.transaction(async (tx) => {
       const previousPartyId = currentUser.partyId;
-      if (previousPartyId) {
-        await tx
-          .update(parties)
-          .set({ leaderId: null })
-          .where(
-            and(
-              eq(parties.id, previousPartyId),
-              eq(parties.leaderId, currentUser.id),
-            ),
-          );
+      const lockIds = [data.partyId, ...(previousPartyId ? [previousPartyId] : [])]
+        .filter((partyId, index, values) => values.indexOf(partyId) === index)
+        .sort((left, right) => left - right);
+      for (const partyId of lockIds) {
+        await tx.execute(sql`select pg_advisory_xact_lock(${partyId})`);
       }
+      const [targetParty] = await tx
+        .select({ id: parties.id })
+        .from(parties)
+        .where(and(eq(parties.id, data.partyId), isNull(parties.archivedAt)))
+        .limit(1);
+      if (!targetParty) throw new Error("Party not found");
+
       await tx
         .update(users)
         .set({ partyId: data.partyId })
         .where(eq(users.id, currentUser.id));
       if (previousPartyId) {
-        const [remaining] = await tx
-          .select({ id: users.id })
-          .from(users)
-          .where(eq(users.partyId, previousPartyId))
-          .limit(1);
-        if (!remaining) await removeEmptyParty(tx, previousPartyId);
+        const archived = await archivePartyIfEmpty(
+          tx,
+          previousPartyId,
+          currentUser.id,
+        );
+        if (!archived) {
+          await tx
+            .update(parties)
+            .set({ leaderId: null })
+            .where(
+              and(
+                eq(parties.id, previousPartyId),
+                eq(parties.leaderId, currentUser.id),
+              ),
+            );
+        }
       }
     });
     return true;
@@ -405,7 +362,7 @@ export const becomePartyLeader = createServerFn()
     const [party] = await db
       .select({ leaderId: parties.leaderId })
       .from(parties)
-      .where(eq(parties.id, data.partyId))
+      .where(and(eq(parties.id, data.partyId), isNull(parties.archivedAt)))
       .limit(1);
 
     if (party?.leaderId) {
@@ -417,6 +374,104 @@ export const becomePartyLeader = createServerFn()
       .set({ leaderId: data.userId })
       .where(eq(parties.id, data.partyId));
     return true;
+  });
+
+export const getPartyRevivalState = createServerFn()
+  .middleware([authMiddleware])
+  .inputValidator((data: { partyId: number }) => data)
+  .handler(async ({ data, context }) => {
+    if (!context.user?.email) return { canRevive: false };
+    const [[actor], [party]] = await Promise.all([
+      db
+        .select({ id: users.id, partyId: users.partyId })
+        .from(users)
+        .where(userEmailEquals(context.user.email))
+        .limit(1),
+      db
+        .select({
+          archivedAt: parties.archivedAt,
+          formerLeaderId: parties.formerLeaderId,
+        })
+        .from(parties)
+        .where(eq(parties.id, data.partyId))
+        .limit(1),
+    ]);
+    if (!actor || !party?.archivedAt) return { canRevive: false };
+    return {
+      canRevive: canReviveParty({
+        actorUserId: actor.id,
+        actorPartyId: actor.partyId,
+        formerLeaderId: party.formerLeaderId,
+        isAdmin: isAdminEmail(context.user.email),
+      }),
+    };
+  });
+
+export const reviveParty = createServerFn({ method: "POST" })
+  .middleware([requireAuthMiddleware])
+  .inputValidator((data: { partyId: number }) => data)
+  .handler(async ({ data, context }) => {
+    if (!context.user?.email) throw new Error("Authentication required");
+    const actorEmail = context.user.email;
+    const [actor] = await db
+      .select({ id: users.id, partyId: users.partyId })
+      .from(users)
+      .where(userEmailEquals(actorEmail))
+      .limit(1);
+    if (!actor) throw new Error("Player account not found");
+
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${data.partyId})`);
+      const [party] = await tx
+        .select({
+          id: parties.id,
+          name: parties.name,
+          archivedAt: parties.archivedAt,
+          formerLeaderId: parties.formerLeaderId,
+        })
+        .from(parties)
+        .where(eq(parties.id, data.partyId))
+        .limit(1);
+      if (!party?.archivedAt) throw new Error("Archived party not found");
+      if (
+        !canReviveParty({
+          actorUserId: actor.id,
+          actorPartyId: actor.partyId,
+          formerLeaderId: party.formerLeaderId,
+          isAdmin: isAdminEmail(actorEmail),
+        })
+      ) {
+        throw new Error(
+          "Only an independent former leader or independent admin can revive this party",
+        );
+      }
+
+      const [restoredMember] = await tx
+        .update(users)
+        .set({ partyId: party.id })
+        .where(and(eq(users.id, actor.id), isNull(users.partyId)))
+        .returning({ id: users.id });
+      if (!restoredMember) {
+        throw new Error("Leave your current party before reviving this party");
+      }
+      await tx
+        .update(parties)
+        .set({ archivedAt: null, leaderId: actor.id })
+        .where(eq(parties.id, party.id));
+      await tx.insert(organizationLifecycleEvents).values({
+        organizationType: "party",
+        organizationId: party.id,
+        organizationName: party.name,
+        action: "revived",
+        actorUserId: actor.id,
+        metadata: { restoredLeaderId: actor.id },
+      });
+      await tx.insert(feed).values({
+        userId: actor.id,
+        content: `revived ${party.name}`,
+      });
+      return true;
+    });
   });
 
 const GetPartiesByIdsSchema = z.object({

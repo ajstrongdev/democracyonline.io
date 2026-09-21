@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { leanings } from "@/lib/constants";
 import { updateParty } from "@/lib/server/party";
 import { icons } from "@/lib/utils/logo-helper";
+import { ReferenceInsert } from "@/components/reference-insert";
 
 type ManagedParty = {
   id: number;
@@ -97,7 +98,14 @@ export function ManagePartyDialog({ party }: { party: ManagedParty }) {
             />
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="manage-party-bio">Biography</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="manage-party-bio">Biography</Label>
+              <ReferenceInsert
+                textareaId="manage-party-bio"
+                value={bio}
+                onChange={setBio}
+              />
+            </div>
             <Textarea
               id="manage-party-bio"
               value={bio}

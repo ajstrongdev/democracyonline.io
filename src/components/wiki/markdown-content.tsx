@@ -1,12 +1,13 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ComponentProps } from "react";
+import { remarkEntityReferences } from "@/lib/entity-references";
 
 export function MarkdownContent({ content }: { content: string }) {
   return (
     <div className="wiki-markdown max-w-[78ch] text-[15px] leading-7 text-foreground">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkEntityReferences]}
         components={{
           h1: (props) => <h2 className="wiki-heading text-3xl" {...props} />,
           h2: (props) => <h2 className="wiki-heading text-2xl" {...props} />,
@@ -36,7 +37,10 @@ export function MarkdownContent({ content }: { content: string }) {
             </div>
           ),
           th: (props) => (
-            <th className="border bg-muted/60 p-2 text-left font-semibold" {...props} />
+            <th
+              className="border bg-muted/60 p-2 text-left font-semibold"
+              {...props}
+            />
           ),
           td: (props) => <td className="border p-2 align-top" {...props} />,
           hr: () => <hr className="my-8 border-border" />,

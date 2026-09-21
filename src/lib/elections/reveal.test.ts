@@ -90,7 +90,7 @@ describe("generateElectionNightPlan", () => {
       .slice(1)
       .map(
         (update, index) =>
-          update.revealAt.getTime() - plan[index]!.revealAt.getTime(),
+          update.revealAt.getTime() - plan[index].revealAt.getTime(),
       );
 
     expect(getRevealUpdateCount(durationMs)).toBe(144);

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ModerationRouteImport } from './routes/moderation'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as CalendarRouteImport } from './routes/calendar'
@@ -81,6 +82,11 @@ const SearchRoute = SearchRouteImport.update({
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ModerationRoute = ModerationRouteImport.update({
+  id: '/moderation',
+  path: '/moderation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -377,6 +383,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof CalendarRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
+  '/moderation': typeof ModerationRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
@@ -437,6 +444,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof CalendarRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
+  '/moderation': typeof ModerationRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
@@ -498,6 +506,7 @@ export interface FileRoutesById {
   '/calendar': typeof CalendarRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
+  '/moderation': typeof ModerationRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
@@ -560,6 +569,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/feed'
     | '/login'
+    | '/moderation'
     | '/register'
     | '/search'
     | '/settings'
@@ -620,6 +630,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/feed'
     | '/login'
+    | '/moderation'
     | '/register'
     | '/search'
     | '/settings'
@@ -680,6 +691,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/feed'
     | '/login'
+    | '/moderation'
     | '/register'
     | '/search'
     | '/settings'
@@ -741,6 +753,7 @@ export interface RootRouteChildren {
   CalendarRoute: typeof CalendarRoute
   FeedRoute: typeof FeedRoute
   LoginRoute: typeof LoginRoute
+  ModerationRoute: typeof ModerationRoute
   RegisterRoute: typeof RegisterRoute
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
@@ -817,6 +830,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/moderation': {
+      id: '/moderation'
+      path: '/moderation'
+      fullPath: '/moderation'
+      preLoaderRoute: typeof ModerationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -1213,6 +1233,7 @@ const rootRouteChildren: RootRouteChildren = {
   CalendarRoute: CalendarRoute,
   FeedRoute: FeedRoute,
   LoginRoute: LoginRoute,
+  ModerationRoute: ModerationRoute,
   RegisterRoute: RegisterRoute,
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,

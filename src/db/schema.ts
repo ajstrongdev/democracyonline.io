@@ -28,6 +28,10 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
   isActive: boolean("is_active").default(true),
   lastActivity: bigint("last_activity", { mode: "number" }).default(0),
+  moderationRole: varchar("moderation_role", { length: 20 })
+    .default("player")
+    .notNull(),
+  isAncestryRoot: boolean("is_ancestry_root").default(false).notNull(),
 });
 
 // Parties table
@@ -42,6 +46,10 @@ export const parties = pgTable("parties", {
   leaning: varchar("leaning", { length: 25 }),
   logo: varchar("logo", { length: 100 }),
   discord: varchar("discord", { length: 255 }),
+  archivedAt: timestamp("archived_at"),
+  formerLeaderId: integer("former_leader_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
 });
 
 // Political stances table
@@ -108,29 +116,111 @@ export const coalitions = pgTable("coalitions", {
   logo: varchar("logo", { length: 255 }),
   bio: text("bio"),
   createdAt: timestamp("created_at").defaultNow(),
+  archivedAt: timestamp("archived_at"),
 });
 
 export const coalitionMembers = pgTable(
   "coalition_members",
   {
-    coalitionId: integer("coalition_id").notNull(),
-    partyId: integer("party_id").notNull(),
+    coalitionId: integer("coalition_id")
+      .notNull()
+      .references(() => coalitions.id, { onDelete: "cascade" }),
+    partyId: integer("party_id")
+      .notNull()
+      .references(() => parties.id, { onDelete: "cascade" }),
     joinDate: timestamp("join_date").defaultNow(),
   },
   (table) => [
     primaryKey({
       columns: [table.coalitionId, table.partyId],
     }),
+    unique("coalition_members_party_id_unique").on(table.partyId),
+  ],
+);
+
+export const coalitionFormerMembers = pgTable(
+  "coalition_former_members",
+  {
+    coalitionId: integer("coalition_id")
+      .notNull()
+      .references(() => coalitions.id, { onDelete: "cascade" }),
+    partyId: integer("party_id")
+      .notNull()
+      .references(() => parties.id, { onDelete: "cascade" }),
+    firstJoinedAt: timestamp("first_joined_at"),
+    lastLeftAt: timestamp("last_left_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.coalitionId, table.partyId] }),
+    index("coalition_former_members_party_idx").on(table.partyId),
   ],
 );
 
 export const joinRequests = pgTable("join_requests", {
   id: serial("id").primaryKey(),
-  partyId: integer("party_id").notNull(),
-  coalitionId: integer("coalition_id").notNull(),
+  partyId: integer("party_id")
+    .notNull()
+    .references(() => parties.id, { onDelete: "cascade" }),
+  coalitionId: integer("coalition_id")
+    .notNull()
+    .references(() => coalitions.id, { onDelete: "cascade" }),
   status: varchar("status", { length: 20 }).default("Pending").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Coalition proposals: member-party leaders propose actions for coalition-wide vote
+export const coalitionProposals = pgTable(
+  "coalition_proposals",
+  {
+    id: serial("id").primaryKey(),
+    coalitionId: integer("coalition_id")
+      .notNull()
+      .references(() => coalitions.id, { onDelete: "cascade" }),
+    proposerUserId: integer("proposer_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    proposerPartyId: integer("proposer_party_id")
+      .notNull()
+      .references(() => parties.id, { onDelete: "restrict" }),
+    /** 'join_request', 'edit', 'leave' */
+    proposalType: varchar("proposal_type", { length: 30 }).notNull(),
+    /** For join_request: the target partyId. For edit: JSON diff. For leave: null */
+    targetId: integer("target_id"),
+    /** For edit: JSON with the new fields. For others: free-text reason */
+    payload: jsonb("payload").$type<Record<string, string | number | boolean | null>>(),
+    status: varchar("status", { length: 20 }).default("open").notNull(),
+    votesFor: integer("votes_for").default(0).notNull(),
+    votesAgainst: integer("votes_against").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    resolvedAt: timestamp("resolved_at"),
+  },
+  (table) => [
+    index("coalition_proposals_coalition_idx").on(
+      table.coalitionId,
+      table.status,
+    ),
+  ],
+);
+
+export const coalitionVotes = pgTable(
+  "coalition_votes",
+  {
+    proposalId: integer("proposal_id")
+      .notNull()
+      .references(() => coalitionProposals.id, { onDelete: "cascade" }),
+    voterUserId: integer("voter_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    voterPartyId: integer("voter_party_id")
+      .notNull()
+      .references(() => parties.id, { onDelete: "cascade" }),
+    vote: boolean("vote").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.proposalId, table.voterUserId] }),
+  ],
+);
 
 // Bills table
 export const bills = pgTable("bills", {
@@ -650,18 +740,150 @@ export const chats = pgTable("chats", {
 });
 
 // Feed table
-export const feed = pgTable("feed", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id"),
-  content: text("content").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const feed = pgTable(
+  "feed",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id"),
+    content: text("content").notNull(),
+    /** 'admin' for privileged/system actions, 'player' for normal player actions */
+    visibility: varchar("visibility", { length: 10 }).default("player").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("feed_visibility_created_idx").on(table.visibility, table.createdAt),
+  ],
+);
 
-// Access tokens table
+export const organizationLifecycleEvents = pgTable(
+  "organization_lifecycle_events",
+  {
+    id: serial("id").primaryKey(),
+    organizationType: varchar("organization_type", { length: 20 }).notNull(),
+    organizationId: integer("organization_id").notNull(),
+    organizationName: varchar("organization_name", { length: 255 }).notNull(),
+    action: varchar("action", { length: 20 }).notNull(),
+    actorUserId: integer("actor_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    sponsorPartyId: integer("sponsor_party_id"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("organization_lifecycle_entity_idx").on(
+      table.organizationType,
+      table.organizationId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const playerInvitations = pgTable(
+  "player_invitations",
+  {
+    id: serial("id").primaryKey(),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+    tokenPrefix: varchar("token_prefix", { length: 12 }).notNull(),
+    inviterId: integer("inviter_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    redeemedByUserId: integer("redeemed_by_user_id").references(
+      () => users.id,
+      { onDelete: "set null" },
+    ),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    redeemedAt: timestamp("redeemed_at"),
+    revokedAt: timestamp("revoked_at"),
+  },
+  (table) => [
+    index("player_invitations_inviter_idx").on(table.inviterId),
+    unique("player_invitations_redeemed_user_unique").on(
+      table.redeemedByUserId,
+    ),
+  ],
+);
+
+export const playerReports = pgTable(
+  "player_reports",
+  {
+    id: serial("id").primaryKey(),
+    reporterId: integer("reporter_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    reportedUserId: integer("reported_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    category: varchar("category", { length: 40 }).notNull(),
+    details: text("details").notNull(),
+    status: varchar("status", { length: 20 }).default("pending").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    resolvedAt: timestamp("resolved_at"),
+    resolvedByUserId: integer("resolved_by_user_id").references(
+      () => users.id,
+      { onDelete: "set null" },
+    ),
+  },
+  (table) => [
+    index("player_reports_reported_status_idx").on(
+      table.reportedUserId,
+      table.status,
+    ),
+  ],
+);
+
+export const moderationFlags = pgTable(
+  "moderation_flags",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: varchar("status", { length: 20 }).default("open").notNull(),
+    source: varchar("source", { length: 30 }).default("automatic").notNull(),
+    suspicionScore: integer("suspicion_score").notNull(),
+    explanation: jsonb("explanation").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    resolvedAt: timestamp("resolved_at"),
+    resolvedByUserId: integer("resolved_by_user_id").references(
+      () => users.id,
+      { onDelete: "set null" },
+    ),
+  },
+  (table) => [index("moderation_flags_status_idx").on(table.status)],
+);
+
+export const moderationAuditLog = pgTable(
+  "moderation_audit_log",
+  {
+    id: serial("id").primaryKey(),
+    actorUserId: integer("actor_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    targetUserId: integer("target_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reportId: integer("report_id").references(() => playerReports.id, {
+      onDelete: "set null",
+    }),
+    flagId: integer("flag_id").references(() => moderationFlags.id, {
+      onDelete: "set null",
+    }),
+    action: varchar("action", { length: 40 }).notNull(),
+    reason: text("reason").notNull(),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("moderation_audit_target_idx").on(table.targetUserId)],
+);
+
+// Access tokens for user registration (single-use)
 export const accessTokens = pgTable("access_tokens", {
   id: serial("id").primaryKey(),
   token: varchar("token", { length: 255 }).notNull().unique(),
   createdAt: timestamp("created_at").defaultNow(),
+  redeemedAt: timestamp("redeemed_at"),
 });
 
 // Game tracker table
@@ -683,7 +905,29 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   billVotesHouse: many(billVotesHouse),
   billVotesSenate: many(billVotesSenate),
   billVotesPresidential: many(billVotesPresidential),
+  invitationsIssued: many(playerInvitations, { relationName: "inviter" }),
+  invitationRedeemed: one(playerInvitations, {
+    fields: [users.id],
+    references: [playerInvitations.redeemedByUserId],
+    relationName: "redeemedUser",
+  }),
 }));
+
+export const playerInvitationsRelations = relations(
+  playerInvitations,
+  ({ one }) => ({
+    inviter: one(users, {
+      fields: [playerInvitations.inviterId],
+      references: [users.id],
+      relationName: "inviter",
+    }),
+    redeemedUser: one(users, {
+      fields: [playerInvitations.redeemedByUserId],
+      references: [users.id],
+      relationName: "redeemedUser",
+    }),
+  }),
+);
 
 export const partiesRelations = relations(parties, ({ one, many }) => ({
   leader: one(users, {
@@ -886,3 +1130,40 @@ export const feedRelations = relations(feed, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const coalitionProposalsRelations = relations(
+  coalitionProposals,
+  ({ one, many }) => ({
+    coalition: one(coalitions, {
+      fields: [coalitionProposals.coalitionId],
+      references: [coalitions.id],
+    }),
+    proposer: one(users, {
+      fields: [coalitionProposals.proposerUserId],
+      references: [users.id],
+    }),
+    proposerParty: one(parties, {
+      fields: [coalitionProposals.proposerPartyId],
+      references: [parties.id],
+    }),
+    votes: many(coalitionVotes),
+  }),
+);
+
+export const coalitionVotesRelations = relations(
+  coalitionVotes,
+  ({ one }) => ({
+    proposal: one(coalitionProposals, {
+      fields: [coalitionVotes.proposalId],
+      references: [coalitionProposals.id],
+    }),
+    voter: one(users, {
+      fields: [coalitionVotes.voterUserId],
+      references: [users.id],
+    }),
+    voterParty: one(parties, {
+      fields: [coalitionVotes.voterPartyId],
+      references: [parties.id],
+    }),
+  }),
+);

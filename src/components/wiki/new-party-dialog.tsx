@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { createParty } from "@/lib/server/party";
 import { leanings } from "@/lib/constants";
 import { icons } from "@/lib/utils/logo-helper";
+import { ReferenceInsert } from "@/components/reference-insert";
 
 export function NewPartyDialog({
   user,
@@ -106,7 +107,14 @@ export function NewPartyDialog({
             />
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="party-bio">Biography</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="party-bio">Biography</Label>
+              <ReferenceInsert
+                textareaId="party-bio"
+                value={bio}
+                onChange={setBio}
+              />
+            </div>
             <Textarea
               id="party-bio"
               value={bio}
@@ -176,9 +184,16 @@ export function NewPartyDialog({
                 the first revision on the party wiki page.
               </p>
             </div>
-            <Label htmlFor="new-party-platform" className="sr-only">
-              Platform Markdown
-            </Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="new-party-platform" className="sr-only">
+                Platform Markdown
+              </Label>
+              <ReferenceInsert
+                textareaId="new-party-platform"
+                value={platform}
+                onChange={setPlatform}
+              />
+            </div>
             <Textarea
               id="new-party-platform"
               value={platform}

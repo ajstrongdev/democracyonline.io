@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
+import { ReferenceInsert } from "@/components/reference-insert";
 
 export const Route = createFileRoute("/dashboard/bills/edit/$id")({
   loader: async ({ params }) => {
@@ -188,7 +189,14 @@ function RouteComponent() {
               >
                 {(field) => (
                   <div className="space-y-2">
-                    <Label htmlFor={field.name}>Content</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor={field.name}>Content</Label>
+                      <ReferenceInsert
+                        textareaId={field.name}
+                        value={field.state.value}
+                        onChange={field.handleChange}
+                      />
+                    </div>
                     <Textarea
                       id={field.name}
                       name={field.name}

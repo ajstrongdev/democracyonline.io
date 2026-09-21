@@ -271,14 +271,15 @@ async function seed() {
         "committee_policy_assessments", "committee_stat_assessments", "committee_assessments",
         "nation_policy_values", "nation_stat_values", "nation_policy_definitions", "nation_stat_definitions", "nations",
         "wiki_article_revisions", "wiki_articles",
-        "party_membership_events", "archived_parties",
+        "organization_lifecycle_events", "party_membership_events", "archived_parties",
         "election_night_updates", "election_candidate_history", "election_officeholder_history", "election_history",
         "votes", "primary_votes", "primary_candidates", "candidates",
         "bill_votes_house", "bill_votes_senate", "bill_votes_presidential",
         "party_notifications", "merge_request_stances", "merge_request",
-        "join_requests", "coalition_members", "coalitions",
+        "join_requests", "coalition_members", "coalition_former_members", "coalitions",
+        "moderation_audit_log", "moderation_flags", "player_reports", "player_invitations",
         "party_stances", "political_stances", "chats", "feed", "bills",
-        "access_tokens", "game_tracker", "elections", "users", "parties"
+        "game_tracker", "elections", "users", "parties"
       RESTART IDENTITY CASCADE
     `);
 
@@ -444,6 +445,8 @@ async function seed() {
         "created_at",
         "is_active",
         "last_activity",
+        "moderation_role",
+        "is_ancestry_root",
       ],
       [
         [
@@ -456,8 +459,10 @@ async function seed() {
           daysAgo(365),
           true,
           0,
+          "admin",
+          true,
         ],
-        ...generatedUsers,
+        ...generatedUsers.map((user) => [...user, "player", false]),
       ],
       true,
     );
@@ -840,20 +845,8 @@ async function seed() {
         "concluded_at",
       ],
       [
-        [
-          "President",
-          presidentState.status,
-          1,
-          4,
-          ...presidentTimestamps,
-        ],
-        [
-          "Senate",
-          senateState.status,
-          9,
-          7,
-          ...senateTimestamps,
-        ],
+        ["President", presidentState.status, 1, 4, ...presidentTimestamps],
+        ["Senate", senateState.status, 9, 7, ...senateTimestamps],
       ],
     );
 
@@ -1571,11 +1564,6 @@ async function seed() {
         ]),
         daysAgo((60 - index) / 8),
       ]),
-    );
-    await insertRows(
-      "access_tokens",
-      ["token", "created_at"],
-      [["seed-development-bot-token", new Date()]],
     );
     await insertRows("game_tracker", ["bill_pool"], [[1]]);
 

@@ -3,7 +3,10 @@ import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { Handshake } from "lucide-react";
 import { getCurrentUserInfo } from "@/lib/server/users";
-import { createCoalition } from "@/lib/server/coalitions";
+import {
+  createCoalition,
+  getCoalitionManagementState,
+} from "@/lib/server/coalitions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,17 +20,21 @@ import {
   WikiPage,
   WikiSection,
 } from "@/components/wiki/wiki-layout";
+import { ReferenceInsert } from "@/components/reference-insert";
 
 export const Route = createFileRoute("/dashboard/parties/coalitions/create")({
   loader: async () => {
-    const userData = await getCurrentUserInfo();
-    return { userData };
+    const [userData, management] = await Promise.all([
+      getCurrentUserInfo(),
+      getCoalitionManagementState(),
+    ]);
+    return { userData, management };
   },
   component: CreateCoalitionPage,
 });
 
 function CreateCoalitionPage() {
-  const { userData: loaderUserData } = Route.useLoaderData();
+  const { userData: loaderUserData, management } = Route.useLoaderData();
   const userData = useUserData(loaderUserData);
   const navigate = useNavigate();
 
@@ -76,6 +83,36 @@ function CreateCoalitionPage() {
             description="Form an alliance of political parties around a shared identity and purpose."
           />
           <WikiEmpty>You must be in a party to create a coalition.</WikiEmpty>
+        </WikiPage>
+      </ProtectedRoute>
+    );
+  }
+
+  if (!management.isPartyLeader || management.partyId !== userData.partyId) {
+    return (
+      <ProtectedRoute>
+        <WikiPage>
+          <WikiHeader
+            eyebrow="Political coalitions"
+            title="Create a coalition"
+            description="Form an alliance of political parties around a shared identity and purpose."
+          />
+          <WikiEmpty>Only your party leader can create a coalition.</WikiEmpty>
+        </WikiPage>
+      </ProtectedRoute>
+    );
+  }
+
+  if (management.coalitionId) {
+    return (
+      <ProtectedRoute>
+        <WikiPage>
+          <WikiHeader
+            eyebrow="Political coalitions"
+            title="Create a coalition"
+            description="Form an alliance of political parties around a shared identity and purpose."
+          />
+          <WikiEmpty>Your party is already in a coalition.</WikiEmpty>
         </WikiPage>
       </ProtectedRoute>
     );
@@ -202,12 +239,19 @@ function CreateCoalitionPage() {
             >
               {(field) => (
                 <div className="grid grid-cols-1 gap-2">
-                  <Label
-                    htmlFor={field.name}
-                    className="font-medium text-foreground"
-                  >
-                    Description
-                  </Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label
+                      htmlFor={field.name}
+                      className="font-medium text-foreground"
+                    >
+                      Description
+                    </Label>
+                    <ReferenceInsert
+                      textareaId={field.name}
+                      value={field.state.value}
+                      onChange={field.handleChange}
+                    />
+                  </div>
                   <Textarea
                     id={field.name}
                     name={field.name}

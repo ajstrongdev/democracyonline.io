@@ -23,6 +23,7 @@ import {
 } from "@/lib/elections/timing";
 import { archiveElection } from "@/lib/server/history";
 import { ensureElectionSchedule } from "@/lib/server/election-schedule";
+import { ensureElectionConclusionTask } from "@/lib/server/election-tasks";
 import { resolvePrimaryWinners } from "@/lib/server/primaries-resolve";
 
 type ElectionType = "President" | "Senate";
@@ -174,6 +175,7 @@ async function beginElectionNight(
       reportingSeed: seed,
     })
     .where(eq(elections.election, election));
+  return endsAt;
 }
 
 async function concludeElection(
@@ -220,6 +222,7 @@ async function concludeElection(
         .filter((winner) => winner.userId !== null)
         .map((winner) => ({
           userId: winner.userId,
+          visibility: "admin" as const,
           content:
             election === "President"
               ? "has been elected as the President!"
@@ -257,6 +260,7 @@ async function concludeElection(
         await tx.insert(feed).values(
           fillerIds.map((userId) => ({
             userId,
+            visibility: "admin" as const,
             content: "has been appointed as a Senator!",
           })),
         );
@@ -309,7 +313,10 @@ async function advanceOneElection(
   electionType: ElectionType,
   now: Date,
   timing: ElectionTiming,
-): Promise<boolean> {
+): Promise<{
+  advanced: boolean;
+  conclusionTask: { cycle: number; deadline: Date } | null;
+}> {
   return db.transaction(async (tx) => {
     await tx.execute(
       sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = ${electionType} FOR UPDATE`,
@@ -319,7 +326,7 @@ async function advanceOneElection(
       .from(elections)
       .where(eq(elections.election, electionType))
       .limit(1);
-    if (!election) return false;
+    if (!election) return { advanced: false, conclusionTask: null };
 
     const status = normalizeElectionStatus(election.status);
     if (election.status !== status) {
@@ -331,10 +338,10 @@ async function advanceOneElection(
     const overdue = isElectionStageOverdue({ ...election, status }, now);
     if (status === "CANDIDACY" && overdue) {
       await beginVoting(tx, electionType, now, timing);
-      return true;
+      return { advanced: true, conclusionTask: null };
     }
     if (status === "VOTING" && overdue) {
-      await beginElectionNight(
+      const deadline = await beginElectionNight(
         tx,
         electionType,
         election.cycle,
@@ -343,7 +350,10 @@ async function advanceOneElection(
         now,
         timing,
       );
-      return true;
+      return {
+        advanced: true,
+        conclusionTask: { cycle: election.cycle, deadline },
+      };
     }
     if (status === "ELECTION_NIGHT" && overdue) {
       await concludeElection(
@@ -353,18 +363,28 @@ async function advanceOneElection(
         election.seats,
         now,
       );
-      return true;
+      return { advanced: true, conclusionTask: null };
     }
     if (
       status === "CONCLUDED" &&
       election.concludedAt &&
-      election.concludedAt.getTime() + timing.concludedDurationMs[electionType] <=
+      election.concludedAt.getTime() +
+        timing.concludedDurationMs[electionType] <=
         now.getTime()
     ) {
       await resetElection(tx, electionType, now, timing);
-      return true;
+      return { advanced: true, conclusionTask: null };
     }
-    return false;
+    return {
+      advanced: false,
+      conclusionTask:
+        status === "ELECTION_NIGHT" && election.electionNightEndsAt
+          ? {
+              cycle: election.cycle,
+              deadline: election.electionNightEndsAt,
+            }
+          : null,
+    };
   });
 }
 
@@ -377,7 +397,15 @@ export async function advanceElectionLifecycle(options?: {
   await ensureElectionSchedule({ now, timing });
   for (const election of ["President", "Senate"] as const) {
     for (let transition = 0; transition < 4; transition++) {
-      if (!(await advanceOneElection(election, now, timing))) break;
+      const result = await advanceOneElection(election, now, timing);
+      if (result.conclusionTask) {
+        await ensureElectionConclusionTask({
+          election,
+          cycle: result.conclusionTask.cycle,
+          deadline: result.conclusionTask.deadline,
+        });
+      }
+      if (!result.advanced) break;
     }
   }
 }

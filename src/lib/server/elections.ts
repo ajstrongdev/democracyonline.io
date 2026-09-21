@@ -431,10 +431,24 @@ export const getCurrentElectionDashboard = createServerFn()
   .handler(async ({ context }) => {
     await ensureElectionSchedule();
     const now = new Date();
-    const electionRows = await db
+    let electionRows = await db
       .select()
       .from(elections)
       .where(inArray(elections.election, ["President", "Senate"]));
+    if (
+      electionRows.some(
+        (election) =>
+          election.status === "ELECTION_NIGHT" &&
+          election.electionNightEndsAt !== null &&
+          election.electionNightEndsAt.getTime() <= now.getTime(),
+      )
+    ) {
+      await advanceElectionLifecycle({ now });
+      electionRows = await db
+        .select()
+        .from(elections)
+        .where(inArray(elections.election, ["President", "Senate"]));
+    }
     const raceTypes = ["President", "Senate"] as const;
     const currentUserId = context.user?.email
       ? await db

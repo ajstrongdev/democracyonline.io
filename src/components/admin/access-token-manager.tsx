@@ -25,6 +25,7 @@ interface AccessToken {
   id: number;
   token: string;
   createdAt: Date | null;
+  redeemedAt: Date | null;
 }
 
 interface AccessTokenManagerProps {
@@ -159,6 +160,11 @@ export default function AccessTokenManager({
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
                       Created: {formatDate(token.createdAt)}
+                      {token.redeemedAt && (
+                        <span className="ml-2 text-orange-500">
+                          (Used {formatDate(token.redeemedAt)})
+                        </span>
+                      )}
                     </p>
                   </div>
                   <Button

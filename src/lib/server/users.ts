@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { setCookie } from "@tanstack/react-start/server";
-import { eq, getTableColumns, or, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   accessTokens,
@@ -11,12 +10,10 @@ import {
   users,
 } from "@/db/schema";
 import { db } from "@/db";
-import { getAdminAuth } from "@/lib/firebase-admin";
 import { UpdateUserProfileSchema } from "@/lib/schemas/user-schema";
 import { SearchUsersSchema } from "@/lib/schemas/user-search-schema";
 import { normalizeEmail, userEmailEquals } from "@/lib/server/user-email";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware";
-import { env } from "@/env";
 
 const CreateUserSchema = z.object({
   accessToken: z.string().min(1, "Access token is required"),
@@ -32,11 +29,16 @@ export const validateAccessToken = createServerFn({ method: "POST" })
     const validToken = await db
       .select({ token: accessTokens.token })
       .from(accessTokens)
-      .where(eq(accessTokens.token, data.token))
+      .where(
+        and(
+          eq(accessTokens.token, data.token),
+          isNull(accessTokens.redeemedAt),
+        ),
+      )
       .limit(1);
 
     if (validToken.length === 0) {
-      throw new Error("Invalid access token");
+      throw new Error("Invalid or already used access token");
     }
 
     return { valid: true };
@@ -64,15 +66,34 @@ export const createUser = createServerFn({ method: "POST" })
       throw new Error("Email already exists");
     }
 
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        email: normalizedEmail,
-        username: data.username,
-        bio: data.bio || null,
-        politicalLeaning: data.politicalLeaning || null,
-      })
-      .returning();
+    const [newUser] = await db.transaction(async (tx) => {
+      const [redeemedToken] = await tx
+        .update(accessTokens)
+        .set({ redeemedAt: new Date() })
+        .where(
+          and(
+            eq(accessTokens.token, data.accessToken),
+            isNull(accessTokens.redeemedAt),
+          ),
+        )
+        .returning({ id: accessTokens.id });
+
+      if (!redeemedToken) {
+        throw new Error("Invalid or already used access token");
+      }
+
+      const rows = await tx
+        .insert(users)
+        .values({
+          email: normalizedEmail,
+          username: data.username,
+          bio: data.bio || null,
+          politicalLeaning: data.politicalLeaning || null,
+        })
+        .returning();
+
+      return rows;
+    });
 
     const welcomeMessage = `has spawned into existence`;
     await db.execute(sql`
@@ -312,43 +333,3 @@ export const getUserStats = createServerFn().handler(async () => {
     throw new Error("Failed to fetch user stats");
   }
 });
-
-export const createSessionCookie = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ idToken: z.string() }))
-  .handler(async ({ data }) => {
-    try {
-      const expiresIn = 60 * 60 * 24 * 5 * 1000;
-      const sessionCookie = await getAdminAuth().createSessionCookie(
-        data.idToken,
-        { expiresIn },
-      );
-
-      setCookie("__session", sessionCookie, {
-        maxAge: expiresIn / 1000,
-        httpOnly: true,
-        secure: env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-      });
-
-      return { success: true };
-    } catch (error) {
-      console.error("Error creating session cookie:", error);
-      throw new Error("Failed to create session");
-    }
-  });
-
-export const deleteSessionCookie = createServerFn({ method: "POST" }).handler(
-  () => {
-    // Delete the session cookie
-    setCookie("__session", "", {
-      maxAge: 0,
-      httpOnly: true,
-      secure: env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-    });
-
-    return { success: true };
-  },
-);

@@ -10,6 +10,7 @@ import {
   WikiSection,
 } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
+import { ReportPlayerDialog } from "@/components/players/report-player-dialog";
 import { getWikiPlayer } from "@/lib/server/history";
 import { getWikiArticle } from "@/lib/server/wiki-articles";
 import {
@@ -19,6 +20,7 @@ import {
   getPartyTerms,
   getVoteShare,
 } from "@/lib/utils/history";
+import { EntityReferenceText } from "@/components/entity-reference-text";
 
 export const Route = createFileRoute("/dashboard/players/$playerId")({
   loader: async ({ params }) => {
@@ -39,8 +41,14 @@ export const Route = createFileRoute("/dashboard/players/$playerId")({
 
 function PlayerArticle() {
   const { playerData, article } = Route.useLoaderData();
-  const { player, candidacies, offices, partyHistory, authoredBills, billVotes } =
-    playerData;
+  const {
+    player,
+    candidacies,
+    offices,
+    partyHistory,
+    authoredBills,
+    billVotes,
+  } = playerData;
   const officeTerms = getOfficeTerms(offices, player.role);
   const partyTerms = getPartyTerms(
     [
@@ -70,11 +78,21 @@ function PlayerArticle() {
       <WikiHeader
         eyebrow="Player article"
         title={player.username}
-        description={player.bio || "A player in Democracy Online."}
+        description={
+          <EntityReferenceText
+            content={player.bio || "A player in Democracy Online."}
+          />
+        }
         status={
-          <Badge variant={player.isActive ? "default" : "secondary"}>
-            {player.isActive ? "Active" : "Inactive"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={player.isActive ? "default" : "secondary"}>
+              {player.isActive ? "Active" : "Inactive"}
+            </Badge>
+            <ReportPlayerDialog
+              playerId={player.id}
+              username={player.username}
+            />
+          </div>
         }
       />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
@@ -191,8 +209,8 @@ function PlayerArticle() {
                 <PartyMark name={null} color={null} />
               )}
               <span className="font-mono text-xs text-muted-foreground">
-                {term.startAt ? formatWikiDate(term.startAt) : "Start unknown"} -{" "}
-                {term.endAt ? formatWikiDate(term.endAt) : "Current"}
+                {term.startAt ? formatWikiDate(term.startAt) : "Start unknown"}{" "}
+                - {term.endAt ? formatWikiDate(term.endAt) : "Current"}
               </span>
             </div>
           ))}
@@ -210,7 +228,9 @@ function PlayerArticle() {
                 params={{ billId: String(bill.id) }}
                 className="wiki-record-row flex justify-between gap-3 hover:text-primary"
               >
-                <span>Bill #{bill.id}: {bill.title}</span>
+                <span>
+                  Bill #{bill.id}: {bill.title}
+                </span>
                 <Badge variant="outline">{bill.status}</Badge>
               </Link>
             ))}

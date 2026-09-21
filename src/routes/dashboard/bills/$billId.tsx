@@ -15,6 +15,7 @@ import { getWikiArticle } from "@/lib/server/wiki-articles";
 import { formatWikiDate } from "@/lib/utils/history";
 import { getCommitteeData } from "@/lib/server/committee";
 import { CommitteeOutcome } from "@/components/wiki/committee-outcome";
+import { MarkdownContent } from "@/components/wiki/markdown-content";
 
 export const Route = createFileRoute("/dashboard/bills/$billId")({
   loader: async ({ params }) => {
@@ -66,8 +67,8 @@ function BillArticle() {
         title="Official text"
         description="The authoritative text submitted with this proposal."
       >
-        <div className="whitespace-pre-wrap border-l-2 border-primary/40 pl-5 leading-7">
-          {bill.content}
+        <div className="border-l-2 border-primary/40 pl-5">
+          <MarkdownContent content={bill.content} />
         </div>
       </WikiSection>
       {committee && <CommitteeOutcome billId={bill.id} data={committee} />}

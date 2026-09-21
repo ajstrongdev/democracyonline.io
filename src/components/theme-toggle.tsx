@@ -2,12 +2,11 @@ import { Check, Palette } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "@ajstrongdev/start-themes";
 import { themes } from "@/lib/server/theme";
-import type { ThemeId } from "@/lib/server/theme";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
-  PopoverTrigger,
   PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
 
 export function ModeToggle() {
@@ -30,7 +29,7 @@ export function ModeToggle() {
           <button
             key={t.id}
             onClick={() => {
-              setTheme(t.id as ThemeId);
+              setTheme(t.id);
               setOpen(false);
             }}
             className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground ${
