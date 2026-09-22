@@ -3,11 +3,10 @@ name: CI - Lint and Build
 on:
   push:
     branches-ignore:
-      - master # Don't run on master since CD will handle it
+      - revival # Deployment workflow handles the default branch
   pull_request:
     branches:
-      - develop
-      - master
+      - revival
 
 env:
   GCP_PROJECT_ID: onlinedemocraticrepublic

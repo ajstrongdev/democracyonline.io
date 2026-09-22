@@ -7,6 +7,412 @@ This project supports two live environments from the same repository:
 
 Each environment gets its own `.env` file and its own Compose override so you can deploy either target independently. PostgreSQL is external to Docker; provision one database for each environment and put its reachable connection string in `DATABASE_URL`.
 
+GitHub Actions is optional. You can ignore the entire **Automatic GitHub deployment** section and deploy manually over SSH using the commands in **Manual deployment without GitHub Actions** below.
+into a non-default branch does not deploy anything. The manual production release always deploys the current `main` branch, so merge the release into `main` first.
+
+### Prepare the VPS for GitHub Actions
+
+Complete the following once on the VPS.
+
+1. Create a dedicated deployment user. Do not use `root` for GitHub Actions:
+
+```bash
+sudo adduser --disabled-password --gecos "" deploy
+sudo usermod -aG docker deploy
+```
+
+Log out and back in, or start a new SSH session, before testing Docker access for this user.
+
+2. Install Git, Node.js 22 or newer, pnpm, and Docker Compose. Verify the commands as the deployment user:
+
+````bash
+sudo apt
+## Manual deployment without GitHub Actions
+
+Use this path if you want to deploy directly from an SSH session on the VPS. You do not need GitHub Actions secrets, a GitHub SSH key, or the `Deploy VPS` workflow.
+
+### First-time VPS setup
+
+The commands below target Ubuntu 26.04 LTS. Confirm the VPS version before continuing:
+
+```bash
+cat /etc/os-release
+````
+
+The output should identify Ubuntu 26.04 LTS (`VERSION_ID="26.04"`). The same Docker repository setup also works on current Ubuntu LTS releases, but package availability may differ on other distributions.
+
+#### Install base packages
+
+```bash
+sudo apt update
+sudo apt full-upgrade -y
+sudo apt install -y ca-certificates curl git openssl unzip jq ufw
+```
+
+#### Install Docker Engine and Compose
+
+Remove conflicting distribution packages if they are installed:
+
+```bash
+sudo apt remove -y docker.io docker-compose docker-doc containerd runc || true
+```
+
+Add Docker's official Ubuntu repository and signing key:
+
+```bash
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+Enable Docker at boot and verify both Docker Engine and Compose:
+
+```bash
+sudo systemctl enable --now docker
+sudo systemctl is-active --quiet docker && echo "Docker is running"
+sudo docker version
+sudo docker compose version
+```
+
+Allow the deployment user to run Docker without `sudo`. Replace `YOUR_LINUX_USER` with the user you will use for deployment:
+
+```bash
+sudo usermod -aG docker YOUR_LINUX_USER
+```
+
+Log out and back in, then verify that the group change works:
+
+```bash
+id
+docker run --rm hello-world
+```
+
+Do not expose the Docker API socket or TCP API to the internet. Access to the `docker` group is effectively root-level access on the VPS, so only add trusted deployment users.
+
+#### Install Node.js and pnpm
+
+The application requires Node.js 22 or newer for local migrations, seeding, and deployment scripts. Install the current Node.js 22 LTS line from NodeSource:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+node --version
+npm --version
+```
+
+Enable the pnpm version declared by the repository:
+
+```bash
+sudo corepack enable
+sudo corepack prepare pnpm@10.28.2 --activate
+pnpm --version
+```
+
+If `corepack` is not available in the installed Node.js package, install pnpm directly as the deployment user instead:
+
+```bash
+curl -fsSL https://get.pnpm.io/install.sh | sh -
+source ~/.bashrc
+pnpm --version
+```
+
+#### Configure the firewall
+
+Allow SSH before enabling UFW so you do not lock yourself out. Allow HTTP and HTTPS for the reverse proxy. Do not expose PostgreSQL or the Docker API publicly:
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw enable
+sudo ufw status verbose
+```
+
+If SSH uses a non-standard port, allow that port instead of `OpenSSH`.
+
+#### Clone the repository and install dependencies
+
+Then clone the repository:
+
+```bash
+git clone https://github.com/ajstrongdev/democracyonline.io.git /srv/democracyonline.io
+cd /srv/democracyonline.io
+pnpm install --frozen-lockfile
+```
+
+If the repository is private, authenticate Git as the VPS deployment user before cloning. Keep the repository checkout and environment files owned by the same user that runs Docker Compose.
+
+Create the two environment files and fill them in using the database and Firebase values described below:
+
+```bash
+cd /srv/democracyonline.io
+cp .env.example .env.prod
+cp .env.example .env.dev
+chmod 600 .env.prod .env.dev
+```
+
+The files must contain different database URLs and domains:
+
+- `.env.prod`: production database and `https://oscana.nya.je`
+- `.env.dev`: development database and `https://dev.oscana.nya.je`
+
+### First deployment
+
+Create the external databases first, then apply migrations. The migration commands must run from the repository directory and use the matching environment file:
+
+```bash
+cd /srv/democracyonline.io
+node --env-file=.env.dev ./node_modules/.bin/drizzle-kit migrate
+node --env-file=.env.prod ./node_modules/.bin/drizzle-kit migrate
+```
+
+Deploy each environment independently:
+
+```bash
+pnpm deploy:dev
+pnpm deploy:prod
+```
+
+Both commands run detached Docker Compose services and return you to the shell. Docker only runs the app; it does not create, migrate, seed, or reset PostgreSQL.
+
+### Manual updates
+
+When deploying a new commit, run these commands on the VPS:
+
+```bash
+cd /srv/democracyonline.io
+git fetch origin revival
+git checkout revival
+git pull --ff-only origin revival
+pnpm install --frozen-lockfile
+pnpm deploy:dev
+```
+
+For a production release, update the same checkout to the commit you want to release, apply and verify any migrations, then deploy production:
+
+```bash
+cd /srv/democracyonline.io
+git fetch origin revival
+git checkout revival
+git pull --ff-only origin revival
+pnpm install --frozen-lockfile
+node --env-file=.env.prod ./node_modules/.bin/drizzle-kit migrate
+pnpm deploy:prod
+```
+
+If you want to deploy a specific commit instead of the latest branch commit, use a detached checkout after fetching it, then run the appropriate deploy command:
+
+```bash
+git fetch origin
+git checkout --detach REVISION_OR_TAG
+pnpm install --frozen-lockfile
+pnpm deploy:prod
+```
+
+Return the checkout to the deployment branch before the next normal update:
+
+```bash
+git checkout revival
+git pull --ff-only origin revival
+```
+
+### Manual monitoring and rollback
+
+View the environment logs:
+
+```bash
+pnpm logs:dev
+pnpm logs:prod
+```
+
+Check container health and status:
+
+```bash
+docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml ps
+docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml ps
+```
+
+To roll back the app code, check out a known-good commit and redeploy the affected environment:
+
+```bash
+git checkout --detach KNOWN_GOOD_COMMIT
+pnpm install --frozen-lockfile
+pnpm deploy:prod
+```
+
+Do not roll back database migrations automatically. Database changes may not be safely reversible; inspect the migration and restore from a verified backup if data recovery is required.
+
+## Automatic GitHub deployment
+
+The repository includes [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which deploys to the VPS over SSH.
+
+The deployment rules are intentionally narrow:
+
+| GitHub event                                 | Selected environment | Result                                                      |
+| -------------------------------------------- | -------------------- | ----------------------------------------------------------- |
+| Push or merge into `revival`                 | Dev                  | Deploys the latest `revival` commit with `pnpm deploy:dev`  |
+| Manual `workflow_dispatch`, selecting `Dev`  | Dev                  | Deploys the latest `revival` commit with `pnpm deploy:dev`  |
+| Manual `workflow_dispatch`, selecting `Prod` | Prod                 | Deploys the latest `revival` commit with `pnpm deploy:prod` |
+
+There is no automatic production deployment. A pull request, push to another branch, or merge into a non-default branch does not deploy anything. The manual production release always deploys the current `revival` branch, so merge the release into `revival` first.
+
+### Prepare the VPS for GitHub Actions
+
+Complete the following once on the VPS.
+
+1. Create a dedicated deployment user. Do not use `root` for GitHub Actions:
+
+```bash
+sudo adduser --disabled-password --gecos "" deploy
+sudo usermod -aG docker deploy
+```
+
+Log out and back in, or start a new SSH session, before testing Docker access for this user.
+
+2. Install Git, Node.js 22 or newer, pnpm, and Docker Compose. Verify the commands as the deployment user:
+
+```bash
+sudo apt update
+sudo apt install -y git curl ca-certificates
+node --version
+corepack enable
+corepack prepare pnpm@10.28.2 --activate
+pnpm --version
+docker --version
+docker compose version
+```
+
+3. Clone the repository into the deployment directory and make the deployment user its owner:
+
+```bash
+sudo mkdir -p /srv/democracyonline.io
+sudo chown deploy:deploy /srv/democracyonline.io
+sudo -u deploy git clone https://github.com/ajstrongdev/democracyonline.io.git /srv/democracyonline.io
+```
+
+If the repository is private, configure a read-only deploy key or another Git credential for the `deploy` user. Do not put a GitHub token in the workflow command or in `.env`.
+
+4. Create `.env.prod` and `.env.dev` on the VPS, owned and readable only by the deployment user:
+
+```bash
+sudo -u deploy cp /srv/democracyonline.io/.env.example /srv/democracyonline.io/.env.prod
+sudo -u deploy cp /srv/democracyonline.io/.env.example /srv/democracyonline.io/.env.dev
+sudo chmod 600 /srv/democracyonline.io/.env.prod /srv/democracyonline.io/.env.dev
+```
+
+Fill in the real Firebase credentials, database URLs, domain names, cron tokens, and schedules. These files stay on the VPS and are not committed to Git.
+
+5. Test the exact commands that GitHub Actions will run:
+
+```bash
+sudo -iu deploy
+cd /srv/democracyonline.io
+pnpm install --frozen-lockfile
+pnpm deploy:dev
+pnpm logs:dev
+exit
+```
+
+Apply the dev migration before the first dev deployment, then apply the production migration separately after confirming the dev app works:
+
+```bash
+sudo -iu deploy
+cd /srv/democracyonline.io
+node --env-file=.env.dev ./node_modules/.bin/drizzle-kit migrate
+node --env-file=.env.prod ./node_modules/.bin/drizzle-kit migrate
+exit
+```
+
+### Create the GitHub SSH key
+
+Generate a dedicated key on your workstation, not on the VPS:
+
+```bash
+ssh-keygen -t ed25519 -C "github-actions-democracyonline" -f ~/.ssh/democracyonline_github_actions
+```
+
+Install only the public key for the `deploy` user:
+
+```bash
+ssh-copy-id -i ~/.ssh/democracyonline_github_actions.pub deploy@YOUR_VPS_HOST
+```
+
+Test it explicitly:
+
+```bash
+ssh -i ~/.ssh/democracyonline_github_actions deploy@YOUR_VPS_HOST
+```
+
+Copy the complete contents of the private key file for the GitHub secret. Store it as a GitHub Actions secret, never as a repository variable:
+
+```bash
+cat ~/.ssh/democracyonline_github_actions
+```
+
+The key should be restricted to the deployment user. Consider limiting its `authorized_keys` entry to the GitHub Actions runner IP ranges only if your SSH firewall strategy can keep those ranges current.
+
+### Configure GitHub Actions secrets
+
+In GitHub, open **Settings > Secrets and variables > Actions** and add these secrets. Repository-level secrets are sufficient, although `VPS_HOST`, `VPS_USER`, and `VPS_SSH_KEY` can also be set separately on the `Dev` and `Prod` environments.
+
+| Secret         | Value                                                       |
+| -------------- | ----------------------------------------------------------- |
+| `VPS_HOST`     | VPS hostname or IP address                                  |
+| `VPS_USER`     | `deploy`                                                    |
+| `VPS_SSH_KEY`  | Complete private Ed25519 key, including the begin/end lines |
+| `VPS_SSH_PORT` | SSH port, usually `22`; omit it to use the workflow default |
+| `VPS_APP_DIR`  | `/srv/democracyonline.io`                                   |
+
+If you use GitHub environment secrets, create environments named exactly `Dev` and `Prod`. The workflow selects those environments automatically. Protect the `Prod` environment with required reviewers so a production release requires approval before the SSH step runs.
+
+### Verify automatic Dev deployment
+
+After the VPS and secrets are ready:
+
+1. Push or merge a small change into `revival`.
+2. Open the repository's **Actions** tab.
+3. Select **Deploy VPS** and open the running workflow.
+4. Confirm the job says `Deploy Dev`.
+5. On the VPS, check:
+
+```bash
+cd /srv/democracyonline.io
+docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml ps
+pnpm logs:dev
+```
+
+The workflow fetches `origin/revival`, resets the checkout to that commit, removes untracked files, and runs the dev Compose deployment. It does not touch `.env.dev` because that file is untracked and `git clean -fd` does not remove ignored environment files.
+
+### Manually release Prod
+
+Production releases are manual:
+
+1. Merge the release into `revival`.
+2. Open **Actions > Deploy VPS > Run workflow**.
+3. Leave the branch as `revival`.
+4. Select `Prod` from the environment input.
+5. Start the workflow and approve the `Prod` environment if protection is enabled.
+6. Verify the production service:
+
+```bash
+cd /srv/democracyonline.io
+docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml ps
+pnpm logs:prod
+```
+
+The workflow runs `pnpm deploy:prod`, which rebuilds the app image and recreates the running container as needed. It does not automatically run migrations or seed data. Apply and verify migrations explicitly before releasing a schema change.
+
 ## 1) Create the PostgreSQL databases
 
 Docker does not create or initialize PostgreSQL. Create the database server, databases, and application roles before starting the app.
@@ -370,7 +776,127 @@ curl -X POST "https://dev.oscana.nya.je/api/game-advance" \
 
 You can schedule these with `crontab`, a hosted cron service, or your Linux VPS cron.
 
-## 11) Recommended VPS setup
+## 11) Install and configure Caddy
+
+Caddy will be the public reverse proxy and TLS terminator. The application remains private on the VPS:
+
+- `oscana.nya.je` -> `127.0.0.1:3000` -> production app
+- `dev.oscana.nya.je` -> `127.0.0.1:3001` -> development app
+
+The Compose port bindings intentionally listen only on loopback. Do not change them to `0.0.0.0` unless you have a specific reason to expose the application directly.
+
+### Point DNS at the VPS
+
+At your DNS provider, create these records. Replace `YOUR_VPS_IP` with the VPS public IPv4 address:
+
+| Record | Name  | Value         |
+| ------ | ----- | ------------- |
+| A      | `@`   | `YOUR_VPS_IP` |
+| A      | `dev` | `YOUR_VPS_IP` |
+
+If the VPS has a public IPv6 address, add matching AAAA records and make sure IPv6 is configured and allowed in the VPS firewall. Wait for DNS to resolve before asking Caddy for certificates:
+
+```bash
+dig +short oscana.nya.je A
+dig +short dev.oscana.nya.je A
+```
+
+Both commands should return the VPS address. DNS must resolve publicly because the certificate authority needs to reach the server for HTTP-01 or TLS-ALPN validation.
+
+### Install Caddy on Ubuntu 26.04 LTS
+
+Install Caddy from its official package repository:
+
+```bash
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
+  | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
+  | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update
+sudo apt install -y caddy
+```
+
+Verify the installation and service:
+
+```bash
+caddy version
+sudo systemctl enable --now caddy
+sudo systemctl status caddy --no-pager
+```
+
+### Create the Caddyfile
+
+Replace the existing Caddyfile with this configuration:
+
+```bash
+sudo tee /etc/caddy/Caddyfile > /dev/null <<'EOF'
+{
+    email admin@oscana.nya.je
+}
+
+oscana.nya.je {
+    reverse_proxy 127.0.0.1:3000
+}
+
+dev.oscana.nya.je {
+    reverse_proxy 127.0.0.1:3001
+}
+EOF
+```
+
+Replace `admin@oscana.nya.je` with an email address you monitor. Caddy uses it for certificate account notifications and renewal problems.
+
+Validate and reload the configuration:
+
+```bash
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+sudo systemctl is-active --quiet caddy && echo "Caddy is running"
+```
+
+Caddy automatically obtains and renews certificates from Let's Encrypt or another configured ACME CA. Do not add manual certificate paths unless you have a specific certificate-management requirement.
+
+### Configure firewall access
+
+Caddy needs public HTTP and HTTPS. Keep the application ports private; the loopback bindings above already enforce this, and these deny rules provide an additional firewall boundary:
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw deny 3000/tcp
+sudo ufw deny 3001/tcp
+sudo ufw status verbose
+```
+
+If you enabled UFW earlier, the allow rules are safe to repeat. If you use another firewall or a VPS provider firewall, allow inbound TCP 80 and 443 there as well. Do not expose port 5432, Docker's socket, or ports 3000/3001 publicly.
+
+### Start and verify both application environments
+
+Start the app containers before testing Caddy:
+
+```bash
+cd /srv/democracyonline.io
+pnpm deploy:prod
+pnpm deploy:dev
+curl -I http://127.0.0.1:3000
+curl -I http://127.0.0.1:3001
+curl -I https://oscana.nya.je
+curl -I https://dev.oscana.nya.je
+```
+
+If certificate issuance or proxying fails, inspect Caddy logs and the app logs:
+
+```bash
+sudo journalctl -u caddy -n 100 --no-pager
+pnpm logs:prod
+pnpm logs:dev
+```
+
+Common causes are DNS still pointing elsewhere, ports 80/443 blocked by the provider firewall, an app container not running, or an incorrect `SITE_URL` in the matching environment file.
+
+## 12) Recommended VPS setup
 
 Run the app as a background service with systemd, then use the Compose commands to update the working deployment whenever you want.
 
@@ -395,7 +921,7 @@ WantedBy=multi-user.target
 
 You can create a separate service for dev with the dev env file and dev override.
 
-## 12) Typical commands
+## 13) Typical commands
 
 ```bash
 # deploy prod
