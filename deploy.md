@@ -8,25 +8,7 @@ This project supports two live environments from the same repository:
 Each environment gets its own `.env` file and its own Compose override so you can deploy either target independently. PostgreSQL is external to Docker; provision one database for each environment and put its reachable connection string in `DATABASE_URL`.
 
 GitHub Actions is optional. You can ignore the entire **Automatic GitHub deployment** section and deploy manually over SSH using the commands in **Manual deployment without GitHub Actions** below.
-into a non-default branch does not deploy anything. The manual production release always deploys the current `main` branch, so merge the release into `main` first.
 
-### Prepare the VPS for GitHub Actions
-
-Complete the following once on the VPS.
-
-1. Create a dedicated deployment user. Do not use `root` for GitHub Actions:
-
-```bash
-sudo adduser --disabled-password --gecos "" deploy
-sudo usermod -aG docker deploy
-```
-
-Log out and back in, or start a new SSH session, before testing Docker access for this user.
-
-2. Install Git, Node.js 22 or newer, pnpm, and Docker Compose. Verify the commands as the deployment user:
-
-````bash
-sudo apt
 ## Manual deployment without GitHub Actions
 
 Use this path if you want to deploy directly from an SSH session on the VPS. You do not need GitHub Actions secrets, a GitHub SSH key, or the `Deploy VPS` workflow.
@@ -37,7 +19,7 @@ The commands below target Ubuntu 26.04 LTS. Confirm the VPS version before conti
 
 ```bash
 cat /etc/os-release
-````
+```
 
 The output should identify Ubuntu 26.04 LTS (`VERSION_ID="26.04"`). The same Docker repository setup also works on current Ubuntu LTS releases, but package availability may differ on other distributions.
 
@@ -599,6 +581,7 @@ VITE_FIREBASE_MEASUREMENT_ID=...
 
 ADMIN_EMAILS=admin@example.com
 CRON_SCHEDULER_TOKEN=prod-cron-token
+CRON_INTERNAL_TOKEN=long-random-prod-internal-token
 CRON_LOCAL_TOKEN=local-dev-token
 DEPLOYED_ENV=production
 ```
@@ -626,6 +609,7 @@ VITE_FIREBASE_MEASUREMENT_ID=...
 
 ADMIN_EMAILS=admin@example.com
 CRON_SCHEDULER_TOKEN=dev-cron-token
+CRON_INTERNAL_TOKEN=long-random-dev-internal-token
 CRON_LOCAL_TOKEN=local-dev-token
 DEPLOYED_ENV=development
 ```
@@ -637,15 +621,31 @@ For the dev instance, set your environment variables to a much faster heartbeat:
 ```env
 BILL_ADVANCE_SCHEDULE_UTC="*/5 * * * *"
 GAME_ADVANCE_SCHEDULE_UTC="*/20 * * * *"
+ELECTION_TIME_MULTIPLIER="72"
 ```
 
-This makes the game move much faster than production while preserving the same cron endpoints.
+This makes the election lifecycle run at the same 72x scale as the Dev game heartbeat: production advances every 24 hours, while Dev advances every 20 minutes. Election durations are therefore divided by 72 while wall-clock time itself remains unchanged.
+
+With the current production timings, Dev elections use approximately:
+
+- Senate candidacy: 80 minutes instead of 4 days
+- Senate voting: 80 minutes instead of 4 days
+- Presidential candidacy: 3 hours 20 minutes instead of 10 days
+- Presidential voting: 3 hours 20 minutes instead of 10 days
+- Election night: 10 minutes instead of 12 hours
+- Senate concluded period: 2 hours instead of 6 days
+- Presidential concluded period: 2 hours 40 minutes instead of 8 days
+
+Election transitions are handled by a private scheduler sidecar that checks the durable deadlines every second in both environments. This keeps transitions within roughly one second of their deadline and catches up automatically after a container restart. The 20-minute Dev heartbeat still handles the other game-advance work; it is no longer responsible for election transition timing.
+
+This is near-exact timing rather than a hard real-time guarantee: container scheduling, database locks, network delays, and host pauses can still introduce a small delay. The lifecycle transaction always re-checks the deadline, so an election cannot transition early or transition twice.
 
 Production can keep the normal values:
 
 ```env
 BILL_ADVANCE_SCHEDULE_UTC="0 4,12,20 * * *"
 GAME_ADVANCE_SCHEDULE_UTC="0 20 * * *"
+ELECTION_TIME_MULTIPLIER="1"
 ```
 
 ## 4) Apply migrations and deploy production
@@ -662,7 +662,7 @@ Before the first deploy, apply the schema from a machine that can reach the prod
 node --env-file=.env.prod ./node_modules/.bin/drizzle-kit migrate
 ```
 
-Docker does not provision, migrate, seed, or reset PostgreSQL.
+Docker does not provision, migrate, seed, or reset PostgreSQL. Environment timing changes apply to newly created or newly transitioned election deadlines; they do not rewrite timestamps already stored in the database. For a fresh Dev environment, run `pnpm seed:fresh:dev` after migrating if you need all initial election timings to use the Dev multiplier.
 
 For development, use `.env.dev` instead:
 

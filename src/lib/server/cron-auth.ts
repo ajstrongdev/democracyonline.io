@@ -5,6 +5,7 @@ export type CronAuthEnv = {
   SITE_URL: string;
   CRON_SCHEDULER_TOKEN: string;
   CRON_LOCAL_TOKEN: string;
+  CRON_INTERNAL_TOKEN?: string;
   ADMIN_EMAILS?: Array<string>;
 };
 
@@ -54,6 +55,15 @@ export async function authorizeCronRequest({
   verifyAdminIdToken?: VerifyAdminIdToken;
 }): Promise<Response | null> {
   const schedulerToken = request.headers.get("x-scheduler-token");
+  const internalToken = request.headers.get("x-internal-cron-token");
+  const requestHostname = new URL(request.url).hostname;
+  if (
+    requestHostname === "app" &&
+    env.CRON_INTERNAL_TOKEN &&
+    internalToken === env.CRON_INTERNAL_TOKEN
+  ) {
+    return null;
+  }
   const adminTrigger = request.headers.get("x-admin-cron-trigger") === "1";
   const authHeader = request.headers.get("authorization");
   const isLocalNonProd =

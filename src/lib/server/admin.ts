@@ -20,10 +20,12 @@ import {
   users,
   votes,
 } from "@/db/schema";
-import { DEFAULT_ELECTION_TIMING } from "@/lib/elections/timing";
+import { getElectionTiming } from "@/lib/elections/timing";
 import { generateElectionNightPlan } from "@/lib/elections/reveal";
 import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
 import { archivePartyIfEmpty } from "@/lib/server/organization-lifecycle";
+
+const ELECTION_TIMING = getElectionTiming(env.ELECTION_TIME_MULTIPLIER);
 
 export function isAdminEmail(email: string) {
   return env.ADMIN_EMAILS.some(
@@ -156,12 +158,12 @@ export const forceNextElectionStage = createServerFn({ method: "POST" })
           total: totalsMap.get(c.id) ?? 0,
         }));
         const endsAt = new Date(
-          now.getTime() + DEFAULT_ELECTION_TIMING.electionNightDurationMs,
+          now.getTime() + ELECTION_TIMING.electionNightDurationMs,
         );
         const plan = generateElectionNightPlan(trueTotals, {
           seed,
           startsAt: now,
-          durationMs: DEFAULT_ELECTION_TIMING.electionNightDurationMs,
+          durationMs: ELECTION_TIMING.electionNightDurationMs,
         });
         if (plan.length) {
           await tx
@@ -201,7 +203,7 @@ export const forceNextElectionStage = createServerFn({ method: "POST" })
           .set({
             concludedAt: new Date(
               now.getTime() -
-                DEFAULT_ELECTION_TIMING.concludedDurationMs[data.election],
+              ELECTION_TIMING.concludedDurationMs[data.election],
             ),
           })
           .where(eq(elections.election, data.election));
@@ -330,7 +332,7 @@ export const setElectionStageDeadline = createServerFn({ method: "POST" })
         `);
       } else if (election.status === "CONCLUDED") {
         const concludedDuration =
-          DEFAULT_ELECTION_TIMING.concludedDurationMs[data.election];
+          ELECTION_TIMING.concludedDurationMs[data.election];
         await tx
           .update(elections)
           .set({

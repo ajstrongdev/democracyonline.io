@@ -3,6 +3,7 @@ import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { signUp } from "@/lib/auth-utils";
 import { createUser, validateAccessToken } from "@/lib/server/users";
+import { createSessionCookie } from "@/lib/server/session";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -57,6 +58,10 @@ export function SignupForm() {
               politicalLeaning: leanings[leaningValue[0]],
             },
           });
+
+          // Establish the SSR session before navigating to the dashboard.
+          const idToken = await user.getIdToken(true);
+          await createSessionCookie({ data: { idToken } });
           await navigate({ to: "/dashboard" });
         } catch (dbError: any) {
           form.setErrorMap({

@@ -16,6 +16,41 @@ export const DEFAULT_ELECTION_TIMING: ElectionTiming = {
   revealUpdates: 144,
 };
 
+export function getElectionTiming(multiplier = 1): ElectionTiming {
+  if (multiplier === 1) return DEFAULT_ELECTION_TIMING;
+
+  return {
+    candidacyDurationMs: {
+      President: Math.round(
+        DEFAULT_ELECTION_TIMING.candidacyDurationMs.President / multiplier,
+      ),
+      Senate: Math.round(
+        DEFAULT_ELECTION_TIMING.candidacyDurationMs.Senate / multiplier,
+      ),
+    },
+    votingDurationMs: {
+      President: Math.round(
+        DEFAULT_ELECTION_TIMING.votingDurationMs.President / multiplier,
+      ),
+      Senate: Math.round(
+        DEFAULT_ELECTION_TIMING.votingDurationMs.Senate / multiplier,
+      ),
+    },
+    electionNightDurationMs: Math.round(
+      DEFAULT_ELECTION_TIMING.electionNightDurationMs / multiplier,
+    ),
+    concludedDurationMs: {
+      President: Math.round(
+        DEFAULT_ELECTION_TIMING.concludedDurationMs.President / multiplier,
+      ),
+      Senate: Math.round(
+        DEFAULT_ELECTION_TIMING.concludedDurationMs.Senate / multiplier,
+      ),
+    },
+    revealUpdates: DEFAULT_ELECTION_TIMING.revealUpdates,
+  };
+}
+
 function londonParts(date: Date) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",

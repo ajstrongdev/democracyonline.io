@@ -54,10 +54,7 @@ export const validateAccessToken = createServerFn({ method: "POST" })
       .select({ token: accessTokens.token })
       .from(accessTokens)
       .where(
-        and(
-          eq(accessTokens.token, token),
-          isNull(accessTokens.redeemedAt),
-        ),
+        and(eq(accessTokens.token, token), isNull(accessTokens.redeemedAt)),
       )
       .limit(1);
 
@@ -94,30 +91,30 @@ export const createUser = createServerFn({ method: "POST" })
     const [newUser] = await db.transaction(async (tx) => {
       const [redeemedToken] = accessToken.startsWith("doi_")
         ? await tx
-            .update(playerInvitations)
-            .set({ redeemedAt: new Date() })
-            .where(
-              and(
-                eq(
-                  playerInvitations.tokenHash,
-                  hashInvitationToken(accessToken),
-                ),
-                isNull(playerInvitations.redeemedAt),
-                isNull(playerInvitations.revokedAt),
-                gt(playerInvitations.expiresAt, new Date()),
+          .update(playerInvitations)
+          .set({ redeemedAt: new Date() })
+          .where(
+            and(
+              eq(
+                playerInvitations.tokenHash,
+                hashInvitationToken(accessToken),
               ),
-            )
-            .returning({ id: playerInvitations.id })
+              isNull(playerInvitations.redeemedAt),
+              isNull(playerInvitations.revokedAt),
+              gt(playerInvitations.expiresAt, new Date()),
+            ),
+          )
+          .returning({ id: playerInvitations.id })
         : await tx
-            .update(accessTokens)
-            .set({ redeemedAt: new Date() })
-            .where(
-              and(
-                eq(accessTokens.token, accessToken),
-                isNull(accessTokens.redeemedAt),
-              ),
-            )
-            .returning({ id: accessTokens.id });
+          .update(accessTokens)
+          .set({ redeemedAt: new Date() })
+          .where(
+            and(
+              eq(accessTokens.token, accessToken),
+              isNull(accessTokens.redeemedAt),
+            ),
+          )
+          .returning({ id: accessTokens.id });
 
       if (!redeemedToken) {
         throw new Error("Invalid or already used invitation token");
@@ -142,7 +139,7 @@ export const createUser = createServerFn({ method: "POST" })
 
       const welcomeMessage = `has spawned into existence`;
       await tx.execute(sql`
-        INSERT INTO feed (user_id, message, created_at)
+        INSERT INTO feed (user_id, content, created_at)
         VALUES (${newUser.id}, ${welcomeMessage}, NOW())
       `);
 

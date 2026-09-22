@@ -108,7 +108,7 @@ function RouteComponent() {
     loadData();
   }, [user, authLoading, navigate]);
 
-  if (authLoading || loading || isAdmin === null) {
+  if (authLoading || loading || !isAdmin) {
     return <GenericSkeleton />;
   }
 

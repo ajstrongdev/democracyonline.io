@@ -22,6 +22,7 @@ import { NotFound } from "@/components/not-found";
 import { WikiNavigation } from "@/components/wiki/wiki-header";
 import { getAuthRedirect } from "@/lib/auth-guard";
 import { auth } from "@/lib/firebase";
+import { getSessionUser } from "@/lib/server/session";
 
 type AuthContext = {
   user: User | null;
@@ -34,12 +35,12 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-  beforeLoad: ({ location, context }) => {
+  beforeLoad: async ({ location, context }) => {
     const authUser =
       context.auth?.user ??
-      (typeof window !== "undefined" ? auth.currentUser ?? null : null);
-    const hasSessionCookie =
-      typeof window !== "undefined" && document.cookie.includes("__session=");
+      (typeof window !== "undefined" ? (auth.currentUser ?? null) : null);
+    const sessionUser = authUser ? null : await getSessionUser();
+    const hasSessionCookie = Boolean(sessionUser);
     const isLoading = context.auth?.loading && !authUser && !hasSessionCookie;
 
     if (isLoading) {
@@ -49,7 +50,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     const pathname = location.pathname;
     const redirectTarget = getAuthRedirect(
       pathname,
-      Boolean(authUser),
+      Boolean(authUser || sessionUser),
       false,
       hasSessionCookie,
     );

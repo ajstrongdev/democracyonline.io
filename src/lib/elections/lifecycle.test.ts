@@ -7,6 +7,8 @@ import {
   normalizeElectionStatus,
 } from "./lifecycle";
 import {
+  DEFAULT_ELECTION_TIMING,
+  getElectionTiming,
   getLondonElectionNightWindowForDate,
   getNextLondonElectionNightWindow,
 } from "./timing";
@@ -50,6 +52,26 @@ describe("election lifecycle", () => {
     expect(getNextElectionStatus("VOTING")).toBe("ELECTION_NIGHT");
     expect(getNextElectionStatus("ELECTION_NIGHT")).toBe("CONCLUDED");
     expect(getNextElectionStatus("CONCLUDED")).toBe("CANDIDACY");
+  });
+
+  it("scales every election duration for the accelerated dev environment", () => {
+    const devTiming = getElectionTiming(72);
+
+    expect(devTiming.candidacyDurationMs.President).toBe(
+      DEFAULT_ELECTION_TIMING.candidacyDurationMs.President / 72,
+    );
+    expect(devTiming.candidacyDurationMs.Senate).toBe(
+      DEFAULT_ELECTION_TIMING.candidacyDurationMs.Senate / 72,
+    );
+    expect(devTiming.votingDurationMs.President).toBe(
+      DEFAULT_ELECTION_TIMING.votingDurationMs.President / 72,
+    );
+    expect(devTiming.electionNightDurationMs).toBe(
+      DEFAULT_ELECTION_TIMING.electionNightDurationMs / 72,
+    );
+    expect(devTiming.concludedDurationMs.Senate).toBe(
+      DEFAULT_ELECTION_TIMING.concludedDurationMs.Senate / 72,
+    );
   });
 
   it("builds London 20:00 to 08:00 windows across daylight saving", () => {
