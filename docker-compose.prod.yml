@@ -1,0 +1,13 @@
+services:
+  app:
+    environment:
+      NODE_ENV: production
+      DEPLOYED_ENV: production
+      SITE_URL: ${SITE_URL}
+      DATABASE_URL: ${DATABASE_URL}
+      BILL_ADVANCE_SCHEDULE_UTC: ${BILL_ADVANCE_SCHEDULE_UTC:-0 4,12,20 * * *}
+      GAME_ADVANCE_SCHEDULE_UTC: ${GAME_ADVANCE_SCHEDULE_UTC:-0 20 * * *}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+

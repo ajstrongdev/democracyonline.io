@@ -1,0 +1,15 @@
+[Unit]
+Description=Democracy Online VPS app
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/democracyonline.io
+ExecStart=/usr/bin/docker compose --env-file /srv/democracyonline.io/.env up --no-recreate
+ExecStop=/usr/bin/docker compose --env-file /srv/democracyonline.io/.env down
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

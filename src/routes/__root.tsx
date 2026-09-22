@@ -22,7 +22,6 @@ import { NotFound } from "@/components/not-found";
 import { WikiNavigation } from "@/components/wiki/wiki-header";
 import { getAuthRedirect } from "@/lib/auth-guard";
 import { auth } from "@/lib/firebase";
-import { getCookie } from "@tanstack/react-start/server";
 
 type AuthContext = {
   user: User | null;
@@ -40,9 +39,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       context.auth?.user ??
       (typeof window !== "undefined" ? auth.currentUser ?? null : null);
     const hasSessionCookie =
-      typeof window === "undefined"
-        ? !!getCookie("__session")
-        : document.cookie.includes("__session=");
+      typeof window !== "undefined" && document.cookie.includes("__session=");
     const isLoading = context.auth?.loading && !authUser && !hasSessionCookie;
 
     if (isLoading) {
