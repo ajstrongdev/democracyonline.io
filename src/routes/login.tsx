@@ -24,7 +24,7 @@ function LoginPage() {
           onSubmit: error,
         });
       } else if (user) {
-        navigate({ to: "/dashboard" });
+        await navigate({ to: "/dashboard" });
       }
     },
   });

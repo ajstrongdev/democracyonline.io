@@ -3,6 +3,7 @@ import {
   Outlet,
   Scripts,
   createRootRouteWithContext,
+  redirect,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
@@ -19,6 +20,9 @@ import {
 } from "@/lib/server/theme";
 import { NotFound } from "@/components/not-found";
 import { WikiNavigation } from "@/components/wiki/wiki-header";
+import { getAuthRedirect } from "@/lib/auth-guard";
+import { auth } from "@/lib/firebase";
+import { getCookie } from "@tanstack/react-start/server";
 
 type AuthContext = {
   user: User | null;
@@ -31,6 +35,32 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
+  beforeLoad: ({ location, context }) => {
+    const authUser =
+      context.auth?.user ??
+      (typeof window !== "undefined" ? auth.currentUser ?? null : null);
+    const hasSessionCookie =
+      typeof window === "undefined"
+        ? !!getCookie("__session")
+        : document.cookie.includes("__session=");
+    const isLoading = context.auth?.loading && !authUser && !hasSessionCookie;
+
+    if (isLoading) {
+      return;
+    }
+
+    const pathname = location.pathname;
+    const redirectTarget = getAuthRedirect(
+      pathname,
+      Boolean(authUser),
+      false,
+      hasSessionCookie,
+    );
+
+    if (redirectTarget) {
+      throw redirect({ to: redirectTarget });
+    }
+  },
   loader: async () => {
     const theme = await getThemeServerFn();
     return { theme };

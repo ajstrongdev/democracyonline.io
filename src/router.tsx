@@ -9,14 +9,15 @@ import { NotFound } from "@/components/not-found";
 
 export const getRouter = () => {
   const rqContext = TanstackQuery.getContext();
+  const initialAuthUser = typeof window !== "undefined" ? auth.currentUser ?? null : null;
 
   const router = createRouter({
     routeTree,
     context: {
       ...rqContext,
       auth: {
-        user: null,
-        loading: typeof window === "undefined" ? false : true,
+        user: initialAuthUser,
+        loading: typeof window === "undefined" ? false : !initialAuthUser,
       },
     },
     defaultPreload: "intent",

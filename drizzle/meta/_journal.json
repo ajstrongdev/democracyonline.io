@@ -218,6 +218,13 @@
       "when": 1790100001000,
       "tag": "0030_remove_firebase_uid",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790100002000,
+      "tag": "0031_add_access_token_redeemed_at",
+      "breakpoints": true
     }
   ]
 }

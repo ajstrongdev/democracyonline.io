@@ -23,7 +23,7 @@ export function SignupForm() {
       politicalLeaning: "Center",
     },
     onSubmit: async ({ value }) => {
-      // Validate access token first
+      // Validate the invitation before creating the Firebase account.
       try {
         await validateAccessToken({ data: { token: value.accessToken } });
       } catch (tokenError: any) {
@@ -33,7 +33,7 @@ export function SignupForm() {
         return;
       }
 
-      // Only create Firebase user after token validation
+      // Only create the Firebase user after invitation validation.
       const { user, error } = await signUp({
         email: value.email,
         password: value.password,
@@ -57,7 +57,7 @@ export function SignupForm() {
               politicalLeaning: leanings[leaningValue[0]],
             },
           });
-          navigate({ to: "/dashboard" });
+          await navigate({ to: "/dashboard" });
         } catch (dbError: any) {
           form.setErrorMap({
             onSubmit: dbError.message || "Failed to create user profile",
@@ -104,7 +104,7 @@ export function SignupForm() {
           {(field) => (
             <div className="space-y-2">
               <label htmlFor={field.name} className="text-sm font-medium">
-                Access Token
+                Invitation Token
               </label>
               <input
                 id={field.name}
@@ -115,10 +115,10 @@ export function SignupForm() {
                 onChange={(e) => field.handleChange(e.target.value)}
                 required
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Enter your access token"
+                placeholder="Enter your invitation token"
               />
               <p className="text-xs text-muted-foreground">
-                To get an access token, please join our{" "}
+                To get an invitation token, ask an existing player or join our{" "}
                 <a
                   href="https://discord.gg/m7gDfgJund"
                   target="_blank"
