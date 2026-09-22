@@ -155,8 +155,8 @@ Create the external databases first, then apply migrations. The migration comman
 
 ```bash
 cd /srv/democracyonline.io
-node --env-file=.env.dev ./node_modules/.bin/drizzle-kit migrate
-node --env-file=.env.prod ./node_modules/.bin/drizzle-kit migrate
+COMPOSE_ENV_FILE=.env.dev pnpm exec drizzle-kit migrate
+COMPOSE_ENV_FILE=.env.prod pnpm exec drizzle-kit migrate
 ```
 
 Deploy each environment independently:
@@ -189,7 +189,7 @@ git fetch origin revival
 git checkout revival
 git pull --ff-only origin revival
 pnpm install --frozen-lockfile
-node --env-file=.env.prod ./node_modules/.bin/drizzle-kit migrate
+COMPOSE_ENV_FILE=.env.prod pnpm exec drizzle-kit migrate
 pnpm deploy:prod
 ```
 
@@ -311,8 +311,8 @@ Apply the dev migration before the first dev deployment, then apply the producti
 ```bash
 sudo -iu deploy
 cd /srv/democracyonline.io
-node --env-file=.env.dev ./node_modules/.bin/drizzle-kit migrate
-node --env-file=.env.prod ./node_modules/.bin/drizzle-kit migrate
+COMPOSE_ENV_FILE=.env.dev pnpm exec drizzle-kit migrate
+COMPOSE_ENV_FILE=.env.prod pnpm exec drizzle-kit migrate
 exit
 ```
 
@@ -704,6 +704,29 @@ pnpm logs:dev
 ```
 
 ## 8) Seed the database for either target
+
+Always apply migrations before running `seed:fresh`. The seed script assumes the database schema already exists; it does not create missing tables. For the default local/production `.env` target:
+
+```bash
+COMPOSE_ENV_FILE=.env pnpm exec drizzle-kit migrate
+pnpm seed:fresh
+```
+
+For the separate environments, use the matching environment file:
+
+```bash
+COMPOSE_ENV_FILE=.env.dev pnpm exec drizzle-kit migrate
+pnpm seed:fresh:dev
+
+COMPOSE_ENV_FILE=.env.prod pnpm exec drizzle-kit migrate
+SEED_ALLOW_PRODUCTION=true pnpm seed:fresh:prod
+```
+
+If you see `relation "organization_lifecycle_events" does not exist`, migration `0032_fixed_iceman` has not been applied to the database targeted by `DATABASE_URL`. Do not manually create only that table; apply all pending migrations in order. Verify the migration with:
+
+```bash
+psql "$DATABASE_URL" -c 'select tablename from pg_tables where schemaname = '\''public'\'' and tablename = '\''organization_lifecycle_events'\'';'
+```
 
 To reset the target database and reseed it fresh:
 

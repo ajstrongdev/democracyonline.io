@@ -92,7 +92,7 @@ CREATE TABLE "player_reports" (
 	"resolved_by_user_id" integer
 );
 --> statement-breakpoint
-ALTER TABLE "access_tokens" ADD COLUMN "redeemed_at" timestamp;--> statement-breakpoint
+ALTER TABLE "access_tokens" ADD COLUMN IF NOT EXISTS "redeemed_at" timestamp;--> statement-breakpoint
 ALTER TABLE "coalitions" ADD COLUMN "archived_at" timestamp;--> statement-breakpoint
 ALTER TABLE "feed" ADD COLUMN "visibility" varchar(10) DEFAULT 'player' NOT NULL;--> statement-breakpoint
 ALTER TABLE "parties" ADD COLUMN "archived_at" timestamp;--> statement-breakpoint

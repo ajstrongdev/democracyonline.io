@@ -15,7 +15,7 @@ if (!existsSync(envFile)) {
 
 const result = spawnSync(
     'node',
-    ['--env-file', envFile, './node_modules/.bin/tsx', 'scripts/seed-fresh.ts'],
+    ['--env-file', envFile, '--import', 'tsx', 'scripts/seed-fresh.ts'],
     { stdio: 'inherit', shell: false },
 );
 

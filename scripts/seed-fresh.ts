@@ -7,11 +7,22 @@ import {
 } from "../src/lib/nation/catalog";
 import { calculateHeadlineIndices } from "../src/lib/nation/simulation";
 
-loadEnvFile();
+if (!process.env.DATABASE_URL) {
+  loadEnvFile(process.env.COMPOSE_ENV_FILE ?? ".env");
+}
 
-if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is required");
+}
+
+const deployedEnv = process.env.DEPLOYED_ENV;
+
+if (!deployedEnv) {
+  throw new Error("DEPLOYED_ENV must be set before seeding");
+}
+
 if (
-  process.env.NODE_ENV === "production" &&
+  deployedEnv === "production" &&
   process.env.SEED_ALLOW_PRODUCTION !== "true"
 ) {
   throw new Error(
