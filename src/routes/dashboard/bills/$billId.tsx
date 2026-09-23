@@ -1,5 +1,11 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { Check, X } from "lucide-react";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { Check, Clock3, X } from "lucide-react";
+import {
+  BillStageCountdown,
+  billStatusLabel,
+  getNextBillStage,
+  invalidateAfterBillExpiry,
+} from "@/components/bill-stage-countdown";
 import { WikiArticleSection } from "@/components/wiki/wiki-article-section";
 import { PartyMark, WikiHeader } from "@/components/wiki/wiki-header";
 import {
@@ -38,13 +44,14 @@ export const Route = createFileRoute("/dashboard/bills/$billId")({
 function BillArticle() {
   const { billData, article, committee } = Route.useLoaderData();
   const { bill, rollCalls } = billData;
+  const router = useRouter();
   return (
     <WikiPage width="article">
       <WikiHeader
-        eyebrow={`Bill #${bill.id} · ${bill.status} · ${bill.stage} stage`}
+        eyebrow={`Bill #${bill.id} · ${billStatusLabel(bill.status)}${bill.status === "Committee" ? "" : ` · ${bill.stage} stage`}`}
         title={bill.title}
         description={`Proposed by ${bill.creator ?? "Unknown"}${bill.createdAt ? ` on ${formatWikiDate(bill.createdAt)}` : ""}.`}
-        status={<Badge variant="outline">{bill.status}</Badge>}
+        status={<Badge variant="outline">{billStatusLabel(bill.status)}</Badge>}
       />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <WikiArticleSection
@@ -53,8 +60,32 @@ function BillArticle() {
           article={article}
         />
         <WikiInfobox title={`Bill #${bill.id}`}>
-          <WikiInfoboxRow label="Status">{bill.status}</WikiInfoboxRow>
-          <WikiInfoboxRow label="Stage">{bill.stage}</WikiInfoboxRow>
+          <WikiInfoboxRow label="Status">
+            {billStatusLabel(bill.status)}
+          </WikiInfoboxRow>
+          <WikiInfoboxRow label="Stage">
+            {bill.status === "Committee" ? "Senate Committee" : bill.stage}
+          </WikiInfoboxRow>
+          <WikiInfoboxRow label="Stage ends">
+            {bill.stageEndsAt ? (
+              <Badge variant="outline" className="gap-1.5 px-3 py-1.5">
+                <Clock3 className="h-3.5 w-3.5" />
+                <BillStageCountdown
+                  target={bill.stageEndsAt}
+                  onExpire={() =>
+                    invalidateAfterBillExpiry(() => router.invalidate())
+                  }
+                />
+              </Badge>
+            ) : (
+              "No active deadline"
+            )}
+          </WikiInfoboxRow>
+          {getNextBillStage(bill) ? (
+            <WikiInfoboxRow label="Next stage">
+              {getNextBillStage(bill)}
+            </WikiInfoboxRow>
+          ) : null}
           <WikiInfoboxRow label="Proposer">
             {bill.creator ?? "Unknown"}
           </WikiInfoboxRow>

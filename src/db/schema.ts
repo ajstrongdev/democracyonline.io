@@ -187,7 +187,10 @@ export const coalitionProposals = pgTable(
     /** For join_request: the target partyId. For edit: JSON diff. For leave: null */
     targetId: integer("target_id"),
     /** For edit: JSON with the new fields. For others: free-text reason */
-    payload: jsonb("payload").$type<Record<string, string | number | boolean | null>>(),
+    payload:
+      jsonb("payload").$type<
+        Record<string, string | number | boolean | null>
+      >(),
     status: varchar("status", { length: 20 }).default("open").notNull(),
     votesFor: integer("votes_for").default(0).notNull(),
     votesAgainst: integer("votes_against").default(0).notNull(),
@@ -217,9 +220,7 @@ export const coalitionVotes = pgTable(
     vote: boolean("vote").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [
-    primaryKey({ columns: [table.proposalId, table.voterUserId] }),
-  ],
+  (table) => [primaryKey({ columns: [table.proposalId, table.voterUserId] })],
 );
 
 // Bills table
@@ -749,7 +750,9 @@ export const feed = pgTable(
     userId: integer("user_id"),
     content: text("content").notNull(),
     /** 'admin' for privileged/system actions, 'player' for normal player actions */
-    visibility: varchar("visibility", { length: 10 }).default("player").notNull(),
+    visibility: varchar("visibility", { length: 10 })
+      .default("player")
+      .notNull(),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [
@@ -892,6 +895,14 @@ export const accessTokens = pgTable("access_tokens", {
 export const gameTracker = pgTable("game_tracker", {
   id: serial("id").primaryKey(),
   billPool: integer("bill_pool").default(1).notNull(),
+});
+
+// Game settings table (key/value). Owns the game-speed mode selected in
+// /admin, plus scheduler bookkeeping like the last game-advance run.
+export const gameSettings = pgTable("game_settings", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Relations
@@ -1152,20 +1163,17 @@ export const coalitionProposalsRelations = relations(
   }),
 );
 
-export const coalitionVotesRelations = relations(
-  coalitionVotes,
-  ({ one }) => ({
-    proposal: one(coalitionProposals, {
-      fields: [coalitionVotes.proposalId],
-      references: [coalitionProposals.id],
-    }),
-    voter: one(users, {
-      fields: [coalitionVotes.voterUserId],
-      references: [users.id],
-    }),
-    voterParty: one(parties, {
-      fields: [coalitionVotes.voterPartyId],
-      references: [parties.id],
-    }),
+export const coalitionVotesRelations = relations(coalitionVotes, ({ one }) => ({
+  proposal: one(coalitionProposals, {
+    fields: [coalitionVotes.proposalId],
+    references: [coalitionProposals.id],
   }),
-);
+  voter: one(users, {
+    fields: [coalitionVotes.voterUserId],
+    references: [users.id],
+  }),
+  voterParty: one(parties, {
+    fields: [coalitionVotes.voterPartyId],
+    references: [parties.id],
+  }),
+}));

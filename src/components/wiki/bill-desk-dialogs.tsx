@@ -105,7 +105,7 @@ export function NewBillDialog({
             Draft a new bill
           </DialogTitle>
           <DialogDescription>
-            New proposals enter Committee before House consideration.
+            New proposals enter the Senate Committee before House consideration.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-5 py-2">
@@ -300,7 +300,7 @@ export function BillDeskDialog({
                       className="inline-block text-xs font-semibold text-primary hover:underline"
                       onClick={() => setOpen(false)}
                     >
-                      Review the locked Committee outcome before voting
+                      Review the locked Senate Committee outcome before voting
                     </Link>
                     {eligible && !voted[bill.id] && (
                       <div className="flex gap-2">

@@ -47,7 +47,13 @@ export type CalendarData = {
   } | null;
   billAdvance: {
     currentPool: number;
-    nextAdvanceTime: Date;
+    nextAdvanceTime: Date | null;
+    upcoming: Array<{
+      id: number;
+      stage: string;
+      status: string;
+      stageEndsAt: Date;
+    }>;
   };
   upcomingEvents: Array<CalendarEvent>;
 };
@@ -83,14 +89,19 @@ export const getCalendarData = createServerFn().handler(
       .limit(1);
 
     const [gameData] = await db.select().from(gameTracker).limit(1);
-    const [nextBill] = await db
-      .select({ stageEndsAt: bills.stageEndsAt })
+    const nextBills = await db
+      .select({
+        id: bills.id,
+        stage: bills.stage,
+        status: bills.status,
+        stageEndsAt: bills.stageEndsAt,
+      })
       .from(bills)
       .where(isNotNull(bills.stageEndsAt))
       .orderBy(asc(bills.stageEndsAt))
-      .limit(1);
+      .limit(5);
     const currentPool = gameData?.billPool || 1;
-    const billAdvanceTime = nextBill?.stageEndsAt ?? new Date(now.getTime() + 60_000);
+    const billAdvanceTime = nextBills[0]?.stageEndsAt ?? null;
     const currentStageTiming = (
       election: NonNullable<typeof senateData>,
       concludedDays: number,
@@ -108,7 +119,9 @@ export const getCalendarData = createServerFn().handler(
         );
       }
       if (!deadline) {
-        throw new Error(`Missing timestamp for ${election.election} ${election.status}`);
+        throw new Error(
+          `Missing timestamp for ${election.election} ${election.status}`,
+        );
       }
       const nextStageTime = deadline;
       return {
@@ -400,6 +413,23 @@ export const getCalendarData = createServerFn().handler(
       }
     }
 
+    // Per-bill deadlines: each bill carries its own stage_ends_at and the
+    // scheduler reconciles them every minute. Surface the next few so the
+    // calendar proves the loop is working instead of hiding bill progress.
+    for (const bill of nextBills) {
+      if (!bill.stageEndsAt) continue;
+      const leaves =
+        bill.status === "Committee"
+          ? "leaves Senate Committee"
+          : `leaves ${bill.stage} ${bill.status}`;
+      upcomingEvents.push({
+        date: bill.stageEndsAt,
+        title: `Bill #${bill.id} ${leaves}`,
+        description: `Stage deadline reconciled every minute by the scheduler (8h per stage).`,
+        type: "bill",
+      });
+    }
+
     // Sort events by date
     upcomingEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
@@ -414,6 +444,18 @@ export const getCalendarData = createServerFn().handler(
       billAdvance: {
         currentPool,
         nextAdvanceTime: billAdvanceTime,
+        upcoming: nextBills.flatMap((bill) =>
+          bill.stageEndsAt
+            ? [
+                {
+                  id: bill.id,
+                  stage: bill.stage ?? "House",
+                  status: bill.status ?? "Committee",
+                  stageEndsAt: bill.stageEndsAt,
+                },
+              ]
+            : [],
+        ),
       },
       upcomingEvents, // Return all events (past and future, no limit)
     };

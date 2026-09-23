@@ -50,7 +50,7 @@ export function CommitteeOutcome({
     startTransition(async () => {
       try {
         await saveCommitteeAssessment({ data: { billId, stats, policies } });
-        toast.success("Committee assessment saved");
+        toast.success("Senate Committee assessment saved");
         setEditing(false);
         await router.invalidate();
       } catch (error) {
@@ -62,10 +62,14 @@ export function CommitteeOutcome({
 
   return (
     <WikiSection
-      title={data.status === "Committee" ? "Committee" : "Committee outcome"}
+      title={
+        data.status === "Committee"
+          ? "Senate Committee"
+          : "Senate Committee outcome"
+      }
       description={
         data.status === "Committee"
-          ? "Committee defines what this bill would change. Voting decides whether it happens."
+          ? "The Senate Committee defines what this bill would change. Voting decides whether it happens."
           : "These consequences were frozen when the bill entered voting."
       }
       aside={
@@ -80,8 +84,8 @@ export function CommitteeOutcome({
         {!data.stats.length && !data.policies.length ? (
           <WikiEmpty>
             {data.status === "Committee"
-              ? "No Committee assessments yet. Senators can assess what this bill would change."
-              : "No Committee effects were submitted."}
+              ? "No Senate Committee assessments yet. Senators can assess what this bill would change."
+              : "No Senate Committee effects were submitted."}
           </WikiEmpty>
         ) : (
           <div className="grid gap-5 md:grid-cols-2">
@@ -131,9 +135,9 @@ export function CommitteeOutcome({
           </div>
         )}
         <p className="font-mono text-xs text-muted-foreground">
-          Based on {data.participantCount} committee{" "}
+          Based on {data.participantCount} Senate Committee{" "}
           {data.participantCount === 1 ? "assessment" : "assessments"}
-          {data.closedAt ? " · Committee closed" : ""}
+          {data.closedAt ? " · Senate Committee closed" : ""}
         </p>
 
         {editing && data.status === "Committee" && (

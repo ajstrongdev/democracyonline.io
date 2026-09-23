@@ -1,7 +1,6 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { ElectionTiming } from "@/lib/elections/timing";
 import { db } from "@/db";
-import { env } from "@/env";
 import {
   candidates,
   electionNightUpdates,
@@ -19,12 +18,12 @@ import {
 import { generateElectionNightPlan } from "@/lib/elections/reveal";
 import {
   DEFAULT_ELECTION_TIMING,
-  getElectionTiming,
   getLondonElectionNightWindowForDate,
   getNextLondonElectionNightWindow,
 } from "@/lib/elections/timing";
 import { archiveElection } from "@/lib/server/history";
 import { ensureElectionSchedule } from "@/lib/server/election-schedule";
+import { resolveElectionTiming } from "@/lib/server/game-speed";
 import { ensureElectionConclusionTask } from "@/lib/server/election-tasks";
 import { resolvePrimaryWinners } from "@/lib/server/primaries-resolve";
 
@@ -76,8 +75,8 @@ async function beginVoting(
   const votingEndsAt =
     timing === DEFAULT_ELECTION_TIMING
       ? getNextLondonElectionNightWindow(
-        new Date(nominalVotingEnd.getTime() - 60_000),
-      ).startsAt
+          new Date(nominalVotingEnd.getTime() - 60_000),
+        ).startsAt
       : nominalVotingEnd;
   if (election === "President") {
     const primaryRoster = await tx
@@ -245,9 +244,9 @@ async function concludeElection(
             sql`${users.role} NOT IN ('President', 'Senator')`,
             winnerUserIds.length
               ? sql`${users.id} <> ALL(ARRAY[${sql.join(
-                winnerUserIds.map((id) => sql`${id}::integer`),
-                sql`, `,
-              )}])`
+                  winnerUserIds.map((id) => sql`${id}::integer`),
+                  sql`, `,
+                )}])`
               : undefined,
           ),
         )
@@ -371,8 +370,8 @@ async function advanceOneElection(
       status === "CONCLUDED" &&
       election.concludedAt &&
       election.concludedAt.getTime() +
-      timing.concludedDurationMs[electionType] <=
-      now.getTime()
+        timing.concludedDurationMs[electionType] <=
+        now.getTime()
     ) {
       await resetElection(tx, electionType, now, timing);
       return { advanced: true, conclusionTask: null };
@@ -382,9 +381,9 @@ async function advanceOneElection(
       conclusionTask:
         status === "ELECTION_NIGHT" && election.electionNightEndsAt
           ? {
-            cycle: election.cycle,
-            deadline: election.electionNightEndsAt,
-          }
+              cycle: election.cycle,
+              deadline: election.electionNightEndsAt,
+            }
           : null,
     };
   });
@@ -395,8 +394,7 @@ export async function advanceElectionLifecycle(options?: {
   timing?: ElectionTiming;
 }) {
   const now = options?.now ?? new Date();
-  const timing =
-    options?.timing ?? getElectionTiming(env.ELECTION_TIME_MULTIPLIER);
+  const timing = options?.timing ?? (await resolveElectionTiming());
   await ensureElectionSchedule({ now, timing });
   for (const election of ["President", "Senate"] as const) {
     for (let transition = 0; transition < 4; transition++) {

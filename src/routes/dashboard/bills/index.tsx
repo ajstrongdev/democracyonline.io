@@ -1,6 +1,12 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useDeferredValue, useState } from "react";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, XCircle } from "lucide-react";
+import {
+  BillStageCountdown,
+  billStatusLabel,
+  getNextBillStage,
+  invalidateAfterBillExpiry,
+} from "@/components/bill-stage-countdown";
 import { WikiHeader } from "@/components/wiki/wiki-header";
 import { WikiEmpty, WikiPage, WikiSearch } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +80,7 @@ export const Route = createFileRoute("/dashboard/bills/")({
 function BillsIndex() {
   const { bills, currentUser, desks } = Route.useLoaderData();
   const { create, desk } = Route.useSearch();
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All");
   const [mineOnly, setMineOnly] = useState(false);
@@ -110,14 +117,20 @@ function BillsIndex() {
         resultCount={filtered.length}
       />
       <div className="flex flex-wrap gap-2">
-        {["All", "Committee", "Voting", "Passed", "Defeated"].map((value) => (
+        {[
+          { value: "All", label: "All" },
+          { value: "Committee", label: "Senate Committee" },
+          { value: "Voting", label: "Voting" },
+          { value: "Passed", label: "Passed" },
+          { value: "Defeated", label: "Defeated" },
+        ].map(({ value, label }) => (
           <Button
             key={value}
             size="sm"
             variant={status === value ? "default" : "outline"}
             onClick={() => setStatus(value)}
           >
-            {value}
+            {label}
           </Button>
         ))}
         {currentUser && (
@@ -142,11 +155,44 @@ function BillsIndex() {
                   <h2 className="font-serif text-xl font-bold">
                     Bill #{bill.id}: {bill.title}
                   </h2>
-                  <Badge variant="outline">{bill.status}</Badge>
+                  <Badge variant="outline">
+                    {billStatusLabel(bill.status)}
+                  </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Proposed by {bill.creator ?? "Unknown"} · {bill.stage} stage
+                  Proposed by {bill.creator ?? "Unknown"} ·{" "}
+                  {bill.status === "Committee"
+                    ? "Senate Committee"
+                    : `${bill.stage} stage`}
                 </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {bill.stageEndsAt ? (
+                    <>
+                      <Badge variant="outline" className="gap-1.5 px-3 py-1.5">
+                        <Clock3 className="h-3.5 w-3.5" />
+                        <BillStageCountdown
+                          target={bill.stageEndsAt}
+                          onExpire={() =>
+                            invalidateAfterBillExpiry(() => router.invalidate())
+                          }
+                        />
+                      </Badge>
+                      {getNextBillStage(bill) ? (
+                        <span className="text-xs text-muted-foreground">
+                          Next stage: {getNextBillStage(bill)}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : bill.status === "Passed" || bill.status === "Defeated" ? (
+                    <span className="text-xs text-muted-foreground">
+                      Lifecycle complete — no further deadlines
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      No active deadline
+                    </span>
+                  )}
+                </div>
                 <div className="space-y-3 border-y py-3">
                   <StageVotes
                     label="House"

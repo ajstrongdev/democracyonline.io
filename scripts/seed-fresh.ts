@@ -74,7 +74,7 @@ try {
       "join_requests", "coalition_members", "coalition_former_members", "coalitions",
       "moderation_audit_log", "moderation_flags", "player_reports", "player_invitations",
       "party_stances", "political_stances", "chats", "feed", "bills",
-      "game_tracker", "elections", "users", "parties"
+      "game_tracker", "game_settings", "elections", "users", "parties"
     restart identity cascade
   `);
 
@@ -224,6 +224,14 @@ try {
     ],
   );
   await insertRows("game_tracker", ["bill_pool"], [[1]]);
+  await insertRows(
+    "game_settings",
+    ["key", "value"],
+    [
+      ["speed_mode", "regular"],
+      ["speed_multiplier", "1"],
+    ],
+  );
   const now = new Date();
   const fourDaysMs = 4 * 24 * 60 * 60 * 1000;
   const tenDaysMs = 10 * 24 * 60 * 60 * 1000;

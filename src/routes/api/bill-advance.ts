@@ -14,12 +14,12 @@ import { getAdminAuth } from "@/lib/firebase-admin";
 import { authorizeCronRequest } from "@/lib/server/cron-auth";
 import { lockCommitteeOutcome } from "@/lib/server/committee";
 import { applyPassedBillEffects } from "@/lib/server/bill-effects";
+import { getBillStageDurationMs, getGameSpeed } from "@/lib/server/game-speed";
 
 const oAuth2Client = new OAuth2Client();
-const BILL_STAGE_DURATION_MS = 8 * 60 * 60 * 1000;
 
-function nextStageDeadline(now: Date) {
-  return new Date(now.getTime() + BILL_STAGE_DURATION_MS);
+function nextStageDeadline(now: Date, stageDurationMs: number) {
+  return new Date(now.getTime() + stageDurationMs);
 }
 
 export const Route = createFileRoute("/api/bill-advance")({
@@ -48,6 +48,9 @@ export const Route = createFileRoute("/api/bill-advance")({
         }
 
         try {
+          const stageDurationMs = getBillStageDurationMs(
+            (await getGameSpeed()).multiplier,
+          );
           await db.transaction(async (tx) => {
             await tx.execute(sql`select pg_advisory_xact_lock(24092026)`);
             const now = new Date();
@@ -111,12 +114,16 @@ export const Route = createFileRoute("/api/bill-advance")({
                 .set(
                   result.yes > result.no
                     ? {
-                      stage: "Presidential",
-                      status: "Voting",
-                      stageStartedAt: now,
-                      stageEndsAt: nextStageDeadline(now),
-                    }
-                    : { status: "Defeated", stageStartedAt: now, stageEndsAt: null },
+                        stage: "Presidential",
+                        status: "Voting",
+                        stageStartedAt: now,
+                        stageEndsAt: nextStageDeadline(now, stageDurationMs),
+                      }
+                    : {
+                        status: "Defeated",
+                        stageStartedAt: now,
+                        stageEndsAt: null,
+                      },
                 )
                 .where(and(eq(bills.id, bill.id), eq(bills.status, "Voting")));
             }
@@ -138,12 +145,16 @@ export const Route = createFileRoute("/api/bill-advance")({
                 .set(
                   result.yes > result.no
                     ? {
-                      stage: "Senate",
-                      status: "Voting",
-                      stageStartedAt: now,
-                      stageEndsAt: nextStageDeadline(now),
-                    }
-                    : { status: "Defeated", stageStartedAt: now, stageEndsAt: null },
+                        stage: "Senate",
+                        status: "Voting",
+                        stageStartedAt: now,
+                        stageEndsAt: nextStageDeadline(now, stageDurationMs),
+                      }
+                    : {
+                        status: "Defeated",
+                        stageStartedAt: now,
+                        stageEndsAt: null,
+                      },
                 )
                 .where(and(eq(bills.id, bill.id), eq(bills.status, "Voting")));
             }
@@ -159,11 +170,9 @@ export const Route = createFileRoute("/api/bill-advance")({
                 ),
               );
             for (const bill of committeeBills) {
-              await lockCommitteeOutcome(tx, bill.id);
-              await tx
-                .update(bills)
-                .set({ stageStartedAt: now, stageEndsAt: nextStageDeadline(now) })
-                .where(eq(bills.id, bill.id));
+              // lockCommitteeOutcome transitions Committee -> Voting and
+              // starts the fresh 8h House voting window.
+              await lockCommitteeOutcome(tx, bill.id, now, stageDurationMs);
             }
           });
 

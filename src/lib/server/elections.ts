@@ -20,6 +20,8 @@ import {
 import { getElectionCoverage } from "@/lib/server/election-coverage";
 import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
 import { ensureElectionSchedule } from "@/lib/server/election-schedule";
+import { getElectionTiming } from "@/lib/elections/timing";
+import { getGameSpeed } from "@/lib/server/game-speed";
 import { addFeedItem } from "@/lib/server/feed";
 import { scoreRankedBallot } from "@/lib/utils/ranked-choice";
 
@@ -601,7 +603,17 @@ export const getCurrentElectionDashboard = createServerFn()
       }),
     );
 
-    return { asOf: now, races: races.filter((race) => race !== null) };
+    const speed = await getGameSpeed();
+    const activeTiming = getElectionTiming(speed.multiplier);
+
+    return {
+      asOf: now,
+      races: races.filter((race) => race !== null),
+      timing: {
+        multiplier: speed.multiplier,
+        concludedDurationMs: activeTiming.concludedDurationMs,
+      },
+    };
   });
 
 export type CurrentElectionDashboard = Awaited<

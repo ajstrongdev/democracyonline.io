@@ -608,19 +608,23 @@ CRON_LOCAL_TOKEN=local-dev-token
 DEPLOYED_ENV=development
 ```
 
-## 3) Set the dev heartbeat schedule
+## 3) Set the game pace (DB-owned, changed in /admin)
 
-For the dev instance, set your environment variables to a much faster heartbeat:
+Game pace is no longer set with environment variables. Apply migrations first
+(step 4 runs before first deploy), then pick a speed in `/admin` → Game
+speed. Presets: super-slow 0.25x, slow 0.5x, regular 1x, fast 2x, super-fast
+72x, dev 720x, dev-relaxed 2x. Switching rescales every live deadline, so for
+a beta dev instance pick `dev` (pres cycle ≈57min, bill stages ≈40s) instead
+of waiting days.
 
-```env
-BILL_ADVANCE_SCHEDULE_UTC="*/5 * * * *"
-GAME_ADVANCE_SCHEDULE_UTC="*/20 * * * *"
-ELECTION_TIME_MULTIPLIER="72"
-```
+`ELECTION_TIME_MULTIPLIER` remains only as a fallback for a fresh database
+with no settings row. `BILL_ADVANCE_SCHEDULE_UTC` is legacy. Election
+transitions are handled by the scheduler sidecar checking durable deadlines
+every minute in both environments; the lifecycle transaction always
+re-checks the deadline, so an election cannot transition early or twice.
+Production should stay on `regular`.
 
-This makes the election lifecycle run at the same 72x scale as the Dev game heartbeat: production advances every 24 hours, while Dev advances every 20 minutes. Election durations are therefore divided by 72 while wall-clock time itself remains unchanged.
-
-With the current production timings, Dev elections use approximately:
+For reference, the old 72x dev heartbeat produced approximately:
 
 - Senate candidacy: 80 minutes instead of 4 days
 - Senate voting: 80 minutes instead of 4 days
@@ -629,18 +633,6 @@ With the current production timings, Dev elections use approximately:
 - Election night: 10 minutes instead of 12 hours
 - Senate concluded period: 2 hours instead of 6 days
 - Presidential concluded period: 2 hours 40 minutes instead of 8 days
-
-Election transitions are handled by a private scheduler sidecar that checks the durable deadlines every second in both environments. This keeps transitions within roughly one second of their deadline and catches up automatically after a container restart. The 20-minute Dev heartbeat still handles the other game-advance work; it is no longer responsible for election transition timing.
-
-This is near-exact timing rather than a hard real-time guarantee: container scheduling, database locks, network delays, and host pauses can still introduce a small delay. The lifecycle transaction always re-checks the deadline, so an election cannot transition early or transition twice.
-
-Production can keep the normal values:
-
-```env
-BILL_ADVANCE_SCHEDULE_UTC="0 4,12,20 * * *"
-GAME_ADVANCE_SCHEDULE_UTC="0 20 * * *"
-ELECTION_TIME_MULTIPLIER="1"
-```
 
 ## 4) Apply migrations and deploy production
 
@@ -770,28 +762,67 @@ Before applying a migration:
 
 Drizzle records applied migrations in the database. Do not delete rows from its migration bookkeeping table and do not manually edit an applied migration unless you understand the recovery procedure.
 
-## 10) Cron jobs
+## 10) Scheduler (no system cron required)
 
-The app exposes the job endpoints for advancing the game:
+Do not use system `crontab` for bill/election advancement. Both environments
+run an `election-scheduler` sidecar (see `docker-compose.dev.yml` /
+`docker-compose.prod.yml`) that loops every 60 seconds over the Docker network:
 
-- `/api/bill-advance`
-- `/api/game-advance`
-
-These should be hit by a cron job or external scheduler using the configured token:
-
-```bash
-curl -X POST "https://democracyonline.io/api/game-advance" \
-  -H "Authorization: Bearer $CRON_SCHEDULER_TOKEN"
+```text
+POST http://app:3000/api/election-advance  (every tick: due election deadlines)
+GET  http://app:3000/api/bill-advance      (every tick: due per-bill stage deadlines)
+GET  http://app:3000/api/game-advance      (every tick; self-throttles server-side to game pace)
 ```
 
-For dev:
+Implementation: [`scripts/scheduler.mjs`](scripts/scheduler.mjs). Auth is
+`x-internal-cron-token: $CRON_INTERNAL_TOKEN` and only works when the token
+matches the app container. The scheduler exits on boot when
+`CRON_INTERNAL_TOKEN` is missing so a misconfigured deploy fails visibly
+instead of idling with 401s.
+
+`GAME_ADVANCE_SCHEDULE_UTC` still drives the calendar display. Game-advance
+work itself is triggered by the throttled sidecar call above, not by cron.
+`BILL_ADVANCE_SCHEDULE_UTC` is legacy: bills use per-row `stage_ends_at`
+deadlines reconciled every minute, not a global cron schedule.
+
+View scheduler logs on the VPS:
 
 ```bash
-curl -X POST "https://dev.oscana.nya.je/api/game-advance" \
-  -H "Authorization: Bearer $CRON_SCHEDULER_TOKEN"
+docker compose --env-file .env \
+  -f docker-compose.yml -f docker-compose.dev.yml \
+  logs --follow --timestamps election-scheduler
 ```
 
-You can schedule these with `crontab`, a hosted cron service, or your Linux VPS cron.
+Expected entries look like:
+
+```text
+[scheduler] starting target=http://app:3000 intervalMs=60000
+[scheduler] 2026-09-23T... /api/election-advance 200 12ms
+[scheduler] 2026-09-23T... /api/bill-advance 200 15ms
+```
+
+A `200` only means the reconciler completed; it may make no state changes if
+no deadline has elapsed. After changing `scripts/scheduler.mjs`, redeploy
+(`pnpm deploy:dev` / `pnpm deploy:prod`) because the script is copied into the
+runtime image by `Dockerfile`.
+
+Manual checks from the VPS:
+
+```bash
+# Scheduler container is running
+docker compose --env-file .env -f docker-compose.yml -f docker-compose.dev.yml ps
+
+# Force one reconciliation round (same auth the sidecar uses)
+docker compose --env-file .env -f docker-compose.yml -f docker-compose.dev.yml \
+  exec election-scheduler node -e '
+fetch("http://app:3000/api/bill-advance", {
+  headers: { "x-internal-cron-token": process.env.CRON_INTERNAL_TOKEN }
+}).then(async r => { console.log(r.status); console.log(await r.text()) })'
+```
+
+Admins can also trigger one round from `/admin` (Manual Advance Triggers)
+without SSH. If that returns 401/403, check `ADMIN_EMAILS` and Firebase auth,
+not the scheduler token.
 
 ## 11) Install and configure Caddy
 

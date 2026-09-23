@@ -172,8 +172,8 @@ function Dashboard() {
                         <div className="min-w-0">
                           <p className="font-semibold">Assess {bill.title}</p>
                           <p className="text-sm text-muted-foreground">
-                            The Committee is waiting for your assessment of this
-                            bill's national effects.
+                            The Senate Committee is waiting for your assessment
+                            of this bill's national effects.
                           </p>
                         </div>
                       </div>

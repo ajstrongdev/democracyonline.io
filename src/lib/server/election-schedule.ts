@@ -1,8 +1,7 @@
 import type { ElectionTiming } from "@/lib/elections/timing";
 import { db } from "@/db";
 import { elections } from "@/db/schema";
-import { getElectionTiming } from "@/lib/elections/timing";
-import { env } from "@/env";
+import { resolveElectionTiming } from "@/lib/server/game-speed";
 
 function initialElection(
   election: "President" | "Senate",
@@ -25,8 +24,7 @@ export async function ensureElectionSchedule(options?: {
   timing?: ElectionTiming;
 }) {
   const now = options?.now ?? new Date();
-  const timing =
-    options?.timing ?? getElectionTiming(env.ELECTION_TIME_MULTIPLIER);
+  const timing = options?.timing ?? (await resolveElectionTiming());
   await db
     .insert(elections)
     .values([

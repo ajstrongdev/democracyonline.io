@@ -21,7 +21,6 @@ import {
   getCurrentElectionDashboard,
   revokeCandidate,
 } from "@/lib/server/elections";
-import { DEFAULT_ELECTION_TIMING } from "@/lib/elections/timing";
 import { DashboardElectionCountdown } from "@/components/dashboard-election-countdown";
 import { RankedBallot } from "@/components/ranked-ballot";
 import { Badge } from "@/components/ui/badge";
@@ -178,6 +177,7 @@ export function DashboardElectionHub({
               key={`${race.election}-${race.cycle}`}
               race={race}
               races={data.races}
+              timing={data.timing}
               currentUser={currentUser}
               onRefresh={() => void refresh()}
               onActionComplete={() => void router.invalidate()}
@@ -214,6 +214,7 @@ export function DashboardElectionHub({
               key={`${race.election}-${race.cycle}`}
               race={race}
               races={data.races}
+              timing={data.timing}
               currentUser={currentUser}
               onRefresh={() => void refresh()}
               onActionComplete={() => void router.invalidate()}
@@ -228,12 +229,14 @@ export function DashboardElectionHub({
 function CompactRaceRow({
   race,
   races,
+  timing,
   currentUser,
   onRefresh,
   onActionComplete,
 }: {
   race: Race;
   races: CurrentElectionDashboard["races"];
+  timing: CurrentElectionDashboard["timing"];
   currentUser: CurrentUser;
   onRefresh: () => void;
   onActionComplete: () => void;
@@ -295,7 +298,7 @@ function CompactRaceRow({
               target={
                 new Date(
                   new Date(race.timestamps.concludedAt).getTime() +
-                    DEFAULT_ELECTION_TIMING.concludedDurationMs[race.election],
+                    timing.concludedDurationMs[race.election],
                 )
               }
               onExpire={onRefresh}
@@ -542,7 +545,9 @@ function CompactConcludedStatus({ race }: { race: Race }) {
         <span className="flex items-center gap-1.5 text-xs">
           <span
             className="inline-block h-2 w-2 shrink-0 rounded-full"
-            style={{ backgroundColor: w.party?.color ?? "var(--muted-foreground)" }}
+            style={{
+              backgroundColor: w.party?.color ?? "var(--muted-foreground)",
+            }}
           />
           <span className="font-semibold">{w.username}</span>
           {affiliation && (
@@ -564,7 +569,9 @@ function CompactConcludedStatus({ race }: { race: Race }) {
       partyTotals.set(name, { count: 1, color });
     }
   }
-  const sorted = [...partyTotals.entries()].sort((a, b) => b[1].count - a[1].count);
+  const sorted = [...partyTotals.entries()].sort(
+    (a, b) => b[1].count - a[1].count,
+  );
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -670,7 +677,8 @@ function ElectionNightCard({
                 </strong>
                 {race.coverage.reportedPoints > 0 && (
                   <p className="mt-1 font-mono text-sm text-white/50">
-                    {race.coverage.reportedPoints.toLocaleString()} points reported
+                    {race.coverage.reportedPoints.toLocaleString()} points
+                    reported
                   </p>
                 )}
               </div>
@@ -699,7 +707,10 @@ function ElectionNightCard({
                   data={standings.map((c) => ({
                     name: c.username,
                     value: c.points ?? 0,
-                    color: c.party?.color ?? c.affiliation.color ?? "var(--muted-foreground)",
+                    color:
+                      c.party?.color ??
+                      c.affiliation.color ??
+                      "var(--muted-foreground)",
                   }))}
                   dataKey="value"
                   cx="50%"
@@ -711,7 +722,11 @@ function ElectionNightCard({
                   {standings.map((c, i) => (
                     <Cell
                       key={i}
-                      fill={c.party?.color ?? c.affiliation.color ?? "var(--muted-foreground)"}
+                      fill={
+                        c.party?.color ??
+                        c.affiliation.color ??
+                        "var(--muted-foreground)"
+                      }
                       fillOpacity={0.9}
                     />
                   ))}
@@ -731,7 +746,9 @@ function ElectionNightCard({
                         className="h-2 w-2 shrink-0 rounded-full"
                         style={{
                           backgroundColor:
-                            c.party?.color ?? c.affiliation.color ?? "var(--muted-foreground)",
+                            c.party?.color ??
+                            c.affiliation.color ??
+                            "var(--muted-foreground)",
                         }}
                       />
                       <span className="text-white/70">{c.username}</span>
@@ -783,7 +800,9 @@ function ElectionNightCard({
                       style={{
                         width: `${share}%`,
                         backgroundColor:
-                          candidate.party?.color ?? candidate.affiliation.color ?? "var(--primary)",
+                          candidate.party?.color ??
+                          candidate.affiliation.color ??
+                          "var(--primary)",
                       }}
                     />
                   </div>
@@ -832,12 +851,13 @@ function ElectionNightCandidateIdentity({
 }: {
   candidate: Race["candidates"][number];
 }) {
-  const color = candidate.party?.color ?? candidate.affiliation.color ?? "#64748b";
+  const color =
+    candidate.party?.color ?? candidate.affiliation.color ?? "#64748b";
   const label = candidate.party?.name
     ? candidate.coalition?.name
       ? `${candidate.party.name} / ${candidate.coalition.name}`
       : candidate.party.name
-    : candidate.affiliation.name ?? "Independent";
+    : (candidate.affiliation.name ?? "Independent");
   const content = (
     <>
       <span
@@ -851,9 +871,7 @@ function ElectionNightCandidateIdentity({
         <span className="block truncate font-semibold">
           {candidate.username}
         </span>
-        <span className="block truncate text-xs text-white/50">
-          {label}
-        </span>
+        <span className="block truncate text-xs text-white/50">{label}</span>
       </span>
     </>
   );
@@ -883,7 +901,8 @@ function partySeatSummary(
       ? candidate.coalition?.name
         ? `${candidate.party.name} / ${candidate.coalition.name}`
         : candidate.party.name
-      : candidate.affiliation.type === "Party" || candidate.affiliation.type === "Coalition"
+      : candidate.affiliation.type === "Party" ||
+          candidate.affiliation.type === "Coalition"
         ? (candidate.affiliation.name ?? "Unknown")
         : "Independent";
     const color = candidate.party?.color ?? candidate.affiliation.color ?? "";

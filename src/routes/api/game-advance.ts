@@ -6,6 +6,12 @@ import { parties, users } from "@/db/schema";
 import { env } from "@/env";
 import { authorizeCronRequest } from "@/lib/server/cron-auth";
 import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
+import {
+  getGameAdvanceIntervalMs,
+  getGameSpeed,
+  getLastGameAdvanceAt,
+  markGameAdvanceRun,
+} from "@/lib/server/game-speed";
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { archiveEmptyParties } from "@/lib/server/organization-lifecycle";
 
@@ -35,6 +41,23 @@ export const Route = createFileRoute("/api/game-advance")({
 
         if (authFailure) {
           return authFailure;
+        }
+
+        // Server-side throttle: inactivity counters must advance at game
+        // pace (24h at regular speed), not on every scheduler tick. The
+        // scheduler may call every minute; this no-ops until due.
+        const gameSpeed = await getGameSpeed();
+        const gameIntervalMs = getGameAdvanceIntervalMs(gameSpeed.multiplier);
+        const lastRun = await getLastGameAdvanceAt();
+        const now = new Date();
+        if (lastRun && now.getTime() - lastRun.getTime() < gameIntervalMs) {
+          return new Response(
+            JSON.stringify({ success: true, skipped: true }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
         }
 
         try {
@@ -112,6 +135,7 @@ export const Route = createFileRoute("/api/game-advance")({
 
           await db.transaction((tx) => archiveEmptyParties(tx));
 
+          await markGameAdvanceRun(new Date());
           console.log("[game-advance] Game advance completed successfully");
           return new Response(JSON.stringify({ success: true }), {
             status: 200,

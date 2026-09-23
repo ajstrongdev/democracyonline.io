@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Clock3, FileText, Gamepad2, ShieldCheck } from "lucide-react";
+import { Clock3, FileText, Gamepad2, Gauge, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import {
   checkIsAdmin,
@@ -9,6 +9,8 @@ import {
   listFirebaseUsers,
   setElectionStageDeadline,
 } from "@/lib/server/admin";
+import { getGameSpeedFn, setGameSpeedFn } from "@/lib/server/game-speed";
+import { describeGameSpeed } from "@/lib/game-speed";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserList from "@/components/admin/user-list";
 import DBUserList from "@/components/admin/db-user-list";
@@ -68,6 +70,19 @@ function RouteComponent() {
   }>({ game: false, bills: false, elections: false });
   const [gameAdvanceCount, setGameAdvanceCount] = useState(1);
   const [billAdvanceCount, setBillAdvanceCount] = useState(1);
+  const [gameSpeed, setGameSpeed] = useState<{
+    mode: string;
+    multiplier: number;
+    pace: ReturnType<typeof describeGameSpeed>;
+    modes: Array<{
+      mode: string;
+      multiplier: number;
+      label: string;
+      blurb: string;
+    }>;
+  } | null>(null);
+  const [pendingSpeed, setPendingSpeed] = useState<string | null>(null);
+  const [speedSaving, setSpeedSaving] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -91,13 +106,15 @@ function RouteComponent() {
           return;
         }
 
-        const [fbUsers, databaseUsers] = await Promise.all([
+        const [fbUsers, databaseUsers, speed] = await Promise.all([
           listFirebaseUsers(),
           listDatabaseUsers(),
+          getGameSpeedFn(),
         ]);
 
         setFirebaseUsers(fbUsers.users);
         setDbUsers(databaseUsers.users);
+        setGameSpeed(speed);
       } catch {
         navigate({ to: "/" });
       } finally {
@@ -217,6 +234,36 @@ function RouteComponent() {
       );
     } finally {
       setAdvanceLoading((current) => ({ ...current, elections: false }));
+    }
+  };
+
+  const applyGameSpeed = async () => {
+    if (!pendingSpeed) return;
+    setSpeedSaving(true);
+    try {
+      const result = await setGameSpeedFn({ data: { mode: pendingSpeed } });
+      setGameSpeed((current) =>
+        current
+          ? {
+              ...current,
+              mode: result.mode,
+              multiplier: result.multiplier,
+              pace: result.pace,
+            }
+          : current,
+      );
+      setPendingSpeed(null);
+      const r = result.rescaled;
+      toast.success(
+        `Game speed set to ${result.mode} (${result.multiplier}x). ` +
+          `Rescaled ${r.bills} bill, ${r.candidacy + r.voting + r.electionNight + r.concluded} election, ${r.reveals} reveal deadlines.`,
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not set game speed",
+      );
+    } finally {
+      setSpeedSaving(false);
     }
   };
 
@@ -408,7 +455,77 @@ function RouteComponent() {
             </AlertDialog>
           </div>
         </div>
+
+        <div className="mt-6 border-t pt-6">
+          <div className="mb-1 flex items-center gap-2">
+            <Gauge className="h-4 w-4" />
+            <h3 className="text-lg font-semibold">Game speed</h3>
+          </div>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {gameSpeed ? (
+              <>
+                Running at <strong>{gameSpeed.mode}</strong> (
+                {gameSpeed.multiplier}x). Pres cycle {gameSpeed.pace.presCycle},
+                senate {gameSpeed.pace.senateCycle}, bill stages{" "}
+                {gameSpeed.pace.billStage}, game tick {gameSpeed.pace.gameTick}.
+                Switching rescales every live deadline proportionally.
+              </>
+            ) : (
+              "Loading current pace…"
+            )}
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {(gameSpeed?.modes ?? []).map((preset) => {
+              const pace = describeGameSpeed(preset.multiplier);
+              const active = gameSpeed?.mode === preset.mode;
+              return (
+                <Button
+                  key={preset.mode}
+                  variant={active ? "default" : "outline"}
+                  disabled={speedSaving || active}
+                  className="h-auto flex-col items-start gap-1 px-3 py-2.5 text-left"
+                  onClick={() => setPendingSpeed(preset.mode)}
+                >
+                  <span className="font-semibold">
+                    {preset.label} · {preset.multiplier}x
+                  </span>
+                  <span className="text-xs font-normal opacity-80">
+                    Pres {pace.presCycle} · Senate {pace.senateCycle} · Bills{" "}
+                    {pace.billStage}
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
+        </div>
       </div>
+
+      <AlertDialog
+        open={pendingSpeed !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingSpeed(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Switch game speed to {pendingSpeed}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Every live bill, election, and reveal deadline is rescaled
+              proportionally, so in-flight items keep their progress. Overdue
+              items advance on the next scheduler tick. The new pace sticks
+              until you change it again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={speedSaving} onClick={applyGameSpeed}>
+              {speedSaving ? "Switching…" : "Confirm"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Tabs defaultValue="users" className="w-full">
         <TabsList className="grid w-full max-w-xl grid-cols-2">

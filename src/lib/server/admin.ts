@@ -20,12 +20,14 @@ import {
   users,
   votes,
 } from "@/db/schema";
-import { getElectionTiming } from "@/lib/elections/timing";
 import { generateElectionNightPlan } from "@/lib/elections/reveal";
 import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
+import { resolveElectionTiming } from "@/lib/server/game-speed";
 import { archivePartyIfEmpty } from "@/lib/server/organization-lifecycle";
 
-const ELECTION_TIMING = getElectionTiming(env.ELECTION_TIME_MULTIPLIER);
+async function getAdminElectionTiming() {
+  return resolveElectionTiming();
+}
 
 export function isAdminEmail(email: string) {
   return env.ADMIN_EMAILS.some(
@@ -111,6 +113,7 @@ export const forceNextElectionStage = createServerFn({ method: "POST" })
     if (!email || !isAdminEmail(email)) throw new Error("Unauthorized");
 
     const now = new Date();
+    const ELECTION_TIMING = await getAdminElectionTiming();
     await db.transaction(async (tx) => {
       await tx.execute(
         sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = ${data.election} FOR UPDATE`,
@@ -203,7 +206,7 @@ export const forceNextElectionStage = createServerFn({ method: "POST" })
           .set({
             concludedAt: new Date(
               now.getTime() -
-              ELECTION_TIMING.concludedDurationMs[data.election],
+                ELECTION_TIMING.concludedDurationMs[data.election],
             ),
           })
           .where(eq(elections.election, data.election));
@@ -232,6 +235,7 @@ export const setElectionStageDeadline = createServerFn({ method: "POST" })
 
     const now = new Date();
     const deadline = new Date(now.getTime() + data.seconds * 1_000);
+    const ELECTION_TIMING = await getAdminElectionTiming();
     await db.transaction(async (tx) => {
       await tx.execute(
         sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = ${data.election} FOR UPDATE`,

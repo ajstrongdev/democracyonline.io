@@ -44,14 +44,21 @@ const assessmentSchema = z.object({
   ),
 });
 
-export async function lockCommitteeOutcome(tx: Transaction, billId: number) {
+const BILL_STAGE_DURATION_MS = 8 * 60 * 60 * 1000;
+
+export async function lockCommitteeOutcome(
+  tx: Transaction,
+  billId: number,
+  now: Date = new Date(),
+  stageDurationMs: number = BILL_STAGE_DURATION_MS,
+) {
   const [bill] = await tx
     .select()
     .from(bills)
     .where(eq(bills.id, billId))
     .limit(1);
   if (!bill || bill.status !== "Committee")
-    throw new Error("Bill is no longer in Committee");
+    throw new Error("Bill is no longer in Senate Committee");
 
   const assessments = await tx
     .select({ id: committeeAssessments.id })
@@ -120,8 +127,14 @@ export async function lockCommitteeOutcome(tx: Transaction, billId: number) {
     .update(bills)
     .set({
       status: "Voting",
-      committeeClosedAt: new Date(),
+      committeeClosedAt: now,
       committeeParticipantCount: assessments.length,
+      // A bill closed early from Committee must start a fresh voting
+      // window (8h at regular speed, scaled by the game speed). Without this
+      // it would retain the original Committee deadline and advance (or
+      // stall) at the wrong time. See docs/BILL_HANDOVER.md.
+      stageStartedAt: now,
+      stageEndsAt: new Date(now.getTime() + stageDurationMs),
     })
     .where(and(eq(bills.id, billId), eq(bills.status, "Committee")));
 }
@@ -342,7 +355,7 @@ export const saveCommitteeAssessment = createServerFn({ method: "POST" })
         .where(eq(bills.id, data.billId))
         .limit(1);
       if (bill?.status !== "Committee")
-        throw new Error("Committee has closed for this bill");
+        throw new Error("Senate Committee has closed for this bill");
       const [senator] = await tx
         .select({ id: users.id, role: users.role, active: users.isActive })
         .from(users)
@@ -350,7 +363,7 @@ export const saveCommitteeAssessment = createServerFn({ method: "POST" })
         .limit(1);
       if (!senator || senator.role !== "Senator" || !senator.active)
         throw new Error(
-          "Only serving senators can submit Committee assessments",
+          "Only serving senators can submit Senate Committee assessments",
         );
       const [assessment] = await tx
         .insert(committeeAssessments)

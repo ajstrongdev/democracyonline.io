@@ -15,6 +15,7 @@ import {
 } from "@/lib/schemas/bills-schema";
 import { requireAuthMiddleware } from "@/middleware/auth";
 import { addFeedItem } from "@/lib/server/feed";
+import { getBillStageDurationMs, getGameSpeed } from "@/lib/server/game-speed";
 
 // Types
 type BillStages = "house" | "senate" | "presidential";
@@ -232,6 +233,9 @@ export const createBill = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator(CreateBillsSchema)
   .handler(async ({ data }) => {
+    const stageDurationMs = getBillStageDurationMs(
+      (await getGameSpeed()).multiplier,
+    );
     const result = await db
       .insert(bills)
       .values({
@@ -239,7 +243,7 @@ export const createBill = createServerFn()
         content: data.content,
         creatorId: data.creatorId,
         stageStartedAt: new Date(),
-        stageEndsAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
+        stageEndsAt: new Date(Date.now() + stageDurationMs),
       })
       .returning({ id: bills.id });
 
@@ -277,7 +281,7 @@ export const getBillForEdit = createServerFn()
     }
 
     if (bill[0].status !== "Committee") {
-      throw new Error("Only bills in Committee can be edited");
+      throw new Error("Only bills in Senate Committee can be edited");
     }
 
     return bill[0];
@@ -303,7 +307,7 @@ export const updateBill = createServerFn()
     }
 
     if (existingBill[0].status !== "Committee") {
-      throw new Error("Only bills in Committee can be edited");
+      throw new Error("Only bills in Senate Committee can be edited");
     }
 
     // Update only title and content

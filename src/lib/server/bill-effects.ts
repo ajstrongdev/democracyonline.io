@@ -30,7 +30,7 @@ export async function applyPassedBillEffects(tx: Transaction, billId: number) {
   if (!bill || bill.status !== "Passed")
     throw new Error("Only passed legislation can change the nation");
   if (!bill.committeeClosedAt)
-    throw new Error("Passed bill has no locked Committee outcome");
+    throw new Error("Passed bill has no locked Senate Committee outcome");
   if (bill.nationEffectsAppliedAt) return false;
   const [nation] = await tx.select().from(nations).limit(1);
   if (!nation) throw new Error("Nation state is not configured");

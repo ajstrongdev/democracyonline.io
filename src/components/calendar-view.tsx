@@ -62,11 +62,11 @@ function parseDebugTimestamp(value: string): Date | null {
 function LiveTimers({
   serverNow,
   timerSchedules,
-  billAdvanceTime,
+  billAdvance,
 }: {
   serverNow: Date;
   timerSchedules: CalendarData["timerSchedules"];
-  billAdvanceTime: Date;
+  billAdvance: CalendarData["billAdvance"];
 }) {
   const [clockOffsetMs] = useState(() => {
     const serverNowTime = new Date(serverNow).getTime();
@@ -107,27 +107,52 @@ function LiveTimers({
   const simulatedNow = parseDebugTimestamp(simulatedNowInput);
   const effectiveNow = useSimulatedNow && simulatedNow ? simulatedNow : now;
 
-  const nextBills = new Date(billAdvanceTime);
+  const nextBills = billAdvance.nextAdvanceTime
+    ? new Date(billAdvance.nextAdvanceTime)
+    : null;
   const nextGame = getNextUtcTimeFromCron(
     timerSchedules.gameAdvance,
     effectiveNow,
   );
 
+  const billCountdown = nextBills
+    ? formatCountdown(nextBills.getTime() - effectiveNow.getTime())
+    : "—";
+  const billAbsolute = nextBills
+    ? nextBills.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+      })
+    : "No active bill deadlines";
+
   const timers = [
     {
       icon: ScrollText,
-      label: "Bills progress",
+      label: "Next bill deadline",
       time: nextBills,
+      countdown: billCountdown,
+      absolute: billAbsolute,
       color: "text-blue-500",
       bg: "bg-linear-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20",
       iconBg: "bg-blue-500/10",
       description:
-        "One voting pool advances. Each bill receives a 24-hour stage vote.",
+        "Each bill carries its own 8-hour stage deadline. The election-scheduler reconciles due bills every minute.",
     },
     {
       icon: Gamepad2,
       label: "Game update",
       time: nextGame,
+      countdown: formatCountdown(nextGame.getTime() - effectiveNow.getTime()),
+      absolute: nextGame.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+      }),
       color: "text-purple-500",
       bg: "bg-linear-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20",
       iconBg: "bg-purple-500/10",
@@ -138,10 +163,8 @@ function LiveTimers({
 
   return (
     <div className="mb-6 space-y-3">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {timers.map((t) => {
-          const ms = t.time.getTime() - effectiveNow.getTime();
-          const countdown = formatCountdown(ms);
           return (
             <Card key={t.label} className={t.bg}>
               <CardContent className="p-4">
@@ -151,9 +174,12 @@ function LiveTimers({
                   </div>
                   <span className="font-semibold text-sm">{t.label}</span>
                 </div>
-                <div className="text-2xl font-bold tabular-nums tracking-tight mb-2">
-                  {countdown}
+                <div className="text-2xl font-bold tabular-nums tracking-tight mb-1">
+                  {t.countdown}
                 </div>
+                <p className="text-xs text-muted-foreground mb-2">
+                  {t.absolute}
+                </p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {t.description}
                 </p>
@@ -162,6 +188,42 @@ function LiveTimers({
           );
         })}
       </div>
+      {billAdvance.upcoming.length > 0 ? (
+        <Card>
+          <CardContent className="p-4">
+            <p className="font-medium text-sm mb-1">Upcoming bill deadlines</p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Scheduler checks every minute ({timerSchedules.billAdvance}).
+              Bills advance automatically when their deadline passes.
+            </p>
+            <ul className="space-y-1.5">
+              {billAdvance.upcoming.map((bill) => {
+                const deadline = new Date(bill.stageEndsAt);
+                const ms = deadline.getTime() - effectiveNow.getTime();
+                return (
+                  <li
+                    key={bill.id}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="truncate">
+                      Bill #{bill.id} · {bill.status} · {bill.stage} stage
+                    </span>
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
+                      {formatCountdown(ms)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          No active bill deadlines. New bills get an 8-hour Senate Committee
+          deadline on creation and advance automatically via the every-minute
+          scheduler.
+        </p>
+      )}
 
       {import.meta.env.DEV ? (
         <Card className="border-dashed">
@@ -291,8 +353,7 @@ export function CalendarView({ data }: { data: CalendarData }) {
 
   const now = new Date();
 
-  // Filter out bill events from calendar display
-  const calendarEvents = data.upcomingEvents.filter((e) => e.type !== "bill");
+  const calendarEvents = data.upcomingEvents;
 
   const todayEvents = calendarEvents.filter((e) => {
     return (
@@ -319,7 +380,7 @@ export function CalendarView({ data }: { data: CalendarData }) {
     calendarDays.push(day);
   }
 
-  // Group events by date (excluding bill events)
+  // Group events by date
   const eventsByDate = new Map<string, Array<CalendarEvent>>();
   calendarEvents.forEach((event) => {
     const dateKey = `${event.date.getFullYear()}-${event.date.getMonth()}-${event.date.getDate()}`;
@@ -371,7 +432,7 @@ export function CalendarView({ data }: { data: CalendarData }) {
       <LiveTimers
         serverNow={data.serverNow}
         timerSchedules={data.timerSchedules}
-        billAdvanceTime={data.billAdvance.nextAdvanceTime}
+        billAdvance={data.billAdvance}
       />
 
       {/* Today's Events Alert */}
@@ -465,10 +526,11 @@ export function CalendarView({ data }: { data: CalendarData }) {
                       onClick={() =>
                         setSelectedDate(new Date(year, month, day))
                       }
-                      className={`h-24 border rounded-lg p-2 text-left transition-colors relative overflow-hidden ${isTodayDate
+                      className={`h-24 border rounded-lg p-2 text-left transition-colors relative overflow-hidden ${
+                        isTodayDate
                           ? "border-primary bg-primary/5 font-semibold"
                           : "hover:bg-muted/50"
-                        } ${isSelected ? "ring-2 ring-primary" : ""}`}
+                      } ${isSelected ? "ring-2 ring-primary" : ""}`}
                     >
                       <div className="text-sm mb-1">{day}</div>
                       <div className="space-y-0.5">
@@ -498,6 +560,10 @@ export function CalendarView({ data }: { data: CalendarData }) {
                     <span>President</span>
                   </div>
                   <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-green-500" />
+                    <span>Bill deadline</span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-orange-500" />
                     <span>Results</span>
                   </div>
@@ -514,10 +580,10 @@ export function CalendarView({ data }: { data: CalendarData }) {
               <h3 className="font-bold text-lg mb-4">
                 {selectedDate
                   ? selectedDate.toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })
                   : "Select a date"}
               </h3>
 
