@@ -7,13 +7,14 @@ const args = process.argv.slice(2);
 const commandMode = args[0] === 'down' || args[0] === 'restart' ? args[0] : 'up';
 const envName =
     args[0] === 'down' || args[0] === 'restart'
-        ? args[1] ?? 'prod'
-        : args[0] ?? 'prod';
-const normalized = envName === 'prod' || envName === 'production' ? 'prod' : 'dev';
-const envFile = normalized === 'prod' ? '.env.prod' : '.env.dev';
+        ? args[1] ?? process.env.DEPLOYED_ENV ?? 'development'
+        : args[0] ?? process.env.DEPLOYED_ENV ?? 'development';
+const normalized =
+    envName === 'prod' || envName === 'production' ? 'production' : 'development';
+const envFile = '.env';
 const composeFiles = ['-f', 'docker-compose.yml'];
 
-if (normalized === 'prod') {
+if (normalized === 'production') {
     composeFiles.push('-f', 'docker-compose.prod.yml');
 } else {
     composeFiles.push('-f', 'docker-compose.dev.yml');
@@ -36,7 +37,11 @@ if (commandMode === 'down') {
 }
 
 console.log(`Deploying ${normalized} environment: ${command} ${commandArgs.join(' ')}`);
-const result = spawnSync(command, commandArgs, { stdio: 'inherit', shell: false });
+const result = spawnSync(command, commandArgs, {
+    stdio: 'inherit',
+    shell: false,
+    env: { ...process.env, DEPLOYED_ENV: normalized },
+});
 if (result.error) {
     console.error(result.error);
     process.exit(1);

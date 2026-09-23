@@ -135,28 +135,24 @@ pnpm install --frozen-lockfile
 
 If the repository is private, authenticate Git as the VPS deployment user before cloning. Keep the repository checkout and environment files owned by the same user that runs Docker Compose.
 
-Create the two environment files and fill them in using the database and Firebase values described below:
+Create the shared environment file and fill it in using the database and Firebase values described below. Set `DEPLOYED_ENV` in your shell before each script or deploy command to choose the target mode.
 
 ```bash
 cd /srv/democracyonline.io
-cp .env.example .env.prod
-cp .env.example .env.dev
-chmod 600 .env.prod .env.dev
+cp .env.example .env
+chmod 600 .env
 ```
 
-The files must contain different database URLs and domains:
-
-- `.env.prod`: production database and `https://oscana.nya.je`
-- `.env.dev`: development database and `https://dev.oscana.nya.je`
+The single `.env` file should hold the active target settings. The target is selected from the shell via `DEPLOYED_ENV`, for example `DEPLOYED_ENV=development` or `DEPLOYED_ENV=production`.
 
 ### First deployment
 
-Create the external databases first, then apply migrations. The migration commands must run from the repository directory and use the matching environment file:
+Create the external databases first, then apply migrations. The migration commands must run from the repository directory using the shared `.env` file and the active target selection:
 
 ```bash
 cd /srv/democracyonline.io
-COMPOSE_ENV_FILE=.env.dev pnpm exec drizzle-kit migrate
-COMPOSE_ENV_FILE=.env.prod pnpm exec drizzle-kit migrate
+DEPLOYED_ENV=development COMPOSE_ENV_FILE=.env pnpm exec drizzle-kit migrate
+DEPLOYED_ENV=production COMPOSE_ENV_FILE=.env pnpm exec drizzle-kit migrate
 ```
 
 Deploy each environment independently:
@@ -189,7 +185,7 @@ git fetch origin revival
 git checkout revival
 git pull --ff-only origin revival
 pnpm install --frozen-lockfile
-COMPOSE_ENV_FILE=.env.prod pnpm exec drizzle-kit migrate
+DEPLOYED_ENV=production COMPOSE_ENV_FILE=.env pnpm exec drizzle-kit migrate
 pnpm deploy:prod
 ```
 
@@ -221,8 +217,8 @@ pnpm logs:prod
 Check container health and status:
 
 ```bash
-docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml ps
-docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml ps
+DEPLOYED_ENV=development docker compose --env-file .env -f docker-compose.yml -f docker-compose.dev.yml ps
+DEPLOYED_ENV=production docker compose --env-file .env -f docker-compose.yml -f docker-compose.prod.yml ps
 ```
 
 To roll back the app code, check out a known-good commit and redeploy the affected environment:
@@ -285,15 +281,14 @@ sudo -u deploy git clone https://github.com/ajstrongdev/democracyonline.io.git /
 
 If the repository is private, configure a read-only deploy key or another Git credential for the `deploy` user. Do not put a GitHub token in the workflow command or in `.env`.
 
-4. Create `.env.prod` and `.env.dev` on the VPS, owned and readable only by the deployment user:
+4. Create the shared `.env` file on the VPS, owned and readable only by the deployment user:
 
 ```bash
-sudo -u deploy cp /srv/democracyonline.io/.env.example /srv/democracyonline.io/.env.prod
-sudo -u deploy cp /srv/democracyonline.io/.env.example /srv/democracyonline.io/.env.dev
-sudo chmod 600 /srv/democracyonline.io/.env.prod /srv/democracyonline.io/.env.dev
+sudo -u deploy cp /srv/democracyonline.io/.env.example /srv/democracyonline.io/.env
+sudo chmod 600 /srv/democracyonline.io/.env
 ```
 
-Fill in the real Firebase credentials, database URLs, domain names, cron tokens, and schedules. These files stay on the VPS and are not committed to Git.
+Fill in the real Firebase credentials, database URLs, domain names, cron tokens, and schedules. This file stays on the VPS and is not committed to Git. Set `DEPLOYED_ENV=development` or `DEPLOYED_ENV=production` in the shell before running the target-specific commands.
 
 5. Test the exact commands that GitHub Actions will run:
 
@@ -311,8 +306,8 @@ Apply the dev migration before the first dev deployment, then apply the producti
 ```bash
 sudo -iu deploy
 cd /srv/democracyonline.io
-COMPOSE_ENV_FILE=.env.dev pnpm exec drizzle-kit migrate
-COMPOSE_ENV_FILE=.env.prod pnpm exec drizzle-kit migrate
+DEPLOYED_ENV=development COMPOSE_ENV_FILE=.env pnpm exec drizzle-kit migrate
+DEPLOYED_ENV=production COMPOSE_ENV_FILE=.env pnpm exec drizzle-kit migrate
 exit
 ```
 
@@ -370,11 +365,11 @@ After the VPS and secrets are ready:
 
 ```bash
 cd /srv/democracyonline.io
-docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml ps
+DEPLOYED_ENV=development docker compose --env-file .env -f docker-compose.yml -f docker-compose.dev.yml ps
 pnpm logs:dev
 ```
 
-The workflow fetches `origin/revival`, resets the checkout to that commit, removes untracked files, and runs the dev Compose deployment. It does not touch `.env.dev` because that file is untracked and `git clean -fd` does not remove ignored environment files.
+The workflow fetches `origin/revival`, resets the checkout to that commit, removes untracked files, and runs the dev Compose deployment. It does not touch `.env` because that file is untracked and `git clean -fd` does not remove ignored environment files.
 
 ### Manually release Prod
 
@@ -389,7 +384,7 @@ Production releases are manual:
 
 ```bash
 cd /srv/democracyonline.io
-docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml ps
+DEPLOYED_ENV=production docker compose --env-file .env -f docker-compose.yml -f docker-compose.prod.yml ps
 pnpm logs:prod
 ```
 
@@ -540,21 +535,20 @@ psql "postgresql://democracyonline_dev@10.0.0.10:5432/democracyonline_dev" -W -c
 From inside the app container, test the network path after the first app build:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml run --rm app node -e "const net = require('node:net'); const url = new URL(process.env.DATABASE_URL); const socket = net.createConnection({ host: url.hostname, port: Number(url.port || 5432) }, () => { console.log('database host reachable'); socket.end(); }); socket.on('error', (error) => { console.error(error.message); process.exit(1); });"
+DEPLOYED_ENV=production docker compose --env-file .env -f docker-compose.yml -f docker-compose.prod.yml run --rm app node -e "const net = require('node:net'); const url = new URL(process.env.DATABASE_URL); const socket = net.createConnection({ host: url.hostname, port: Number(url.port || 5432) }, () => { console.log('database host reachable'); socket.end(); }); socket.on('error', (error) => { console.error(error.message); process.exit(1); });"
 ```
 
 This only tests TCP reachability. The migration command below tests authentication and database permissions as well.
 
 ## 2) Create environment files
 
-Create the files in the project root:
+Create the shared file in the project root:
 
 ```bash
-cp .env.example .env.prod
-cp .env.example .env.dev
+cp .env.example .env
 ```
 
-Then fill them in with the correct values for each environment.
+Then fill it in with the correct values for the active target. Set `DEPLOYED_ENV=development` or `DEPLOYED_ENV=production` in the shell when running target-specific commands.
 
 The dev environment should use a different database, different Firebase config if needed, and a shorter game schedule.
 
@@ -659,15 +653,15 @@ This starts the app with the prod environment file and the production override.
 Before the first deploy, apply the schema from a machine that can reach the production database:
 
 ```bash
-node --env-file=.env.prod ./node_modules/.bin/drizzle-kit migrate
+DEPLOYED_ENV=production COMPOSE_ENV_FILE=.env pnpm exec drizzle-kit migrate
 ```
 
 Docker does not provision, migrate, seed, or reset PostgreSQL. Environment timing changes apply to newly created or newly transitioned election deadlines; they do not rewrite timestamps already stored in the database. For a fresh Dev environment, run `pnpm seed:fresh:dev` after migrating if you need all initial election timings to use the Dev multiplier.
 
-For development, use `.env.dev` instead:
+For development, use the dev target instead:
 
 ```bash
-node --env-file=.env.dev ./node_modules/.bin/drizzle-kit migrate
+DEPLOYED_ENV=development COMPOSE_ENV_FILE=.env pnpm exec drizzle-kit migrate
 ```
 
 ## 5) Deploy development
@@ -712,13 +706,13 @@ COMPOSE_ENV_FILE=.env pnpm exec drizzle-kit migrate
 pnpm seed:fresh
 ```
 
-For the separate environments, use the matching environment file:
+For the target-specific environments, set the selected target in the shell before running the matching commands:
 
 ```bash
-COMPOSE_ENV_FILE=.env.dev pnpm exec drizzle-kit migrate
+DEPLOYED_ENV=development COMPOSE_ENV_FILE=.env pnpm exec drizzle-kit migrate
 pnpm seed:fresh:dev
 
-COMPOSE_ENV_FILE=.env.prod pnpm exec drizzle-kit migrate
+DEPLOYED_ENV=production COMPOSE_ENV_FILE=.env pnpm exec drizzle-kit migrate
 SEED_ALLOW_PRODUCTION=true pnpm seed:fresh:prod
 ```
 
@@ -933,8 +927,10 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/srv/democracyonline.io
-ExecStart=/usr/bin/docker compose --env-file /srv/democracyonline.io/.env.prod -f /srv/democracyonline.io/docker-compose.yml -f /srv/democracyonline.io/docker-compose.prod.yml up --no-recreate
-ExecStop=/usr/bin/docker compose --env-file /srv/democracyonline.io/.env.prod -f /srv/democracyonline.io/docker-compose.yml -f /srv/democracyonline.io/docker-compose.prod.yml down
+Environment=DEPLOYED_ENV=production
+Environment=COMPOSE_ENV_FILE=/srv/democracyonline.io/.env
+ExecStart=/usr/bin/docker compose --env-file /srv/democracyonline.io/.env -f /srv/democracyonline.io/docker-compose.yml -f /srv/democracyonline.io/docker-compose.prod.yml up --no-recreate
+ExecStop=/usr/bin/docker compose --env-file /srv/democracyonline.io/.env -f /srv/democracyonline.io/docker-compose.yml -f /srv/democracyonline.io/docker-compose.prod.yml down
 Restart=always
 RestartSec=10
 

@@ -4,9 +4,10 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 
 const args = process.argv.slice(2);
-const target = args[0] || 'prod';
-const normalized = target === 'prod' || target === 'production' ? 'prod' : 'dev';
-const envFile = normalized === 'prod' ? '.env.prod' : '.env.dev';
+const target = args[0] ?? process.env.DEPLOYED_ENV ?? 'development';
+const normalized =
+    target === 'prod' || target === 'production' ? 'production' : 'development';
+const envFile = '.env';
 
 if (!existsSync(envFile)) {
     console.error(`Missing ${envFile}. Create it before seeding.`);
@@ -16,7 +17,11 @@ if (!existsSync(envFile)) {
 const result = spawnSync(
     'node',
     ['--env-file', envFile, '--import', 'tsx', 'scripts/seed-fresh.ts'],
-    { stdio: 'inherit', shell: false },
+    {
+        stdio: 'inherit',
+        shell: false,
+        env: { ...process.env, DEPLOYED_ENV: normalized },
+    },
 );
 
 if (result.error) {
