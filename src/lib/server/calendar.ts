@@ -1,21 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq } from "drizzle-orm";
+import { asc, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { elections, gameTracker } from "@/db/schema";
+import { bills, elections, gameTracker } from "@/db/schema";
 import { env } from "@/env";
 import { ensureElectionSchedule } from "@/lib/server/election-schedule";
 import {
-  DEFAULT_BILL_ADVANCE_SCHEDULE_UTC,
   DEFAULT_GAME_ADVANCE_SCHEDULE_UTC,
-  getNextUtcTimeFromCron,
   getSingleDailyUtcAnchor,
   resolveUtcCronSchedule,
 } from "@/lib/utils/utc-schedule";
 
-const BILL_ADVANCE_SCHEDULE_UTC = resolveUtcCronSchedule(
-  env.BILL_ADVANCE_SCHEDULE_UTC,
-  DEFAULT_BILL_ADVANCE_SCHEDULE_UTC,
-);
 const GAME_ADVANCE_SCHEDULE_UTC = resolveUtcCronSchedule(
   env.GAME_ADVANCE_SCHEDULE_UTC,
   DEFAULT_GAME_ADVANCE_SCHEDULE_UTC,
@@ -25,10 +19,6 @@ const gameAdvanceDailyAnchor = getSingleDailyUtcAnchor(
 );
 const GAME_ADVANCE_HOUR_UTC = gameAdvanceDailyAnchor?.hour ?? 20;
 const GAME_ADVANCE_MINUTE_UTC = gameAdvanceDailyAnchor?.minute ?? 0;
-
-function getNextBillAdvanceTime(now: Date): Date {
-  return getNextUtcTimeFromCron(BILL_ADVANCE_SCHEDULE_UTC, now);
-}
 
 export type CalendarEvent = {
   date: Date;
@@ -93,8 +83,14 @@ export const getCalendarData = createServerFn().handler(
       .limit(1);
 
     const [gameData] = await db.select().from(gameTracker).limit(1);
+    const [nextBill] = await db
+      .select({ stageEndsAt: bills.stageEndsAt })
+      .from(bills)
+      .where(isNotNull(bills.stageEndsAt))
+      .orderBy(asc(bills.stageEndsAt))
+      .limit(1);
     const currentPool = gameData?.billPool || 1;
-    const billAdvanceTime = getNextBillAdvanceTime(now);
+    const billAdvanceTime = nextBill?.stageEndsAt ?? new Date(now.getTime() + 60_000);
     const currentStageTiming = (
       election: NonNullable<typeof senateData>,
       concludedDays: number,
@@ -410,7 +406,7 @@ export const getCalendarData = createServerFn().handler(
     return {
       serverNow: now,
       timerSchedules: {
-        billAdvance: BILL_ADVANCE_SCHEDULE_UTC,
+        billAdvance: "every minute",
         gameAdvance: GAME_ADVANCE_SCHEDULE_UTC,
       },
       senateElection,

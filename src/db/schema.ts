@@ -232,6 +232,8 @@ export const bills = pgTable("bills", {
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   pool: integer("pool"),
+  stageStartedAt: timestamp("stage_started_at"),
+  stageEndsAt: timestamp("stage_ends_at"),
   committeeClosedAt: timestamp("committee_closed_at"),
   committeeParticipantCount: integer("committee_participant_count"),
   nationEffectsAppliedAt: timestamp("nation_effects_applied_at"),

@@ -238,6 +238,8 @@ export const createBill = createServerFn()
         title: data.title,
         content: data.content,
         creatorId: data.creatorId,
+        stageStartedAt: new Date(),
+        stageEndsAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
       })
       .returning({ id: bills.id });
 

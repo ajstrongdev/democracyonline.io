@@ -27,15 +27,10 @@ services:
       - ${COMPOSE_ENV_FILE:-.env}
     environment:
       CRON_INTERNAL_TOKEN: ${CRON_INTERNAL_TOKEN}
+      BILL_ADVANCE_SCHEDULE_UTC: ${BILL_ADVANCE_SCHEDULE_UTC:-*/5 * * * *}
     depends_on:
       - app
     command:
       - node
-      - -e
-      - >-
-        const target = 'http://app:3000/api/election-advance';
-        const token = process.env.CRON_INTERNAL_TOKEN;
-        async function tick() {
-        try { const response = await fetch(target, { method: 'POST', headers: { 'x-internal-cron-token': token } }); if (!response.ok) console.error(`[election-scheduler] $${response.status}`); } catch (error) { console.error('[election-scheduler]', error); } setTimeout(tick, 1000); }
-        tick();
+        - /usr/src/app/scripts/scheduler.mjs
     restart: unless-stopped

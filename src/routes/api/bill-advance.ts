@@ -1,13 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, eq, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   billVotesHouse,
   billVotesPresidential,
   billVotesSenate,
   bills,
-  gameTracker,
 } from "@/db/schema";
 import { archiveEmptyParties } from "@/lib/server/organization-lifecycle";
 import { env } from "@/env";
@@ -17,6 +16,11 @@ import { lockCommitteeOutcome } from "@/lib/server/committee";
 import { applyPassedBillEffects } from "@/lib/server/bill-effects";
 
 const oAuth2Client = new OAuth2Client();
+const BILL_STAGE_DURATION_MS = 8 * 60 * 60 * 1000;
+
+function nextStageDeadline(now: Date) {
+  return new Date(now.getTime() + BILL_STAGE_DURATION_MS);
+}
 
 export const Route = createFileRoute("/api/bill-advance")({
   server: {
@@ -46,9 +50,7 @@ export const Route = createFileRoute("/api/bill-advance")({
         try {
           await db.transaction(async (tx) => {
             await tx.execute(sql`select pg_advisory_xact_lock(24092026)`);
-            const [tracker] = await tx.select().from(gameTracker).limit(1);
-            const currentPool = tracker?.billPool || 1;
-            const nextPool = currentPool === 3 ? 1 : currentPool + 1;
+            const now = new Date();
 
             const getResult = async (
               table:
@@ -78,7 +80,7 @@ export const Route = createFileRoute("/api/bill-advance")({
                 and(
                   eq(bills.stage, "Presidential"),
                   eq(bills.status, "Voting"),
-                  eq(bills.pool, currentPool),
+                  lte(bills.stageEndsAt, now),
                 ),
               );
             for (const bill of presidential) {
@@ -86,7 +88,7 @@ export const Route = createFileRoute("/api/bill-advance")({
               const status = result.yes > result.no ? "Passed" : "Defeated";
               await tx
                 .update(bills)
-                .set({ status })
+                .set({ status, stageStartedAt: now, stageEndsAt: null })
                 .where(and(eq(bills.id, bill.id), eq(bills.status, "Voting")));
               if (status === "Passed")
                 await applyPassedBillEffects(tx, bill.id);
@@ -99,7 +101,7 @@ export const Route = createFileRoute("/api/bill-advance")({
                 and(
                   eq(bills.stage, "Senate"),
                   eq(bills.status, "Voting"),
-                  eq(bills.pool, currentPool),
+                  lte(bills.stageEndsAt, now),
                 ),
               );
             for (const bill of senate) {
@@ -108,8 +110,13 @@ export const Route = createFileRoute("/api/bill-advance")({
                 .update(bills)
                 .set(
                   result.yes > result.no
-                    ? { stage: "Presidential", status: "Voting" }
-                    : { status: "Defeated" },
+                    ? {
+                      stage: "Presidential",
+                      status: "Voting",
+                      stageStartedAt: now,
+                      stageEndsAt: nextStageDeadline(now),
+                    }
+                    : { status: "Defeated", stageStartedAt: now, stageEndsAt: null },
                 )
                 .where(and(eq(bills.id, bill.id), eq(bills.status, "Voting")));
             }
@@ -121,7 +128,7 @@ export const Route = createFileRoute("/api/bill-advance")({
                 and(
                   eq(bills.stage, "House"),
                   eq(bills.status, "Voting"),
-                  eq(bills.pool, currentPool),
+                  lte(bills.stageEndsAt, now),
                 ),
               );
             for (const bill of house) {
@@ -130,33 +137,34 @@ export const Route = createFileRoute("/api/bill-advance")({
                 .update(bills)
                 .set(
                   result.yes > result.no
-                    ? { stage: "Senate", status: "Voting" }
-                    : { status: "Defeated" },
+                    ? {
+                      stage: "Senate",
+                      status: "Voting",
+                      stageStartedAt: now,
+                      stageEndsAt: nextStageDeadline(now),
+                    }
+                    : { status: "Defeated", stageStartedAt: now, stageEndsAt: null },
                 )
                 .where(and(eq(bills.id, bill.id), eq(bills.status, "Voting")));
             }
 
-            const [nextBill] = await tx
+            const committeeBills = await tx
               .select()
               .from(bills)
               .where(
-                and(eq(bills.stage, "House"), eq(bills.status, "Committee")),
-              )
-              .orderBy(asc(bills.createdAt), asc(bills.id))
-              .limit(1);
-            if (nextBill) {
-              await lockCommitteeOutcome(tx, nextBill.id);
+                and(
+                  eq(bills.stage, "House"),
+                  eq(bills.status, "Committee"),
+                  lte(bills.stageEndsAt, now),
+                ),
+              );
+            for (const bill of committeeBills) {
+              await lockCommitteeOutcome(tx, bill.id);
               await tx
                 .update(bills)
-                .set({ pool: currentPool })
-                .where(eq(bills.id, nextBill.id));
+                .set({ stageStartedAt: now, stageEndsAt: nextStageDeadline(now) })
+                .where(eq(bills.id, bill.id));
             }
-            if (tracker)
-              await tx
-                .update(gameTracker)
-                .set({ billPool: nextPool })
-                .where(eq(gameTracker.id, tracker.id));
-            else await tx.insert(gameTracker).values({ billPool: nextPool });
           });
 
           try {

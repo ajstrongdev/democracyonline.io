@@ -62,9 +62,11 @@ function parseDebugTimestamp(value: string): Date | null {
 function LiveTimers({
   serverNow,
   timerSchedules,
+  billAdvanceTime,
 }: {
   serverNow: Date;
   timerSchedules: CalendarData["timerSchedules"];
+  billAdvanceTime: Date;
 }) {
   const [clockOffsetMs] = useState(() => {
     const serverNowTime = new Date(serverNow).getTime();
@@ -105,10 +107,7 @@ function LiveTimers({
   const simulatedNow = parseDebugTimestamp(simulatedNowInput);
   const effectiveNow = useSimulatedNow && simulatedNow ? simulatedNow : now;
 
-  const nextBills = getNextUtcTimeFromCron(
-    timerSchedules.billAdvance,
-    effectiveNow,
-  );
+  const nextBills = new Date(billAdvanceTime);
   const nextGame = getNextUtcTimeFromCron(
     timerSchedules.gameAdvance,
     effectiveNow,
@@ -372,6 +371,7 @@ export function CalendarView({ data }: { data: CalendarData }) {
       <LiveTimers
         serverNow={data.serverNow}
         timerSchedules={data.timerSchedules}
+        billAdvanceTime={data.billAdvance.nextAdvanceTime}
       />
 
       {/* Today's Events Alert */}
@@ -465,11 +465,10 @@ export function CalendarView({ data }: { data: CalendarData }) {
                       onClick={() =>
                         setSelectedDate(new Date(year, month, day))
                       }
-                      className={`h-24 border rounded-lg p-2 text-left transition-colors relative overflow-hidden ${
-                        isTodayDate
+                      className={`h-24 border rounded-lg p-2 text-left transition-colors relative overflow-hidden ${isTodayDate
                           ? "border-primary bg-primary/5 font-semibold"
                           : "hover:bg-muted/50"
-                      } ${isSelected ? "ring-2 ring-primary" : ""}`}
+                        } ${isSelected ? "ring-2 ring-primary" : ""}`}
                     >
                       <div className="text-sm mb-1">{day}</div>
                       <div className="space-y-0.5">
@@ -515,10 +514,10 @@ export function CalendarView({ data }: { data: CalendarData }) {
               <h3 className="font-bold text-lg mb-4">
                 {selectedDate
                   ? selectedDate.toLocaleDateString("en-US", {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })
                   : "Select a date"}
               </h3>
 
