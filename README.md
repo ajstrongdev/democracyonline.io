@@ -1,83 +1,31 @@
-# democracyonline.io
+# Democracy Online
 
-Democracy Online is a TanStack Start application backed by PostgreSQL and
-Firebase Authentication.
+Democracy Online is a TanStack Start game application with PostgreSQL and Firebase Authentication. This branch (`revival`) is an unfinished rewrite of the `develop` version. See [the rewrite notes](docs/REVIVAL_OVERVIEW.md) for the main product changes and known gaps.
 
-## VPS Architecture
+## Local development
 
-The supported VPS deployment runs two independent checkouts on one Ubuntu host:
-
-- Production: `/srv/democracyonline-prod` → `https://oscana.nya.je`
-- Development: `/srv/democracyonline-dev` → `https://dev.oscana.nya.je`
-
-Each checkout has its own Git branch, `.env`, Docker Compose project, app,
-scheduler sidecar, and PostgreSQL database. PostgreSQL and Caddy run directly on
-the host. Docker publishes the applications only on loopback ports 3000 and 3001.
-
-For a completely blank VPS, follow [deploy.md](deploy.md) from top to bottom. It
-includes the exact command to download and run the bootstrap script, host
-PostgreSQL provisioning, shared Firebase setup, generated credentials,
-migrations, first-time seeding, TLS, scheduler verification, and a reboot test.
-
-## Local Development
-
-Requirements:
-
-- Node.js 22+
-- pnpm (the pinned version is declared in `package.json`)
-- PostgreSQL 15+
-- Firebase browser and Admin SDK credentials
-
-Install dependencies and create the local environment file:
+Use Node.js 24, pnpm 10.28.2, PostgreSQL, and Firebase credentials. Copy `.env.example` to `.env`, fill it, then run:
 
 ```bash
 pnpm install --frozen-lockfile
-cp .env.example .env
-```
-
-Fill `.env`, apply migrations, optionally initialize a disposable database, and
-start Vite:
-
-```bash
 pnpm db:migrate
-pnpm seed:fresh
 pnpm dev
 ```
 
-`seed:fresh` truncates game data. Never run it against data you intend to keep.
+`pnpm seed:fresh` resets game data. Use it only for a new or disposable database. The scheduler can be run locally with `CRON_INTERNAL_TOKEN` set to the local cron token and `APP_BASE_URL=http://localhost:3001`.
 
-Vite does not run the lifecycle heartbeat. For local bill/election advancement,
-run this in a second terminal using the value of `CRON_LOCAL_TOKEN` from `.env`:
+## VPS
 
-```bash
-CRON_INTERNAL_TOKEN="YOUR_CRON_LOCAL_TOKEN" \
-APP_BASE_URL=http://localhost:3001 \
-SCHEDULER_INTERVAL_MS=10000 \
-node scripts/scheduler.mjs
-```
+The supported deployment is one Ubuntu VPS with two independent Docker Compose projects. Each has its own app, scheduler, PostgreSQL container, database volume, secrets, and Git checkout. Host Caddy provides HTTPS for both domains. See [the VPS runbook](deploy.md) for bootstrap, updates, backups, and recovery.
 
-## VPS Commands
+The host needs Docker, Compose, Caddy, and Git. Node and PostgreSQL run only in containers. Firebase Authentication remains an external service. Use separate Firebase projects for prod and dev so identities and credentials are isolated too.
 
-Run these inside the production or development checkout you intend to operate:
+## Documentation
 
-```bash
-pnpm deploy:check     # validate environment, Compose, and database login
-pnpm deploy           # build and start app + scheduler
-pnpm deploy:restart   # force-recreate both containers
-pnpm deploy:ps        # status
-pnpm deploy:logs      # follow logs
-pnpm deploy:down      # stop this stack
-pnpm update           # pull current branch and redeploy
-pnpm update:migrate   # pull current branch, migrate, and redeploy
-```
+- [Revival rewrite overview](docs/REVIVAL_OVERVIEW.md)
+- [VPS deployment](deploy.md)
+- [Firebase Authentication](docs/FIREBASE_AUTH.md)
+- [Bill lifecycle](docs/BILL_HANDOVER.md)
+- [Bot API](docs/BOT_API.md)
 
-## Other Documentation
-
-- [VPS deployment runbook](./deploy.md)
-- [Firebase Authentication](./docs/FIREBASE_AUTH.md)
-- [Bill lifecycle handover](./docs/BILL_HANDOVER.md)
-- [Bot API](./docs/BOT_API.md)
-
-## License
-
-GNU General Public License v3.0. See [LICENSE](./LICENSE).
+GNU GPL v3.0; see [LICENSE](LICENSE).

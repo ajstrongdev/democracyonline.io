@@ -8,8 +8,9 @@ This project uses Firebase Authentication with email/password sign-in.
    - Go to [Firebase Console](https://console.firebase.google.com/)
    - Create a new project or select an existing one
    - Enable Authentication > Sign-in method > Email/Password
-   - Under Authentication > Settings > Authorized domains, add every deployed
-     hostname (`oscana.nya.je` and `dev.oscana.nya.je` for the VPS setup)
+   - Use separate Firebase projects for production and development.
+   - Under Authentication > Settings > Authorized domains, add only the
+     matching hostname to each project (`oscana.nya.je` or `dev.oscana.nya.je`).
 
 2. **Get Firebase Configuration**
    - In your Firebase project, go to Project Settings
@@ -20,8 +21,8 @@ This project uses Firebase Authentication with email/password sign-in.
 3. **Configure Environment Variables**
    - Local development uses the repository-root `.env`
    - VPS production and development each use the `.env` in their checkout
-   - The current VPS architecture uses one shared Firebase project, so copy the
-     same Firebase values into both checkout files
+   - VPS production and development use different Firebase project values and
+     service accounts in their respective checkout files.
 
 4. **Environment Variables**
 
@@ -51,7 +52,7 @@ This project uses Firebase Authentication with email/password sign-in.
 
 For the complete production procedure, including creating Firebase users that
 match the seeded provisional officeholders, see [the VPS deployment
-runbook](../deploy.md#4-configure-the-shared-firebase-project).
+runbook](../deploy.md#2-fill-the-environment-files).
 
 ## Features
 

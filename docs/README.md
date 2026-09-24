@@ -435,17 +435,9 @@ export const createParty = createServerFn()
 
 ## Deployment
 
-See [docs/CI_CD.md](CI_CD.md) for CI/CD pipeline documentation.
-
-Typical deployment flow:
-
-1. Push to `develop` branch
-2. CI runs tests and linting
-3. Build application
-4. Run database migrations
-5. Deploy to staging environment
-6. Manual approval
-7. Deploy to production
+See the [VPS deployment runbook](../deploy.md). Each environment has its own
+checkout, Compose project, PostgreSQL volume, and Firebase project. Deploy
+development first, verify it, then update production separately.
 
 ## Contributing
 
