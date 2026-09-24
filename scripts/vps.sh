@@ -50,7 +50,9 @@ deploy() {
   check
   compose up -d --wait db
   backup
-  compose --profile tools build migrator app
+  # Build serially to keep peak memory manageable on a small VPS.
+  compose --profile tools build migrator
+  compose build app
   compose stop app election-scheduler >/dev/null 2>&1 || true
   compose --profile tools run --rm migrator
   compose up -d --remove-orphans app election-scheduler

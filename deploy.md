@@ -34,7 +34,7 @@ The branch must be pushed before a fresh VPS can clone it. After review/merge, u
 
 On the currently inspected VPS, both checkouts are clean `develop` checkouts with no `.env`; there are no application containers or Democracy Online databases. Bootstrap can adopt them and switch them to the chosen branch. Host PostgreSQL is installed but contains only default databases; it is unused by this deployment.
 
-The deploy user receives a copy of root's SSH authorized keys if present. Docker group membership lets the deploy user control the host; use a trusted SSH key and restrict that account accordingly. Log in again after bootstrap to pick up group membership.
+The deploy user receives a copy of root's SSH authorized keys if present. Docker group membership lets the deploy user control the host; use a trusted SSH key and restrict that account accordingly. Log in again after bootstrap to pick up group membership. On a host below 6 GiB RAM with no swap, bootstrap creates a 2 GiB `/swapfile`; builds run serially to limit peak memory.
 
 ## 2. Fill the environment files
 

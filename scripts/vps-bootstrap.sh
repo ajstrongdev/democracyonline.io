@@ -47,6 +47,20 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 systemctl enable --now docker
 
+# A small swap file gives the image build room on a 4 GiB VPS. Preserve any
+# swap already configured by the provider or administrator.
+if [[ "$(free -m | awk '$1 == "Mem:" {print $2}')" -lt 6144 && -z "$(swapon --noheadings)" ]]; then
+  if [[ -e /swapfile ]]; then
+    echo "Existing inactive /swapfile found; configure it manually before building." >&2
+  else
+    fallocate -l 2G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null
+    swapon /swapfile
+    printf '/swapfile none swap sw 0 0\n' >> /etc/fstab
+  fi
+fi
+
 if ! id "$APP_USER" >/dev/null 2>&1; then
   adduser --disabled-password --gecos "" "$APP_USER"
 fi
