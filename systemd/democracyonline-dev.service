@@ -1,0 +1,16 @@
+[Unit]
+Description=Democracy Online (development)
+After=network.target docker.service
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=deploy
+WorkingDirectory=/srv/democracyonline-dev
+ExecStart=/usr/bin/docker compose --env-file /srv/democracyonline-dev/.env up -d --no-recreate
+ExecStop=/usr/bin/docker compose --env-file /srv/democracyonline-dev/.env down
+
+[Install]
+WantedBy=multi-user.target

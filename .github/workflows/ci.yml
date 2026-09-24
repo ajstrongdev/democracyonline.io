@@ -2,11 +2,7 @@ name: CI - Lint and Build
 
 on:
   push:
-    branches-ignore:
-      - revival # Deployment workflow handles the default branch
   pull_request:
-    branches:
-      - revival
 
 env:
   GCP_PROJECT_ID: onlinedemocraticrepublic

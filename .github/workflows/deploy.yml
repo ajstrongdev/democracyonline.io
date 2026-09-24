@@ -1,9 +1,6 @@
 name: Deploy VPS
 
 on:
-  push:
-    branches:
-      - revival
   workflow_dispatch:
     inputs:
       environment:
@@ -16,7 +13,7 @@ on:
           - Prod
 
 concurrency:
-  group: deploy-vps-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'Dev' }}
+  group: deploy-vps-${{ inputs.environment }}
   cancel-in-progress: false
 
 permissions:
@@ -24,9 +21,9 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'Dev' }}
+    name: Deploy ${{ inputs.environment }}
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'Dev' }}
+    environment: ${{ inputs.environment }}
     steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.5
@@ -38,14 +35,18 @@ jobs:
           script_stop: true
           script: |
             set -eu
-            cd '${{ secrets.VPS_APP_DIR }}'
-            git fetch --prune origin revival
-            git checkout revival
-            git reset --hard origin/revival
-            git clean -fd
-
-            if [ '${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'Dev' }}' = 'Prod' ]; then
-              pnpm deploy:prod
+            # Each environment is its own checkout with its own .env, so the
+            # same commands deploy either one. VPS_PROD_DIR / VPS_DEV_DIR are
+            # per-environment secrets defaulting to the bootstrap layout.
+            if [ '${{ inputs.environment }}' = 'Prod' ]; then
+              DIR='${{ secrets.VPS_PROD_DIR }}'
+              [ -n "$DIR" ] || DIR='/srv/democracyonline-prod'
             else
-              pnpm deploy:dev
+              DIR='${{ secrets.VPS_DEV_DIR }}'
+              [ -n "$DIR" ] || DIR='/srv/democracyonline-dev'
             fi
+            cd "$DIR"
+            # Preserve the branch currently selected in this checkout. The
+            # update script refuses dirty or detached checkouts and pulls only
+            # a fast-forward from that branch's origin counterpart.
+            pnpm update

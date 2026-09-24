@@ -57,34 +57,45 @@ async function call(path, method, logSuccess = true, skipLogIf = null) {
 }
 
 async function tick() {
-  try {
-    await call("/api/election-advance", "POST");
-    await call("/api/bill-advance", "GET");
+  let failures = 0;
+  const jobs = [
+    { path: "/api/election-advance", method: "POST" },
+    { path: "/api/bill-advance", method: "GET" },
+    {
+      path: "/api/game-advance",
+      method: "GET",
+      skipLogIf: (body) => body.includes('"skipped":true'),
+    },
+  ];
+
+  for (const job of jobs) {
     try {
-      await call("/api/game-advance", "GET", true, (body) =>
-        body.includes('"skipped":true'),
-      );
+      await call(job.path, job.method, true, job.skipLogIf);
     } catch (error) {
+      failures += 1;
+      const hint = error?.message?.includes("401")
+        ? " Check CRON_INTERNAL_TOKEN matches the app container."
+        : error?.message?.includes("fetch failed") ||
+            error?.name === "AbortError"
+          ? " App may still be starting; will retry."
+          : "";
       console.error(
-        "[scheduler] game-advance failed (will retry next tick)",
-        error?.message || error,
+        `[scheduler] ${job.path} failed.${hint}`,
+        error?.message ?? error,
       );
     }
-    consecutiveFailures = 0;
-  } catch (error) {
-    consecutiveFailures += 1;
-    const hint = error?.message?.includes("401")
-      ? " Check CRON_INTERNAL_TOKEN matches the app container."
-      : error?.message?.includes("fetch failed") || error?.name === "AbortError"
-        ? " App may still be starting; will retry."
-        : "";
-    console.error(
-      `[scheduler] tick failed (${consecutiveFailures} consecutive).${hint}`,
-      error,
-    );
-  } finally {
-    setTimeout(tick, intervalMs);
   }
+
+  if (failures === 0) {
+    consecutiveFailures = 0;
+  } else {
+    consecutiveFailures += 1;
+    console.error(
+      `[scheduler] tick completed with ${failures} failure(s) (${consecutiveFailures} consecutive failing ticks)`,
+    );
+  }
+
+  setTimeout(tick, intervalMs);
 }
 
 // Small initial delay so `depends_on: app` doesn't hammer a cold Nitro boot.

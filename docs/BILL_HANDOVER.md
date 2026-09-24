@@ -58,8 +58,8 @@ The `election-scheduler` sidecar calls these endpoints in a loop every 60 second
 
 ```text
 POST /api/election-advance   (every tick: due election deadlines)
-GET  /api/bill-advance       (every tick: due per-bill 8h stage deadlines)
-GET  /api/game-advance       (throttled to once per 24h: user inactivity + party cleanup)
+GET  /api/bill-advance       (every tick: due per-bill stage deadlines — 8h at regular speed, scaled by game speed)
+GET  /api/game-advance       (every tick; self-throttles server-side to game pace)
 ```
 
 It calls the app over the Docker network at `http://app:3000` and authenticates with:
@@ -74,7 +74,6 @@ View scheduler logs on the VPS:
 
 ```bash
 docker compose --env-file .env \
-  -f docker-compose.yml -f docker-compose.dev.yml \
   logs --follow --timestamps election-scheduler
 ```
 
@@ -100,7 +99,6 @@ From the scheduler container:
 
 ```bash
 docker compose --env-file .env \
-  -f docker-compose.yml -f docker-compose.dev.yml \
   exec election-scheduler node -e '
 fetch("http://app:3000/api/bill-advance", {
   headers: { "x-internal-cron-token": process.env.CRON_INTERNAL_TOKEN }
