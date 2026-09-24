@@ -1,306 +1,185 @@
 #!/usr/bin/env bash
-# First-time provisioner for the democracyonline.io VPS (Ubuntu 26.04 LTS).
-# Run ONCE as root on a fresh machine. Safe to re-run: every step skips
-# work that is already done, and existing .env files are never overwritten.
-#
-# What it does:
-#   1. base packages, Docker Engine + Compose plugin, Node.js 22, pnpm
-#   2. `deploy` user (docker group), two independent /srv checkouts
-#   3. host PostgreSQL with independent prod/dev roles and databases
-#   4. per-checkout .env scaffolded from .env.example (database URL, ports,
-#      env, site, fresh random cron tokens) — Firebase stays for you to fill in
-#   5. Caddy installed with a Caddyfile for both domains
-#   6. UFW firewall (SSH/80/443 open; PostgreSQL restricted to app networks)
-#   7. systemd units installed + enabled (not started until .env is complete)
-#
-# Override any of these from the environment:
-#   APP_USER=deploy REPO_URL=... INITIAL_BRANCH=revival \
-#   PROD_DIR=/srv/democracyonline-prod DEV_DIR=/srv/democracyonline-dev \
-#   PROD_DOMAIN=oscana.nya.je DEV_DOMAIN=dev.oscana.nya.je \
-#   PROD_PORT=3000 DEV_PORT=3001 TLS_EMAIL=admin@oscana.nya.je \
-#   PROD_SUBNET=172.30.0.0/24 DEV_SUBNET=172.31.0.0/24 DB_HOST=10.0.0.10 \
-#   sudo bash scripts/vps-bootstrap.sh
+# Provision an Ubuntu VPS. Run as root from this repository checkout.
 set -euo pipefail
+umask 077
+export DEBIAN_FRONTEND=noninteractive
 
+[[ $(id -u) == 0 ]] || { echo "Run as root" >&2; exit 1; }
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_USER="${APP_USER:-deploy}"
 REPO_URL="${REPO_URL:-https://github.com/ajstrongdev/democracyonline.io.git}"
-INITIAL_BRANCH="${INITIAL_BRANCH:-}"
-PROD_DIR="${PROD_DIR:-/srv/democracyonline-prod}"
-DEV_DIR="${DEV_DIR:-/srv/democracyonline-dev}"
+INITIAL_BRANCH="${INITIAL_BRANCH:-revival}"
 PROD_DOMAIN="${PROD_DOMAIN:-oscana.nya.je}"
 DEV_DOMAIN="${DEV_DOMAIN:-dev.oscana.nya.je}"
-PROD_PORT="${PROD_PORT:-3000}"
-DEV_PORT="${DEV_PORT:-3001}"
-PROD_SUBNET="${PROD_SUBNET:-172.30.0.0/24}"
-DEV_SUBNET="${DEV_SUBNET:-172.31.0.0/24}"
-TLS_EMAIL="${TLS_EMAIL:-admin@oscana.nya.je}"
+PROD_DIR="${PROD_DIR:-/srv/democracyonline-prod}"
+DEV_DIR="${DEV_DIR:-/srv/democracyonline-dev}"
 
-if [ "$(id -u)" -ne 0 ]; then
-  echo "Run as root (sudo) on the VPS." >&2
+[[ "$PROD_DOMAIN" != "$DEV_DOMAIN" && "$PROD_DIR" != "$DEV_DIR" ]] || { echo "Production and development must differ" >&2; exit 1; }
+for dir in "$PROD_DIR" "$DEV_DIR"; do
+  if [[ -f "$dir/.env" ]] && ! grep -q '@db:5432/democracyonline' "$dir/.env"; then
+    echo "Legacy .env found at $dir. Migrate its database first; see deploy.md." >&2
+    exit 1
+  fi
+done
+if [[ -f /etc/caddy/Caddyfile ]] && ! grep -q 'Managed by Democracy Online vps-bootstrap' /etc/caddy/Caddyfile; then
+  echo "Existing Caddyfile is not managed by this script. Back it up and merge it manually." >&2
   exit 1
 fi
 
-if [ "$PROD_PORT" = "$DEV_PORT" ]; then
-  echo "PROD_PORT and DEV_PORT must differ." >&2
-  exit 1
-fi
-if [ "$PROD_SUBNET" = "$DEV_SUBNET" ]; then
-  echo "PROD_SUBNET and DEV_SUBNET must differ." >&2
-  exit 1
-fi
-
-echo "=== 1/7 base packages ==="
 apt-get update
-apt-get install -y ca-certificates curl dnsutils git gnupg iproute2 jq openssl postgresql postgresql-client postgresql-contrib sudo ufw unzip
-
-DB_HOST="${DB_HOST:-$(ip -4 route get 1.1.1.1 | sed -n 's/.* src \([^ ]*\).*/\1/p')}"
-if [ -z "$DB_HOST" ]; then
-  echo "Could not detect the VPS IPv4 address. Re-run with DB_HOST=<reachable VPS IP>." >&2
-  exit 1
+apt-get install -y ca-certificates curl git gnupg openssl sudo ufw debian-keyring debian-archive-keyring apt-transport-https
+if ! command -v caddy >/dev/null 2>&1; then
+  curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt > /etc/apt/sources.list.d/caddy-stable.list
+  chmod a+r /usr/share/keyrings/caddy-stable-archive-keyring.gpg /etc/apt/sources.list.d/caddy-stable.list
+  apt-get update
+  apt-get install -y caddy
 fi
-
-echo "=== 2/7 Docker Engine + Compose ==="
-if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
+if ! docker compose version >/dev/null 2>&1; then
   apt-get remove -y docker.io docker-compose docker-doc containerd runc || true
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
   chmod a+r /etc/apt/keyrings/docker.asc
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-    | tee /etc/apt/sources.list.d/docker.list > /dev/null
+  . /etc/os-release
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" > /etc/apt/sources.list.d/docker.list
   apt-get update
   apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 fi
 systemctl enable --now docker
-docker compose version
 
-echo "=== 3/7 Node.js 22 + pnpm ==="
-NODE_MAJOR="$(node --version 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/' || true)"
-if [ -z "$NODE_MAJOR" ] || [ "$NODE_MAJOR" -lt 22 ]; then
-  curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-  apt-get install -y nodejs
+# A small swap file gives the image build room on a 4 GiB VPS. Preserve any
+# swap already configured by the provider or administrator.
+if [[ "$(free -m | awk '$1 == "Mem:" {print $2}')" -lt 6144 && -z "$(swapon --noheadings)" ]]; then
+  if [[ -e /swapfile ]]; then
+    echo "Existing inactive /swapfile found; configure it manually before building." >&2
+  else
+    fallocate -l 2G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null
+    swapon /swapfile
+    printf '/swapfile none swap sw 0 0\n' >> /etc/fstab
+  fi
 fi
-node --version
 
-echo "=== 4/7 deploy user + checkouts ==="
 if ! id "$APP_USER" >/dev/null 2>&1; then
   adduser --disabled-password --gecos "" "$APP_USER"
 fi
 usermod -aG docker "$APP_USER"
+if [[ -f /root/.ssh/authorized_keys && ! -f "/home/$APP_USER/.ssh/authorized_keys" ]]; then
+  install -d -m 700 -o "$APP_USER" -g "$APP_USER" "/home/$APP_USER/.ssh"
+  install -m 600 -o "$APP_USER" -g "$APP_USER" /root/.ssh/authorized_keys "/home/$APP_USER/.ssh/authorized_keys"
+fi
 
-clone_checkout() {
+clone_or_keep() {
   local dir="$1"
-  if [ ! -d "$dir/.git" ]; then
-    if [ -e "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then
-      echo "Refusing: $dir exists but is not a git checkout." >&2
-      exit 1
-    fi
+  if [[ -e "$dir" && ! -d "$dir/.git" ]]; then
+    echo "Refusing to overwrite $dir" >&2; exit 1
+  fi
+  if [[ ! -d "$dir/.git" ]]; then
     install -d -o "$APP_USER" -g "$APP_USER" "$dir"
-    if [ -n "$INITIAL_BRANCH" ]; then
-      sudo -u "$APP_USER" git clone --branch "$INITIAL_BRANCH" "$REPO_URL" "$dir"
-    else
-      sudo -u "$APP_USER" git clone "$REPO_URL" "$dir"
+    sudo -u "$APP_USER" git clone --branch "$INITIAL_BRANCH" "$REPO_URL" "$dir"
+  elif [[ ! -f "$dir/.env" ]]; then
+    if [[ -n "$(sudo -u "$APP_USER" git -C "$dir" status --porcelain)" ]]; then
+      echo "Refusing dirty checkout at $dir" >&2; exit 1
     fi
-  else
-    echo "-- $dir exists; preserving branch $(sudo -u "$APP_USER" git -C "$dir" branch --show-current)"
     sudo -u "$APP_USER" git -C "$dir" fetch --prune origin
+    sudo -u "$APP_USER" git -C "$dir" switch "$INITIAL_BRANCH"
+    sudo -u "$APP_USER" git -C "$dir" pull --ff-only origin "$INITIAL_BRANCH"
   fi
 }
-clone_checkout "$PROD_DIR"
-clone_checkout "$DEV_DIR"
+clone_or_keep "$PROD_DIR"
+clone_or_keep "$DEV_DIR"
 
-PNPM_VERSION="$(node -p "require('$PROD_DIR/package.json').packageManager.replace(/^pnpm@/, '').split('+')[0]")"
-if command -v corepack >/dev/null 2>&1; then
-  corepack enable
-  corepack prepare "pnpm@${PNPM_VERSION}" --activate
-else
-  npm install --global "pnpm@${PNPM_VERSION}"
-fi
-pnpm --version
-sudo -u "$APP_USER" bash -c "cd '$PROD_DIR' && pnpm install --frozen-lockfile"
-sudo -u "$APP_USER" bash -c "cd '$DEV_DIR' && pnpm install --frozen-lockfile"
-
-echo "=== 5/7 PostgreSQL ==="
-systemctl enable --now postgresql
-
-# Keep generated database passwords stable across safe bootstrap reruns. This
-# root-only file is a recovery copy; application credentials also live in each
-# checkout's mode-600 .env file.
-install -d -m 700 /etc/democracyonline
-DB_SECRETS_FILE=/etc/democracyonline/database-credentials.env
-if [ ! -f "$DB_SECRETS_FILE" ]; then
-  if sudo -u postgres psql -tAc "select 1 from pg_roles where rolname in ('democracyonline_prod', 'democracyonline_dev') limit 1" | grep -q 1; then
-    echo "Refusing to replace existing Democracy Online database credentials." >&2
-    echo "Database roles exist but $DB_SECRETS_FILE does not." >&2
-    echo "Back up the databases and configure DATABASE_URL manually, or remove the old roles/databases only if they are disposable." >&2
-    exit 1
-  fi
-  {
-    echo "PROD_DB_PASSWORD=$(openssl rand -hex 32)"
-    echo "DEV_DB_PASSWORD=$(openssl rand -hex 32)"
-  } > "$DB_SECRETS_FILE"
-  chmod 600 "$DB_SECRETS_FILE"
-fi
-# shellcheck disable=SC1090
-source "$DB_SECRETS_FILE"
-
-ensure_database() {
-  local role="$1" database="$2" password="$3"
-  if sudo -u postgres psql -tAc "select 1 from pg_roles where rolname = '$role'" | grep -q 1; then
-    sudo -u postgres psql -v ON_ERROR_STOP=1 -c "set password_encryption = 'scram-sha-256'; alter role $role with login password '$password'" >/dev/null
-  else
-    sudo -u postgres psql -v ON_ERROR_STOP=1 -c "set password_encryption = 'scram-sha-256'; create role $role with login password '$password'" >/dev/null
-  fi
-
-  if ! sudo -u postgres psql -tAc "select 1 from pg_database where datname = '$database'" | grep -q 1; then
-    sudo -u postgres createdb --owner="$role" "$database"
-  fi
-  sudo -u postgres psql -v ON_ERROR_STOP=1 --dbname="$database" \
-    -c "grant all privileges on schema public to $role" >/dev/null
-}
-ensure_database "democracyonline_prod" "democracyonline" "$PROD_DB_PASSWORD"
-ensure_database "democracyonline_dev" "democracyonline_dev" "$DEV_DB_PASSWORD"
-
-PG_HBA_FILE="$(sudo -u postgres psql -tAc 'show hba_file')"
-if [ ! -f /etc/democracyonline/pg_hba.conf.original ]; then
-  cp -a "$PG_HBA_FILE" /etc/democracyonline/pg_hba.conf.original
-fi
-sudo -u postgres psql -v ON_ERROR_STOP=1 \
-  -c "alter system set listen_addresses = 'localhost,$DB_HOST'" >/dev/null
-sudo -u postgres psql -v ON_ERROR_STOP=1 \
-  -c "alter system set password_encryption = 'scram-sha-256'" >/dev/null
-
-# Replace only our managed pg_hba block, preserving distribution defaults and
-# any administrator-owned rules around it.
-sed -i '/^# BEGIN DEMOCRACYONLINE MANAGED$/,/^# END DEMOCRACYONLINE MANAGED$/d' "$PG_HBA_FILE"
-cat >> "$PG_HBA_FILE" <<EOF
-# BEGIN DEMOCRACYONLINE MANAGED
-host    democracyonline       democracyonline_prod    $PROD_SUBNET    scram-sha-256
-host    democracyonline_dev   democracyonline_dev     $DEV_SUBNET     scram-sha-256
-host    democracyonline       democracyonline_prod    $DB_HOST/32     scram-sha-256
-host    democracyonline_dev   democracyonline_dev     $DB_HOST/32     scram-sha-256
-# END DEMOCRACYONLINE MANAGED
-EOF
-systemctl restart postgresql
-
-PGPASSWORD="$PROD_DB_PASSWORD" psql \
-  --host="$DB_HOST" \
-  --username=democracyonline_prod \
-  --dbname=democracyonline \
-  --set=ON_ERROR_STOP=1 \
-  --command='select 1' >/dev/null
-PGPASSWORD="$DEV_DB_PASSWORD" psql \
-  --host="$DB_HOST" \
-  --username=democracyonline_dev \
-  --dbname=democracyonline_dev \
-  --set=ON_ERROR_STOP=1 \
-  --command='select 1' >/dev/null
-
-PROD_DATABASE_URL="postgresql://democracyonline_prod:$PROD_DB_PASSWORD@$DB_HOST:5432/democracyonline"
-DEV_DATABASE_URL="postgresql://democracyonline_dev:$DEV_DB_PASSWORD@$DB_HOST:5432/democracyonline_dev"
-
-# Scaffold .env for one checkout. Never touches an existing file.
-setup_env() {
-  local dir="$1" deployed_env="$2" app_port="$3" site_url="$4" project_name="$5" subnet="$6" database_url="$7"
-  local env_file="$dir/.env"
-  if [ -f "$env_file" ]; then
-    echo "-- $env_file exists, leaving it alone"
+make_env() {
+  local dir="$1" mode="$2" port="$3" domain="$4" password token
+  if [[ -f "$dir/.env" ]]; then
+    echo "Preserving $dir/.env"
     return
   fi
-  echo "-- creating $env_file"
-  sudo -u "$APP_USER" cp "$dir/.env.example" "$env_file"
-  chmod 600 "$env_file"
-  sed -i -E "s|^NODE_ENV=.*|NODE_ENV=\"production\"|" "$env_file"
-  sed -i -E "s|^DEPLOYED_ENV=.*|DEPLOYED_ENV=\"$deployed_env\"|" "$env_file"
-  sed -i -E "s|^APP_PORT=.*|APP_PORT=\"$app_port\"|" "$env_file"
-  sed -i -E "s|^COMPOSE_PROJECT_NAME=.*|COMPOSE_PROJECT_NAME=\"$project_name\"|" "$env_file"
-  sed -i -E "s|^DOCKER_SUBNET=.*|DOCKER_SUBNET=\"$subnet\"|" "$env_file"
-  sed -i -E "s|^SITE_URL=.*|SITE_URL=\"$site_url\"|" "$env_file"
-  sed -i -E "s|^DATABASE_URL=.*|DATABASE_URL=\"$database_url\"|" "$env_file"
-  sed -i -E "s|^CRON_INTERNAL_TOKEN=.*|CRON_INTERNAL_TOKEN=\"$(openssl rand -hex 32)\"|" "$env_file"
-  sed -i -E "s|^CRON_LOCAL_TOKEN=.*|CRON_LOCAL_TOKEN=\"$(openssl rand -hex 32)\"|" "$env_file"
-  chown "$APP_USER:$APP_USER" "$env_file"
+  password="$(openssl rand -hex 32)"
+  token="$(openssl rand -hex 32)"
+  cat > "$dir/.env" <<EOF
+NODE_ENV=production
+DEPLOYED_ENV=$mode
+COMPOSE_PROJECT_NAME=democracyonline-$mode
+APP_PORT=$port
+SITE_URL=https://$domain
+DB_PASSWORD=$password
+DATABASE_URL=postgresql://democracyonline:$password@db:5432/democracyonline
+CRON_INTERNAL_TOKEN=$token
+ADMIN_EMAILS=CHANGE_ME
+FIREBASE_PROJECT_ID=CHANGE_ME
+FIREBASE_CLIENT_EMAIL=CHANGE_ME
+FIREBASE_PRIVATE_KEY=CHANGE_ME
+VITE_FIREBASE_API_KEY=CHANGE_ME
+VITE_FIREBASE_AUTH_DOMAIN=CHANGE_ME
+VITE_FIREBASE_PROJECT_ID=CHANGE_ME
+VITE_FIREBASE_STORAGE_BUCKET=CHANGE_ME
+VITE_FIREBASE_MESSAGING_SENDER_ID=CHANGE_ME
+VITE_FIREBASE_APP_ID=CHANGE_ME
+VITE_FIREBASE_MEASUREMENT_ID=
+EOF
+  chown "$APP_USER:$APP_USER" "$dir/.env"
+  chmod 600 "$dir/.env"
 }
-setup_env "$PROD_DIR" "production" "$PROD_PORT" "https://$PROD_DOMAIN" "democracyonline-prod" "$PROD_SUBNET" "$PROD_DATABASE_URL"
-setup_env "$DEV_DIR" "development" "$DEV_PORT" "https://$DEV_DOMAIN" "democracyonline-dev" "$DEV_SUBNET" "$DEV_DATABASE_URL"
+make_env "$PROD_DIR" production 3000 "$PROD_DOMAIN"
+make_env "$DEV_DIR" development 3001 "$DEV_DOMAIN"
+install -d -m 700 -o "$APP_USER" -g "$APP_USER" /srv/democracyonline-backups
 
-echo "=== 6/7 Caddy reverse proxy ==="
-if ! command -v caddy >/dev/null 2>&1; then
-  apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
-    | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
-    | tee /etc/apt/sources.list.d/caddy-stable.list
-  apt-get update
-  apt-get install -y caddy
-fi
-if [ -f /etc/caddy/Caddyfile ]; then
-  cp /etc/caddy/Caddyfile "/etc/caddy/Caddyfile.bak.$(date -u +%Y%m%dT%H%M%SZ)"
-fi
+cat > /usr/local/sbin/democracyonline-backup <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$PROD_DIR"
+bash scripts/vps.sh backup
+cd "$DEV_DIR"
+bash scripts/vps.sh backup
+EOF
+chmod 755 /usr/local/sbin/democracyonline-backup
+cat > /etc/systemd/system/democracyonline-backup.service <<EOF
+[Unit]
+Description=Back up both Democracy Online databases
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=$APP_USER
+ExecStart=/usr/local/sbin/democracyonline-backup
+EOF
+cat > /etc/systemd/system/democracyonline-backup.timer <<'EOF'
+[Unit]
+Description=Daily Democracy Online database backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 UTC
+Persistent=true
+Unit=democracyonline-backup.service
+
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+systemctl enable --now democracyonline-backup.timer
+
 cat > /etc/caddy/Caddyfile <<EOF
-{
-	email $TLS_EMAIL
-}
-
+# Managed by Democracy Online vps-bootstrap
 $PROD_DOMAIN {
-	reverse_proxy 127.0.0.1:$PROD_PORT
+    reverse_proxy 127.0.0.1:3000
 }
-
 $DEV_DOMAIN {
-	reverse_proxy 127.0.0.1:$DEV_PORT
+    reverse_proxy 127.0.0.1:3001
 }
 EOF
 caddy validate --config /etc/caddy/Caddyfile
 systemctl enable --now caddy
-systemctl reload caddy || systemctl restart caddy
+systemctl reload caddy
 
-echo "=== 7/7 firewall + systemd ==="
-ufw allow OpenSSH
+# Preserve the configured SSH port before enabling UFW.
+while read -r ssh_port; do ufw allow "$ssh_port/tcp"; done < <(sshd -T | awk '$1 == "port" {print $2}')
 ufw allow 80/tcp
 ufw allow 443/tcp
-ufw deny "$PROD_PORT"/tcp
-ufw deny "$DEV_PORT"/tcp
-ufw allow from "$PROD_SUBNET" to any port 5432 proto tcp
-ufw allow from "$DEV_SUBNET" to any port 5432 proto tcp
-ufw deny 5432/tcp
 ufw --force enable
-ufw status verbose
 
-write_systemd_unit() {
-  local name="$1" description="$2" dir="$3"
-  cat > "/etc/systemd/system/$name.service" <<EOF
-[Unit]
-Description=$description
-After=network-online.target docker.service postgresql.service
-Requires=docker.service postgresql.service
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-User=$APP_USER
-WorkingDirectory=$dir
-ExecStart=/usr/bin/docker compose --env-file $dir/.env up -d --no-recreate
-ExecStop=/usr/bin/docker compose --env-file $dir/.env down
-
-[Install]
-WantedBy=multi-user.target
-EOF
-}
-write_systemd_unit "democracyonline-prod" "Democracy Online (production)" "$PROD_DIR"
-write_systemd_unit "democracyonline-dev" "Democracy Online (development)" "$DEV_DIR"
-systemctl daemon-reload
-systemctl enable democracyonline-prod.service democracyonline-dev.service
-
-echo ""
-echo "Bootstrap complete. Remaining manual steps:"
-echo "  1. Point DNS A records for $PROD_DOMAIN and $DEV_DOMAIN at this VPS."
-echo "  2. Fill secrets in $PROD_DIR/.env and $DEV_DIR/.env:"
-echo "     Firebase admin + VITE_ client values and ADMIN_EMAILS. Database URLs"
-echo "     and cron tokens are already generated. DB recovery credentials are in"
-echo "     $DB_SECRETS_FILE (root-only)."
-echo "  3. Per checkout, migrate then deploy:"
-echo "       cd $PROD_DIR && pnpm exec drizzle-kit migrate && pnpm deploy"
-echo "       cd $DEV_DIR  && pnpm exec drizzle-kit migrate && pnpm deploy"
-echo "  4. Seed dev if needed:  cd $DEV_DIR && pnpm seed:fresh"
-echo "     (refuses production unless SEED_ALLOW_PRODUCTION=true is set)"
-echo "  5. Check: curl -I https://$PROD_DOMAIN ; curl -I https://$DEV_DOMAIN"
+echo "Bootstrap complete. Fill each .env, then deploy development and production separately."
+echo "Run: sudo -iu $APP_USER; cd $DEV_DIR; bash scripts/vps.sh deploy"
+echo "See $ROOT/deploy.md for seeding, verification, backup, and recovery."

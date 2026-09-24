@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Build the application
 # =============================================================================
-FROM node:24-alpine AS builder
+FROM node:24-alpine AS tooling
 
 # Set environment variables for build
 ENV NODE_ENV=production
@@ -14,7 +14,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /usr/src/app
 
 # Install pnpm using corepack (Node.js built-in package manager manager)
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
 
 # Copy package files for dependency installation
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -24,6 +24,10 @@ RUN pnpm install --frozen-lockfile
 
 # Copy source code and config files
 COPY . .
+
+# Build the web application only for the runtime image. The tooling stage is
+# also used for one-off migrations and seeds, which do not need a Vite build.
+FROM tooling AS builder
 
 # Build arguments for client-side environment variables (VITE_* prefix)
 ARG VITE_APP_TITLE
@@ -69,7 +73,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /usr/src/app
 
 # Install pnpm for production dependency installation
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
 
 # Copy package files
 COPY --from=builder /usr/src/app/package.json /usr/src/app/pnpm-lock.yaml ./
@@ -84,6 +88,7 @@ COPY --from=builder /usr/src/app/scripts ./scripts
 
 # Expose the application port (non-privileged port)
 EXPOSE 3000
+USER node
 
 # Run the server
 # Nitro outputs a self-contained server in .output/server/index.mjs

@@ -49,4 +49,4 @@ jobs:
             # Preserve the branch currently selected in this checkout. The
             # update script refuses dirty or detached checkouts and pulls only
             # a fast-forward from that branch's origin counterpart.
-            pnpm update
+            bash scripts/vps.sh update
