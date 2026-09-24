@@ -11,6 +11,7 @@
     "deploy:down": "docker compose --env-file .env down",
     "deploy:logs": "docker compose --env-file .env logs -f --tail=200",
     "deploy:ps": "docker compose --env-file .env ps",
+    "deploy:check": "node scripts/verify-deployment.mjs",
     "update": "bash scripts/update.sh",
     "update:migrate": "bash scripts/update.sh --migrate",
     "seed:fresh": "node --env-file=.env --import tsx scripts/seed-fresh.ts",

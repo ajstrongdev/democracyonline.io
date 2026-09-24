@@ -1,7 +1,7 @@
 [Unit]
 Description=Democracy Online (development)
-After=network.target docker.service
-Requires=docker.service
+After=network-online.target docker.service postgresql.service
+Requires=docker.service postgresql.service
 Wants=network-online.target
 
 [Service]

@@ -1,182 +1,83 @@
 # democracyonline.io
 
-This app is designed to run as a single background service on a VPS using Docker Compose. Docker runs the app container; PostgreSQL is provisioned and managed separately, with the connection supplied through `DATABASE_URL`.
+Democracy Online is a TanStack Start application backed by PostgreSQL and
+Firebase Authentication.
 
-This project no longer depends on the cloud Terraform / GCP deployment flow for a basic VPS setup. If you are hosting it on a Linux VPS, this is the recommended path.
+## VPS Architecture
 
-For complete PostgreSQL provisioning, networking, migrations, backups, and prod/dev database setup, see [deploy.md](deploy.md).
+The supported VPS deployment runs two independent checkouts on one Ubuntu host:
 
-## Requirements
+- Production: `/srv/democracyonline-prod` → `https://oscana.nya.je`
+- Development: `/srv/democracyonline-dev` → `https://dev.oscana.nya.je`
 
-- Ubuntu or Debian VPS
-- Docker Engine
-- Docker Compose v2
-- Node.js 22+ and pnpm (only needed for local scripting and admin commands)
-- A PostgreSQL-compatible database URL
-- Firebase client/server credentials
+Each checkout has its own Git branch, `.env`, Docker Compose project, app,
+scheduler sidecar, and PostgreSQL database. PostgreSQL and Caddy run directly on
+the host. Docker publishes the applications only on loopback ports 3000 and 3001.
 
-## Quick start on a VPS
+For a completely blank VPS, follow [deploy.md](deploy.md) from top to bottom. It
+includes the exact command to download and run the bootstrap script, host
+PostgreSQL provisioning, shared Firebase setup, generated credentials,
+migrations, first-time seeding, TLS, scheduler verification, and a reboot test.
 
-1. Install Docker and Docker Compose
+## Local Development
 
-```bash
-sudo apt update
-sudo apt install -y ca-certificates curl gnupg
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
+Requirements:
 
-echo \
-  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+- Node.js 22+
+- pnpm (the pinned version is declared in `package.json`)
+- PostgreSQL 15+
+- Firebase browser and Admin SDK credentials
 
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-```
-
-2. Clone the repo and install dependencies
+Install dependencies and create the local environment file:
 
 ```bash
-git clone <your-repo-url>
-cdb democracyonline.io
-pnpm install
-```
-
-3. Copy the example environment file
-
-```bash
+pnpm install --frozen-lockfile
 cp .env.example .env
 ```
 
-4. Edit `.env` and fill in your secrets
-
-At minimum, set values for:
-
-- `DATABASE_URL`
-- `SITE_URL`
-- `FIREBASE_PROJECT_ID`
-- `FIREBASE_CLIENT_EMAIL`
-- `FIREBASE_PRIVATE_KEY`
-- `VITE_FIREBASE_API_KEY`
-- `VITE_FIREBASE_AUTH_DOMAIN`
-- `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_STORAGE_BUCKET`
-- `VITE_FIREBASE_MESSAGING_SENDER_ID`
-- `VITE_FIREBASE_APP_ID`
-- `VITE_FIREBASE_MEASUREMENT_ID`
-
-Example:
-
-```env
-NODE_ENV=production
-PORT=3000
-HOST=0.0.0.0
-SITE_URL=https://your-domain.example.com
-DATABASE_URL=postgresql://democracyonline:yourstrongpassword@your-postgres-host:5432/democracyonline
-
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk@your-project-id.iam.gserviceaccount.com
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-
-VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=...
-VITE_FIREBASE_APP_ID=...
-VITE_FIREBASE_MEASUREMENT_ID=...
-```
-
-5. Start the app in the background
-
-```bash
-pnpm deploy
-```
-
-This command does the equivalent of:
-
-```bash
-docker compose --env-file .env up -d --build
-```
-
-It will build the app and keep it running in the background. It does not create, migrate, seed, or reset the database.
-
-Run database migrations separately after provisioning the database:
+Fill `.env`, apply migrations, optionally initialize a disposable database, and
+start Vite:
 
 ```bash
 pnpm db:migrate
+pnpm seed:fresh
+pnpm dev
 ```
 
-6. Check the service status
+`seed:fresh` truncates game data. Never run it against data you intend to keep.
+
+Vite does not run the lifecycle heartbeat. For local bill/election advancement,
+run this in a second terminal using the value of `CRON_LOCAL_TOKEN` from `.env`:
 
 ```bash
-pnpm deploy:logs
+CRON_INTERNAL_TOKEN="YOUR_CRON_LOCAL_TOKEN" \
+APP_BASE_URL=http://localhost:3001 \
+SCHEDULER_INTERVAL_MS=10000 \
+node scripts/scheduler.mjs
 ```
 
-If you need to view a specific container:
+## VPS Commands
+
+Run these inside the production or development checkout you intend to operate:
 
 ```bash
-docker ps
-docker compose ps
+pnpm deploy:check     # validate environment, Compose, and database login
+pnpm deploy           # build and start app + scheduler
+pnpm deploy:restart   # force-recreate both containers
+pnpm deploy:ps        # status
+pnpm deploy:logs      # follow logs
+pnpm deploy:down      # stop this stack
+pnpm update           # pull current branch and redeploy
+pnpm update:migrate   # pull current branch, migrate, and redeploy
 ```
 
-## Redeploying
+## Other Documentation
 
-If you change code or env vars and want to redeploy, just run:
-
-```bash
-pnpm deploy
-```
-
-This is safe to run repeatedly; Docker Compose will recreate or rebuild the service as needed.
-
-## Taking it offline
-
-To stop and remove the running containers:
-
-```bash
-pnpm deploy:down
-```
-
-## Production notes
-
-- The app listens on port `3000` internally.
-- Compose maps it to the host port `3000` by default.
-- If you are behind a reverse proxy (Nginx / Caddy), point the proxy to `http://127.0.0.1:3000`.
-- You should run the app with a real domain and TLS termination in front of it.
-- The database volume is persisted under Docker named volume storage, so your Postgres data survives restarts.
-
-## Recommended reverse proxy setup
-
-If you want your app to be reachable as a proper website, front it with Nginx or Caddy on the VPS. Example Caddy config:
-
-```caddy
-your-domain.example.com {
-  reverse_proxy 127.0.0.1:3000
-}
-```
-
-Then run:
-
-```bash
-sudo systemctl enable --now caddy
-```
-
-## Useful commands
-
-```bash
-pnpm deploy
-pnpm deploy:restart
-pnpm deploy:down
-pnpm deploy:logs
-```
-
-## Documentation
-
+- [VPS deployment runbook](./deploy.md)
 - [Firebase Authentication](./docs/FIREBASE_AUTH.md)
+- [Bill lifecycle handover](./docs/BILL_HANDOVER.md)
 - [Bot API](./docs/BOT_API.md)
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](./LICENSE) file for details.
+GNU General Public License v3.0. See [LICENSE](./LICENSE).

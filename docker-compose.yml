@@ -64,3 +64,10 @@ services:
       - node
       - /usr/src/app/scripts/scheduler.mjs
     restart: unless-stopped
+
+networks:
+  default:
+    name: ${COMPOSE_PROJECT_NAME:-democracyonline-local}-network
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:-172.29.0.0/24}
