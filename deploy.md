@@ -12,7 +12,7 @@ One Ubuntu VPS runs:
 | Caddy upstream | `127.0.0.1:3000` | `127.0.0.1:3001` |
 | Database | Private PostgreSQL container and volume | Separate private PostgreSQL container and volume |
 
-Each project has its own `.env`, app, scheduler, database network, and database volume. Database ports are never published. Docker isolates the two projects; Caddy is the only public HTTP entry point. Both apps still use Firebase Authentication. Create **separate Firebase projects and service accounts** for prod and dev so identities and credentials are isolated too.
+Each project has its own `.env`, app, scheduler, database network, and database volume. Database ports are never published. Docker isolates the two projects; Caddy is the only public HTTP entry point. Both apps still use Firebase Authentication. The initial deployment shares one Firebase project by operator choice, so sign-in identities and authentication settings overlap. Move dev to a separate Firebase project and service account for full isolation.
 
 The VPS is a single point of failure. A daily systemd timer and every deploy/seed create local backups, but a backup on the same VPS cannot recover a lost VPS. Arrange an offsite copy of `/srv/democracyonline-backups` and the two `.env` files in a secure store. Test a restore periodically.
 
@@ -49,7 +49,7 @@ chmod 600 /srv/democracyonline-dev/.env /srv/democracyonline-prod/.env
 
 Replace every `CHANGE_ME` value. Keep each generated `DB_PASSWORD`, `DATABASE_URL`, `CRON_INTERNAL_TOKEN`, project name, port, and `SITE_URL` tied to its environment. A PostgreSQL password change requires changing both `DB_PASSWORD` and the password embedded in `DATABASE_URL`; after a database volume exists, rotate the database role password inside PostgreSQL too. Never copy one `.env` over the other.
 
-Firebase values come from the Firebase console as described in [Firebase Authentication](docs/FIREBASE_AUTH.md). Create a production project authorizing only `oscana.nya.je` and a development project authorizing only `dev.oscana.nya.je`; enable email/password sign-in in both. Use each project's service account JSON `project_id`, `client_email`, and JSON-escaped `private_key` in its corresponding `.env`. Put the key on one line, in double quotes, with literal `\n` sequences. `VITE_*` values are browser configuration; the service account private key must stay server-side. Set `ADMIN_EMAILS` to real admin addresses.
+Firebase values come from the Firebase console as described in [Firebase Authentication](docs/FIREBASE_AUTH.md). For the current shared project, authorize both `oscana.nya.je` and `dev.oscana.nya.je`. When splitting the projects, authorize only the matching hostname in each. Use the service account JSON `project_id`, `client_email`, and JSON-escaped `private_key` in the corresponding `.env`. Put the key on one line, in double quotes, with literal `\n` sequences. `VITE_*` values are browser configuration; the service account private key must stay server-side. Set `ADMIN_EMAILS` to real admin addresses.
 
 Check each configuration:
 

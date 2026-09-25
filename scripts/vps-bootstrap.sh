@@ -64,6 +64,10 @@ fi
 if ! id "$APP_USER" >/dev/null 2>&1; then
   adduser --disabled-password --gecos "" "$APP_USER"
 fi
+# Some pre-provisioned VPS images leave the existing deploy home owned by root.
+APP_HOME="$(getent passwd "$APP_USER" | cut -d: -f6)"
+install -d -o "$APP_USER" -g "$APP_USER" "$APP_HOME"
+chown -R "$APP_USER:$APP_USER" "$APP_HOME"
 usermod -aG docker "$APP_USER"
 if [[ -f /root/.ssh/authorized_keys && ! -f "/home/$APP_USER/.ssh/authorized_keys" ]]; then
   install -d -m 700 -o "$APP_USER" -g "$APP_USER" "/home/$APP_USER/.ssh"

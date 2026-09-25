@@ -18,7 +18,7 @@ pnpm dev
 
 The supported deployment is one Ubuntu VPS with two independent Docker Compose projects. Each has its own app, scheduler, PostgreSQL container, database volume, secrets, and Git checkout. Host Caddy provides HTTPS for both domains. See [the VPS runbook](deploy.md) for bootstrap, updates, backups, and recovery.
 
-The host needs Docker, Compose, Caddy, and Git. Node and PostgreSQL run only in containers. Firebase Authentication remains an external service. Use separate Firebase projects for prod and dev so identities and credentials are isolated too.
+The host needs Docker, Compose, Caddy, and Git. Node and PostgreSQL run only in containers. Firebase Authentication remains an external service. The initial VPS deployment shares one Firebase project by operator choice; use separate Firebase projects when identities and credentials must be isolated too.
 
 ## Documentation
 
