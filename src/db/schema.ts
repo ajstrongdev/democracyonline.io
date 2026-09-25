@@ -769,6 +769,9 @@ export const billComments = pgTable(
   "bill_comments",
   {
     id: serial("id").primaryKey(),
+    parentId: integer("parent_id").references((): AnyPgColumn => billComments.id, {
+      onDelete: "cascade",
+    }),
     billId: integer("bill_id")
       .notNull()
       .references(() => bills.id, { onDelete: "cascade" }),
@@ -783,6 +786,7 @@ export const billComments = pgTable(
   },
   (table) => [
     index("bill_comments_bill_created_idx").on(table.billId, table.createdAt),
+    index("bill_comments_parent_idx").on(table.parentId),
   ],
 );
 
@@ -825,7 +829,7 @@ export const socialPosts = pgTable(
     accountPartyId: integer("account_party_id").references(() => parties.id, {
       onDelete: "set null",
     }),
-    content: varchar("content", { length: 280 }).notNull(),
+    content: text("content").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [index("social_posts_created_idx").on(table.createdAt, table.id)],

@@ -1,6 +1,7 @@
 import { loadEnvFile } from "node:process";
 import pg from "pg";
 import { avatarForUsername, renderAvatar } from "../src/lib/avatar";
+import { seedAjAvatar } from "./seed-aj-avatar";
 import {
   POLICY_DEFINITIONS,
   STAT_DEFINITIONS,
@@ -187,7 +188,7 @@ try {
       "is_ancestry_root",
     ],
     [
-      ["ajstrongdev@pm.me", "ajstrongdev", "Senator", true, 0, "admin", true],
+      ["ajstrongdev@pm.me", "AJ", "Senator", true, 0, "admin", true],
       [
         "jenewland1999@gmail.com",
         "jenewland1999",
@@ -201,7 +202,9 @@ try {
     true,
   );
   for (const player of userRows) {
-    const avatar = avatarForUsername(String(player.username));
+    const avatar = player.email === "ajstrongdev@pm.me"
+      ? seedAjAvatar
+      : avatarForUsername(String(player.username));
     await client.query(
       "update users set avatar_config = $1::jsonb, photo_url = $2 where id = $3",
       [JSON.stringify(avatar), renderAvatar(avatar), Number(player.id)],
@@ -220,7 +223,7 @@ try {
       [
         Number(provisionalGovernment.id),
         Number(userRows[0].id),
-        "ajstrongdev",
+        "AJ",
         "Senator",
         "Appointed",
       ],

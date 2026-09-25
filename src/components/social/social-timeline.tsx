@@ -18,6 +18,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { PartyMark } from "@/components/wiki/wiki-header";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { SocialAccountAvatar } from "@/components/social/social-account-avatar";
+import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownContent } from "@/components/wiki/markdown-content";
 import {
   buildCommentTree,
   countThreadReplies,
@@ -380,9 +382,7 @@ function SocialPost({
                 )}
               </p>
             )}
-            <p className="mt-3 whitespace-pre-wrap break-words text-[0.95rem] leading-7 text-foreground">
-              {entry.content}
-            </p>
+            <div className="mt-3"><MarkdownContent content={entry.content} compact /></div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t pt-3">
@@ -475,7 +475,12 @@ function SocialPost({
               onSubmit={submitComment}
               className="space-y-3 rounded-xl border bg-background p-3 sm:p-4"
             >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">Markdown and references supported</span>
+                <ReferenceInsert textareaId={`social-comment-${entry.postId}`} value={comment} onChange={setComment} />
+              </div>
               <Textarea
+                id={`social-comment-${entry.postId}`}
                 value={comment}
                 onChange={(event) => setComment(event.target.value)}
                 placeholder="Add a comment…"
@@ -494,7 +499,7 @@ function SocialPost({
                   size="sm"
                   type="submit"
                   className="rounded-xl"
-                  disabled={busy || !comment.trim()}
+                  disabled={busy || !comment.trim() || comment.length > 2_000}
                 >
                   Post comment
                 </Button>
@@ -586,9 +591,9 @@ function CommentThread({
                 {dayjs(comment.createdAt).fromNow()}
               </time>
             </div>
-            <p className="mt-1 whitespace-pre-wrap break-words leading-6">
-              {comment.content}
-            </p>
+            <div className="mt-1">
+              <MarkdownContent content={comment.content} compact />
+            </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <div
                 className="inline-flex items-center rounded-xl border bg-background p-0.5"
@@ -672,7 +677,11 @@ function CommentThread({
                 onSubmit={submitReply}
                 className="mt-3 space-y-2 rounded-xl border bg-background p-3"
               >
+                <div className="flex justify-end">
+                  <ReferenceInsert textareaId={`social-reply-${comment.id}`} value={replyText} onChange={setReplyText} />
+                </div>
                 <Textarea
+                  id={`social-reply-${comment.id}`}
                   value={replyText}
                   onChange={(event) => setReplyText(event.target.value)}
                   placeholder={`Reply to @${comment.username}…`}
@@ -696,7 +705,7 @@ function CommentThread({
                     type="submit"
                     size="sm"
                     className="rounded-xl"
-                    disabled={replyBusy || !replyText.trim()}
+                    disabled={replyBusy || !replyText.trim() || replyText.length > 2_000}
                   >
                     {replyBusy ? "Posting…" : "Post reply"}
                   </Button>

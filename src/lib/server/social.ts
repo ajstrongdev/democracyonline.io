@@ -3,6 +3,7 @@ import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
+  bills,
   feed,
   parties,
   socialCommentDislikes,
@@ -16,6 +17,7 @@ import {
 } from "@/db/schema";
 import { userEmailEquals } from "@/lib/server/user-email";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
+import { publishBillComment } from "@/lib/server/publish-bill-comment";
 
 async function getActivePlayer(email: string) {
   const [player] = await db
@@ -33,23 +35,30 @@ async function enforceCooldown(
   action: "post" | "comment",
 ) {
   const lockNamespace = action === "post" ? 73001 : 73002;
-  await tx.execute(sql`select pg_advisory_xact_lock(${userId}, ${lockNamespace})`);
-  const lastAction = action === "post"
-    ? await tx.select({ createdAt: socialPosts.createdAt })
-        .from(socialPosts)
-        .where(eq(socialPosts.userId, userId))
-        .orderBy(desc(socialPosts.createdAt))
-        .limit(1)
-    : await tx.select({ createdAt: socialComments.createdAt })
-        .from(socialComments)
-        .where(eq(socialComments.userId, userId))
-        .orderBy(desc(socialComments.createdAt))
-        .limit(1);
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(${userId}, ${lockNamespace})`,
+  );
+  const lastAction =
+    action === "post"
+      ? await tx
+          .select({ createdAt: socialPosts.createdAt })
+          .from(socialPosts)
+          .where(eq(socialPosts.userId, userId))
+          .orderBy(desc(socialPosts.createdAt))
+          .limit(1)
+      : await tx
+          .select({ createdAt: socialComments.createdAt })
+          .from(socialComments)
+          .where(eq(socialComments.userId, userId))
+          .orderBy(desc(socialComments.createdAt))
+          .limit(1);
   const createdAt = lastAction[0]?.createdAt;
   if (!createdAt) return;
   const remaining = 60_000 - (Date.now() - createdAt.getTime());
   if (remaining > 0) {
-    throw new Error(`Please wait ${Math.ceil(remaining / 1000)} seconds before your next ${action}.`);
+    throw new Error(
+      `Please wait ${Math.ceil(remaining / 1000)} seconds before your next ${action}.`,
+    );
   }
 }
 
@@ -80,7 +89,13 @@ export const getSocialFeed = createServerFn()
             partyColor: parties.color,
           })
           .from(users)
-          .leftJoin(parties, and(eq(users.partyId, parties.id), sql`${parties.archivedAt} IS NULL`))
+          .leftJoin(
+            parties,
+            and(
+              eq(users.partyId, parties.id),
+              sql`${parties.archivedAt} IS NULL`,
+            ),
+          )
           .where(userEmailEquals(context.user.email))
           .limit(1)
       : [];
@@ -174,31 +189,59 @@ export const getSocialFeed = createServerFn()
           row.actor_user_id === null ? null : Number(row.actor_user_id),
         actorUsername: String(row.actor_username),
         reposterUsername:
-          row.reposter_username === null
-            ? null
-            : String(row.reposter_username),
+          row.reposter_username === null ? null : String(row.reposter_username),
         occurredAt: new Date(Number(row.occurred_at_ms)),
         authorUserId:
           row.author_user_id === null ? null : Number(row.author_user_id),
         authorUsername: String(row.author_username),
         accountKey: row.account_key === null ? null : String(row.account_key),
-        accountPartyId: row.account_party_id === null ? null : Number(row.account_party_id),
-        accountPartyName: row.account_party_name === null ? null : String(row.account_party_name),
-        accountPartyColor: row.account_party_color === null ? null : String(row.account_party_color),
-        accountPartyLogo: row.account_party_logo === null ? null : String(row.account_party_logo),
-        publisherUserId: row.publisher_user_id === null ? null : Number(row.publisher_user_id),
+        accountPartyId:
+          row.account_party_id === null ? null : Number(row.account_party_id),
+        accountPartyName:
+          row.account_party_name === null
+            ? null
+            : String(row.account_party_name),
+        accountPartyColor:
+          row.account_party_color === null
+            ? null
+            : String(row.account_party_color),
+        accountPartyLogo:
+          row.account_party_logo === null
+            ? null
+            : String(row.account_party_logo),
+        publisherUserId:
+          row.publisher_user_id === null ? null : Number(row.publisher_user_id),
         publisherUsername: String(row.publisher_username),
-        authorPhotoUrl: row.author_photo_url === null ? null : String(row.author_photo_url),
-        authorPartyId: row.account_key === "party"
-          ? (row.account_party_id === null ? null : Number(row.account_party_id))
-          : (row.author_party_id === null ? null : Number(row.author_party_id)),
-        authorPartyName: row.account_key === "party"
-          ? (row.account_party_name === null ? null : String(row.account_party_name))
-          : (row.author_party_name === null ? null : String(row.author_party_name)),
-        authorPartyColor: row.account_key === "party"
-          ? (row.account_party_color === null ? null : String(row.account_party_color))
-          : (row.author_party_color === null ? null : String(row.author_party_color)),
-        isPartyLeader: row.author_party_leader_id !== null && Number(row.author_party_leader_id) === (row.author_user_id === null ? -1 : Number(row.author_user_id)),
+        authorPhotoUrl:
+          row.author_photo_url === null ? null : String(row.author_photo_url),
+        authorPartyId:
+          row.account_key === "party"
+            ? row.account_party_id === null
+              ? null
+              : Number(row.account_party_id)
+            : row.author_party_id === null
+              ? null
+              : Number(row.author_party_id),
+        authorPartyName:
+          row.account_key === "party"
+            ? row.account_party_name === null
+              ? null
+              : String(row.account_party_name)
+            : row.author_party_name === null
+              ? null
+              : String(row.author_party_name),
+        authorPartyColor:
+          row.account_key === "party"
+            ? row.account_party_color === null
+              ? null
+              : String(row.account_party_color)
+            : row.author_party_color === null
+              ? null
+              : String(row.author_party_color),
+        isPartyLeader:
+          row.author_party_leader_id !== null &&
+          Number(row.author_party_leader_id) ===
+            (row.author_user_id === null ? -1 : Number(row.author_user_id)),
         content: String(row.content),
         commentCount: Number(row.comment_count),
         score: Number(row.score),
@@ -223,7 +266,12 @@ export const getSocialPartyPosts = createServerFn()
       })
       .from(socialPosts)
       .leftJoin(users, eq(socialPosts.userId, users.id))
-      .where(and(eq(socialPosts.accountPartyId, data.partyId), eq(socialPosts.accountKey, "party")))
+      .where(
+        and(
+          eq(socialPosts.accountPartyId, data.partyId),
+          eq(socialPosts.accountKey, "party"),
+        ),
+      )
       .orderBy(sql`${socialPosts.createdAt} DESC`)
       .limit(20),
   );
@@ -244,14 +292,26 @@ export const getSocialProfile = createServerFn()
         partyLeaderId: parties.leaderId,
       })
       .from(users)
-      .leftJoin(parties, and(eq(users.partyId, parties.id), sql`${parties.archivedAt} IS NULL`))
+      .leftJoin(
+        parties,
+        and(eq(users.partyId, parties.id), sql`${parties.archivedAt} IS NULL`),
+      )
       .where(eq(users.id, data.userId))
       .limit(1);
     if (!profile) return null;
     const posts = await db
-      .select({ id: socialPosts.id, content: socialPosts.content, createdAt: socialPosts.createdAt })
+      .select({
+        id: socialPosts.id,
+        content: socialPosts.content,
+        createdAt: socialPosts.createdAt,
+      })
       .from(socialPosts)
-      .where(and(eq(socialPosts.userId, data.userId), isNull(socialPosts.accountKey)))
+      .where(
+        and(
+          eq(socialPosts.userId, data.userId),
+          isNull(socialPosts.accountKey),
+        ),
+      )
       .orderBy(sql`${socialPosts.createdAt} DESC`)
       .limit(5);
     return {
@@ -268,34 +328,95 @@ export const createSocialPost = createServerFn({ method: "POST" })
       content: z.string().trim().min(1).max(280),
       accountKey: z.enum(["player", "potro", "party"]).default("player"),
       partyId: z.number().int().positive().optional(),
+      billId: z.number().int().positive().optional(),
     }),
   )
   .handler(async ({ data, context }) => {
     if (!context.user?.email) throw new Error("Authentication required");
     const player = await getActivePlayer(context.user.email);
+    if (data.billId && data.accountKey !== "player") {
+      throw new Error(
+        "Bill discussions must be posted from your player account.",
+      );
+    }
     if (data.accountKey === "potro") {
       const [president] = await db
         .select({ id: users.id })
         .from(users)
-        .where(and(eq(users.id, player.id), eq(users.role, "President"), eq(users.isActive, true)))
+        .where(
+          and(
+            eq(users.id, player.id),
+            eq(users.role, "President"),
+            eq(users.isActive, true),
+          ),
+        )
         .limit(1);
-      if (!president) throw new Error("Only the current President can post as POTRO.");
+      if (!president)
+        throw new Error("Only the current President can post as POTRO.");
     }
     let accountPartyId: number | null = null;
     let partyAccountName: string | null = null;
     if (data.accountKey === "party") {
-      if (!data.partyId) throw new Error("Choose a party account to post from.");
+      if (!data.partyId)
+        throw new Error("Choose a party account to post from.");
       const [party] = await db
         .select({ id: parties.id, name: parties.name })
         .from(parties)
-        .where(and(eq(parties.id, data.partyId), eq(parties.leaderId, player.id), isNull(parties.archivedAt)))
+        .where(
+          and(
+            eq(parties.id, data.partyId),
+            eq(parties.leaderId, player.id),
+            isNull(parties.archivedAt),
+          ),
+        )
         .limit(1);
-      if (!party) throw new Error("Only the current leader of an active party can post as that party.");
+      if (!party)
+        throw new Error(
+          "Only the current leader of an active party can post as that party.",
+        );
       accountPartyId = party.id;
       partyAccountName = party.name;
     }
     return db.transaction(async (tx) => {
       await enforceCooldown(tx, player.id, "post");
+      if (data.billId) {
+        const [bill] = await tx
+          .select({ id: bills.id })
+          .from(bills)
+          .where(eq(bills.id, data.billId))
+          .limit(1);
+        if (!bill) throw new Error("Bill not found");
+        const [author] = await tx
+          .select({
+            partyId: users.partyId,
+            partyName: parties.name,
+            leaderId: parties.leaderId,
+            archivedAt: parties.archivedAt,
+          })
+          .from(users)
+          .leftJoin(parties, eq(parties.id, users.partyId))
+          .where(eq(users.id, player.id))
+          .limit(1);
+        const { post } = await publishBillComment(tx, {
+          billId: bill.id,
+          content: data.content,
+          author: {
+            id: player.id,
+            username: player.username,
+            partyName: author?.partyName ?? null,
+            isPartyLeader: Boolean(
+              author?.partyId &&
+              author.leaderId === player.id &&
+              author.archivedAt === null,
+            ),
+          },
+        });
+        await tx.insert(feed).values({
+          userId: player.id,
+          content: `@${player.username} posted on Z.com about Bill #${bill.id}: ${data.content}`,
+        });
+        return post;
+      }
       const [post] = await tx
         .insert(socialPosts)
         .values({
@@ -306,11 +427,12 @@ export const createSocialPost = createServerFn({ method: "POST" })
           content: data.content,
         })
         .returning({ id: socialPosts.id });
-      const accountName = data.accountKey === "potro"
-        ? "POTRO"
-        : data.accountKey === "party"
-          ? partyAccountName ?? "A party"
-          : `@${player.username}`;
+      const accountName =
+        data.accountKey === "potro"
+          ? "POTRO"
+          : data.accountKey === "party"
+            ? (partyAccountName ?? "A party")
+            : `@${player.username}`;
       await tx.insert(feed).values({
         userId: player.id,
         content: `${accountName} posted on Z.com: ${data.content}`,
@@ -324,7 +446,11 @@ export const getSocialComments = createServerFn()
   .inputValidator(z.object({ postId: z.number().int().positive() }))
   .handler(async ({ data, context }) => {
     const [viewer] = context.user?.email
-      ? await db.select({ id: users.id }).from(users).where(userEmailEquals(context.user.email)).limit(1)
+      ? await db
+          .select({ id: users.id })
+          .from(users)
+          .where(userEmailEquals(context.user.email))
+          .limit(1)
       : [];
     const viewerId = viewer?.id ?? null;
     return db
@@ -361,7 +487,8 @@ export const addSocialComment = createServerFn({ method: "POST" })
     return db.transaction(async (tx) => {
       await enforceCooldown(tx, player.id, "comment");
       if (data.parentId) {
-        const [parent] = await tx.select({ postId: socialComments.postId })
+        const [parent] = await tx
+          .select({ postId: socialComments.postId })
           .from(socialComments)
           .where(eq(socialComments.id, data.parentId))
           .limit(1);
@@ -389,27 +516,57 @@ export const addSocialComment = createServerFn({ method: "POST" })
 
 export const toggleSocialVote = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
-  .inputValidator(z.object({ postId: z.number().int().positive(), vote: z.enum(["up", "down"]) }))
+  .inputValidator(
+    z.object({
+      postId: z.number().int().positive(),
+      vote: z.enum(["up", "down"]),
+    }),
+  )
   .handler(async ({ data, context }) => {
     if (!context.user?.email) throw new Error("Authentication required");
     const player = await getActivePlayer(context.user.email);
     return db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(${data.postId}, ${player.id})`);
-      const [post] = await tx.select({ id: socialPosts.id }).from(socialPosts).where(eq(socialPosts.id, data.postId)).limit(1);
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(${data.postId}, ${player.id})`,
+      );
+      const [post] = await tx
+        .select({ id: socialPosts.id })
+        .from(socialPosts)
+        .where(eq(socialPosts.id, data.postId))
+        .limit(1);
       if (!post) throw new Error("Post not found");
-      const [removedUp] = await tx.delete(socialLikes)
-        .where(and(eq(socialLikes.postId, data.postId), eq(socialLikes.userId, player.id)))
+      const [removedUp] = await tx
+        .delete(socialLikes)
+        .where(
+          and(
+            eq(socialLikes.postId, data.postId),
+            eq(socialLikes.userId, player.id),
+          ),
+        )
         .returning({ postId: socialLikes.postId });
-      const [removedDown] = await tx.delete(socialDislikes)
-        .where(and(eq(socialDislikes.postId, data.postId), eq(socialDislikes.userId, player.id)))
+      const [removedDown] = await tx
+        .delete(socialDislikes)
+        .where(
+          and(
+            eq(socialDislikes.postId, data.postId),
+            eq(socialDislikes.userId, player.id),
+          ),
+        )
         .returning({ postId: socialDislikes.postId });
-      if ((data.vote === "up" && removedUp) || (data.vote === "down" && removedDown)) {
+      if (
+        (data.vote === "up" && removedUp) ||
+        (data.vote === "down" && removedDown)
+      ) {
         return { vote: null };
       }
       if (data.vote === "up") {
-        await tx.insert(socialLikes).values({ postId: data.postId, userId: player.id });
+        await tx
+          .insert(socialLikes)
+          .values({ postId: data.postId, userId: player.id });
       } else {
-        await tx.insert(socialDislikes).values({ postId: data.postId, userId: player.id });
+        await tx
+          .insert(socialDislikes)
+          .values({ postId: data.postId, userId: player.id });
       }
       return { vote: data.vote };
     });
@@ -417,25 +574,56 @@ export const toggleSocialVote = createServerFn({ method: "POST" })
 
 export const toggleSocialCommentVote = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
-  .inputValidator(z.object({ commentId: z.number().int().positive(), vote: z.enum(["up", "down"]) }))
+  .inputValidator(
+    z.object({
+      commentId: z.number().int().positive(),
+      vote: z.enum(["up", "down"]),
+    }),
+  )
   .handler(async ({ data, context }) => {
     if (!context.user?.email) throw new Error("Authentication required");
     const player = await getActivePlayer(context.user.email);
     return db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(${data.commentId}, ${player.id})`);
-      const [comment] = await tx.select({ id: socialComments.id }).from(socialComments).where(eq(socialComments.id, data.commentId)).limit(1);
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(${data.commentId}, ${player.id})`,
+      );
+      const [comment] = await tx
+        .select({ id: socialComments.id })
+        .from(socialComments)
+        .where(eq(socialComments.id, data.commentId))
+        .limit(1);
       if (!comment) throw new Error("Comment not found");
-      const [removedUp] = await tx.delete(socialCommentLikes)
-        .where(and(eq(socialCommentLikes.commentId, data.commentId), eq(socialCommentLikes.userId, player.id)))
+      const [removedUp] = await tx
+        .delete(socialCommentLikes)
+        .where(
+          and(
+            eq(socialCommentLikes.commentId, data.commentId),
+            eq(socialCommentLikes.userId, player.id),
+          ),
+        )
         .returning({ commentId: socialCommentLikes.commentId });
-      const [removedDown] = await tx.delete(socialCommentDislikes)
-        .where(and(eq(socialCommentDislikes.commentId, data.commentId), eq(socialCommentDislikes.userId, player.id)))
+      const [removedDown] = await tx
+        .delete(socialCommentDislikes)
+        .where(
+          and(
+            eq(socialCommentDislikes.commentId, data.commentId),
+            eq(socialCommentDislikes.userId, player.id),
+          ),
+        )
         .returning({ commentId: socialCommentDislikes.commentId });
-      if ((data.vote === "up" && removedUp) || (data.vote === "down" && removedDown)) return { vote: null };
+      if (
+        (data.vote === "up" && removedUp) ||
+        (data.vote === "down" && removedDown)
+      )
+        return { vote: null };
       if (data.vote === "up") {
-        await tx.insert(socialCommentLikes).values({ commentId: data.commentId, userId: player.id });
+        await tx
+          .insert(socialCommentLikes)
+          .values({ commentId: data.commentId, userId: player.id });
       } else {
-        await tx.insert(socialCommentDislikes).values({ commentId: data.commentId, userId: player.id });
+        await tx
+          .insert(socialCommentDislikes)
+          .values({ commentId: data.commentId, userId: player.id });
       }
       return { vote: data.vote };
     });

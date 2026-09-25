@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, eq, getTableColumns, gt, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
-  accessTokens,
   billVotesHouse,
   billVotesPresidential,
   billVotesSenate,
@@ -20,7 +19,7 @@ import { normalizeEmail, userEmailEquals } from "@/lib/server/user-email";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware";
 
 const CreateUserSchema = z.object({
-  accessToken: z.string().min(1, "Access token is required"),
+  inviteToken: z.string().min(1, "Invite link is required"),
   email: z.string().email(),
   username: z.string().min(1, "Username is required"),
   bio: z.string().optional(),
@@ -28,51 +27,11 @@ const CreateUserSchema = z.object({
   pronouns: z.string().trim().max(80, "Pronouns must be 80 characters or fewer").optional(),
 });
 
-export const validateAccessToken = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ token: z.string() }))
-  .handler(async ({ data }) => {
-    const token = data.token.trim();
-    if (token.startsWith("doi_")) {
-      const invitation = await db
-        .select({ id: playerInvitations.id })
-        .from(playerInvitations)
-        .where(
-          and(
-            eq(playerInvitations.tokenHash, hashInvitationToken(token)),
-            isNull(playerInvitations.redeemedAt),
-            isNull(playerInvitations.revokedAt),
-            gt(playerInvitations.expiresAt, new Date()),
-          ),
-        )
-        .limit(1);
-
-      if (invitation.length === 0) {
-        throw new Error("Invalid or already used invitation token");
-      }
-
-      return { valid: true };
-    }
-
-    const validToken = await db
-      .select({ token: accessTokens.token })
-      .from(accessTokens)
-      .where(
-        and(eq(accessTokens.token, token), isNull(accessTokens.redeemedAt)),
-      )
-      .limit(1);
-
-    if (validToken.length === 0) {
-      throw new Error("Invalid or already used invitation token");
-    }
-
-    return { valid: true };
-  });
-
 export const createUser = createServerFn({ method: "POST" })
   .inputValidator(CreateUserSchema)
   .handler(async ({ data }) => {
     const normalizedEmail = normalizeEmail(data.email);
-    const accessToken = data.accessToken.trim();
+    const inviteToken = data.inviteToken.trim();
     const existingUser = await db
       .select({ username: users.username, email: users.email })
       .from(users)
@@ -91,36 +50,22 @@ export const createUser = createServerFn({ method: "POST" })
       throw new Error("Email already exists");
     }
 
-    const [newUser] = await db.transaction(async (tx) => {
-      const [redeemedToken] = accessToken.startsWith("doi_")
-        ? await tx
-          .update(playerInvitations)
-          .set({ redeemedAt: new Date() })
-          .where(
-            and(
-              eq(
-                playerInvitations.tokenHash,
-                hashInvitationToken(accessToken),
-              ),
-              isNull(playerInvitations.redeemedAt),
-              isNull(playerInvitations.revokedAt),
-              gt(playerInvitations.expiresAt, new Date()),
-            ),
-          )
-          .returning({ id: playerInvitations.id })
-        : await tx
-          .update(accessTokens)
-          .set({ redeemedAt: new Date() })
-          .where(
-            and(
-              eq(accessTokens.token, accessToken),
-              isNull(accessTokens.redeemedAt),
-            ),
-          )
-          .returning({ id: accessTokens.id });
+    const newUser = await db.transaction(async (tx) => {
+      const [redeemedToken] = await tx
+        .update(playerInvitations)
+        .set({ redeemedAt: new Date() })
+        .where(
+          and(
+            eq(playerInvitations.tokenHash, hashInvitationToken(inviteToken)),
+            isNull(playerInvitations.redeemedAt),
+            isNull(playerInvitations.revokedAt),
+            gt(playerInvitations.expiresAt, new Date()),
+          ),
+        )
+        .returning({ id: playerInvitations.id });
 
       if (!redeemedToken) {
-        throw new Error("Invalid or already used invitation token");
+        throw new Error("Invite link is invalid or no longer available");
       }
 
       const [newUser] = await tx
@@ -134,12 +79,10 @@ export const createUser = createServerFn({ method: "POST" })
         })
         .returning();
 
-      if (accessToken.startsWith("doi_")) {
-        await tx
-          .update(playerInvitations)
-          .set({ redeemedByUserId: newUser.id })
-          .where(eq(playerInvitations.id, redeemedToken.id));
-      }
+      await tx
+        .update(playerInvitations)
+        .set({ redeemedByUserId: newUser.id })
+        .where(eq(playerInvitations.id, redeemedToken.id));
 
       const welcomeMessage = `has spawned into existence`;
       await tx.execute(sql`
@@ -147,7 +90,7 @@ export const createUser = createServerFn({ method: "POST" })
         VALUES (${newUser.id}, ${welcomeMessage}, NOW())
       `);
 
-      return [newUser];
+      return newUser;
     });
 
     return newUser;

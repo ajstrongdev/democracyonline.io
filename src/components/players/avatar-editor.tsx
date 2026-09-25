@@ -166,7 +166,7 @@ function ChoiceField({
   );
 }
 
-export function AvatarEditor({ initialConfig, username }: { initialConfig: unknown; username: string }) {
+export function AvatarEditor({ initialConfig, username, onSaved }: { initialConfig: unknown; username: string; onSaved?: (config: AvatarConfig) => void }) {
   const router = useRouter();
   const choicesPanel = useRef<HTMLDivElement>(null);
   const parsed = avatarSchema.safeParse(initialConfig);
@@ -216,6 +216,7 @@ export function AvatarEditor({ initialConfig, username }: { initialConfig: unkno
       const next = avatarSchema.parse(config);
       await updatePlayerAvatar({ data: next });
       setSaved(next);
+      onSaved?.(next);
       await router.invalidate();
       setOpen(false);
     } catch {

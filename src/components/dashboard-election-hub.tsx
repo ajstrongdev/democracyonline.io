@@ -617,14 +617,14 @@ function ElectionNightCard({
   const seatSummary = partySeatSummary(standings, seats);
 
   return (
-    <article className="min-w-0 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 text-white shadow-2xl">
-      <header className="flex flex-col gap-4 border-b border-white/10 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+    <article className="min-w-0 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-lg">
+      <header className="flex flex-col gap-4 border-b bg-muted/30 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
         <div className="flex min-w-0 items-start gap-3">
-          <div className="mt-0.5 border border-white/20 bg-white/10 p-2">
+          <div className="mt-0.5 border bg-background/70 p-2">
             <Icon className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="font-mono text-[0.65rem] font-bold uppercase tracking-[0.14em] text-white/50">
+            <p className="font-mono text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">
               Cycle {race.cycle} · {seats} {seats === 1 ? "seat" : "seats"}
             </p>
             <h3 className="truncate font-serif text-2xl font-bold sm:text-3xl">
@@ -639,7 +639,7 @@ function ElectionNightCard({
           {deadline && (
             <Badge
               variant="outline"
-              className="gap-1.5 border-white/25 text-white"
+              className="gap-1.5"
             >
               <Clock3 className="h-3 w-3" />
               <DashboardElectionCountdown
@@ -651,7 +651,7 @@ function ElectionNightCard({
           <Link
             to="/dashboard/elections/$electionId"
             params={{ electionId: `current-${race.election}` }}
-            className="text-xs font-semibold text-white/70 hover:text-white hover:underline"
+            className="text-xs font-semibold text-primary hover:underline"
           >
             Full race record
           </Link>
@@ -663,7 +663,7 @@ function ElectionNightCard({
           <div className="mb-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="font-mono text-[0.65rem] font-bold uppercase tracking-[0.14em] text-white/50">
+                <p className="font-mono text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                   Reported so far
                 </p>
                 <p className="mt-1 font-serif text-2xl font-bold leading-tight">
@@ -679,7 +679,7 @@ function ElectionNightCard({
                   {Math.min(100, race.coverage.reportingPercent).toFixed(0)}%
                 </strong>
                 {race.coverage.reportedPoints > 0 && (
-                  <p className="mt-1 font-mono text-sm text-white/50">
+                  <p className="mt-1 font-mono text-sm text-muted-foreground">
                     {race.coverage.reportedPoints.toLocaleString()} points
                     reported
                   </p>
@@ -687,7 +687,7 @@ function ElectionNightCard({
               </div>
             </div>
             <div
-              className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/15"
+              className="mt-4 h-2.5 overflow-hidden rounded-full bg-muted"
               role="progressbar"
               aria-label="Reporting progress"
               aria-valuemin={0}
@@ -704,7 +704,7 @@ function ElectionNightCard({
           </div>
 
           {standings.length > 0 && total > 0 && (
-            <div className="mb-6 flex items-center gap-4 rounded-lg border border-white/15 bg-white/5 p-4">
+            <div className="mb-6 flex items-center gap-4 rounded-lg border bg-muted/30 p-4">
               <PieChart width={80} height={80}>
                 <Pie
                   data={standings.map((c) => ({
@@ -736,7 +736,7 @@ function ElectionNightCard({
                 </Pie>
               </PieChart>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wider text-white/55">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Vote share
                 </p>
                 <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
@@ -755,8 +755,8 @@ function ElectionNightCard({
                         }}
                       />
                       <PlayerAvatar username={c.username} photoUrl={c.photoUrl} className="size-6" />
-                      <span className="text-white/70">{c.username}</span>
-                      <span className="font-mono font-bold text-white/90">
+                      <span className="text-foreground/80">{c.username}</span>
+                      <span className="font-mono font-bold text-foreground">
                         {total
                           ? (((c.points ?? 0) / total) * 100).toFixed(0)
                           : 0}
@@ -765,7 +765,7 @@ function ElectionNightCard({
                     </span>
                   ))}
                   {standings.length > 6 && (
-                    <span className="text-xs text-white/40">
+                    <span className="text-xs text-muted-foreground">
                       +{standings.length - 6} more
                     </span>
                   )}
@@ -780,10 +780,10 @@ function ElectionNightCard({
               return (
                 <div
                   key={candidate.id}
-                  className="relative overflow-hidden rounded-lg border border-white/15 bg-white/5 p-4 transition-colors hover:bg-white/10"
+                  className="relative overflow-hidden rounded-lg border bg-background/60 p-4 transition-colors hover:bg-muted/50"
                 >
                   <div className="flex min-w-0 items-center gap-4">
-                    <span className="font-mono text-xl font-bold text-white/50">
+                    <span className="font-mono text-xl font-bold text-muted-foreground">
                       #{index + 1}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -793,12 +793,12 @@ function ElectionNightCard({
                       <p className="font-mono text-xl font-bold tabular-nums">
                         {candidate.points ?? 0}
                       </p>
-                      <p className="text-xs uppercase tracking-wider text-white/50">
+                      <p className="text-xs uppercase tracking-wider text-muted-foreground">
                         {share.toFixed(1)}%
                       </p>
                     </div>
                   </div>
-                  <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/15">
+                  <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full transition-[width] motion-reduce:transition-none"
                       style={{
@@ -818,7 +818,7 @@ function ElectionNightCard({
 
         <aside
           aria-live="polite"
-          className="min-w-0 border-t border-white/15 pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5"
+          className="min-w-0 border-t pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5"
         >
           <div className="mb-4 flex items-center gap-2">
             <Radio className="h-4 w-4 text-red-500" />
@@ -828,9 +828,9 @@ function ElectionNightCard({
             {[...race.coverage.updates].reverse().map((update) => (
               <div
                 key={update.id}
-                className="border-t border-white/15 py-3 first:border-t-0 first:pt-0"
+                className="border-t py-3 first:border-t-0 first:pt-0"
               >
-                <time className="font-mono text-[10px] uppercase tracking-wider text-white/50">
+                <time className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                   {formatFeedTime(update.revealAt)}
                 </time>
                 <p className="mt-1 text-sm font-semibold leading-5">
@@ -839,7 +839,7 @@ function ElectionNightCard({
               </div>
             ))}
             {!race.coverage.updates.length && (
-              <p className="text-sm text-white/60">
+              <p className="text-sm text-muted-foreground">
                 The first report has not arrived yet.
               </p>
             )}
@@ -867,7 +867,7 @@ function ElectionNightCandidateIdentity({
         <span className="block truncate font-semibold">
           {candidate.username}
         </span>
-        <span className="block truncate text-xs text-white/50">{label}</span>
+        <span className="block truncate text-xs text-muted-foreground">{label}</span>
       </span>
     </>
   );

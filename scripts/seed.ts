@@ -1,6 +1,7 @@
 import { loadEnvFile } from "node:process";
 import pg from "pg";
 import { avatarForUsername, renderAvatar } from "../src/lib/avatar";
+import { seedAjAvatar } from "./seed-aj-avatar";
 import {
   POLICY_DEFINITIONS,
   STAT_DEFINITIONS,
@@ -453,7 +454,7 @@ async function seed() {
       [
         [
           "ajstrongdev@pm.me",
-          "ajstrongdev",
+          "AJ",
           "Developer, civic technologist, and public servant.",
           "Center",
           "Representative",
@@ -473,7 +474,9 @@ async function seed() {
     const generatedUserIds = userRows.slice(1).map((row) => Number(row.id));
     const allUserIds = userRows.map((row) => Number(row.id));
     for (const player of userRows) {
-      const avatar = avatarForUsername(String(player.username));
+      const avatar = player.email === "ajstrongdev@pm.me"
+        ? seedAjAvatar
+        : avatarForUsername(String(player.username));
       await client.query("UPDATE users SET avatar_config = $1::jsonb, photo_url = $2 WHERE id = $3", [
         JSON.stringify(avatar), renderAvatar(avatar), Number(player.id),
       ]);
@@ -494,7 +497,7 @@ async function seed() {
         ["user_id", "username", "account_key", "account_party_id", "content", "created_at"],
         [
           [ajId, String(aj.username), null, null, "Welcome to Z.com—Oscana’s new town square. @POTRO, ready for the first debate?", socialSeedTime],
-          [Number(president.id), String(president.username), "potro", null, "POTRO is online. We’re listening to citizens and party accounts alike: @ajstrongdev and @the-liberal-party-of-oscana", socialSeedTime],
+          [Number(president.id), String(president.username), "potro", null, "POTRO is online. We’re listening to citizens and party accounts alike: @AJ and @the-liberal-party-of-oscana", socialSeedTime],
           [ajId, String(aj.username), "party", partyIds[0], "The Liberal Party of Oscana account is live. Follow our platform and send your questions to @POTRO.", socialSeedTime],
         ],
         true,
@@ -503,7 +506,7 @@ async function seed() {
       "social_comments",
       ["post_id", "user_id", "username", "content", "created_at"],
       [
-        [Number(socialPostRows[0].id), Number(president.id), String(president.username), "@ajstrongdev Happy to join the conversation from the official account.", new Date(socialSeedTime.getTime() + 1_000)],
+        [Number(socialPostRows[0].id), Number(president.id), String(president.username), "@AJ Happy to join the conversation from the official account.", new Date(socialSeedTime.getTime() + 1_000)],
         [Number(socialPostRows[1].id), ajId, String(aj.username), "@POTRO Thanks for opening the floor. @renewal-coalition has a question too.", new Date(socialSeedTime.getTime() + 2_000)],
       ],
       true,
@@ -532,10 +535,10 @@ async function seed() {
       "feed",
       ["user_id", "content", "created_at"],
       [
-        [ajId, "@ajstrongdev posted on Z.com: Welcome to Z.com—Oscana’s new town square.", socialSeedTime],
+        [ajId, "@AJ posted on Z.com: Welcome to Z.com—Oscana’s new town square.", socialSeedTime],
         [Number(president.id), "POTRO posted on Z.com: We’re listening to citizens and party accounts alike.", new Date(socialSeedTime.getTime() + 1_000)],
         [ajId, "The liberal party of Oscana posted on Z.com: The party account is live.", new Date(socialSeedTime.getTime() + 2_000)],
-        [Number(president.id), "commented on a Z.com post and mentioned @ajstrongdev.", new Date(socialSeedTime.getTime() + 3_000)],
+        [Number(president.id), "commented on a Z.com post and mentioned @AJ.", new Date(socialSeedTime.getTime() + 3_000)],
         [ajId, "commented on a Z.com post and mentioned @POTRO.", new Date(socialSeedTime.getTime() + 4_000)],
       ],
     );

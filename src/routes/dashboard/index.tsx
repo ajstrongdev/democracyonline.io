@@ -11,6 +11,8 @@ import {
   Flag,
   History,
   Landmark,
+  LifeBuoy,
+  MailPlus,
   MessageSquareText,
   Radio,
   ScrollText,
@@ -31,10 +33,10 @@ import {
   WikiStatGrid,
 } from "@/components/wiki/wiki-layout";
 import { getDashboardData } from "@/lib/server/dashboard";
-import { cn } from "@/lib/utils";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { ZNotifications } from "@/components/social/z-notifications";
 import { Button } from "@/components/ui/button";
+import { AccountSettingsDialog } from "@/components/settings/account-settings-dialog";
 import { getFeedItems } from "@/lib/server/feed";
 import { getFeedDestination } from "@/lib/feed-destination";
 
@@ -82,6 +84,7 @@ function Dashboard() {
   const [hasMoreActivity, setHasMoreActivity] = useState(activity.length > 6);
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [activityError, setActivityError] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const loadMoreActivity = async () => {
     if (loadingActivity) return;
@@ -101,11 +104,11 @@ function Dashboard() {
   };
 
   return (
-    <WikiPage className={cn(electionNight && "dark")}>
+    <WikiPage>
       {electionNight && (
         <div className="mb-2 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-600/10 px-4 py-3">
-          <Radio className="h-4 w-4 text-red-500 animate-pulse" />
-          <p className="text-sm font-semibold text-red-400">
+          <Radio className="h-4 w-4 animate-pulse text-red-700 dark:text-red-400" />
+          <p className="text-sm font-semibold text-red-700 dark:text-red-400">
             Election night is live — results are coming in now
           </p>
         </div>
@@ -330,6 +333,12 @@ function Dashboard() {
               count: counts.players,
               icon: Users,
             },
+            {
+              to: "/dashboard/guide",
+              title: "Player Guide",
+              description: "A plain-language guide to getting started and taking part.",
+              icon: LifeBuoy,
+            },
           ].map(({ to, title, description, count, icon: Icon }) => (
             <Link
               key={to}
@@ -353,7 +362,30 @@ function Dashboard() {
               <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
             </Link>
           ))}
+          {currentUser && (
+            <button
+              type="button"
+              onClick={() => setInviteOpen(true)}
+              className="group flex min-h-24 min-w-0 items-start gap-3 bg-card px-4 py-4 text-left transition-colors hover:bg-muted/50 sm:px-5"
+            >
+              <MailPlus className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+              <span className="min-w-0 flex-1">
+                <span className="font-semibold">Invite</span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                  Create a link to invite a new player.
+                </span>
+              </span>
+              <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
+            </button>
+          )}
         </nav>
+        {currentUser && (
+          <AccountSettingsDialog
+            open={inviteOpen}
+            onOpenChange={setInviteOpen}
+            initialTab="invites"
+          />
+        )}
       </WikiSection>
 
       <WikiSection

@@ -1,11 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import { LogIn, LogOut, Settings } from "lucide-react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { logOut } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
+import { AccountSettingsDialog } from "@/components/settings/account-settings-dialog";
 
 export function UserMenu() {
   const { user, loading } = useAuth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleLogout = async () => {
     await logOut();
@@ -30,11 +33,10 @@ export function UserMenu() {
 
   return (
     <div className="flex items-center gap-1">
-      <Button variant="ghost" size="icon" asChild>
-        <Link to="/settings" aria-label="Account settings">
+      <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="Account settings">
           <Settings className="size-4" />
-        </Link>
       </Button>
+      <AccountSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <Button
         variant="ghost"
         size="icon"

@@ -31,6 +31,7 @@ import { Route as PartiesIdRouteImport } from './routes/parties/$id'
 import { Route as ElectionsSenateRouteImport } from './routes/elections/senate'
 import { Route as ElectionsPresidentRouteImport } from './routes/elections/president'
 import { Route as DashboardNationRouteImport } from './routes/dashboard/nation'
+import { Route as DashboardGuideRouteImport } from './routes/dashboard/guide'
 import { Route as DashboardGovernmentRouteImport } from './routes/dashboard/government'
 import { Route as BillsSenateRouteImport } from './routes/bills/senate'
 import { Route as BillsOvalOfficeRouteImport } from './routes/bills/oval-office'
@@ -176,6 +177,11 @@ const ElectionsPresidentRoute = ElectionsPresidentRouteImport.update({
 const DashboardNationRoute = DashboardNationRouteImport.update({
   id: '/dashboard/nation',
   path: '/dashboard/nation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardGuideRoute = DashboardGuideRouteImport.update({
+  id: '/dashboard/guide',
+  path: '/dashboard/guide',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardGovernmentRoute = DashboardGovernmentRouteImport.update({
@@ -390,6 +396,7 @@ export interface FileRoutesByFullPath {
   '/bills/oval-office': typeof BillsOvalOfficeRoute
   '/bills/senate': typeof BillsSenateRoute
   '/dashboard/government': typeof DashboardGovernmentRoute
+  '/dashboard/guide': typeof DashboardGuideRoute
   '/dashboard/nation': typeof DashboardNationRoute
   '/elections/president': typeof ElectionsPresidentRoute
   '/elections/senate': typeof ElectionsSenateRoute
@@ -450,6 +457,7 @@ export interface FileRoutesByTo {
   '/bills/oval-office': typeof BillsOvalOfficeRoute
   '/bills/senate': typeof BillsSenateRoute
   '/dashboard/government': typeof DashboardGovernmentRoute
+  '/dashboard/guide': typeof DashboardGuideRoute
   '/dashboard/nation': typeof DashboardNationRoute
   '/elections/president': typeof ElectionsPresidentRoute
   '/elections/senate': typeof ElectionsSenateRoute
@@ -511,6 +519,7 @@ export interface FileRoutesById {
   '/bills/oval-office': typeof BillsOvalOfficeRoute
   '/bills/senate': typeof BillsSenateRoute
   '/dashboard/government': typeof DashboardGovernmentRoute
+  '/dashboard/guide': typeof DashboardGuideRoute
   '/dashboard/nation': typeof DashboardNationRoute
   '/elections/president': typeof ElectionsPresidentRoute
   '/elections/senate': typeof ElectionsSenateRoute
@@ -573,6 +582,7 @@ export interface FileRouteTypes {
     | '/bills/oval-office'
     | '/bills/senate'
     | '/dashboard/government'
+    | '/dashboard/guide'
     | '/dashboard/nation'
     | '/elections/president'
     | '/elections/senate'
@@ -633,6 +643,7 @@ export interface FileRouteTypes {
     | '/bills/oval-office'
     | '/bills/senate'
     | '/dashboard/government'
+    | '/dashboard/guide'
     | '/dashboard/nation'
     | '/elections/president'
     | '/elections/senate'
@@ -693,6 +704,7 @@ export interface FileRouteTypes {
     | '/bills/oval-office'
     | '/bills/senate'
     | '/dashboard/government'
+    | '/dashboard/guide'
     | '/dashboard/nation'
     | '/elections/president'
     | '/elections/senate'
@@ -754,6 +766,7 @@ export interface RootRouteChildren {
   BillsOvalOfficeRoute: typeof BillsOvalOfficeRoute
   BillsSenateRoute: typeof BillsSenateRoute
   DashboardGovernmentRoute: typeof DashboardGovernmentRoute
+  DashboardGuideRoute: typeof DashboardGuideRoute
   DashboardNationRoute: typeof DashboardNationRoute
   ElectionsPresidentRoute: typeof ElectionsPresidentRoute
   ElectionsSenateRoute: typeof ElectionsSenateRoute
@@ -950,6 +963,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard/nation'
       fullPath: '/dashboard/nation'
       preLoaderRoute: typeof DashboardNationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/guide': {
+      id: '/dashboard/guide'
+      path: '/dashboard/guide'
+      fullPath: '/dashboard/guide'
+      preLoaderRoute: typeof DashboardGuideRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/government': {
@@ -1226,6 +1246,7 @@ const rootRouteChildren: RootRouteChildren = {
   BillsOvalOfficeRoute: BillsOvalOfficeRoute,
   BillsSenateRoute: BillsSenateRoute,
   DashboardGovernmentRoute: DashboardGovernmentRoute,
+  DashboardGuideRoute: DashboardGuideRoute,
   DashboardNationRoute: DashboardNationRoute,
   ElectionsPresidentRoute: ElectionsPresidentRoute,
   ElectionsSenateRoute: ElectionsSenateRoute,

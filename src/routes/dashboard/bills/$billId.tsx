@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
-import { Check, Clock3, X } from "lucide-react";
+import { Check, Clock3, Megaphone, X } from "lucide-react";
 import {
   BillStageCountdown,
   billStatusLabel,
@@ -16,6 +16,7 @@ import {
   WikiSection,
 } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { getWikiBill } from "@/lib/server/history";
 import { getWikiArticle } from "@/lib/server/wiki-articles";
 import { formatWikiDate } from "@/lib/utils/history";
@@ -58,7 +59,13 @@ function BillArticle() {
         title={bill.title}
         description={`Proposed by ${bill.creator ?? "Unknown"}${bill.createdAt ? ` on ${formatWikiDate(bill.createdAt)}` : ""}.`}
         status={<Badge variant="outline">{billStatusLabel(bill.status)}</Badge>}
-      />
+      >
+        {whipData.isLeader && (
+          <Button asChild variant="outline" size="sm">
+            <a href="#party-guidance"><Megaphone className="size-4" /> Party voting guidance</a>
+          </Button>
+        )}
+      </WikiHeader>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <WikiArticleSection
           entityType="bill"
@@ -114,6 +121,7 @@ function BillArticle() {
         comments={comments}
         whips={whipData.whips}
         currentPartyId={whipData.currentPartyId}
+        isLeader={whipData.isLeader}
         canWhip={whipData.canWhip}
         isVoting={whipData.isVoting}
       />

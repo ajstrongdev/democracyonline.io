@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   billComments,
@@ -12,6 +12,26 @@ import {
 import { db } from "@/db";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
 import { userEmailEquals } from "@/lib/server/user-email";
+import { publishBillComment } from "@/lib/server/publish-bill-comment";
+
+export const searchDiscussionBills = createServerFn()
+  .inputValidator(z.object({ query: z.string().trim().max(100) }))
+  .handler(async ({ data }) => {
+    const id = Number(data.query.match(/^(?:bill\s*)?#?(\d+)$/i)?.[1]);
+    return db
+      .select({ id: bills.id, title: bills.title, status: bills.status })
+      .from(bills)
+      .where(
+        data.query
+          ? or(
+              ilike(bills.title, `%${data.query}%`),
+              Number.isSafeInteger(id) && id > 0 ? eq(bills.id, id) : undefined,
+            )
+          : undefined,
+      )
+      .orderBy(sql`${bills.id} DESC`)
+      .limit(12);
+  });
 
 export const getBillComments = createServerFn()
   .inputValidator(z.object({ billId: z.number().int().positive() }))
@@ -19,6 +39,7 @@ export const getBillComments = createServerFn()
     return db
       .select({
         id: billComments.id,
+        parentId: billComments.parentId,
         userId: billComments.userId,
         username: billComments.username,
         photoUrl: users.photoUrl,
@@ -38,6 +59,7 @@ export const addBillComment = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       billId: z.number().int().positive(),
+      parentId: z.number().int().positive().optional(),
       content: z.string().trim().min(1).max(5_000),
     }),
   )
@@ -68,23 +90,23 @@ export const addBillComment = createServerFn({ method: "POST" })
         .limit(1);
       if (!bill) throw new Error("Bill not found");
 
-      const [comment] = await tx
-        .insert(billComments)
-        .values({
-          billId: bill.id,
-          userId: author.id,
+      const { comment } = await publishBillComment(tx, {
+        billId: bill.id,
+        parentId: data.parentId,
+        content: data.content,
+        author: {
+          id: author.id,
           username: author.username,
           partyName: author.partyName,
           isPartyLeader:
             !!author.partyId &&
             author.partyLeaderId === author.id &&
             author.partyArchivedAt === null,
-          content: data.content,
-        })
-        .returning({ id: billComments.id });
+        },
+      });
       await tx.insert(feed).values({
         userId: author.id,
-        content: `Commented on bill #${bill.id}: ${bill.title}`,
+        content: `${data.parentId ? "replied to a discussion on" : "commented on"} Bill #${bill.id} on Z.com`,
       });
       return comment;
     });
@@ -139,6 +161,7 @@ export const getBillWhips = createServerFn()
     return {
       whips,
       currentPartyId: currentUser?.partyId ?? null,
+      isLeader,
       canWhip: isLeader && bill?.status === "Voting",
       isVoting: bill?.status === "Voting",
     };

@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   bills,
@@ -10,12 +10,13 @@ import {
   nationStatValues,
   nations,
 } from "@/db/schema";
-import { FIXED_POLICY_VALUES } from "@/lib/nation/catalog";
+import { FIXED_POLICY_VALUES, STAT_DEFINITIONS } from "@/lib/nation/catalog";
+import { buildNationHistory } from "@/lib/nation/history";
 
 export const getNationOverview = createServerFn().handler(async () => {
   const [nation] = await db.select().from(nations).limit(1);
   if (!nation) return null;
-  const [stats, policies, recentChanges] = await Promise.all([
+  const [stats, policies, recentChanges, allChanges] = await Promise.all([
     db
       .select({
         key: nationStatDefinitions.key,
@@ -61,6 +62,21 @@ export const getNationOverview = createServerFn().handler(async () => {
       .where(eq(nationChanges.nationId, nation.id))
       .orderBy(desc(nationChanges.createdAt))
       .limit(12),
+    db
+      .select({
+        id: nationChanges.id,
+        billId: nationChanges.billId,
+        billTitle: bills.title,
+        kind: nationChanges.kind,
+        key: nationChanges.key,
+        previousValue: nationChanges.previousValue,
+        newValue: nationChanges.newValue,
+        createdAt: nationChanges.createdAt,
+      })
+      .from(nationChanges)
+      .innerJoin(bills, eq(nationChanges.billId, bills.id))
+      .where(eq(nationChanges.nationId, nation.id))
+      .orderBy(asc(nationChanges.createdAt), asc(nationChanges.id)),
   ]);
   const names = new Map(
     [...stats, ...policies].map((record) => [record.key, record.name]),
@@ -68,6 +84,17 @@ export const getNationOverview = createServerFn().handler(async () => {
   return {
     nation,
     stats,
+    history: buildNationHistory(
+      STAT_DEFINITIONS,
+      new Map(stats.map((stat) => [stat.key, stat.value])),
+      allChanges
+        .filter((change) => change.kind === "stat")
+        .map((change) => ({
+          ...change,
+          previousValue: change.previousValue as number,
+          newValue: change.newValue as number,
+        })),
+    ),
     policies: policies.map((policy) => ({
       ...policy,
       value: FIXED_POLICY_VALUES[policy.key] ?? policy.value,
