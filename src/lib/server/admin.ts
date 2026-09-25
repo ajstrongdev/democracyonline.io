@@ -11,9 +11,12 @@ import {
   bills,
   candidates,
   chats,
+  coalitionProposals,
+  committeeAssessments,
   electionNightUpdates,
   elections,
   feed,
+  moderationAuditLog,
   parties,
   users,
   votes,
@@ -407,6 +410,86 @@ export const listDatabaseUsers = createServerFn()
       .from(users);
 
     return { users: allUsers };
+  });
+
+const ACCOUNT_PRESERVATION_EMAILS = [
+  "ajstrongdev@pm.me",
+  "jenewland1999@gmail.com",
+];
+
+export const purgeAllOtherAccounts = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((data: { confirm: string }) => data)
+  .handler(async ({ context, data }) => {
+    const email = context.user?.email;
+    if (!email || !isAdminEmail(email)) throw new Error("Unauthorized");
+    if (data.confirm !== "DELETE ALL OTHER ACCOUNTS") {
+      throw new Error("Confirmation text did not match");
+    }
+
+    const protectedEmails = ACCOUNT_PRESERVATION_EMAILS.map((item) =>
+      item.toLowerCase(),
+    );
+    const auth = getAdminAuth();
+    const firebaseUsers = [];
+    let pageToken: string | undefined;
+    do {
+      const page = await auth.listUsers(1000, pageToken);
+      firebaseUsers.push(...page.users);
+      pageToken = page.pageToken;
+    } while (pageToken);
+    const firebaseTargets = firebaseUsers.filter(
+      (item) => !item.email || !protectedEmails.includes(item.email.toLowerCase()),
+    );
+
+    const dbUsers = await db.select({ id: users.id, email: users.email }).from(users);
+    const dbTargets = dbUsers.filter(
+      (item) => !protectedEmails.includes(item.email.toLowerCase()),
+    );
+    const ids = dbTargets.map((item) => item.id);
+
+    // Remove restrictive references first. Other user-owned records either
+    // cascade or retain their historical username with a null user reference.
+    if (ids.length) {
+      await db.transaction(async (tx) => {
+        const candidateRows = await tx
+          .select({ id: candidates.id })
+          .from(candidates)
+          .where(inArray(candidates.userId, ids));
+        const candidateIds = candidateRows.map((item) => item.id);
+        if (candidateIds.length) {
+          await tx.delete(votes).where(inArray(votes.candidateId, candidateIds));
+          await tx.delete(candidates).where(inArray(candidates.id, candidateIds));
+        }
+        await tx.delete(votes).where(inArray(votes.userId, ids));
+        await tx.delete(coalitionProposals).where(inArray(coalitionProposals.proposerUserId, ids));
+        await tx.delete(committeeAssessments).where(inArray(committeeAssessments.senatorId, ids));
+        await tx.delete(moderationAuditLog).where(inArray(moderationAuditLog.actorUserId, ids));
+        await tx.delete(billVotesHouse).where(inArray(billVotesHouse.voterId, ids));
+        await tx.delete(billVotesSenate).where(inArray(billVotesSenate.voterId, ids));
+        await tx.delete(billVotesPresidential).where(inArray(billVotesPresidential.voterId, ids));
+        await tx.delete(users).where(inArray(users.id, ids));
+      });
+    }
+
+    let firebaseDeleted = 0;
+    for (let index = 0; index < firebaseTargets.length; index += 1000) {
+      const result = await auth.deleteUsers(
+        firebaseTargets.slice(index, index + 1000).map((item) => item.uid),
+      );
+      firebaseDeleted += result.successCount;
+      if (result.failureCount) {
+        throw new Error(
+          `Database users were removed, but ${result.failureCount} Firebase accounts could not be deleted.`,
+        );
+      }
+    }
+
+    return {
+      databaseDeleted: ids.length,
+      firebaseDeleted,
+      preservedEmails: ACCOUNT_PRESERVATION_EMAILS,
+    };
   });
 
 export const purgeUserFromDatabase = createServerFn({ method: "POST" })

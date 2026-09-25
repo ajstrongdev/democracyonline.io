@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Clock3, FileText, Gamepad2, Gauge, ShieldCheck } from "lucide-react";
+import { Clock3, FileText, Gamepad2, Gauge, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   checkIsAdmin,
   forceNextElectionStage,
   listDatabaseUsers,
   listFirebaseUsers,
+  purgeAllOtherAccounts,
   setElectionStageDeadline,
 } from "@/lib/server/admin";
 import { getGameSpeedFn, setGameSpeedFn } from "@/lib/server/game-speed";
@@ -83,6 +84,9 @@ function RouteComponent() {
   } | null>(null);
   const [pendingSpeed, setPendingSpeed] = useState<string | null>(null);
   const [speedSaving, setSpeedSaving] = useState(false);
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [purgeConfirmation, setPurgeConfirmation] = useState("");
+  const [purgeLoading, setPurgeLoading] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -289,6 +293,32 @@ function RouteComponent() {
       toast.error(error instanceof Error ? error.message : "Override failed");
     } finally {
       setAdvanceLoading((current) => ({ ...current, elections: false }));
+    }
+  };
+
+  const purgeOtherAccounts = async () => {
+    setPurgeLoading(true);
+    try {
+      const result = await purgeAllOtherAccounts({
+        data: { confirm: purgeConfirmation },
+      });
+      toast.success(
+        `Deleted ${result.databaseDeleted} database users and ${result.firebaseDeleted} Firebase accounts.`,
+      );
+      setPurgeOpen(false);
+      setPurgeConfirmation("");
+      const [fbUsers, databaseUsers] = await Promise.all([
+        listFirebaseUsers(),
+        listDatabaseUsers(),
+      ]);
+      setFirebaseUsers(fbUsers.users);
+      setDbUsers(databaseUsers.users);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not delete accounts",
+      );
+    } finally {
+      setPurgeLoading(false);
     }
   };
 
@@ -523,6 +553,63 @@ function RouteComponent() {
             <AlertDialogAction disabled={speedSaving} onClick={applyGameSpeed}>
               {speedSaving ? "Switching…" : "Confirm"}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <section className="my-6 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-destructive">Delete all other accounts</h2>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+              Permanently removes database and Firebase accounts, except
+              ajstrongdev@pm.me and jenewland1999@gmail.com. Related records
+              linked by account IDs may also be removed. This cannot be undone.
+            </p>
+          </div>
+          <Button variant="destructive" onClick={() => setPurgeOpen(true)}>
+            <Trash2 className="mr-2 size-4" /> Delete other accounts
+          </Button>
+        </div>
+      </section>
+
+      <AlertDialog
+        open={purgeOpen}
+        onOpenChange={(open) => {
+          if (!purgeLoading) setPurgeOpen(open);
+          if (!open) setPurgeConfirmation("");
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete every other account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes all Firebase accounts and database user
+              profiles except ajstrongdev@pm.me and jenewland1999@gmail.com.
+              Votes and other records tied to removed accounts may be deleted.
+              There is no undo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="purge-confirmation">
+              Type DELETE ALL OTHER ACCOUNTS to continue
+            </Label>
+            <Input
+              id="purge-confirmation"
+              value={purgeConfirmation}
+              onChange={(event) => setPurgeConfirmation(event.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={purgeLoading}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={purgeLoading || purgeConfirmation !== "DELETE ALL OTHER ACCOUNTS"}
+              onClick={purgeOtherAccounts}
+            >
+              {purgeLoading ? "Deleting accounts..." : "Permanently delete"}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
