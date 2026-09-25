@@ -1,8 +1,8 @@
-# Democracy Online - Technical Documentation
+# Oscana - Technical Documentation
 
 ## Project Overview
 
-Democracy Online is a full-stack web application that simulates an online democratic government system. Users can form political parties, propose and vote on legislation, participate in elections, and engage in the democratic process through a modern, interactive platform.
+Oscana is a full-stack web application that simulates a democratic government system. Users can form political parties, propose and vote on legislation, participate in elections, and engage in the democratic process through a modern, interactive platform.
 
 ## Additional Documentation
 

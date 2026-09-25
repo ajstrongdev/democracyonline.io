@@ -1,11 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { LogIn, LogOut, Settings, User } from "lucide-react";
+import { LogIn, LogOut, Settings } from "lucide-react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { logOut } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
+import { AccountSettingsDialog } from "@/components/settings/account-settings-dialog";
 
 export function UserMenu() {
   const { user, loading } = useAuth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleLogout = async () => {
     await logOut();
@@ -17,33 +20,23 @@ export function UserMenu() {
 
   if (!user) {
     return (
-      <div className="flex items-center gap-1 lg:gap-2">
+      <div className="flex items-center gap-1">
         <Button variant="ghost" size="sm" asChild>
           <Link to="/login" aria-label="Sign in">
             <LogIn className="size-4" />
-            <span className="hidden lg:inline">Sign In</span>
+            <span>Sign In</span>
           </Link>
-        </Button>
-        <Button className="hidden lg:inline-flex" asChild>
-          <Link to="/register">Sign Up</Link>
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="flex min-w-0 items-center gap-1 sm:gap-2">
-      <div className="hidden min-w-0 items-center gap-2 md:flex">
-        <User className="size-4" />
-        <span className="max-w-32 truncate text-sm font-medium">
-          {user.displayName || user.email}
-        </span>
-      </div>
-      <Button variant="ghost" size="icon" asChild>
-        <Link to="/settings" aria-label="Account settings">
+    <div className="flex items-center gap-1">
+      <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="Account settings">
           <Settings className="size-4" />
-        </Link>
       </Button>
+      <AccountSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <Button
         variant="ghost"
         size="icon"

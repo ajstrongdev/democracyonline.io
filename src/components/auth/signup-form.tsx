@@ -1,35 +1,37 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
+import { deleteUser } from "firebase/auth";
 import { signUp } from "@/lib/auth-utils";
-import { createUser, validateAccessToken } from "@/lib/server/users";
+import { createUser } from "@/lib/server/users";
+import { validateInvitation } from "@/lib/server/invitations";
 import { createSessionCookie } from "@/lib/server/session";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { leanings } from "@/lib/constants";
 
-export function SignupForm() {
+export function SignupForm({ inviteToken }: { inviteToken: string }) {
   const navigate = useNavigate();
   const [leaningValue, setLeaningValue] = useState([3]);
 
   const form = useForm({
     defaultValues: {
-      accessToken: "",
       email: "",
       password: "",
       confirmPassword: "",
       username: "",
       bio: "",
+      pronouns: "",
       politicalLeaning: "Center",
     },
     onSubmit: async ({ value }) => {
       // Validate the invitation before creating the Firebase account.
       try {
-        await validateAccessToken({ data: { token: value.accessToken } });
+        await validateInvitation({ data: { token: inviteToken } });
       } catch (tokenError: any) {
         form.setErrorMap({
-          onSubmit: tokenError.message || "Invalid access token",
+          onSubmit: tokenError.message || "Invalid invite link",
         });
         return;
       }
@@ -51,23 +53,32 @@ export function SignupForm() {
         try {
           await createUser({
             data: {
-              accessToken: value.accessToken,
+              inviteToken,
               email: value.email,
               username: value.username,
               bio: value.bio || undefined,
+              pronouns: value.pronouns || undefined,
               politicalLeaning: leanings[leaningValue[0]],
             },
           });
-
-          // Establish the SSR session before navigating to the dashboard.
-          const idToken = await user.getIdToken(true);
-          await createSessionCookie({ data: { idToken } });
-          await navigate({ to: "/dashboard" });
         } catch (dbError: any) {
+          // A link may be redeemed between validation and profile creation.
+          // Don't leave behind an account that cannot sign up again.
+          try {
+            await deleteUser(user);
+          } catch {
+            // Preserve the signup error if Firebase cleanup also fails.
+          }
           form.setErrorMap({
             onSubmit: dbError.message || "Failed to create user profile",
           });
+          return;
         }
+
+        // Establish the SSR session before navigating to the dashboard.
+        const idToken = await user.getIdToken(true);
+        await createSessionCookie({ data: { idToken } });
+        await navigate({ to: "/dashboard" });
       }
     },
   });
@@ -94,53 +105,6 @@ export function SignupForm() {
             {form.state.errorMap.onSubmit}
           </div>
         )}
-
-        <form.Field
-          name="accessToken"
-          validators={{
-            onChange: ({ value }) => {
-              if (value.length < 1) {
-                return "Access token is required";
-              }
-              return undefined;
-            },
-          }}
-        >
-          {(field) => (
-            <div className="space-y-2">
-              <label htmlFor={field.name} className="text-sm font-medium">
-                Invitation Token
-              </label>
-              <input
-                id={field.name}
-                name={field.name}
-                type="text"
-                value={field.state.value}
-                onBlur={field.handleBlur}
-                onChange={(e) => field.handleChange(e.target.value)}
-                required
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Enter your invitation token"
-              />
-              <p className="text-xs text-muted-foreground">
-                To get an invitation token, ask an existing player or join our{" "}
-                <a
-                  href="https://discord.gg/m7gDfgJund"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  Discord
-                </a>
-              </p>
-              {field.state.meta.errors && (
-                <p className="text-sm text-destructive">
-                  {field.state.meta.errors.join(", ")}
-                </p>
-              )}
-            </div>
-          )}
-        </form.Field>
 
         <form.Field
           name="username"
@@ -189,6 +153,28 @@ export function SignupForm() {
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring min-h-20"
                 placeholder="Tell us about yourself..."
               />
+            </div>
+          )}
+        </form.Field>
+
+        <form.Field name="pronouns">
+          {(field) => (
+            <div className="space-y-2">
+              <label htmlFor={field.name} className="text-sm font-medium">
+                Pronouns (optional)
+              </label>
+              <input
+                id={field.name}
+                name={field.name}
+                type="text"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+                maxLength={80}
+                className="w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="they/she"
+              />
+              <p className="text-xs text-muted-foreground">Enter pronouns in your preferred order, for example they/she.</p>
             </div>
           )}
         </form.Field>

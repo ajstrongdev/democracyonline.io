@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Copy, Plus, RefreshCw, X } from "lucide-react";
 import { toast } from "sonner";
+import { createInviteLink } from "@/lib/invitations/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,7 +21,7 @@ type Invitation = Awaited<ReturnType<typeof listMyInvitations>>[number];
 
 export function InvitationManager() {
   const [invitations, setInvitations] = useState<Array<Invitation>>([]);
-  const [newToken, setNewToken] = useState<string | null>(null);
+  const [newLink, setNewLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
@@ -44,7 +45,7 @@ export function InvitationManager() {
     setLoading(true);
     try {
       const result = await createInvitation();
-      setNewToken(result.token);
+      setNewLink(createInviteLink(window.location.origin, result.token));
       await refresh();
     } catch (error) {
       toast.error(
@@ -67,9 +68,13 @@ export function InvitationManager() {
     }
   };
 
-  const copy = async (token: string) => {
-    await navigator.clipboard.writeText(token);
-    toast.success("Invitation copied");
+  const copy = async (link: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Invite link copied");
+    } catch {
+      toast.error("Could not copy invite link");
+    }
   };
 
   const status = (invitation: Invitation) => {
@@ -83,10 +88,10 @@ export function InvitationManager() {
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div>
-          <CardTitle>Player Invitations</CardTitle>
+          <CardTitle>Invite links</CardTitle>
           <CardDescription>
-            Create single-use invitations. The full invitation is shown only
-            once.
+            Create single-use invite links to share with new players. Each link
+            is shown only once and expires after seven days.
           </CardDescription>
         </div>
         <Button size="sm" onClick={create} disabled={loading}>
@@ -94,17 +99,17 @@ export function InvitationManager() {
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        {newToken && (
+        {newLink && (
           <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
-            <p className="mb-2 text-sm font-medium">New invitation</p>
+            <p className="mb-2 text-sm font-medium">New invite link</p>
             <div className="flex items-center gap-2">
               <code className="min-w-0 flex-1 break-all text-xs">
-                {newToken}
+                {newLink}
               </code>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => copy(newToken)}
+                onClick={() => copy(newLink)}
               >
                 <Copy className="h-4 w-4" /> Copy
               </Button>
@@ -152,12 +157,12 @@ export function InvitationManager() {
           })}
           {!invitations.length && !loading && (
             <p className="p-4 text-sm text-muted-foreground">
-              No invitations yet.
+              No invite links yet.
             </p>
           )}
           {loading && !invitations.length && (
             <p className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
-              <RefreshCw className="h-4 w-4 animate-spin" /> Loading invitations
+              <RefreshCw className="h-4 w-4 animate-spin" /> Loading invite links
             </p>
           )}
         </div>

@@ -181,6 +181,11 @@ export const createProposal = createServerFn({ method: "POST" })
       })
       .returning();
 
+    await db.insert(feed).values({
+      userId: user.id,
+      content: `proposed to ${data.proposalType.replaceAll("_", " ")} in their coalition`,
+    });
+
     return proposal;
   });
 
@@ -246,6 +251,11 @@ export const castVote = createServerFn({ method: "POST" })
         [field]: sql`${coalitionProposals[field]} + 1`,
       })
       .where(eq(coalitionProposals.id, data.proposalId));
+
+    await db.insert(feed).values({
+      userId: user.id,
+      content: `${data.vote ? "voted for" : "voted against"} a coalition proposal`,
+    });
 
     return { success: true };
   });

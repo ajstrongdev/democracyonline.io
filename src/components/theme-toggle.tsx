@@ -16,9 +16,14 @@ export function ModeToggle() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="shrink-0 gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          aria-label="Choose theme"
+          title="Choose theme"
+        >
           <Palette className="h-4 w-4" />
-          <span className="hidden sm:inline">Theme</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-52 p-1.5">

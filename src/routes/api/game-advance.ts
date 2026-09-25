@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { parties, users } from "@/db/schema";
+import { feed, parties, users } from "@/db/schema";
 import { env } from "@/env";
 import { authorizeCronRequest } from "@/lib/server/cron-auth";
 import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
@@ -87,6 +87,13 @@ export const Route = createFileRoute("/api/game-advance")({
               .update(users)
               .set({ lastActivity: sql`${users.lastActivity} + 1` });
 
+            const newlyInactive = await db
+              .select({ id: users.id })
+              .from(users)
+              .where(
+                and(eq(users.isActive, true), sql`${users.lastActivity} >= 14`),
+              );
+
             // Ensure users with recent activity are marked active
             await db
               .update(users)
@@ -97,6 +104,15 @@ export const Route = createFileRoute("/api/game-advance")({
               .update(users)
               .set({ isActive: false })
               .where(sql`${users.lastActivity} >= 14`);
+
+            if (newlyInactive.length) {
+              await db.insert(feed).values(
+                newlyInactive.map((user) => ({
+                  userId: user.id,
+                  content: "went inactive after 14 days without activity",
+                })),
+              );
+            }
 
             const inactiveUsers = await db
               .select({ id: users.id, partyId: users.partyId })

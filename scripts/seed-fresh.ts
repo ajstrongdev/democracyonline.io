@@ -1,5 +1,7 @@
 import { loadEnvFile } from "node:process";
 import pg from "pg";
+import { avatarForUsername, renderAvatar } from "../src/lib/avatar";
+import { seedAjAvatar } from "./seed-aj-avatar";
 import {
   POLICY_DEFINITIONS,
   STAT_DEFINITIONS,
@@ -72,6 +74,8 @@ try {
       "bill_votes_house", "bill_votes_senate", "bill_votes_presidential",
       "party_notifications", "merge_request_stances", "merge_request",
       "join_requests", "coalition_members", "coalition_former_members", "coalitions",
+      "social_notification_dismissals", "social_comment_dislikes", "social_comment_likes", "social_comments", "social_likes", "social_dislikes", "social_reposts", "social_posts",
+      "bill_comments", "bill_party_whips",
       "moderation_audit_log", "moderation_flags", "player_reports", "player_invitations",
       "party_stances", "political_stances", "chats", "feed", "bills",
       "game_tracker", "game_settings", "elections", "users", "parties"
@@ -142,7 +146,7 @@ try {
     ["name", "civil_rights", "economy", "political_freedoms"],
     [
       [
-        "The Commonwealth of Democracy Online",
+        "The Republic of Oscana",
         headlines.civil_rights,
         headlines.economy,
         headlines.political_freedoms,
@@ -184,7 +188,7 @@ try {
       "is_ancestry_root",
     ],
     [
-      ["ajstrongdev@pm.me", "ajstrongdev", "Senator", true, 0, "admin", true],
+      ["ajstrongdev@pm.me", "AJ", "Senator", true, 0, "admin", true],
       [
         "jenewland1999@gmail.com",
         "jenewland1999",
@@ -197,6 +201,15 @@ try {
     ],
     true,
   );
+  for (const player of userRows) {
+    const avatar = player.email === "ajstrongdev@pm.me"
+      ? seedAjAvatar
+      : avatarForUsername(String(player.username));
+    await client.query(
+      "update users set avatar_config = $1::jsonb, photo_url = $2 where id = $3",
+      [JSON.stringify(avatar), renderAvatar(avatar), Number(player.id)],
+    );
+  }
   const [provisionalGovernment] = await insertRows(
     "election_history",
     ["election", "cycle", "seats", "total_ballots", "total_points"],
@@ -210,7 +223,7 @@ try {
       [
         Number(provisionalGovernment.id),
         Number(userRows[0].id),
-        "ajstrongdev",
+        "AJ",
         "Senator",
         "Appointed",
       ],
@@ -260,6 +273,9 @@ try {
 
   const verification = await client.query<{
     bills: string;
+    parties: string;
+    socialPosts: string;
+    activity: string;
     elections: string;
     policies: string;
     stats: string;
@@ -267,6 +283,9 @@ try {
   }>(`select
     (select count(*) from users) as users,
     (select count(*) from bills) as bills,
+    (select count(*) from parties) as parties,
+    (select count(*) from social_posts) as "socialPosts",
+    (select count(*) from feed) as activity,
     (select count(*) from elections) as elections,
     (select count(*) from nation_stat_values) as stats,
     (select count(*) from nation_policy_values) as policies`);
@@ -274,6 +293,9 @@ try {
   if (
     Number(counts.users) !== 2 ||
     Number(counts.bills) !== 0 ||
+    Number(counts.parties) !== 0 ||
+    Number(counts.socialPosts) !== 0 ||
+    Number(counts.activity) !== 0 ||
     Number(counts.elections) !== 2 ||
     Number(counts.stats) !== STAT_DEFINITIONS.length ||
     Number(counts.policies) !== POLICY_DEFINITIONS.length
@@ -290,7 +312,9 @@ try {
   console.log(
     "Officeholders: ajstrongdev (Senator), jenewland1999 (President)",
   );
-  console.log("Nation condition: 30 / 30 / 30; no bills");
+  console.log(
+    "Nation condition: 30 / 30 / 30; no bills, parties, posts, or activity",
+  );
   console.log(
     "Elections: Senate (CANDIDACY, 4 days, cycle 2 weeks), President (CANDIDACY, 10 days, cycle 4 weeks)",
   );

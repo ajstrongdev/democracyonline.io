@@ -1,6 +1,16 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useDeferredValue, useState } from "react";
 import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   Activity,
   CheckCircle2,
   ChevronDown,
@@ -37,6 +47,7 @@ function NationOverview() {
   const data = Route.useLoaderData();
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
+  const [selectedStat, setSelectedStat] = useState("");
 
   if (!data)
     return (
@@ -57,6 +68,8 @@ function NationOverview() {
   const activeGroups = groupByCategory(activePolicies);
   const inactiveGroups = groupByCategory(inactivePolicies);
   const statGroups = groupByCategory(data.stats);
+  const activeStat =
+    data.stats.find((stat) => stat.key === selectedStat) ?? data.stats[0];
 
   return (
     <WikiPage>
@@ -93,6 +106,94 @@ function NationOverview() {
             icon={Landmark}
           />
         </div>
+      </WikiSection>
+
+      <WikiSection
+        title="National trends"
+        icon={History}
+        description="Track every indicator and the headline measures across each law that changed the nation."
+      >
+        {data.history.length > 1 ? (
+          <div className="space-y-6">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <HistoryChart
+                title="National condition"
+                description="How the three national condition measures have moved."
+                history={data.history}
+                lines={[
+                  {
+                    key: "civil_rights",
+                    label: "Civil rights",
+                    color: "var(--chart-1)",
+                  },
+                  { key: "economy", label: "Economy", color: "var(--chart-2)" },
+                  {
+                    key: "political_freedoms",
+                    label: "Political freedoms",
+                    color: "var(--chart-3)",
+                  },
+                ]}
+              />
+              {activeStat && (
+                <div className="border bg-card p-4 sm:p-5">
+                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-serif text-lg font-bold">
+                        Indicator history
+                      </h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Choose any national indicator to view its full trend.
+                      </p>
+                    </div>
+                    <label className="sr-only" htmlFor="nation-stat-history">
+                      Choose indicator
+                    </label>
+                    <select
+                      id="nation-stat-history"
+                      value={selectedStat || activeStat.key}
+                      onChange={(event) => setSelectedStat(event.target.value)}
+                      className="max-w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    >
+                      {[...statGroups].map(([category, stats]) => (
+                        <optgroup
+                          key={category}
+                          label={formatCategory(category)}
+                        >
+                          {stats.map((stat) => (
+                            <option key={stat.key} value={stat.key}>
+                              {stat.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+                  <HistoryChart
+                    title={activeStat.name}
+                    history={data.history}
+                    lines={[
+                      {
+                        key: `stat:${activeStat.key}`,
+                        label: activeStat.name,
+                        color: "var(--primary)",
+                      },
+                    ]}
+                  />
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Values show the starting state and each passed bill that changed a
+              statistic. Hover a point to see the bill and exact score. Policies
+              are tracked in the change list below.
+            </p>
+          </div>
+        ) : (
+          <WikiEmpty>
+            Charts will appear after legislation changes the national
+            statistics.
+          </WikiEmpty>
+        )}
       </WikiSection>
 
       <WikiSearch
@@ -272,6 +373,118 @@ function NationOverview() {
         )}
       </WikiSection>
     </WikiPage>
+  );
+}
+
+type HistoryPoint = {
+  at: Date | null;
+  billId: number | null;
+  label: string;
+  civil_rights: number;
+  economy: number;
+  political_freedoms: number;
+  stats: Record<string, number>;
+};
+
+function HistoryChart({
+  title,
+  description,
+  history,
+  lines,
+}: {
+  title: string;
+  description?: string;
+  history: Array<HistoryPoint>;
+  lines: Array<{ key: string; label: string; color: string }>;
+}) {
+  const chartData = history.map((point, index) => ({
+    ...point,
+    pointLabel: point.at
+      ? new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(
+          new Date(point.at),
+        )
+      : "Starting point",
+    index,
+    ...Object.fromEntries(
+      lines.map((line) => [
+        line.key,
+        line.key.startsWith("stat:")
+          ? point.stats[line.key.slice(5)]
+          : point[
+              line.key as "civil_rights" | "economy" | "political_freedoms"
+            ],
+      ]),
+    ),
+  }));
+
+  return (
+    <div className="min-w-0 border bg-card p-4 sm:p-5">
+      <div className="mb-3">
+        <h3 className="font-serif text-lg font-bold">{title}</h3>
+        {description && (
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+        )}
+      </div>
+      <div className="h-64 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chartData}
+            margin={{ top: 8, right: 12, left: -18, bottom: 4 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+            <XAxis
+              dataKey="index"
+              type="number"
+              domain={[0, "dataMax"]}
+              tick={{ fontSize: 10 }}
+              tickFormatter={(value: number) =>
+                chartData[value]?.pointLabel ?? ""
+              }
+              minTickGap={28}
+            />
+            <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} width={36} />
+            <Tooltip
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const point = payload[0].payload as (typeof chartData)[number];
+                return (
+                  <div className="max-w-64 rounded-md border bg-popover p-3 text-popover-foreground shadow-lg">
+                    <p className="text-xs text-muted-foreground">
+                      {point.pointLabel}
+                    </p>
+                    <p className="mb-2 text-sm font-semibold">
+                      {point.billId
+                        ? `Bill #${point.billId}: ${point.label}`
+                        : point.label}
+                    </p>
+                    {payload.map((item) => (
+                      <p key={item.dataKey} className="text-xs">
+                        <span style={{ color: item.color }}>{item.name}</span>:{" "}
+                        <strong>{Number(item.value).toFixed(1)}</strong>
+                      </p>
+                    ))}
+                  </div>
+                );
+              }}
+            />
+            {lines.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
+            {lines.map((line) => (
+              <Line
+                key={line.key}
+                type="monotone"
+                dataKey={line.key}
+                name={line.label}
+                stroke={line.color}
+                strokeWidth={2}
+                dot={{ r: 2 }}
+                activeDot={{ r: 5 }}
+                connectNulls
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }
 

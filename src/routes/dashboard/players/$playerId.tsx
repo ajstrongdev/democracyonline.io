@@ -11,6 +11,7 @@ import {
 } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
 import { ReportPlayerDialog } from "@/components/players/report-player-dialog";
+import { PlayerAvatar } from "@/components/players/player-avatar";
 import { getWikiPlayer } from "@/lib/server/history";
 import { getWikiArticle } from "@/lib/server/wiki-articles";
 import {
@@ -21,26 +22,29 @@ import {
   getVoteShare,
 } from "@/lib/utils/history";
 import { EntityReferenceText } from "@/components/entity-reference-text";
+import { SocialPlayerPosts } from "@/components/social/social-player-posts";
+import { getSocialProfile } from "@/lib/server/social";
 
 export const Route = createFileRoute("/dashboard/players/$playerId")({
   loader: async ({ params }) => {
     const id = Number(params.playerId);
     if (!Number.isInteger(id))
       throw new Response("Player not found", { status: 404 });
-    const [playerData, article] = await Promise.all([
+    const [playerData, article, socialProfile] = await Promise.all([
       getWikiPlayer({ data: { id } }),
       getWikiArticle({
         data: { entityType: "player", entityId: params.playerId },
       }),
+      getSocialProfile({ data: { userId: id } }),
     ]);
     if (!playerData) throw new Response("Player not found", { status: 404 });
-    return { playerData, article };
+    return { playerData, article, socialProfile };
   },
   component: PlayerArticle,
 });
 
 function PlayerArticle() {
-  const { playerData, article } = Route.useLoaderData();
+  const { playerData, article, socialProfile } = Route.useLoaderData();
   const {
     player,
     candidacies,
@@ -80,7 +84,7 @@ function PlayerArticle() {
         title={player.username}
         description={
           <EntityReferenceText
-            content={player.bio || "A player in Democracy Online."}
+            content={player.bio || "A player in Oscana."}
           />
         }
         status={
@@ -102,8 +106,12 @@ function PlayerArticle() {
           article={article}
         />
         <WikiInfobox title={player.username} accent={player.partyColor}>
+          <div className="flex justify-center border-b p-5"><PlayerAvatar username={player.username} photoUrl={player.photoUrl} className="size-28 text-3xl" /></div>
           <WikiInfoboxRow label="Office">
             {player.role ?? "Representative"}
+          </WikiInfoboxRow>
+          <WikiInfoboxRow label="Pronouns">
+            {player.pronouns ?? "Not specified"}
           </WikiInfoboxRow>
           <WikiInfoboxRow label="Party">
             {player.partyId ? (
@@ -128,6 +136,8 @@ function PlayerArticle() {
           <WikiInfoboxRow label="Votes">{billVotes.length}</WikiInfoboxRow>
         </WikiInfobox>
       </div>
+
+      <SocialPlayerPosts posts={socialProfile?.posts ?? []} />
 
       <section className="grid gap-6 lg:grid-cols-2">
         <WikiSection title="Election record" icon={Vote}>

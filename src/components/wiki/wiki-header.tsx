@@ -1,23 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import {
-  BookOpen,
-  Flag,
-  House,
-  Landmark,
-  ScrollText,
-  Users,
-} from "lucide-react";
+import { BookOpen } from "lucide-react";
 import type { ReactNode } from "react";
 import { ModeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/auth/user-menu";
-
-const links = [
-  { to: "/dashboard", label: "Home", icon: House },
-  { to: "/dashboard/bills", label: "Bills", icon: ScrollText },
-  { to: "/dashboard/elections", label: "Elections", icon: Landmark },
-  { to: "/dashboard/parties", label: "Parties", icon: Flag },
-  { to: "/dashboard/players", label: "Players", icon: Users },
-] as const;
 
 export function WikiNavigation() {
   return (
@@ -25,28 +10,13 @@ export function WikiNavigation() {
       <div className="mx-auto flex max-w-7xl items-center border-x">
         <Link
           to="/dashboard"
-          aria-label="Democracy Online home"
+          aria-label="Oscana home"
           className="inline-flex shrink-0 items-center gap-2 border-r px-3 py-3 font-serif text-sm font-bold tracking-wide hover:text-primary sm:px-5"
         >
           <BookOpen className="h-4 w-4 text-primary" />
-          <span className="hidden sm:inline">Democracy Online</span>
+          <span>Oscana</span>
         </Link>
-        <nav
-          aria-label="Primary navigation"
-          className="flex min-w-0 flex-1 overflow-x-auto px-1 sm:px-2"
-        >
-          {links.map(({ to, label, icon: Icon }) => (
-            <Link
-              key={to}
-              to={to}
-              activeOptions={{ exact: to === "/dashboard" }}
-              activeProps={{ className: "border-primary text-foreground" }}
-              className="inline-flex shrink-0 items-center gap-1.5 border-b-2 border-transparent px-2.5 py-3 text-xs font-semibold text-muted-foreground hover:text-foreground sm:px-3"
-            >
-              <Icon className="h-3.5 w-3.5" /> {label}
-            </Link>
-          ))}
-        </nav>
+        <div className="min-w-0 flex-1" />
         <div className="flex shrink-0 items-center border-l px-1 sm:px-2">
           <ModeToggle />
           <UserMenu />
@@ -61,27 +31,35 @@ export function WikiHeader({
   title,
   description,
   status,
+  children,
+  leading,
 }: {
   eyebrow?: string;
   title: string;
   description: ReactNode;
   status?: ReactNode;
+  children?: ReactNode;
+  leading?: ReactNode;
 }) {
   return (
     <header className="wiki-masthead">
       <div className="px-4 py-7 sm:px-8 sm:py-9">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            {eyebrow && <p className="wiki-kicker mb-2">{eyebrow}</p>}
-            <h1 className="max-w-5xl font-serif text-3xl font-bold leading-[1.08] tracking-tight sm:text-5xl">
-              {title}
-            </h1>
+          <div className="flex min-w-0 items-start gap-4">
+            {leading}
+            <div className="min-w-0">
+              {eyebrow && <p className="wiki-kicker mb-2">{eyebrow}</p>}
+              <h1 className="max-w-5xl font-serif text-3xl font-bold leading-[1.08] tracking-tight sm:text-5xl">
+                {title}
+              </h1>
+            </div>
           </div>
           {status}
         </div>
         <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
           {description}
         </p>
+        {children && <div className="mt-6 overflow-hidden">{children}</div>}
       </div>
     </header>
   );

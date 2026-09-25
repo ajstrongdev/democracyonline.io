@@ -78,6 +78,7 @@ export const getSenators = createServerFn().handler(async () => {
     .select({
       id: users.id,
       username: users.username,
+      photoUrl: users.photoUrl,
       partyId: users.partyId,
       partyName: parties.name,
       partyColor: parties.color,

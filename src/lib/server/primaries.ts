@@ -5,6 +5,7 @@ import {
   coalitionMembers,
   candidates as electionCandidates,
   elections,
+  feed,
   parties,
   primaryCandidates,
   primaryVotes,
@@ -87,6 +88,7 @@ export const getPrimariesData = createServerFn()
       coalitionId: number | null;
       votes: number;
       username: string;
+      photoUrl: string | null;
       partyName: string;
       partyColor: string;
       partyLogo: string | null;
@@ -101,6 +103,7 @@ export const getPrimariesData = createServerFn()
           coalitionId: primaryCandidates.coalitionId,
           votes: primaryCandidates.votes,
           username: users.username,
+          photoUrl: users.photoUrl,
           partyName: parties.name,
           partyColor: parties.color,
           partyLogo: parties.logo,
@@ -258,6 +261,10 @@ export const declarePrimaryCandidate = createServerFn({ method: "POST" })
           coalitionId,
         })
         .returning();
+      await tx.insert(feed).values({
+        userId: user.id,
+        content: "declared as a candidate in the presidential primary",
+      });
       return newCandidate;
     });
   });
@@ -348,6 +355,12 @@ export const withdrawPrimaryCandidate = createServerFn({ method: "POST" })
       await tx
         .delete(primaryCandidates)
         .where(eq(primaryCandidates.userId, user.id));
+      await tx.insert(feed).values({
+        userId: user.id,
+        content: data.endorseCandidateId
+          ? "withdrew from the presidential primary and endorsed another candidate"
+          : "withdrew from the presidential primary",
+      });
     });
 
     return true;
@@ -426,6 +439,10 @@ export const voteInPrimary = createServerFn({ method: "POST" })
         .update(primaryCandidates)
         .set({ votes: sql`${primaryCandidates.votes} + 1` })
         .where(eq(primaryCandidates.id, data.candidateId));
+      await tx.insert(feed).values({
+        userId: user.id,
+        content: "voted in the presidential primary",
+      });
     });
 
     return true;

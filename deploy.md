@@ -32,7 +32,7 @@ INITIAL_BRANCH=chore/vps-reproducible-deploy bash scripts/vps-bootstrap.sh
 
 The branch must be pushed before a fresh VPS can clone it. After review/merge, use the final branch name in both places. Override `REPO_URL`, `PROD_DOMAIN`, `DEV_DOMAIN`, or directories via environment variables if needed. Bootstrap installs Docker/Compose, Caddy, Git, UFW, and a `deploy` user; clones two checkouts; creates mode-600 `.env` files with independent random DB passwords and cron tokens; and configures HTTPS routing and firewall. It is safe to rerun with the same settings. Existing clean checkouts without `.env` switch to `INITIAL_BRANCH`; existing checkouts with `.env` keep their branch and secrets. It does not seed or launch the app.
 
-On the currently inspected VPS, both checkouts are clean `develop` checkouts with no `.env`; there are no application containers or Democracy Online databases. Bootstrap can adopt them and switch them to the chosen branch. Host PostgreSQL is installed but contains only default databases; it is unused by this deployment.
+On the currently inspected VPS, both checkouts are clean `develop` checkouts with no `.env`; there are no application containers or Oscana databases. Bootstrap can adopt them and switch them to the chosen branch. Host PostgreSQL is installed but contains only default databases; it is unused by this deployment.
 
 The deploy user receives a copy of root's SSH authorized keys if present. Docker group membership lets the deploy user control the host; use a trusted SSH key and restrict that account accordingly. Log in again after bootstrap to pick up group membership. On a host below 6 GiB RAM with no swap, bootstrap creates a 2 GiB `/swapfile`; builds run serially to limit peak memory.
 

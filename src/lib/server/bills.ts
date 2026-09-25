@@ -173,6 +173,7 @@ export const getBillVoters = createServerFn()
       .select({
         userId: users.id,
         username: users.username,
+        photoUrl: users.photoUrl,
         voteYes: table.voteYes,
         partyId: users.partyId,
         partyName: parties.name,

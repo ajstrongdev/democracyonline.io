@@ -5,6 +5,7 @@ import { WikiEmpty, WikiPage, WikiSearch } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getWikiPlayers } from "@/lib/server/history";
+import { PlayerAvatar } from "@/components/players/player-avatar";
 
 export const Route = createFileRoute("/dashboard/players/")({
   loader: () => getWikiPlayers(),
@@ -44,9 +45,7 @@ function PlayersIndex() {
             <Card className="h-full rounded-sm shadow-none transition-colors hover:border-primary">
               <CardContent className="space-y-3 pt-5">
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="break-words font-serif text-xl font-bold">
-                    {player.username}
-                  </h2>
+                   <div className="flex min-w-0 items-center gap-3"><PlayerAvatar username={player.username} photoUrl={player.photoUrl} /><h2 className="break-words font-serif text-xl font-bold">{player.username}</h2></div>
                   <Badge variant="outline" className="font-mono text-[10px] uppercase">
                     {player.role ?? "Representative"}
                   </Badge>

@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { env } from "@/env";
@@ -6,7 +5,6 @@ import { authMiddleware } from "@/middleware/auth";
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { db } from "@/db";
 import {
-  accessTokens,
   billVotesHouse,
   billVotesPresidential,
   billVotesSenate,
@@ -50,60 +48,6 @@ export const checkIsAdmin = createServerFn()
 export function getAdminEmails(): Array<string> {
   return env.ADMIN_EMAILS;
 }
-
-export const listAccessTokens = createServerFn()
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    const email = context.user?.email;
-    if (!email || !isAdminEmail(email)) {
-      throw new Error("Unauthorized");
-    }
-
-    const tokens = await db
-      .select({
-        id: accessTokens.id,
-        token: accessTokens.token,
-        createdAt: accessTokens.createdAt,
-        redeemedAt: accessTokens.redeemedAt,
-      })
-      .from(accessTokens);
-
-    return { tokens };
-  });
-
-export const createAccessToken = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    const email = context.user?.email;
-    if (!email || !isAdminEmail(email)) {
-      throw new Error("Unauthorized");
-    }
-
-    const token = crypto.randomBytes(32).toString("hex");
-
-    const [newToken] = await db
-      .insert(accessTokens)
-      .values({ token })
-      .returning();
-
-    return { token: newToken };
-  });
-
-export const deleteAccessToken = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .inputValidator((data: { tokenId: number }) => data)
-  .handler(
-    async ({ context, data }: { context: any; data: { tokenId: number } }) => {
-      const email = context.user?.email;
-      if (!email || !isAdminEmail(email)) {
-        throw new Error("Unauthorized");
-      }
-
-      await db.delete(accessTokens).where(eq(accessTokens.id, data.tokenId));
-
-      return { success: true };
-    },
-  );
 
 export const forceNextElectionStage = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

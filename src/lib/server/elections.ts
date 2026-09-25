@@ -44,6 +44,7 @@ export type Candidate = {
   votes: number | null;
   haswon: boolean | null;
   username: string;
+  photoUrl?: string | null;
   partyId: number | null;
   partyName: string | null;
   partyColor: string | null;
@@ -111,6 +112,7 @@ export const getCandidates = createServerFn()
           votes: candidates.votes,
           haswon: candidates.haswon,
           username: users.username,
+          photoUrl: users.photoUrl,
           partyId: users.partyId,
           partyName: parties.name,
           partyColor: parties.color,
@@ -138,7 +140,9 @@ export const getCandidates = createServerFn()
     return candidateRows.map((candidate) => ({
       ...candidate,
       votes: hideTotals ? null : candidate.votes,
-    }));
+    })).sort((a, b) => publicStatus === "CONCLUDED"
+      ? (b.votes ?? 0) - (a.votes ?? 0) || a.username.localeCompare(b.username)
+      : a.username.localeCompare(b.username));
   });
 
 export const declareCandidate = createServerFn({ method: "POST" })
@@ -470,6 +474,7 @@ export const getCurrentElectionDashboard = createServerFn()
         certifiedPoints: candidates.votes,
         hasWon: candidates.haswon,
         username: users.username,
+        photoUrl: users.photoUrl,
         partyId: parties.id,
         partyName: parties.name,
         partyColor: parties.color,
@@ -523,6 +528,9 @@ export const getCurrentElectionDashboard = createServerFn()
         );
         const raceCandidates = candidateRows
           .filter((candidate) => candidate.election === raceType)
+          .sort((a, b) => election.status === "CONCLUDED"
+            ? (b.certifiedPoints ?? 0) - (a.certifiedPoints ?? 0) || a.username.localeCompare(b.username)
+            : a.username.localeCompare(b.username))
           .map((candidate) => {
             const party = candidate.partyId
               ? {
@@ -567,6 +575,7 @@ export const getCurrentElectionDashboard = createServerFn()
               id: candidate.id,
               userId: candidate.userId,
               username: candidate.username,
+              photoUrl: candidate.photoUrl,
               party,
               coalition,
               affiliation,

@@ -1,6 +1,6 @@
-# Democracy Online
+# Oscana
 
-Democracy Online is a TanStack Start game application with PostgreSQL and Firebase Authentication. This branch (`revival`) is an unfinished rewrite of the `develop` version. See [the rewrite notes](docs/REVIVAL_OVERVIEW.md) for the main product changes and known gaps.
+Oscana is a TanStack Start game application with PostgreSQL and Firebase Authentication. This branch (`revival`) is an unfinished rewrite of the `develop` version. See [the rewrite notes](docs/REVIVAL_OVERVIEW.md) for the main product changes and known gaps.
 
 ## Local development
 

@@ -186,6 +186,7 @@ export const getWikiPlayers = createServerFn().handler(() =>
     .select({
       id: users.id,
       username: users.username,
+      photoUrl: users.photoUrl,
       bio: users.bio,
       role: users.role,
       politicalLeaning: users.politicalLeaning,
@@ -207,7 +208,9 @@ export const getWikiPlayer = createServerFn()
       .select({
         id: users.id,
         username: users.username,
+        photoUrl: users.photoUrl,
         bio: users.bio,
+        pronouns: users.pronouns,
         role: users.role,
         politicalLeaning: users.politicalLeaning,
         createdAt: users.createdAt,
@@ -454,6 +457,7 @@ export const getWikiElection = createServerFn()
           id: candidates.id,
           userId: users.id,
           username: users.username,
+          photoUrl: users.photoUrl,
           partyId: parties.id,
           partyName: parties.name,
           partyColor: parties.color,
@@ -466,8 +470,10 @@ export const getWikiElection = createServerFn()
         .leftJoin(parties, eq(users.partyId, parties.id))
         .leftJoin(votes, eq(votes.candidateId, candidates.id))
         .where(eq(candidates.election, electionName))
-        .groupBy(candidates.id, users.id, parties.id)
-        .orderBy(desc(candidates.votes), candidates.id);
+        .groupBy(candidates.id, users.id, parties.id);
+      liveCandidates.sort((a, b) => election.status === "CONCLUDED"
+        ? b.certifiedPoints - a.certifiedPoints || a.username.localeCompare(b.username)
+        : a.username.localeCompare(b.username));
       const [ballots] = await db
         .select({ count: sql<number>`count(distinct ${votes.userId})::int` })
         .from(votes)
@@ -506,8 +512,12 @@ export const getWikiElection = createServerFn()
       .limit(1);
     if (!election) return null;
     const historicalCandidates = await db
-      .select()
+      .select({
+        ...getTableColumns(electionCandidateHistory),
+        photoUrl: users.photoUrl,
+      })
       .from(electionCandidateHistory)
+      .leftJoin(users, eq(users.id, electionCandidateHistory.userId))
       .where(eq(electionCandidateHistory.electionHistoryId, id))
       .orderBy(electionCandidateHistory.placement);
     return {
@@ -683,6 +693,7 @@ export const getWikiParty = createServerFn()
             .select({
               id: users.id,
               username: users.username,
+              photoUrl: users.photoUrl,
               role: users.role,
             })
             .from(users)
@@ -690,8 +701,12 @@ export const getWikiParty = createServerFn()
             .orderBy(users.username)
         : Promise.resolve([]),
       db
-        .select()
+        .select({
+          ...getTableColumns(partyMembershipEvents),
+          photoUrl: users.photoUrl,
+        })
         .from(partyMembershipEvents)
+        .leftJoin(users, eq(users.id, partyMembershipEvents.userId))
         .where(
           or(
             eq(partyMembershipEvents.fromPartyId, data.id),
@@ -716,7 +731,7 @@ export const getWikiParty = createServerFn()
       storedParty?.leaderId ?? storedParty?.formerLeaderId ?? null;
     const [leader] = leaderId
       ? await db
-          .select({ id: users.id, username: users.username })
+           .select({ id: users.id, username: users.username, photoUrl: users.photoUrl })
           .from(users)
           .where(eq(users.id, leaderId))
           .limit(1)

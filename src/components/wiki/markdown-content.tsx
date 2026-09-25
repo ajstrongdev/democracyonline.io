@@ -3,16 +3,25 @@ import remarkGfm from "remark-gfm";
 import type { ComponentProps } from "react";
 import { remarkEntityReferences } from "@/lib/entity-references";
 
-export function MarkdownContent({ content }: { content: string }) {
+export function MarkdownContent({
+  content,
+  compact = false,
+}: {
+  content: string;
+  compact?: boolean;
+}) {
   return (
-    <div className="wiki-markdown max-w-[78ch] text-[15px] leading-7 text-foreground">
+    <div
+      className={`wiki-markdown min-w-0 break-words text-foreground ${compact ? "text-sm leading-6 [&_p]:my-1 [&_ul]:my-2 [&_ol]:my-2" : "max-w-[78ch] text-[15px] leading-7"}`}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkEntityReferences]}
+        disallowedElements={["img"]}
         components={{
-          h1: (props) => <h2 className="wiki-heading text-3xl" {...props} />,
-          h2: (props) => <h2 className="wiki-heading text-2xl" {...props} />,
-          h3: (props) => <h3 className="wiki-heading text-xl" {...props} />,
-          p: (props) => <p className="my-4" {...props} />,
+          h1: (props) => <h2 className={`wiki-heading ${compact ? "my-2 text-lg" : "text-3xl"}`} {...props} />,
+          h2: (props) => <h2 className={`wiki-heading ${compact ? "my-2 text-base" : "text-2xl"}`} {...props} />,
+          h3: (props) => <h3 className={`wiki-heading ${compact ? "my-2 text-sm" : "text-xl"}`} {...props} />,
+          p: (props) => <p className={compact ? "my-1" : "my-4"} {...props} />,
           ul: (props) => <ul className="my-4 list-disc pl-7" {...props} />,
           ol: (props) => <ol className="my-4 list-decimal pl-7" {...props} />,
           blockquote: (props) => (

@@ -8,7 +8,6 @@ import {
   bills,
   committeeAssessments,
   electionCandidateHistory,
-  feed,
   nations,
   parties,
   users,
@@ -17,6 +16,8 @@ import { authMiddleware } from "@/middleware/auth";
 import { getCurrentElectionDashboard } from "@/lib/server/elections";
 import { userEmailEquals } from "@/lib/server/user-email";
 import { getWikiHome } from "@/lib/server/history";
+import { getFeedItems } from "@/lib/server/feed";
+import { getZNotificationPage } from "@/lib/server/social-notifications";
 
 const officeVotingConfig = {
   Representative: {
@@ -44,18 +45,7 @@ export const getDashboardData = createServerFn()
   .handler(async ({ context }) => {
     const [record, activity, electionDashboard, nation] = await Promise.all([
       getWikiHome(),
-      db
-        .select({
-          id: feed.id,
-          userId: feed.userId,
-          username: users.username,
-          content: feed.content,
-          createdAt: feed.createdAt,
-        })
-        .from(feed)
-        .leftJoin(users, eq(feed.userId, users.id))
-        .orderBy(desc(feed.createdAt))
-        .limit(6),
+       getFeedItems({ data: { limit: 7, offset: 0 } }),
       getCurrentElectionDashboard(),
       db
         .select({
@@ -92,6 +82,7 @@ export const getDashboardData = createServerFn()
         currentUser: null,
         pendingBillVotes: [],
         pendingCommitteeAssessments: [],
+        zMentionSummary: { notifications: 0, accounts: 0, entries: [], hasMore: false },
         activity,
         electionDashboard,
         nation,
@@ -104,6 +95,7 @@ export const getDashboardData = createServerFn()
       .select({
         id: users.id,
         username: users.username,
+        photoUrl: users.photoUrl,
         role: users.role,
         politicalLeaning: users.politicalLeaning,
         active: users.isActive,
@@ -121,6 +113,7 @@ export const getDashboardData = createServerFn()
         currentUser: null,
         pendingBillVotes: [],
         pendingCommitteeAssessments: [],
+        zMentionSummary: { notifications: 0, accounts: 0, entries: [], hasMore: false },
         activity,
         electionDashboard,
         nation,
@@ -129,6 +122,7 @@ export const getDashboardData = createServerFn()
       };
     }
 
+    const zMentionSummary = await getZNotificationPage({ data: { limit: 5, offset: 0 } });
     const config =
       officeVotingConfig[currentUser.role as keyof typeof officeVotingConfig];
     const [pendingBillVotes, pendingCommitteeAssessments] = await Promise.all([
@@ -168,6 +162,7 @@ export const getDashboardData = createServerFn()
         stage: config?.stage ?? "House",
       })),
       pendingCommitteeAssessments,
+      zMentionSummary,
       activity,
       electionDashboard,
       nation,

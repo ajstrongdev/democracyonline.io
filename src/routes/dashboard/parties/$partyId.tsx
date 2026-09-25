@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { WikiArticleSection } from "@/components/wiki/wiki-article-section";
 import { ManagePartyDialog } from "@/components/wiki/manage-party-dialog";
 import { MessageDialog } from "@/components/message-dialog";
+import { PlayerAvatar } from "@/components/players/player-avatar";
+import { SocialAccountAvatar } from "@/components/social/social-account-avatar";
 import { ResultBar, WikiHeader } from "@/components/wiki/wiki-header";
 import {
   WikiInfobox,
@@ -33,6 +35,8 @@ import {
 } from "@/lib/server/party";
 import { getPartyCoalition } from "@/lib/server/coalitions";
 import { EntityReferenceText } from "@/components/entity-reference-text";
+import { SocialPartyPosts } from "@/components/social/social-party-posts";
+import { getSocialPartyPosts } from "@/lib/server/social";
 import {
   formatElectionTitle,
   formatWikiDate,
@@ -44,8 +48,8 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
     const id = Number(params.partyId);
     if (!Number.isInteger(id))
       throw new Response("Party not found", { status: 404 });
-    const [party, article, currentUser, coalition, revival] = await Promise.all(
-      [
+    const [party, article, currentUser, coalition, revival, socialPosts] =
+      await Promise.all([
         getWikiParty({ data: { id } }),
         getWikiArticle({
           data: { entityType: "party", entityId: params.partyId },
@@ -53,10 +57,10 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
         getCurrentUserInfo(),
         getPartyCoalition({ data: { partyId: id } }),
         getPartyRevivalState({ data: { partyId: id } }),
-      ],
-    );
+        getSocialPartyPosts({ data: { partyId: id } }),
+      ]);
     if (!party) throw new Response("Party not found", { status: 404 });
-    return { ...party, article, currentUser, coalition, revival };
+    return { ...party, article, currentUser, coalition, revival, socialPosts };
   },
   component: PartyArticle,
 });
@@ -73,6 +77,7 @@ function PartyArticle() {
     coalition,
     revival,
     leader,
+    socialPosts,
   } = Route.useLoaderData();
   return (
     <WikiPage width="article">
@@ -81,11 +86,20 @@ function PartyArticle() {
           party.current ? "Current political party" : "Archived political party"
         }
         title={party.name}
+        leading={
+          <SocialAccountAvatar
+            account="party"
+            name={party.name}
+            color={party.color}
+            logo={party.logo}
+            className="size-14 sm:size-20"
+          />
+        }
         description={
           <EntityReferenceText
             content={
               party.bio ||
-              `${party.name} is documented in the Democracy Online political record.`
+              `${party.name} is documented in the Oscana political record.`
             }
           />
         }
@@ -102,6 +116,15 @@ function PartyArticle() {
           article={article}
         />
         <WikiInfobox title={party.name} accent={party.color}>
+          <div className="flex justify-center border-b p-5">
+            <SocialAccountAvatar
+              account="party"
+              name={party.name}
+              color={party.color}
+              logo={party.logo}
+              className="size-20"
+            />
+          </div>
           <WikiInfoboxRow label="Status">
             {party.current ? "Current" : "Archived"}
           </WikiInfoboxRow>
@@ -113,8 +136,13 @@ function PartyArticle() {
               <Link
                 to="/dashboard/players/$playerId"
                 params={{ playerId: String(leader.id) }}
-                className="text-primary hover:underline"
+                className="inline-flex items-center gap-2 text-primary hover:underline"
               >
+                <PlayerAvatar
+                  username={leader.username}
+                  photoUrl={leader.photoUrl}
+                  className="size-7 text-xs"
+                />
                 {leader.username}
               </Link>
             ) : (
@@ -133,18 +161,6 @@ function PartyArticle() {
             </WikiInfoboxRow>
           )}
           <WikiInfoboxRow label="Members">{members.length}</WikiInfoboxRow>
-          {party.current && party.discord && (
-            <WikiInfoboxRow label="Community">
-              <a
-                href={party.discord}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary hover:underline"
-              >
-                Discord
-              </a>
-            </WikiInfoboxRow>
-          )}
           {!party.current && party.archivedAt && (
             <WikiInfoboxRow label="Archived">
               {formatWikiDate(party.archivedAt)}
@@ -162,6 +178,7 @@ function PartyArticle() {
           )}
         </WikiInfobox>
       </div>
+      <SocialPartyPosts posts={socialPosts} />
       <section className="grid gap-6 lg:grid-cols-2">
         <Card className="rounded-sm shadow-none">
           <CardHeader>
@@ -250,17 +267,24 @@ function PartyArticle() {
               className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
             >
               <div className="min-w-0">
-                {defection.userId ? (
-                  <Link
-                    to="/dashboard/players/$playerId"
-                    params={{ playerId: String(defection.userId) }}
-                    className="font-semibold hover:text-primary"
-                  >
-                    {defection.username}
-                  </Link>
-                ) : (
-                  <strong>{defection.username}</strong>
-                )}
+                <div className="flex items-center gap-2">
+                  <PlayerAvatar
+                    username={defection.username}
+                    photoUrl={defection.photoUrl}
+                    className="size-9"
+                  />
+                  {defection.userId ? (
+                    <Link
+                      to="/dashboard/players/$playerId"
+                      params={{ playerId: String(defection.userId) }}
+                      className="font-semibold hover:text-primary"
+                    >
+                      {defection.username}
+                    </Link>
+                  ) : (
+                    <strong>{defection.username}</strong>
+                  )}
+                </div>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                   <PartyIdentity
                     name={defection.fromPartyName ?? "Independent"}
@@ -305,7 +329,14 @@ function PartyArticle() {
                 params={{ playerId: String(member.id) }}
                 className="flex justify-between rounded-md border p-3 hover:border-primary"
               >
-                <strong>{member.username}</strong>
+                <span className="flex items-center gap-2">
+                  <PlayerAvatar
+                    username={member.username}
+                    photoUrl={member.photoUrl}
+                    className="size-8 text-xs"
+                  />
+                  <strong>{member.username}</strong>
+                </span>
                 <Badge variant="outline">{member.role}</Badge>
               </Link>
             ))}
@@ -373,7 +404,6 @@ function PartyActions({
     name: string;
     color: string;
     bio: string | null;
-    discord: string | null;
     logo: string | null;
     leaning: string | null;
   };

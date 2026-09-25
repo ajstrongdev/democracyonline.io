@@ -37,6 +37,10 @@
   },
   "dependencies": {
     "@ajstrongdev/start-themes": "^1.0.0",
+    "@dicebear/adventurer": "^9.4.2",
+    "@dicebear/avataaars": "^9.4.2",
+    "@dicebear/core": "^9.4.3",
+    "@dicebear/lorelei": "^9.4.2",
     "@google-cloud/opentelemetry-cloud-trace-exporter": "^3.0.0",
     "@opentelemetry/instrumentation-http": "^0.211.0",
     "@opentelemetry/resources": "^2.5.0",

@@ -27,6 +27,7 @@ import {
   voteOnSenateBill,
 } from "@/lib/server/senate-bills";
 import { ReferenceInsert } from "@/components/reference-insert";
+import { PlayerAvatar } from "@/components/players/player-avatar";
 
 export type BillDeskChamber = "House" | "Senate" | "Presidential";
 
@@ -41,6 +42,7 @@ type DeskBill = {
 type DeskMember = {
   id: number;
   username: string;
+  photoUrl: string | null;
   partyName: string | null;
   partyColor: string | null;
 };
@@ -380,9 +382,10 @@ export function BillDeskDialog({
                     className="flex items-center justify-between gap-3 bg-card px-3 py-3 hover:bg-muted/50"
                     onClick={() => setOpen(false)}
                   >
-                    <span className="truncate font-semibold">
-                      {member.username}
-                    </span>
+                     <span className="flex min-w-0 items-center gap-2">
+                       <PlayerAvatar username={member.username} photoUrl={member.photoUrl} className="size-9" />
+                       <span className="truncate font-semibold">{member.username}</span>
+                     </span>
                     <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                       <span
                         className="h-2 w-2 shrink-0 rounded-full"
