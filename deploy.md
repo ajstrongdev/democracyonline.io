@@ -9,7 +9,7 @@ One Ubuntu VPS runs:
 | DNS | `oscana.nya.je` | `dev.oscana.nya.je` |
 | Checkout | `/srv/democracyonline-prod` | `/srv/democracyonline-dev` |
 | Compose project | `democracyonline-production` | `democracyonline-development` |
-| Caddy upstream | `127.0.0.1:3000` | `127.0.0.1:3001` |
+| Public route | Offline response (`503`) | Caddy → `127.0.0.1:3001` |
 | Database | Private PostgreSQL container and volume | Separate private PostgreSQL container and volume |
 
 Each project has its own `.env`, app, scheduler, database network, and database volume. Database ports are never published. Docker isolates the two projects; Caddy is the only public HTTP entry point. Both apps still use Firebase Authentication. The initial deployment shares one Firebase project by operator choice, so sign-in identities and authentication settings overlap. Move dev to a separate Firebase project and service account for full isolation.
@@ -30,9 +30,9 @@ cd /root/democracyonline-setup
 INITIAL_BRANCH=chore/vps-reproducible-deploy bash scripts/vps-bootstrap.sh
 ```
 
-The branch must be pushed before a fresh VPS can clone it. After review/merge, use the final branch name in both places. Override `REPO_URL`, `PROD_DOMAIN`, `DEV_DOMAIN`, or directories via environment variables if needed. Bootstrap installs Docker/Compose, Caddy, Git, UFW, and a `deploy` user; clones two checkouts; creates mode-600 `.env` files with independent random DB passwords and cron tokens; and configures HTTPS routing and firewall. It is safe to rerun with the same settings. Existing clean checkouts without `.env` switch to `INITIAL_BRANCH`; existing checkouts with `.env` keep their branch and secrets. It does not seed or launch the app.
+The branch must be pushed before a fresh VPS can clone it. After review/merge, use the final branch name in both places. Override `REPO_URL`, `PROD_DOMAIN`, `DEV_DOMAIN`, or directories via environment variables if needed. Bootstrap installs Docker/Compose, Caddy, Git, UFW, and a `deploy` user; clones two checkouts; creates mode-600 `.env` files with independent random DB passwords and cron tokens; and configures HTTPS routing and firewall. It is safe to rerun with the same settings. Existing clean checkouts without `.env` switch to `INITIAL_BRANCH`; existing checkouts with `.env` keep their branch and secrets. It starts with production offline and does not seed or launch the app.
 
-On the currently inspected VPS, both checkouts are clean `develop` checkouts with no `.env`; there are no application containers or Oscana databases. Bootstrap can adopt them and switch them to the chosen branch. Host PostgreSQL is installed but contains only default databases; it is unused by this deployment.
+On the current VPS, development is running and production's Compose stack is stopped. Both environment files and database volumes already exist. Rerunning bootstrap preserves those files and keeps production offline by default. Host PostgreSQL is installed but unused by this deployment.
 
 The deploy user receives a copy of root's SSH authorized keys if present. Docker group membership lets the deploy user control the host; use a trusted SSH key and restrict that account accordingly. Log in again after bootstrap to pick up group membership. On a host below 6 GiB RAM with no swap, bootstrap creates a 2 GiB `/swapfile`; builds run serially to limit peak memory.
 
@@ -58,7 +58,7 @@ cd /srv/democracyonline-dev && bash scripts/vps.sh check
 cd /srv/democracyonline-prod && bash scripts/vps.sh check
 ```
 
-## 3. Deploy development, then production
+## 3. Deploy development
 
 As `deploy`, from the corresponding checkout:
 
@@ -72,19 +72,24 @@ curl -I https://dev.oscana.nya.je
 
 `deploy` checks configuration, starts its database, makes a timestamped custom-format backup, builds the app and migration image, applies Drizzle migrations, and starts the app and scheduler. `seed` resets game data, so run it only once for an empty environment. It also makes a backup first. Create Firebase users for seeded officeholders if needed; see [Firebase Authentication](docs/FIREBASE_AUTH.md). Verify login, admin, a bill stage, and an election advancement on development.
 
-After development passes, run the production sequence. The production seed requires an explicit flag:
+Production currently stays offline. Its app, scheduler, and database containers are stopped, while its database volume remains available for a later launch. The production hostname returns `503`. The production lock at `/etc/democracyonline/production-offline` makes `deploy`, `update`, `seed`, and `restore` refuse to start it. The daily backup timer skips production while this lock exists.
+
+When you decide to launch production, run these steps in order. Its existing database was seeded during the initial rollout; preserve that data:
 
 ```bash
+sudo bash /srv/democracyonline-prod/scripts/vps-site.sh unlock
 cd /srv/democracyonline-prod
 bash scripts/vps.sh deploy
-bash scripts/vps.sh seed --allow-production
 bash scripts/vps.sh status
+sudo bash scripts/vps-site.sh online
 curl -I https://oscana.nya.je
 ```
 
-If production already has data, **do not seed it**. Migrations are one-way operations; review schema changes and test them on development before updating production.
+**Do not seed the existing production database again.** `seed --allow-production` resets game data and belongs only in a first-time setup of a genuinely empty database. Migrations are one-way operations; review schema changes and test them on development before updating production.
 
-Check after a reboot: `docker compose --env-file .env ps` in each checkout and both HTTPS URLs. Containers use Docker restart policies; Caddy and Docker are enabled at boot.
+To take production offline again, run `sudo bash /srv/democracyonline-prod/scripts/vps-site.sh offline`. This switches the hostname to a `503` response, creates the deployment lock, and stops only the production Compose stack. It preserves the database volume.
+
+Check after a reboot: dev's Compose services should be running and `https://dev.oscana.nya.je` should return `200`. Prod's Compose project should be stopped and `https://oscana.nya.je` should return `503`. Docker restart policies apply to the running dev stack; Caddy and Docker are enabled at boot.
 
 ## Routine operation
 
@@ -98,11 +103,11 @@ bash scripts/vps.sh logs
 bash scripts/vps.sh stop     # stops only this environment; preserves its volume
 ```
 
-`update` refuses dirty or detached checkouts and retains the branch checked out in that environment. Production and development can use different branches. Do not use `docker compose down -v`; that removes the database volume. The deployment script never uses `-v`.
+`update` refuses dirty or detached checkouts and retains the branch checked out in that environment. Production and development can use different branches. Production updates are blocked while it is offline. Do not use `docker compose down -v`; that removes the database volume. The deployment script never uses `-v`.
 
-The optional manual **Deploy VPS** GitHub Action calls this same update command. Configure GitHub environments `Dev` and `Prod` (require review for `Prod`) and set `VPS_HOST`, `VPS_USER=deploy`, `VPS_SSH_KEY`, and optional `VPS_SSH_PORT` in each. Use a dedicated deploy SSH key, put its public half in `/home/deploy/.ssh/authorized_keys`, and store its private half only in the GitHub environment secret. The action does not seed or switch branches. Test the SSH key interactively before relying on the workflow.
+The optional manual **Deploy Dev VPS** GitHub Action calls this same update command for development only. Configure a GitHub environment named `Dev` with `VPS_HOST`, `VPS_USER=deploy`, `VPS_SSH_KEY`, and optional `VPS_SSH_PORT`. Use a dedicated deploy SSH key, put its public half in `/home/deploy/.ssh/authorized_keys`, and store its private half only in the GitHub environment secret. The action does not seed or switch branches. Test the SSH key interactively before relying on the workflow.
 
-Backups are written to `/srv/democracyonline-backups/{production,development}` with private permissions. The daily timer runs at 03:30 UTC; inspect it with `systemctl status democracyonline-backup.timer` and `journalctl -u democracyonline-backup.service`. A successful `pg_dump` does not prove recovery: copy backups off the VPS, retain several generations, monitor disk usage, and restore one into a disposable environment. Check archive contents with `docker compose exec -T db pg_restore --list < backup.dump`.
+Backups are written to `/srv/democracyonline-backups/{production,development}` with private permissions. The daily timer runs at 03:30 UTC and backs up dev while prod is offline; inspect it with `systemctl status democracyonline-backup.timer` and `journalctl -u democracyonline-backup.service`. A successful `pg_dump` does not prove recovery: copy backups off the VPS, retain several generations, monitor disk usage, and restore one into a disposable environment. Check archive contents with `docker compose exec -T db pg_restore --list < backup.dump`.
 
 To restore, copy the dump to the VPS, verify its contents, and run the explicit restore command in the **target** checkout:
 
@@ -111,7 +116,7 @@ cd /srv/democracyonline-dev
 bash scripts/vps.sh restore /path/to/backup.dump --confirm-development
 ```
 
-For production, use the production checkout and `--confirm-production`. Restore takes one more backup, stops the app and scheduler, replaces only this project's database, restores the archive, and starts the app again. If restore fails, the app stays stopped so you can investigate. Test this process on development before relying on it for production. Keep the matching `.env` and Git revision with an offsite backup; bootstrap can recreate infrastructure but cannot recreate lost game data or Firebase credentials.
+For production, unlock it first, then use the production checkout and `--confirm-production`. Restore takes one more backup, stops the app and scheduler, replaces only this project's database, restores the archive, and starts the app again. If restore fails, the app stays stopped so you can investigate. Test this process on development before relying on it for production. Keep the matching `.env` and Git revision with an offsite backup; bootstrap can recreate infrastructure but cannot recreate lost game data or Firebase credentials.
 
 ## Existing VPS / legacy database
 
