@@ -21,7 +21,7 @@ for dir in "$PROD_DIR" "$DEV_DIR"; do
     exit 1
   fi
 done
-if [[ -f /etc/caddy/Caddyfile ]] && ! grep -q 'Managed by Democracy Online vps-bootstrap' /etc/caddy/Caddyfile; then
+if [[ -f /etc/caddy/Caddyfile ]] && ! grep -q 'Managed by Oscana vps-bootstrap' /etc/caddy/Caddyfile; then
   echo "Existing Caddyfile is not managed by this script. Back it up and merge it manually." >&2
   exit 1
 fi
@@ -137,7 +137,7 @@ EOF
 chmod 755 /usr/local/sbin/democracyonline-backup
 cat > /etc/systemd/system/democracyonline-backup.service <<EOF
 [Unit]
-Description=Back up both Democracy Online databases
+Description=Back up both Oscana databases
 After=docker.service
 Requires=docker.service
 
@@ -148,7 +148,7 @@ ExecStart=/usr/local/sbin/democracyonline-backup
 EOF
 cat > /etc/systemd/system/democracyonline-backup.timer <<'EOF'
 [Unit]
-Description=Daily Democracy Online database backup
+Description=Daily Oscana database backup
 
 [Timer]
 OnCalendar=*-*-* 03:30:00 UTC
@@ -162,7 +162,7 @@ systemctl daemon-reload
 systemctl enable --now democracyonline-backup.timer
 
 cat > /etc/caddy/Caddyfile <<EOF
-# Managed by Democracy Online vps-bootstrap
+# Managed by Oscana vps-bootstrap
 $PROD_DOMAIN {
     reverse_proxy 127.0.0.1:3000
 }

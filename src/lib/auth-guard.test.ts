@@ -6,6 +6,7 @@ describe("getAuthRedirect", () => {
         expect(getAuthRedirect("/dashboard", false)).toBe("/login");
         expect(getAuthRedirect("/dashboard/players/42", false)).toBe("/login");
         expect(getAuthRedirect("/settings", false)).toBe("/login");
+        expect(getAuthRedirect("/social", false)).toBe("/login");
     });
 
     it("redirects authenticated users away from auth pages", () => {

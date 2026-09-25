@@ -14,6 +14,7 @@ import {
   WikiStatGrid,
 } from "@/components/wiki/wiki-layout";
 import { WikiHeader } from "@/components/wiki/wiki-header";
+import { PlayerAvatar } from "@/components/players/player-avatar";
 import { DashboardElectionCountdown } from "@/components/dashboard-election-countdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -343,6 +344,7 @@ function PrimariesPage() {
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <PartyLogo party_id={candidate.partyId} size={40} />
+                      <PlayerAvatar username={candidate.username} photoUrl={candidate.photoUrl} className="size-10" />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <Link

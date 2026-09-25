@@ -23,6 +23,7 @@ import {
 } from "@/lib/server/elections";
 import { DashboardElectionCountdown } from "@/components/dashboard-election-countdown";
 import { RankedBallot } from "@/components/ranked-ballot";
+import { PlayerAvatar } from "@/components/players/player-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,6 +80,7 @@ function toBallotCandidate(race: Race, candidate: Race["candidates"][number]) {
     votes: null,
     haswon: false,
     username: candidate.username,
+    photoUrl: candidate.photoUrl,
     partyId: candidate.party?.id ?? null,
     partyName: candidate.party?.name ?? null,
     partyColor: candidate.party?.color ?? null,
@@ -543,6 +545,7 @@ function CompactConcludedStatus({ race }: { race: Race }) {
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Trophy className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
         <span className="flex items-center gap-1.5 text-xs">
+          <PlayerAvatar username={w.username} photoUrl={w.photoUrl} className="size-8" />
           <span
             className="inline-block h-2 w-2 shrink-0 rounded-full"
             style={{
@@ -751,6 +754,7 @@ function ElectionNightCard({
                             "var(--muted-foreground)",
                         }}
                       />
+                      <PlayerAvatar username={c.username} photoUrl={c.photoUrl} className="size-6" />
                       <span className="text-white/70">{c.username}</span>
                       <span className="font-mono font-bold text-white/90">
                         {total
@@ -851,8 +855,6 @@ function ElectionNightCandidateIdentity({
 }: {
   candidate: Race["candidates"][number];
 }) {
-  const color =
-    candidate.party?.color ?? candidate.affiliation.color ?? "#64748b";
   const label = candidate.party?.name
     ? candidate.coalition?.name
       ? `${candidate.party.name} / ${candidate.coalition.name}`
@@ -860,13 +862,7 @@ function ElectionNightCandidateIdentity({
     : (candidate.affiliation.name ?? "Independent");
   const content = (
     <>
-      <span
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border font-serif font-bold text-white"
-        style={{ backgroundColor: color }}
-        aria-hidden="true"
-      >
-        {candidate.username.slice(0, 1).toUpperCase()}
-      </span>
+      <PlayerAvatar username={candidate.username} photoUrl={candidate.photoUrl} className="size-9" />
       <span className="min-w-0">
         <span className="block truncate font-semibold">
           {candidate.username}

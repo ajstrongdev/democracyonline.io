@@ -2,6 +2,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, Clock3, LockKeyhole } from "lucide-react";
 import { WikiArticleSection } from "@/components/wiki/wiki-article-section";
 import { CandidatesChart } from "@/components/candidates-chart";
+import { PlayerAvatar } from "@/components/players/player-avatar";
 import {
   PartyMark,
   ResultBar,
@@ -73,6 +74,7 @@ function ElectionArticle() {
     votes: (c as { points?: number }).points ?? 0,
     haswon: (c as { elected?: boolean }).elected ?? false,
     username: c.username,
+    photoUrl: c.photoUrl,
     partyId: (c as { partyId?: number }).partyId ?? null,
     partyName: c.partyName,
     partyColor: c.partyColor,
@@ -146,21 +148,28 @@ function ElectionArticle() {
                 <div className="font-mono text-2xl font-bold text-muted-foreground">
                   #{candidate.placement}
                 </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-serif text-lg font-bold">
-                      {candidate.username}
-                    </p>
-                    {candidate.elected && (
-                      <Badge>
-                        <CheckCircle2 className="h-3 w-3" /> Elected
-                      </Badge>
-                    )}
-                  </div>
-                  <PartyMark
-                    name={candidate.partyName}
-                    color={candidate.partyColor}
+                <div className="flex min-w-0 items-center gap-3">
+                  <PlayerAvatar
+                    username={candidate.username}
+                    photoUrl={candidate.photoUrl}
+                    className="size-12 sm:size-14"
                   />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-serif text-lg font-bold">
+                        {candidate.username}
+                      </p>
+                      {candidate.elected && (
+                        <Badge>
+                          <CheckCircle2 className="h-3 w-3" /> Elected
+                        </Badge>
+                      )}
+                    </div>
+                    <PartyMark
+                      name={candidate.partyName}
+                      color={candidate.partyColor}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between gap-3 font-mono text-xs">

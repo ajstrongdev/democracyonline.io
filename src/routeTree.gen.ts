@@ -9,13 +9,12 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SocialRouteImport } from './routes/social'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ModerationRouteImport } from './routes/moderation'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as FeedRouteImport } from './routes/feed'
-import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WikiIndexRouteImport } from './routes/wiki/index'
@@ -69,6 +68,11 @@ import { Route as DashboardPartiesCoalitionsCreateRouteImport } from './routes/d
 import { Route as DashboardPartiesCoalitionsIdRouteImport } from './routes/dashboard/parties/coalitions/$id'
 import { Route as DashboardBillsEditIdRouteImport } from './routes/dashboard/bills/edit/$id'
 
+const SocialRoute = SocialRouteImport.update({
+  id: '/social',
+  path: '/social',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -92,16 +96,6 @@ const ModerationRoute = ModerationRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FeedRoute = FeedRouteImport.update({
-  id: '/feed',
-  path: '/feed',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CalendarRoute = CalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -380,13 +374,12 @@ const DashboardBillsEditIdRoute = DashboardBillsEditIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/calendar': typeof CalendarRoute
-  '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
   '/moderation': typeof ModerationRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
+  '/social': typeof SocialRoute
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
   '/api/election-advance': typeof ApiElectionAdvanceRoute
@@ -441,13 +434,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/calendar': typeof CalendarRoute
-  '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
   '/moderation': typeof ModerationRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
+  '/social': typeof SocialRoute
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
   '/api/election-advance': typeof ApiElectionAdvanceRoute
@@ -503,13 +495,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/calendar': typeof CalendarRoute
-  '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
   '/moderation': typeof ModerationRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
+  '/social': typeof SocialRoute
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
   '/api/election-advance': typeof ApiElectionAdvanceRoute
@@ -566,13 +557,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
-    | '/calendar'
-    | '/feed'
     | '/login'
     | '/moderation'
     | '/register'
     | '/search'
     | '/settings'
+    | '/social'
     | '/api/bill-advance'
     | '/api/bot'
     | '/api/election-advance'
@@ -627,13 +617,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
-    | '/calendar'
-    | '/feed'
     | '/login'
     | '/moderation'
     | '/register'
     | '/search'
     | '/settings'
+    | '/social'
     | '/api/bill-advance'
     | '/api/bot'
     | '/api/election-advance'
@@ -688,13 +677,12 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
-    | '/calendar'
-    | '/feed'
     | '/login'
     | '/moderation'
     | '/register'
     | '/search'
     | '/settings'
+    | '/social'
     | '/api/bill-advance'
     | '/api/bot'
     | '/api/election-advance'
@@ -750,13 +738,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
-  CalendarRoute: typeof CalendarRoute
-  FeedRoute: typeof FeedRoute
   LoginRoute: typeof LoginRoute
   ModerationRoute: typeof ModerationRoute
   RegisterRoute: typeof RegisterRoute
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
+  SocialRoute: typeof SocialRoute
   ApiBillAdvanceRoute: typeof ApiBillAdvanceRoute
   ApiBotRoute: typeof ApiBotRoute
   ApiElectionAdvanceRoute: typeof ApiElectionAdvanceRoute
@@ -811,6 +798,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/social': {
+      id: '/social'
+      path: '/social'
+      fullPath: '/social'
+      preLoaderRoute: typeof SocialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -844,20 +838,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/feed': {
-      id: '/feed'
-      path: '/feed'
-      fullPath: '/feed'
-      preLoaderRoute: typeof FeedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/calendar': {
-      id: '/calendar'
-      path: '/calendar'
-      fullPath: '/calendar'
-      preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -1230,13 +1210,12 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
-  CalendarRoute: CalendarRoute,
-  FeedRoute: FeedRoute,
   LoginRoute: LoginRoute,
   ModerationRoute: ModerationRoute,
   RegisterRoute: RegisterRoute,
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
+  SocialRoute: SocialRoute,
   ApiBillAdvanceRoute: ApiBillAdvanceRoute,
   ApiBotRoute: ApiBotRoute,
   ApiElectionAdvanceRoute: ApiElectionAdvanceRoute,

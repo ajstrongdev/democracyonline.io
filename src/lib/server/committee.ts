@@ -10,6 +10,7 @@ import {
   committeeAssessments,
   committeePolicyAssessments,
   committeeStatAssessments,
+  feed,
   nationPolicyDefinitions,
   nationPolicyValues,
   nationStatDefinitions,
@@ -394,6 +395,10 @@ export const saveCommitteeAssessment = createServerFn({ method: "POST" })
             proposedValue: proposal.value,
           })),
         );
+      await tx.insert(feed).values({
+        userId: senator.id,
+        content: `submitted a Senate Committee assessment for bill #${data.billId}`,
+      });
       return { id: assessment.id };
     });
   });

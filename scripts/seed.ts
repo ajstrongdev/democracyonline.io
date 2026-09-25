@@ -1,5 +1,6 @@
 import { loadEnvFile } from "node:process";
 import pg from "pg";
+import { avatarForUsername, renderAvatar } from "../src/lib/avatar";
 import {
   POLICY_DEFINITIONS,
   STAT_DEFINITIONS,
@@ -277,6 +278,7 @@ async function seed() {
         "bill_votes_house", "bill_votes_senate", "bill_votes_presidential",
         "party_notifications", "merge_request_stances", "merge_request",
         "join_requests", "coalition_members", "coalition_former_members", "coalitions",
+        "social_notification_dismissals", "social_comment_dislikes", "social_comment_likes", "social_comments", "social_likes", "social_dislikes", "social_reposts", "social_posts",
         "moderation_audit_log", "moderation_flags", "player_reports", "player_invitations",
         "party_stances", "political_stances", "chats", "feed", "bills",
         "game_tracker", "game_settings", "elections", "users", "parties"
@@ -348,7 +350,7 @@ async function seed() {
       ["name", "civil_rights", "economy", "political_freedoms"],
       [
         [
-          "The Commonwealth of Democracy Online",
+          "The Republic of Oscana",
           initialHeadlines.civil_rights,
           initialHeadlines.economy,
           initialHeadlines.political_freedoms,
@@ -470,6 +472,12 @@ async function seed() {
     const ajId = Number(aj.id);
     const generatedUserIds = userRows.slice(1).map((row) => Number(row.id));
     const allUserIds = userRows.map((row) => Number(row.id));
+    for (const player of userRows) {
+      const avatar = avatarForUsername(String(player.username));
+      await client.query("UPDATE users SET avatar_config = $1::jsonb, photo_url = $2 WHERE id = $3", [
+        JSON.stringify(avatar), renderAvatar(avatar), Number(player.id),
+      ]);
+    }
 
     for (let index = 0; index < partyIds.length; index += 1) {
       const leaderId = index === 0 ? ajId : generatedUserIds[index - 1];
@@ -478,6 +486,59 @@ async function seed() {
         partyIds[index],
       ]);
     }
+
+    const socialSeedTime = new Date();
+    const president = userRows[1];
+    const socialPostRows = await insertRows(
+        "social_posts",
+        ["user_id", "username", "account_key", "account_party_id", "content", "created_at"],
+        [
+          [ajId, String(aj.username), null, null, "Welcome to Z.com—Oscana’s new town square. @POTRO, ready for the first debate?", socialSeedTime],
+          [Number(president.id), String(president.username), "potro", null, "POTRO is online. We’re listening to citizens and party accounts alike: @ajstrongdev and @the-liberal-party-of-oscana", socialSeedTime],
+          [ajId, String(aj.username), "party", partyIds[0], "The Liberal Party of Oscana account is live. Follow our platform and send your questions to @POTRO.", socialSeedTime],
+        ],
+        true,
+      );
+    const socialCommentRows = await insertRows(
+      "social_comments",
+      ["post_id", "user_id", "username", "content", "created_at"],
+      [
+        [Number(socialPostRows[0].id), Number(president.id), String(president.username), "@ajstrongdev Happy to join the conversation from the official account.", new Date(socialSeedTime.getTime() + 1_000)],
+        [Number(socialPostRows[1].id), ajId, String(aj.username), "@POTRO Thanks for opening the floor. @renewal-coalition has a question too.", new Date(socialSeedTime.getTime() + 2_000)],
+      ],
+      true,
+    );
+    await insertRows(
+      "social_comments",
+      ["post_id", "parent_id", "user_id", "username", "content", "created_at"],
+      [[Number(socialPostRows[0].id), Number(socialCommentRows[0].id), ajId, String(aj.username), "Thanks for joining, @POTRO. What should we discuss first?", new Date(socialSeedTime.getTime() + 3_000)]],
+    );
+    await insertRows(
+      "social_comment_likes",
+      ["comment_id", "user_id", "created_at"],
+      [[Number(socialCommentRows[0].id), ajId, new Date(socialSeedTime.getTime() + 3_000)]],
+    );
+    await insertRows(
+      "social_likes",
+      ["post_id", "user_id", "created_at"],
+      [[Number(socialPostRows[0].id), Number(president.id), socialSeedTime]],
+    );
+    await insertRows(
+      "social_reposts",
+      ["post_id", "user_id", "created_at"],
+      [[Number(socialPostRows[1].id), ajId, socialSeedTime]],
+    );
+    await insertRows(
+      "feed",
+      ["user_id", "content", "created_at"],
+      [
+        [ajId, "@ajstrongdev posted on Z.com: Welcome to Z.com—Oscana’s new town square.", socialSeedTime],
+        [Number(president.id), "POTRO posted on Z.com: We’re listening to citizens and party accounts alike.", new Date(socialSeedTime.getTime() + 1_000)],
+        [ajId, "The liberal party of Oscana posted on Z.com: The party account is live.", new Date(socialSeedTime.getTime() + 2_000)],
+        [Number(president.id), "commented on a Z.com post and mentioned @ajstrongdev.", new Date(socialSeedTime.getTime() + 3_000)],
+        [ajId, "commented on a Z.com post and mentioned @POTRO.", new Date(socialSeedTime.getTime() + 4_000)],
+      ],
+    );
 
     const coalitionRows = await insertRows(
       "coalitions",

@@ -13,6 +13,7 @@ import { Trophy } from "lucide-react";
 import type { Candidate } from "@/lib/server/elections";
 import type { ChartConfig } from "@/components/ui/chart";
 import { CandidateAffiliationBadges } from "@/components/candidate-affiliation-badges";
+import { PlayerAvatar } from "@/components/players/player-avatar";
 import {
   ChartContainer,
   ChartTooltip,
@@ -41,14 +42,19 @@ export function CandidatesChart({
   seats?: number;
   status: string;
 }) {
+  const projectedCandidates = [...candidates]
+    .sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0) || a.username.localeCompare(b.username));
+  const projectedIds = new Set(projectedCandidates.slice(0, seats).map((candidate) => candidate.id));
   const chartData = [...candidates]
-    .sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0) || a.id - b.id)
-    .map((candidate, index) => ({
+    .sort((a, b) => status === "Concluded"
+      ? (b.votes ?? 0) - (a.votes ?? 0) || a.username.localeCompare(b.username)
+      : a.username.localeCompare(b.username))
+    .map((candidate) => ({
       id: candidate.id,
       name: candidate.username,
       points: candidate.votes ?? 0,
       color: candidate.partyColor ?? "var(--muted-foreground)",
-      projected: index < seats,
+      projected: status === "Concluded" ? candidate.haswon : projectedIds.has(candidate.id),
       candidate,
     }));
   const totalPoints = chartData.reduce(
@@ -101,6 +107,7 @@ export function CandidatesChart({
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono font-black text-primary">
                     {index + 1}
                   </span>
+                  <PlayerAvatar username={entry.name} photoUrl={entry.candidate.photoUrl} className="size-9" />
                   <div className="min-w-0">
                     <p className="truncate text-lg font-black">{entry.name}</p>
                     <p className="font-mono text-sm text-muted-foreground">
@@ -198,7 +205,7 @@ export function CandidatesChart({
               <div className="border-b px-4 py-3">
                 <h3 className="font-serif text-lg font-bold">Point totals</h3>
                 <p className="text-xs text-muted-foreground">
-                  Candidates are ordered by their current ranked-ballot score
+                  {status === "Concluded" ? "Candidates are ordered by their final ranked-ballot score" : "Candidates are listed alphabetically until the election concludes"}
                 </p>
               </div>
               <ChartContainer
@@ -255,9 +262,10 @@ export function CandidatesChart({
                       className="h-3 w-3 shrink-0 rounded-full"
                       style={{ backgroundColor: entry.color }}
                     />
-                    <span className="min-w-0 truncate font-semibold">
-                      {entry.name}
-                    </span>
+                     <PlayerAvatar username={entry.name} photoUrl={entry.candidate.photoUrl} className="size-9" />
+                     <span className="min-w-0 truncate font-semibold">
+                       {entry.name}
+                     </span>
                     <CandidateAffiliationBadges candidate={entry.candidate} />
                   </div>
                 ))}

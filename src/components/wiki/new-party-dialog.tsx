@@ -30,7 +30,6 @@ export function NewPartyDialog({
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
   const [color, setColor] = useState("#475569");
-  const [discord, setDiscord] = useState("");
   const [logo, setLogo] = useState("");
   const [leaning, setLeaning] = useState("Center");
   const [platform, setPlatform] = useState("");
@@ -42,13 +41,6 @@ export function NewPartyDialog({
     if (user.partyId) return setError("Leave your current party first.");
     if (!name.trim() || !bio.trim())
       return setError("A party name and biography are required.");
-    if (discord) {
-      try {
-        new URL(discord);
-      } catch {
-        return setError("Enter a valid Discord URL.");
-      }
-    }
     setSubmitting(true);
     setError(null);
     try {
@@ -58,7 +50,6 @@ export function NewPartyDialog({
             name: name.trim(),
             bio: bio.trim(),
             color,
-            discord: discord.trim() || null,
             logo: logo || null,
             leaning,
           },
@@ -151,16 +142,6 @@ export function NewPartyDialog({
                 <option key={value}>{value}</option>
               ))}
             </select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="party-discord">Discord invite</Label>
-            <Input
-              id="party-discord"
-              type="url"
-              value={discord}
-              onChange={(event) => setDiscord(event.target.value)}
-              placeholder="https://discord.gg/..."
-            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="party-logo">Logo</Label>

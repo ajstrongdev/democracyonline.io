@@ -2,7 +2,7 @@ const authPages = new Set(["/login", "/register"]);
 const protectedRoutePrefixes = [
     "/dashboard",
     "/settings",
-    "/feed",
+    "/social",
     "/admin",
     "/search",
 ];

@@ -92,12 +92,8 @@ export const getMembershipStatus = createServerFn()
 export const getPartyMembers = createServerFn()
   .inputValidator((data: { partyId: number }) => data)
   .handler(async ({ data }) => {
-    const {
-      email,
-      isAncestryRoot,
-      moderationRole,
-      ...userColumns
-    } = getTableColumns(users);
+    const { email, isAncestryRoot, moderationRole, ...userColumns } =
+      getTableColumns(users);
     const members = await db
       .select(userColumns)
       .from(users)
@@ -226,6 +222,10 @@ export const updateParty = createServerFn()
         leaning: partyData.leaning,
       })
       .where(eq(parties.id, partyData.id));
+    await db.insert(feed).values({
+      userId: currentUser.id,
+      content: `updated the ${partyData.name} party profile`,
+    });
     return true;
   });
 
@@ -238,7 +238,10 @@ export const leaveParty = createServerFn()
     }
 
     const [currentUser] = await db
-      .select({ id: users.id, partyId: users.partyId })
+      .select({
+        id: users.id,
+        partyId: users.partyId,
+      })
       .from(users)
       .where(userEmailEquals(context.user.email))
       .limit(1);
@@ -269,6 +272,15 @@ export const leaveParty = createServerFn()
             ),
           );
       }
+      const [party] = await tx
+        .select({ name: parties.name })
+        .from(parties)
+        .where(eq(parties.id, currentUser.partyId!))
+        .limit(1);
+      await tx.insert(feed).values({
+        userId: currentUser.id,
+        content: `left ${party?.name ?? "their party"}`,
+      });
     });
     return true;
   });
@@ -283,7 +295,10 @@ export const joinParty = createServerFn()
 
     // Verify the authenticated user matches the userId
     const [currentUser] = await db
-      .select({ id: users.id, partyId: users.partyId })
+      .select({
+        id: users.id,
+        partyId: users.partyId,
+      })
       .from(users)
       .where(userEmailEquals(context.user.email))
       .limit(1);
@@ -330,6 +345,17 @@ export const joinParty = createServerFn()
             );
         }
       }
+      const [party] = await tx
+        .select({ name: parties.name })
+        .from(parties)
+        .where(eq(parties.id, data.partyId))
+        .limit(1);
+      await tx
+        .insert(feed)
+        .values({
+          userId: currentUser.id,
+          content: `joined ${party?.name ?? "a party"}`,
+        });
     });
     return true;
   });
@@ -360,7 +386,7 @@ export const becomePartyLeader = createServerFn()
 
     // Check if party currently has no leader
     const [party] = await db
-      .select({ leaderId: parties.leaderId })
+      .select({ leaderId: parties.leaderId, name: parties.name })
       .from(parties)
       .where(and(eq(parties.id, data.partyId), isNull(parties.archivedAt)))
       .limit(1);
@@ -373,6 +399,12 @@ export const becomePartyLeader = createServerFn()
       .update(parties)
       .set({ leaderId: data.userId })
       .where(eq(parties.id, data.partyId));
+    await db
+      .insert(feed)
+      .values({
+        userId: currentUser.id,
+        content: `became leader of ${party?.name ?? "a party"}`,
+      });
     return true;
   });
 

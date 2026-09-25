@@ -246,6 +246,97 @@
       "when": 1790134273238,
       "tag": "0034_useful_martin_li",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790134273239,
+      "tag": "0035_rename_nation_oscana",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790134273240,
+      "tag": "0036_bill_comments",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790134273241,
+      "tag": "0037_bill_party_whips",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790134273242,
+      "tag": "0038_social_page",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1790134273243,
+      "tag": "0039_social_timestamps_with_timezone",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790134273244,
+      "tag": "0040_social_official_account",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790134273245,
+      "tag": "0041_social_party_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1790134273246,
+      "tag": "0042_user_avatar",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1790134273247,
+      "tag": "0043_social_comment_likes",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1790134273248,
+      "tag": "0044_social_dislikes",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1790134273249,
+      "tag": "0045_social_comment_threads",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1790134273250,
+      "tag": "0046_social_notification_dismissals",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1790134273251,
+      "tag": "0047_user_pronouns",
+      "breakpoints": true
     }
   ]
 }

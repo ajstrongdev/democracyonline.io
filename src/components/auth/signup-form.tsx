@@ -21,6 +21,7 @@ export function SignupForm() {
       confirmPassword: "",
       username: "",
       bio: "",
+      pronouns: "",
       politicalLeaning: "Center",
     },
     onSubmit: async ({ value }) => {
@@ -55,6 +56,7 @@ export function SignupForm() {
               email: value.email,
               username: value.username,
               bio: value.bio || undefined,
+              pronouns: value.pronouns || undefined,
               politicalLeaning: leanings[leaningValue[0]],
             },
           });
@@ -123,15 +125,7 @@ export function SignupForm() {
                 placeholder="Enter your invitation token"
               />
               <p className="text-xs text-muted-foreground">
-                To get an invitation token, ask an existing player or join our{" "}
-                <a
-                  href="https://discord.gg/m7gDfgJund"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  Discord
-                </a>
+                To get an invitation token, ask an existing player.
               </p>
               {field.state.meta.errors && (
                 <p className="text-sm text-destructive">
@@ -189,6 +183,28 @@ export function SignupForm() {
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring min-h-20"
                 placeholder="Tell us about yourself..."
               />
+            </div>
+          )}
+        </form.Field>
+
+        <form.Field name="pronouns">
+          {(field) => (
+            <div className="space-y-2">
+              <label htmlFor={field.name} className="text-sm font-medium">
+                Pronouns (optional)
+              </label>
+              <input
+                id={field.name}
+                name={field.name}
+                type="text"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+                maxLength={80}
+                className="w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="they/she"
+              />
+              <p className="text-xs text-muted-foreground">Enter pronouns in your preferred order, for example they/she.</p>
             </div>
           )}
         </form.Field>

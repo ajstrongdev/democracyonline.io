@@ -7,11 +7,13 @@ import {
   billVotesPresidential,
   billVotesSenate,
   bills,
+  feed,
   playerInvitations,
   users,
 } from "@/db/schema";
 import { db } from "@/db";
 import { hashInvitationToken } from "@/lib/invitations/token";
+import { avatarSchema, renderAvatar } from "@/lib/avatar";
 import { UpdateUserProfileSchema } from "@/lib/schemas/user-schema";
 import { SearchUsersSchema } from "@/lib/schemas/user-search-schema";
 import { normalizeEmail, userEmailEquals } from "@/lib/server/user-email";
@@ -23,6 +25,7 @@ const CreateUserSchema = z.object({
   username: z.string().min(1, "Username is required"),
   bio: z.string().optional(),
   politicalLeaning: z.string().optional(),
+  pronouns: z.string().trim().max(80, "Pronouns must be 80 characters or fewer").optional(),
 });
 
 export const validateAccessToken = createServerFn({ method: "POST" })
@@ -126,6 +129,7 @@ export const createUser = createServerFn({ method: "POST" })
           email: normalizedEmail,
           username: data.username,
           bio: data.bio || null,
+          pronouns: data.pronouns?.trim() || null,
           politicalLeaning: data.politicalLeaning || null,
         })
         .returning();
@@ -260,6 +264,7 @@ export const updateUserProfile = createServerFn({ method: "POST" })
       .set({
         username: data.username,
         bio: data.bio,
+        pronouns: data.pronouns?.trim() || null,
         politicalLeaning: data.politicalLeaning,
       })
       .where(eq(users.id, data.userId))
@@ -269,7 +274,26 @@ export const updateUserProfile = createServerFn({ method: "POST" })
       throw new Error("Failed to update user profile");
     }
 
+    await db.insert(feed).values({
+      userId: updatedUser[0].id,
+      content: "updated their player profile",
+    });
+
     return updatedUser[0];
+  });
+
+export const updatePlayerAvatar = createServerFn({ method: "POST" })
+  .middleware([requireAuthMiddleware])
+  .inputValidator(avatarSchema)
+  .handler(async ({ data, context }) => {
+    if (!context.user?.email) throw new Error("Authentication required");
+    const [player] = await db
+      .update(users)
+      .set({ avatarConfig: data, photoUrl: renderAvatar(data) })
+      .where(userEmailEquals(context.user.email))
+      .returning({ id: users.id });
+    if (!player) throw new Error("Player account not found");
+    return { saved: true };
   });
 
 export const getUserVotingHistory = createServerFn()
@@ -342,6 +366,7 @@ export const searchUsers = createServerFn()
           bio: users.bio,
           politicalLeaning: users.politicalLeaning,
           role: users.role,
+          photoUrl: users.photoUrl,
           partyId: users.partyId,
           createdAt: users.createdAt,
           lastActivity: users.lastActivity,

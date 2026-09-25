@@ -8,6 +8,7 @@ import {
   electionCandidateHistory,
   electionHistory,
   elections,
+  feed,
   parties,
   users,
   wikiArticleRevisions,
@@ -207,6 +208,16 @@ export const saveWikiArticle = createServerFn({ method: "POST" })
         .update(wikiArticles)
         .set({ updatedAt: new Date() })
         .where(eq(wikiArticles.id, article.id));
+      const subject =
+        data.entityType === "bill"
+          ? `bill #${data.entityId}`
+          : data.entityType === "party"
+            ? `party #${data.entityId}`
+            : `${data.entityType} ${data.entityId}`;
+      await tx.insert(feed).values({
+        userId: editor.id,
+        content: `edited the ${subject} article`,
+      });
       return revision;
     });
   });

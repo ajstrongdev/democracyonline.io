@@ -15,6 +15,8 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import type { AvatarConfig } from "@/lib/avatar";
 
 // Users table
 export const users = pgTable("users", {
@@ -22,6 +24,9 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   username: varchar("username", { length: 255 }).notNull().unique(),
   bio: text("bio"),
+  pronouns: varchar("pronouns", { length: 80 }),
+  photoUrl: text("photo_url"),
+  avatarConfig: jsonb("avatar_config").$type<AvatarConfig | null>(),
   politicalLeaning: varchar("political_leaning", { length: 50 }),
   role: varchar("role", { length: 50 }).default("Representative"),
   partyId: integer("party_id"),
@@ -757,6 +762,193 @@ export const feed = pgTable(
   },
   (table) => [
     index("feed_visibility_created_idx").on(table.visibility, table.createdAt),
+  ],
+);
+
+export const billComments = pgTable(
+  "bill_comments",
+  {
+    id: serial("id").primaryKey(),
+    billId: integer("bill_id")
+      .notNull()
+      .references(() => bills.id, { onDelete: "cascade" }),
+    userId: integer("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    username: varchar("username", { length: 255 }).notNull(),
+    partyName: varchar("party_name", { length: 255 }),
+    isPartyLeader: boolean("is_party_leader").default(false).notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("bill_comments_bill_created_idx").on(table.billId, table.createdAt),
+  ],
+);
+
+export const billPartyWhips = pgTable(
+  "bill_party_whips",
+  {
+    id: serial("id").primaryKey(),
+    billId: integer("bill_id")
+      .notNull()
+      .references(() => bills.id, { onDelete: "cascade" }),
+    partyId: integer("party_id")
+      .notNull()
+      .references(() => parties.id, { onDelete: "cascade" }),
+    leaderUserId: integer("leader_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    position: varchar("position", { length: 10 }).notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("bill_party_whips_bill_party_unique").on(
+      table.billId,
+      table.partyId,
+    ),
+    index("bill_party_whips_bill_idx").on(table.billId),
+  ],
+);
+
+export const socialPosts = pgTable(
+  "social_posts",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    username: varchar("username", { length: 255 }).notNull(),
+    accountKey: varchar("account_key", { length: 40 }),
+    accountPartyId: integer("account_party_id").references(() => parties.id, {
+      onDelete: "set null",
+    }),
+    content: varchar("content", { length: 280 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("social_posts_created_idx").on(table.createdAt, table.id)],
+);
+
+export const socialComments = pgTable(
+  "social_comments",
+  {
+    id: serial("id").primaryKey(),
+    postId: integer("post_id")
+      .notNull()
+      .references(() => socialPosts.id, { onDelete: "cascade" }),
+    parentId: integer("parent_id").references((): AnyPgColumn => socialComments.id, {
+      onDelete: "cascade",
+    }),
+    userId: integer("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    username: varchar("username", { length: 255 }).notNull(),
+    content: varchar("content", { length: 2_000 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("social_comments_post_idx").on(table.postId, table.createdAt),
+    index("social_comments_parent_idx").on(table.parentId),
+  ],
+);
+
+export const socialLikes = pgTable(
+  "social_likes",
+  {
+    postId: integer("post_id")
+      .notNull()
+      .references(() => socialPosts.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.postId, table.userId] }),
+    index("social_likes_user_idx").on(table.userId),
+  ],
+);
+
+export const socialDislikes = pgTable(
+  "social_dislikes",
+  {
+    postId: integer("post_id")
+      .notNull()
+      .references(() => socialPosts.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.postId, table.userId] }),
+    index("social_dislikes_user_idx").on(table.userId),
+  ],
+);
+
+export const socialCommentLikes = pgTable(
+  "social_comment_likes",
+  {
+    commentId: integer("comment_id")
+      .notNull()
+      .references(() => socialComments.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.commentId, table.userId] }),
+    index("social_comment_likes_user_idx").on(table.userId),
+  ],
+);
+
+export const socialCommentDislikes = pgTable(
+  "social_comment_dislikes",
+  {
+    commentId: integer("comment_id")
+      .notNull()
+      .references(() => socialComments.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.commentId, table.userId] }),
+    index("social_comment_dislikes_user_idx").on(table.userId),
+  ],
+);
+
+export const socialNotificationDismissals = pgTable(
+  "social_notification_dismissals",
+  {
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    accountKey: varchar("account_key", { length: 100 }).notNull(),
+    sourceType: varchar("source_type", { length: 10 }).notNull(),
+    sourceId: integer("source_id").notNull(),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.accountKey, table.sourceType, table.sourceId] })],
+);
+
+export const socialReposts = pgTable(
+  "social_reposts",
+  {
+    id: serial("id").primaryKey(),
+    postId: integer("post_id")
+      .notNull()
+      .references(() => socialPosts.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique("social_reposts_post_user_unique").on(table.postId, table.userId),
+    index("social_reposts_created_idx").on(table.createdAt, table.id),
   ],
 );
 

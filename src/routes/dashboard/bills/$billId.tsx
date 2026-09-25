@@ -22,27 +22,33 @@ import { formatWikiDate } from "@/lib/utils/history";
 import { getCommitteeData } from "@/lib/server/committee";
 import { CommitteeOutcome } from "@/components/wiki/committee-outcome";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
+import { BillComments } from "@/components/bills/bill-comments";
+import { getBillComments, getBillWhips } from "@/lib/server/bill-comments";
 
 export const Route = createFileRoute("/dashboard/bills/$billId")({
   loader: async ({ params }) => {
     const id = Number(params.billId);
     if (!Number.isInteger(id))
       throw new Response("Bill not found", { status: 404 });
-    const [billData, article, committee] = await Promise.all([
-      getWikiBill({ data: { id } }),
-      getWikiArticle({
-        data: { entityType: "bill", entityId: params.billId },
-      }),
-      getCommitteeData({ data: { billId: id } }),
-    ]);
+    const [billData, article, committee, comments, whipData] =
+      await Promise.all([
+        getWikiBill({ data: { id } }),
+        getWikiArticle({
+          data: { entityType: "bill", entityId: params.billId },
+        }),
+        getCommitteeData({ data: { billId: id } }),
+        getBillComments({ data: { billId: id } }),
+        getBillWhips({ data: { billId: id } }),
+      ]);
     if (!billData) throw new Response("Bill not found", { status: 404 });
-    return { billData, article, committee };
+    return { billData, article, committee, comments, whipData };
   },
   component: BillArticle,
 });
 
 function BillArticle() {
-  const { billData, article, committee } = Route.useLoaderData();
+  const { billData, article, committee, comments, whipData } =
+    Route.useLoaderData();
   const { bill, rollCalls } = billData;
   const router = useRouter();
   return (
@@ -103,6 +109,14 @@ function BillArticle() {
         </div>
       </WikiSection>
       {committee && <CommitteeOutcome billId={bill.id} data={committee} />}
+      <BillComments
+        billId={bill.id}
+        comments={comments}
+        whips={whipData.whips}
+        currentPartyId={whipData.currentPartyId}
+        canWhip={whipData.canWhip}
+        isVoting={whipData.isVoting}
+      />
       <section className="grid gap-4 lg:grid-cols-3">
         <RollCall title="House of Representatives" votes={rollCalls.house} />
         <RollCall title="Senate" votes={rollCalls.senate} />

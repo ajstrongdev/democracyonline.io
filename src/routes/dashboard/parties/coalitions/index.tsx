@@ -118,7 +118,7 @@ function CoalitionsContent() {
         <WikiHeader
           eyebrow={`${coalitions.length} organizations`}
           title="Political coalitions"
-          description="Alliances of political parties, their membership, and their place in the Democracy Online political record."
+          description="Alliances of political parties, their membership, and their place in the Oscana political record."
           status={
             canCreate ? (
               <Button asChild size="sm">

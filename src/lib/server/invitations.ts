@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { playerInvitations, users } from "@/db/schema";
+import { feed, playerInvitations, users } from "@/db/schema";
 import {
   generateInvitationToken,
   hashInvitationToken,
@@ -97,6 +97,10 @@ export const createInvitation = createServerFn({ method: "POST" })
         createdAt: playerInvitations.createdAt,
         expiresAt: playerInvitations.expiresAt,
       });
+    await db.insert(feed).values({
+      userId: currentUser.id,
+      content: "created a player invitation",
+    });
     return { invitation, token };
   });
 
@@ -120,5 +124,9 @@ export const revokeInvitation = createServerFn({ method: "POST" })
       )
       .returning({ id: playerInvitations.id });
     if (!revoked.length) throw new Error("Invitation cannot be revoked");
+    await db.insert(feed).values({
+      userId: currentUser.id,
+      content: "revoked a player invitation",
+    });
     return { success: true };
   });

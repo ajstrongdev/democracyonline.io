@@ -19,6 +19,7 @@ import type {
 import { declareCandidate, revokeCandidate } from "@/lib/server/elections";
 import { CandidatesChart } from "@/components/candidates-chart";
 import { CandidateAffiliationBadges } from "@/components/candidate-affiliation-badges";
+import { PlayerAvatar } from "@/components/players/player-avatar";
 import PartyLogo from "@/components/party-logo";
 import { RankedBallot } from "@/components/ranked-ballot";
 import { DashboardElectionCountdown } from "@/components/dashboard-election-countdown";
@@ -43,10 +44,10 @@ export type ElectionPageData = {
   isCandidateInAny: { isCandidate: boolean; election: string | null };
 };
 
-function getStandings(candidates: Array<Candidate>) {
-  return [...candidates].sort(
-    (a, b) => (b.votes ?? 0) - (a.votes ?? 0) || a.id - b.id,
-  );
+function getStandings(candidates: Array<Candidate>, concluded: boolean) {
+  return [...candidates].sort((a, b) => concluded
+    ? (b.votes ?? 0) - (a.votes ?? 0) || a.username.localeCompare(b.username)
+    : a.username.localeCompare(b.username));
 }
 
 function getSenateSeatLeaders(data: ElectionPageData) {
@@ -59,7 +60,7 @@ function getSenateSeatLeaders(data: ElectionPageData) {
   const seatHolders =
     data.electionInfo?.status === "Concluded"
       ? data.candidates.filter((candidate) => candidate.haswon)
-      : getStandings(data.candidates).slice(0, seats);
+      : getStandings(data.candidates, data.electionInfo.status === "Concluded").slice(0, seats);
   if (seatHolders.length === 0) return null;
 
   const seatCounts = new Map<string, number>();
@@ -90,7 +91,9 @@ function RaceBrief({
   const hasResults = data.candidates.some(
     (candidate) => (candidate.votes ?? 0) > 0,
   );
-  const leader = hasResults ? getStandings(data.candidates)[0] : undefined;
+  const leader = hasResults
+    ? getStandings(data.candidates, data.electionInfo?.status === "Concluded")[0]
+    : undefined;
   const senateLeaders =
     election === "Senate" ? getSenateSeatLeaders(data) : null;
   const Icon = election === "President" ? Crown : Landmark;
@@ -346,7 +349,7 @@ function ElectionPanel({
   const alreadyCandidate = candidates.some(
     (candidate) => candidate.userId === userData?.id,
   );
-  const standings = getStandings(candidates);
+  const standings = getStandings(candidates, data.electionInfo?.status === "Concluded");
   const seats = election === "Senate" ? (data.electionInfo?.seats ?? 1) : 1;
   const Icon = election === "President" ? Crown : Landmark;
   const stageDeadline =
@@ -520,19 +523,16 @@ function ElectionPanel({
                   borderLeftColor: candidate.partyColor ?? "var(--border)",
                 }}
               >
-                <CardContent className="flex items-center gap-3 p-4">
+              <CardContent className="flex items-center gap-3 p-4">
                   {data.electionInfo?.status !== "Candidate" && (
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-sm font-black">
                       {index + 1}
                     </span>
                   )}
-                  {candidate.partyId ? (
-                    <PartyLogo party_id={candidate.partyId} size={44} />
-                  ) : (
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-500 font-serif text-lg font-black text-white shadow-sm">
-                      {candidate.username.slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
+                   <PlayerAvatar username={candidate.username} photoUrl={candidate.photoUrl} className="size-11" />
+                   {candidate.partyId ? (
+                     <PartyLogo party_id={candidate.partyId} size={44} />
+                   ) : null}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Link

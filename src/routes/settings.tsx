@@ -25,6 +25,10 @@ import { useUserData } from "@/lib/hooks/use-user-data";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { InvitationManager } from "@/components/settings/invitation-manager";
 import { ReferenceInsert } from "@/components/reference-insert";
+import { PlayerAvatar } from "@/components/players/player-avatar";
+import { AvatarEditor } from "@/components/players/avatar-editor";
+import { WikiHeader } from "@/components/wiki/wiki-header";
+import { WikiPage } from "@/components/wiki/wiki-layout";
 
 export const Route = createFileRoute("/settings")({
   loader: async ({ context }) => {
@@ -72,6 +76,7 @@ function SettingsPage() {
     defaultValues: {
       username: user?.username,
       bio: user?.bio || "",
+      pronouns: user?.pronouns || "",
     },
     onSubmit: async ({ value }) => {
       try {
@@ -80,6 +85,7 @@ function SettingsPage() {
             userId: user?.id || 0,
             username: value.username || "",
             bio: value.bio,
+            pronouns: value.pronouns,
             politicalLeaning: leanings[leaning[0]],
           },
         });
@@ -159,49 +165,88 @@ function SettingsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto p-8 max-w-3xl space-y-6">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">User Settings</h1>
-          <p className="text-muted-foreground">
-            Manage your profile and account settings
-          </p>
+      <WikiPage width="article" className="space-y-6 pb-12">
+        <WikiHeader
+          eyebrow="Your account"
+          title="Settings"
+          description="Manage how you appear in Oscana and keep your account up to date."
+        />
+
+        <div className="flex flex-wrap items-center gap-4 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+          <PlayerAvatar
+            username={user?.username ?? ""}
+            photoUrl={user?.photoUrl}
+            className="size-16 sm:size-20"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="font-serif text-xl font-bold">{user?.username}</p>
+            <p className="text-sm text-muted-foreground">
+              {[user?.pronouns, user?.role ?? "Citizen"]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+          <span className="rounded-full border bg-muted/40 px-3 py-1 text-xs font-semibold text-muted-foreground">
+            Profile & account
+          </span>
         </div>
 
         {/* Profile Information Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
+        <Card className="overflow-hidden rounded-2xl border-border/80 shadow-sm">
+          <CardHeader className="border-b bg-muted/20 px-5 py-5 sm:px-6">
+            <CardTitle className="font-serif text-2xl">
+              Profile information
+            </CardTitle>
             <CardDescription>
-              Update your username, bio, and political leaning
+              Choose how other players see and understand your profile.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-5 sm:p-6">
             {!isEditingProfile ? (
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Username
-                  </Label>
-                  <p className="text-lg">{user?.username}</p>
+              <div className="space-y-5">
+                <div className="grid gap-4 rounded-xl border bg-muted/10 p-4 sm:grid-cols-2">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">
+                      Username
+                    </Label>
+                    <p className="mt-1 text-base font-semibold">
+                      {user?.username}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">
+                      Pronouns
+                    </Label>
+                    <p className="mt-1 text-base">
+                      {user?.pronouns || (
+                        <span className="text-muted-foreground">
+                          Not specified
+                        </span>
+                      )}
+                    </p>
+                  </div>
                 </div>
-                <div>
+                <div className="rounded-xl border p-4">
                   <Label className="text-sm font-medium text-muted-foreground">
                     Bio
                   </Label>
-                  <p className="text-base whitespace-pre-wrap">
+                  <p className="mt-1 whitespace-pre-wrap text-sm leading-6">
                     {user?.bio || "No bio provided"}
                   </p>
                 </div>
-                <div>
+                <div className="rounded-xl border p-4">
                   <Label className="text-sm font-medium text-muted-foreground">
-                    Political Leaning
+                    Political leaning
                   </Label>
-                  <p className="text-lg">
+                  <p className="mt-1 text-sm">
                     {user?.politicalLeaning || "Not specified"}
                   </p>
                 </div>
-                <Button onClick={() => setIsEditingProfile(true)}>
-                  Edit Profile
+                <Button
+                  className="rounded-xl"
+                  onClick={() => setIsEditingProfile(true)}
+                >
+                  Edit profile
                 </Button>
               </div>
             ) : (
@@ -238,6 +283,41 @@ function SettingsPage() {
                         onChange={(e) => field.handleChange(e.target.value)}
                         placeholder="Enter username"
                       />
+                      {field.state.meta.errors.length > 0 && (
+                        <span className="text-sm text-red-500">
+                          {field.state.meta.errors.join(", ")}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </profileForm.Field>
+
+                <profileForm.Field
+                  name="pronouns"
+                  validators={{
+                    onChange: ({ value }) =>
+                      value.length > 80
+                        ? "Pronouns must be 80 characters or fewer"
+                        : undefined,
+                  }}
+                >
+                  {(field) => (
+                    <div className="space-y-2">
+                      <Label htmlFor={field.name}>Pronouns (optional)</Label>
+                      <Input
+                        id={field.name}
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        maxLength={80}
+                        placeholder="they/she"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use any wording and order that feels right to you.
+                      </p>
                       {field.state.meta.errors.length > 0 && (
                         <span className="text-sm text-red-500">
                           {field.state.meta.errors.join(", ")}
@@ -327,13 +407,21 @@ function SettingsPage() {
           </CardContent>
         </Card>
 
+        {user && (
+          <AvatarEditor
+            key={user.id}
+            initialConfig={user.avatarConfig}
+            username={user.username}
+          />
+        )}
+
         {/* Password Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Password</CardTitle>
-            <CardDescription>Change your account password</CardDescription>
+        <Card className="overflow-hidden rounded-2xl border-border/80 shadow-sm">
+          <CardHeader className="border-b bg-muted/20 px-5 py-5 sm:px-6">
+            <CardTitle className="font-serif text-2xl">Password</CardTitle>
+            <CardDescription>Update your sign-in credentials.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-5 sm:p-6">
             {!isEditingPassword ? (
               <div className="space-y-4">
                 <div>
@@ -427,7 +515,7 @@ function SettingsPage() {
         </Card>
 
         <InvitationManager />
-      </div>
+      </WikiPage>
     </ProtectedRoute>
   );
 }

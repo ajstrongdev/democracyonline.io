@@ -4,10 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import PartyLogo from "@/components/party-logo";
+import { PlayerAvatar } from "@/components/players/player-avatar";
 
 interface UserResult {
   id: number;
   username: string;
+  photoUrl?: string | null;
   bio: string | null;
   politicalLeaning: string | null;
   role: string | null;
@@ -74,7 +76,8 @@ export function SearchResults({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                       <PlayerAvatar username={user.username} photoUrl={user.photoUrl} className="size-10" />
                       <h3 className="text-xl font-semibold wrap-break-word">
                         {user.username}
                       </h3>

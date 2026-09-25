@@ -16,9 +16,9 @@ export function getEntityReferenceHref(reference: string) {
   if (normalized.startsWith("party ") && id) return `/dashboard/parties/${id}`;
   if (normalized.startsWith("player ") && id) return `/dashboard/players/${id}`;
   if (normalized.startsWith("presidential election ") && id)
-    return `/dashboard/elections/president-${id}`;
+    return `/dashboard/elections/${id}`;
   if (normalized.startsWith("senate election ") && id)
-    return `/dashboard/elections/senate-${id}`;
+    return `/dashboard/elections/${id}`;
   if (normalized === "government wiki") return "/dashboard/government";
   return null;
 }

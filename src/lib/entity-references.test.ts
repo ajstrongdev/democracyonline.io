@@ -14,8 +14,8 @@ type Node = {
 describe("entity reference links", () => {
   it.each([
     ["Bill #84", "/dashboard/bills/84"],
-    ["Presidential Election #1", "/dashboard/elections/president-1"],
-    ["Senate Election #1", "/dashboard/elections/senate-1"],
+    ["Presidential Election #1", "/dashboard/elections/1"],
+    ["Senate Election #1", "/dashboard/elections/1"],
     ["Party #7", "/dashboard/parties/7"],
     ["Player #12", "/dashboard/players/12"],
     ["Government Wiki", "/dashboard/government"],
@@ -48,8 +48,8 @@ describe("entity reference links", () => {
     expect(links).toHaveLength(6);
     expect(links?.map((node) => node.url)).toEqual([
       "/dashboard/bills/84",
-      "/dashboard/elections/president-1",
-      "/dashboard/elections/senate-2",
+      "/dashboard/elections/1",
+      "/dashboard/elections/2",
       "/dashboard/parties/3",
       "/dashboard/players/4",
       "/dashboard/government",

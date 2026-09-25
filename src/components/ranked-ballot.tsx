@@ -4,6 +4,7 @@ import {
   ArrowUp,
   CheckCircle2,
   GripVertical,
+  ListRestart,
   ShieldCheck,
   Vote,
 } from "lucide-react";
@@ -12,6 +13,7 @@ import type { DragEvent } from "react";
 import type { Candidate, VotingStatus } from "@/lib/server/elections";
 import { submitRankedBallot } from "@/lib/server/elections";
 import { CandidateAffiliationBadges } from "@/components/candidate-affiliation-badges";
+import { PlayerAvatar } from "@/components/players/player-avatar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,8 +35,11 @@ export function RankedBallot({
   votingStatus: VotingStatus | null;
   onSubmitted: () => void;
 }) {
+  const alphabetizedCandidates = [...candidates].sort((a, b) =>
+    a.username.localeCompare(b.username, undefined, { sensitivity: "base" }),
+  );
   const [ranking, setRanking] = useState(() =>
-    candidates.map((candidate) => candidate.id),
+    alphabetizedCandidates.map((candidate) => candidate.id),
   );
   const [draggedCandidateId, setDraggedCandidateId] = useState<number | null>(
     null,
@@ -46,7 +51,9 @@ export function RankedBallot({
   );
 
   useEffect(() => {
-    const candidateIds = candidates.map((candidate) => candidate.id);
+    const candidateIds = [...candidates]
+      .sort((a, b) => a.username.localeCompare(b.username, undefined, { sensitivity: "base" }))
+      .map((candidate) => candidate.id);
     setRanking((current) => {
       const rosterUnchanged =
         current.length === candidateIds.length &&
@@ -63,6 +70,10 @@ export function RankedBallot({
       [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
       return next;
     });
+  };
+
+  const resetRanking = () => {
+    setRanking(alphabetizedCandidates.map((candidate) => candidate.id));
   };
 
   const dropCandidate = (targetId: number) => {
@@ -124,27 +135,34 @@ export function RankedBallot({
   if (candidates.length === 0) return null;
 
   return (
-    <Card className="overflow-hidden border-primary/30 bg-card shadow-lg">
-      <CardHeader className="border-b bg-[linear-gradient(135deg,color-mix(in_oklch,var(--primary)_12%,transparent),transparent_70%)]">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <CardTitle className="flex items-center gap-2 font-serif text-2xl">
-              <Vote className="h-5 w-5 text-primary" />
-              Your {election} ballot
-            </CardTitle>
-            <CardDescription className="mt-2 max-w-xl leading-relaxed">
-              Drag candidates into order, or use the arrow controls. Every name
-              must stay on the ballot before you submit.
+    <Card className="overflow-hidden rounded-2xl border-border bg-card shadow-md">
+      <CardHeader className="border-b bg-muted/25 px-5 py-5 sm:px-7 sm:py-6">
+        <div className="flex items-center gap-4">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+            <Vote className="size-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <CardTitle className="font-serif text-2xl sm:text-3xl">Rank your {election} candidates</CardTitle>
+            <CardDescription className="mt-1.5 max-w-2xl leading-relaxed">
+              Put your first choice at the top. Use the arrows to arrange your ranking; every candidate stays on your ballot.
             </CardDescription>
           </div>
-          <ShieldCheck className="hidden h-8 w-8 text-primary/60 sm:block" />
+          <div className="hidden items-center gap-1.5 rounded-full border bg-background px-3 py-2 text-xs font-semibold text-muted-foreground md:flex">
+            <ShieldCheck className="size-4 text-primary" /> Private ballot
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2 p-3 sm:p-5">
-        <div className="mb-3 flex items-center justify-between border-b border-dashed pb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          <span>Most preferred</span>
-          <span>{candidates.length} to 1 points</span>
+      <CardContent className="space-y-0 p-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3 sm:px-7">
+          <div>
+            <span className="block text-xs font-bold uppercase tracking-[0.14em] text-foreground">Your preference order</span>
+            <span className="mt-1 block text-xs text-muted-foreground">Move a candidate up or down to change your choice.</span>
+          </div>
+          <Button type="button" variant="ghost" size="sm" className="text-xs text-muted-foreground" disabled={submitting} onClick={resetRanking}>
+            <ListRestart className="size-4" /> Reset A–Z
+          </Button>
         </div>
+        <div className="relative space-y-3 bg-[linear-gradient(180deg,color-mix(in_oklch,var(--primary)_5%,transparent),transparent_20rem)] p-3 sm:space-y-4 sm:p-5 lg:p-7">
         {ranking.map((candidateId, index) => {
           const candidate = byId.get(candidateId);
           if (!candidate) return null;
@@ -168,31 +186,44 @@ export function RankedBallot({
                 dropCandidate(candidateId);
               }}
               className={cn(
-                "group flex items-center gap-2 rounded-xl border bg-background p-2.5 transition-all sm:gap-3 sm:p-3",
+                "group relative grid grid-cols-[4rem_auto_minmax(0,1fr)_auto] items-center gap-2 overflow-hidden rounded-2xl border bg-background p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg sm:grid-cols-[4.75rem_auto_minmax(0,1fr)_auto] sm:gap-4 sm:p-4",
+                index === 0 && "border-primary/50 bg-[linear-gradient(110deg,color-mix(in_oklch,var(--primary)_9%,var(--background)),var(--background)_62%)] shadow-md ring-1 ring-primary/10 sm:p-5",
                 draggedCandidateId === candidateId && "opacity-40",
                 dropTargetId === candidateId &&
-                  draggedCandidateId !== candidateId &&
-                  "border-primary bg-primary/5 shadow-sm",
+                  draggedCandidateId !== candidateId && "border-primary bg-primary/5 shadow-md",
               )}
+              style={{ borderLeftWidth: "4px", borderLeftColor: candidate.partyColor ?? "var(--border)" }}
             >
-              <GripVertical className="h-5 w-5 shrink-0 cursor-grab text-muted-foreground group-active:cursor-grabbing" />
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground font-mono text-sm font-bold text-background">
-                {index + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <p className="truncate font-semibold">{candidate.username}</p>
-                  <CandidateAffiliationBadges candidate={candidate} />
-                  <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-primary">
-                    {candidates.length - index} pts
-                  </span>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl font-mono text-lg font-black sm:size-12", index === 0 ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" : "bg-muted text-foreground")}>
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div className="flex flex-col items-center" aria-hidden="true">
+                  <GripVertical className="size-4 cursor-grab text-muted-foreground group-active:cursor-grabbing" />
                 </div>
               </div>
-              <div className="flex shrink-0 gap-1">
+              <PlayerAvatar username={candidate.username} photoUrl={candidate.photoUrl} className="size-14 sm:size-[4.5rem]" />
+              <div className="min-w-0 py-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="break-words font-serif text-lg font-bold leading-tight sm:text-xl">{candidate.username}</p>
+                  {index === 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.13em] text-primary-foreground">First choice</span>}
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <CandidateAffiliationBadges candidate={candidate} />
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className={cn("inline-flex rounded-md px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wider", index === 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                    {candidates.length - index} {candidates.length - index === 1 ? "point" : "points"}
+                  </span>
+                  {index > 0 && <span className="text-[10px] text-muted-foreground">Preference {index + 1}</span>}
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-col gap-1 rounded-xl border bg-muted/25 p-1">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="icon"
+                  className="size-8 rounded-lg bg-background sm:size-9"
                   disabled={index === 0 || submitting}
                   onClick={() => move(index, -1)}
                   aria-label={`Move ${candidate.username} up`}
@@ -201,8 +232,9 @@ export function RankedBallot({
                 </Button>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="icon"
+                  className="size-8 rounded-lg bg-background sm:size-9"
                   disabled={index === ranking.length - 1 || submitting}
                   onClick={() => move(index, 1)}
                   aria-label={`Move ${candidate.username} down`}
@@ -213,18 +245,25 @@ export function RankedBallot({
             </div>
           );
         })}
-        <div className="mt-3 flex items-center justify-between border-t border-dashed pt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          <span>Least preferred</span>
-          <span>Final choice</span>
         </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4 sm:px-7">
+          <div className="flex min-w-0 items-start gap-3 text-xs text-muted-foreground">
+            <div className="flex shrink-0 items-center gap-1" aria-hidden="true">
+              <span className="size-2 rounded-full bg-primary" />
+              <span className="h-px w-5 bg-border" />
+              <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+            </div>
+            <span>Every rank counts. Your first choice gets the most points, with one fewer point for each place below.</span>
+          </div>
         <Button
           size="lg"
-          className="mt-3 w-full font-bold"
+          className="w-full font-bold sm:w-auto sm:min-w-56"
           disabled={submitting}
           onClick={submit}
         >
-          {submitting ? "Securing ballot..." : "Submit final ballot"}
+          {submitting ? "Submitting ballot…" : "Submit ranked ballot"}
         </Button>
+        </div>
       </CardContent>
     </Card>
   );
