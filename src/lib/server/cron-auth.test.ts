@@ -11,9 +11,7 @@ const defaultEnv = {
 
 describe("authorizeCronRequest", () => {
   it("rejects non-local requests without scheduler token", async () => {
-    const request = new Request(
-      "https://democracyonline.io/api/hourly-advance",
-    );
+    const request = new Request("https://democracyonline.io/api/game-advance");
 
     const result = await authorizeCronRequest({
       request,
@@ -25,14 +23,11 @@ describe("authorizeCronRequest", () => {
   });
 
   it("rejects non-local requests without bearer auth", async () => {
-    const request = new Request(
-      "https://democracyonline.io/api/hourly-advance",
-      {
-        headers: {
-          "x-scheduler-token": "prod-token",
-        },
+    const request = new Request("https://democracyonline.io/api/game-advance", {
+      headers: {
+        "x-scheduler-token": "prod-token",
       },
-    );
+    });
 
     const result = await authorizeCronRequest({
       request,
@@ -44,29 +39,59 @@ describe("authorizeCronRequest", () => {
   });
 
   it("accepts non-local requests with valid scheduler token and service account", async () => {
+    const request = new Request("https://democracyonline.io/api/game-advance", {
+      headers: {
+        "x-scheduler-token": "prod-token",
+        authorization: "Bearer valid-token",
+      },
+    });
+
+    const verifySchedulerIdToken = vi.fn(async () => ({
+      email: "game-scheduler@proj.iam.gserviceaccount.com",
+    }));
+    const result = await authorizeCronRequest({
+      request,
+      env: defaultEnv,
+      verifySchedulerIdToken,
+    });
+
+    expect(result).toBeNull();
+    expect(verifySchedulerIdToken).toHaveBeenCalledWith({
+      idToken: "valid-token",
+      audience: "https://democracyonline.io",
+    });
+  });
+
+  it("uses the request origin as the OIDC audience", async () => {
     const request = new Request(
-      "https://democracyonline.io/api/hourly-advance",
+      "https://service-hash.a.run.app/api/election-advance",
       {
+        method: "POST",
         headers: {
           "x-scheduler-token": "prod-token",
           authorization: "Bearer valid-token",
         },
       },
     );
+    const verifySchedulerIdToken = vi.fn(async () => ({
+      email: "game-scheduler@proj.iam.gserviceaccount.com",
+    }));
 
     const result = await authorizeCronRequest({
       request,
       env: defaultEnv,
-      verifySchedulerIdToken: vi.fn(async () => ({
-        email: "finance-scheduler@proj.iam.gserviceaccount.com",
-      })),
+      verifySchedulerIdToken,
     });
 
     expect(result).toBeNull();
+    expect(verifySchedulerIdToken).toHaveBeenCalledWith({
+      idToken: "valid-token",
+      audience: "https://service-hash.a.run.app",
+    });
   });
 
   it("accepts local non-production requests with local scheduler token only", async () => {
-    const request = new Request("http://localhost:3000/api/hourly-advance", {
+    const request = new Request("http://localhost:3000/api/game-advance", {
       headers: {
         "x-scheduler-token": "local-token",
       },
@@ -101,7 +126,7 @@ describe("authorizeCronRequest", () => {
   });
 
   it("requires non-local auth model in production even on localhost", async () => {
-    const request = new Request("http://localhost:3000/api/hourly-advance", {
+    const request = new Request("http://localhost:3000/api/game-advance", {
       headers: {
         "x-scheduler-token": "local-token",
       },
@@ -120,15 +145,12 @@ describe("authorizeCronRequest", () => {
   });
 
   it("accepts explicit admin-trigger requests with a valid admin token", async () => {
-    const request = new Request(
-      "https://democracyonline.io/api/hourly-advance",
-      {
-        headers: {
-          "x-admin-cron-trigger": "1",
-          authorization: "Bearer admin-token",
-        },
+    const request = new Request("https://democracyonline.io/api/game-advance", {
+      headers: {
+        "x-admin-cron-trigger": "1",
+        authorization: "Bearer admin-token",
       },
-    );
+    });
 
     const result = await authorizeCronRequest({
       request,
@@ -143,7 +165,7 @@ describe("authorizeCronRequest", () => {
   });
 
   it("accepts explicit admin-trigger requests on localhost with a valid admin token", async () => {
-    const request = new Request("http://localhost:3000/api/hourly-advance", {
+    const request = new Request("http://localhost:3000/api/game-advance", {
       headers: {
         "x-admin-cron-trigger": "1",
         authorization: "Bearer admin-token",
@@ -163,15 +185,12 @@ describe("authorizeCronRequest", () => {
   });
 
   it("rejects explicit admin-trigger requests for non-admin users", async () => {
-    const request = new Request(
-      "https://democracyonline.io/api/hourly-advance",
-      {
-        headers: {
-          "x-admin-cron-trigger": "1",
-          authorization: "Bearer admin-token",
-        },
+    const request = new Request("https://democracyonline.io/api/game-advance", {
+      headers: {
+        "x-admin-cron-trigger": "1",
+        authorization: "Bearer admin-token",
       },
-    );
+    });
 
     const result = await authorizeCronRequest({
       request,

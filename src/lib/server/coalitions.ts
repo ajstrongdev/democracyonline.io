@@ -1,29 +1,45 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq, and, sql, getTableColumns } from "drizzle-orm";
+import { and, eq, getTableColumns, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
-  coalitions,
+  coalitionFormerMembers,
   coalitionMembers,
+  coalitions,
+  feed,
   joinRequests,
+  organizationLifecycleEvents,
   parties,
   users,
 } from "@/db/schema";
 import { db } from "@/db";
-import { requireAuthMiddleware } from "@/middleware";
+import { authMiddleware, requireAuthMiddleware } from "@/middleware";
+import { isAdminEmail } from "@/lib/server/admin";
+import { canReviveCoalition } from "@/lib/organizations/lifecycle";
+import { leaveCoalitionMembership } from "@/lib/server/organization-lifecycle";
+
+async function requireNoActiveElection() {
+  const result = await db.execute(sql`SELECT status FROM elections LIMIT 1`);
+  const row = result.rows[0] as { status?: string } | undefined;
+  if (row?.status === "CANDIDACY" || row?.status === "VOTING") {
+    throw new Error(
+      "Coalition membership changes are frozen during active primaries or elections",
+    );
+  }
+}
 
 const CreateCoalitionSchema = z.object({
-  name: z.string().min(1, "Coalition name is required").max(255),
+  name: z.string().trim().min(1, "Coalition name is required").max(255),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
-  logo: z.string().nullable().optional(),
-  bio: z.string().optional(),
+  logo: z.string().max(255).nullable().optional(),
+  bio: z.string().max(1000).optional(),
 });
 
 const UpdateCoalitionSchema = z.object({
   coalitionId: z.number(),
-  name: z.string().min(1).max(255),
+  name: z.string().trim().min(1).max(255),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-  logo: z.string().nullable().optional(),
-  bio: z.string().optional(),
+  logo: z.string().max(255).nullable().optional(),
+  bio: z.string().max(1000).optional(),
 });
 
 async function resolveUser(email: string) {
@@ -39,7 +55,7 @@ async function isPartyLeader(userId: number, partyId: number) {
   const [party] = await db
     .select({ leaderId: parties.leaderId })
     .from(parties)
-    .where(eq(parties.id, partyId))
+    .where(and(eq(parties.id, partyId), isNull(parties.archivedAt)))
     .limit(1);
   return party?.leaderId === userId;
 }
@@ -48,7 +64,10 @@ async function getPartyCoalitionId(partyId: number) {
   const [row] = await db
     .select({ coalitionId: coalitionMembers.coalitionId })
     .from(coalitionMembers)
-    .where(eq(coalitionMembers.partyId, partyId))
+    .innerJoin(coalitions, eq(coalitions.id, coalitionMembers.coalitionId))
+    .where(
+      and(eq(coalitionMembers.partyId, partyId), isNull(coalitions.archivedAt)),
+    )
     .limit(1);
   return row?.coalitionId ?? null;
 }
@@ -75,9 +94,26 @@ export const getPartyCoalition = createServerFn()
     const [coalition] = await db
       .select()
       .from(coalitions)
-      .where(eq(coalitions.id, coalitionId))
+      .where(and(eq(coalitions.id, coalitionId), isNull(coalitions.archivedAt)))
       .limit(1);
     return coalition ?? null;
+  });
+
+export const getCoalitionManagementState = createServerFn()
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    if (!context.user?.email) {
+      return { partyId: null, isPartyLeader: false, coalitionId: null };
+    }
+    const user = await resolveUser(context.user.email);
+    if (!user?.partyId) {
+      return { partyId: null, isPartyLeader: false, coalitionId: null };
+    }
+    return {
+      partyId: user.partyId,
+      isPartyLeader: await isPartyLeader(user.id, user.partyId),
+      coalitionId: await getPartyCoalitionId(user.partyId),
+    };
   });
 
 export const getCoalitions = createServerFn().handler(async () => {
@@ -112,6 +148,24 @@ export const getCoalitionById = createServerFn()
 export const getCoalitionParties = createServerFn()
   .inputValidator((data: { coalitionId: number }) => data)
   .handler(async ({ data }) => {
+    const [coalition] = await db
+      .select({ archivedAt: coalitions.archivedAt })
+      .from(coalitions)
+      .where(eq(coalitions.id, data.coalitionId))
+      .limit(1);
+    if (coalition?.archivedAt) {
+      return db
+        .select({
+          ...getTableColumns(parties),
+          joinDate: coalitionFormerMembers.firstJoinedAt,
+          memberCount: sql<number>`count(${users.id})::int`.as("memberCount"),
+        })
+        .from(coalitionFormerMembers)
+        .innerJoin(parties, eq(parties.id, coalitionFormerMembers.partyId))
+        .leftJoin(users, eq(users.partyId, parties.id))
+        .where(eq(coalitionFormerMembers.coalitionId, data.coalitionId))
+        .groupBy(parties.id, coalitionFormerMembers.firstJoinedAt);
+    }
     const rows = await db
       .select({
         ...getTableColumns(parties),
@@ -141,20 +195,22 @@ export const getCoalitionJoinRequests = createServerFn()
       })
       .from(joinRequests)
       .innerJoin(parties, eq(parties.id, joinRequests.partyId))
+      .innerJoin(coalitions, eq(coalitions.id, joinRequests.coalitionId))
       .where(
         and(
           eq(joinRequests.coalitionId, data.coalitionId),
           eq(joinRequests.status, "Pending"),
+          isNull(parties.archivedAt),
+          isNull(coalitions.archivedAt),
         ),
       );
     return rows;
   });
 
 export const getCoalitionDetails = createServerFn()
-  .inputValidator(
-    (data: { coalitionId: number; userId: number | null }) => data,
-  )
-  .handler(async ({ data }) => {
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ coalitionId: z.number().int().positive() }))
+  .handler(async ({ data, context }) => {
     const coalition = await getCoalitionById({
       data: { coalitionId: data.coalitionId },
     });
@@ -165,27 +221,52 @@ export const getCoalitionDetails = createServerFn()
       data: { coalitionId: data.coalitionId },
     });
 
-    let isMemberPartyLeader = false;
+    let isCallerPartyLeader = false;
     let callerPartyId: number | null = null;
     let callerCoalitionId: number | null = null;
+    let canRevive = false;
 
-    if (data.userId) {
+    if (context.user?.email) {
       const user = await db
         .select({ id: users.id, partyId: users.partyId })
         .from(users)
-        .where(eq(users.id, data.userId))
+        .where(
+          eq(sql`lower(${users.email})`, sql`lower(${context.user.email})`),
+        )
         .limit(1);
 
       if (user[0]?.partyId) {
         callerPartyId = user[0].partyId;
         callerCoalitionId = await getPartyCoalitionId(user[0].partyId);
-        const memberPartyIds = memberParties.map((p) => p.id);
-        if (memberPartyIds.includes(user[0].partyId)) {
-          isMemberPartyLeader = await isPartyLeader(
-            data.userId,
-            user[0].partyId,
-          );
-        }
+        isCallerPartyLeader = await isPartyLeader(user[0].id, user[0].partyId);
+        const [[callerParty], [formerMembership]] = await Promise.all([
+          db
+            .select({ archivedAt: parties.archivedAt })
+            .from(parties)
+            .where(eq(parties.id, user[0].partyId))
+            .limit(1),
+          db
+            .select({ partyId: coalitionFormerMembers.partyId })
+            .from(coalitionFormerMembers)
+            .where(
+              and(
+                eq(coalitionFormerMembers.coalitionId, data.coalitionId),
+                eq(coalitionFormerMembers.partyId, user[0].partyId),
+              ),
+            )
+            .limit(1),
+        ]);
+        canRevive = Boolean(
+          coalition?.archivedAt &&
+          canReviveCoalition({
+            actorPartyId: user[0].partyId,
+            actorIsPartyLeader: isCallerPartyLeader,
+            actorPartyCoalitionId: callerCoalitionId,
+            actorPartyWasMember: Boolean(formerMembership),
+            actorPartyIsArchived: Boolean(callerParty?.archivedAt),
+            isAdmin: isAdminEmail(context.user.email),
+          }),
+        );
       }
     }
 
@@ -193,9 +274,10 @@ export const getCoalitionDetails = createServerFn()
       coalition,
       memberParties,
       pendingRequests,
-      isMemberPartyLeader,
+      isCallerPartyLeader,
       callerPartyId,
       callerCoalitionId,
+      canRevive,
     };
   });
 
@@ -212,10 +294,17 @@ export const createCoalition = createServerFn()
       throw new Error("Only a party leader can create a coalition");
     }
 
-    const existing = await getPartyCoalitionId(user.partyId);
-    if (existing) throw new Error("Your party is already in a coalition");
+    await requireNoActiveElection();
 
     const result = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${user.partyId})`);
+      const [existing] = await tx
+        .select({ coalitionId: coalitionMembers.coalitionId })
+        .from(coalitionMembers)
+        .where(eq(coalitionMembers.partyId, user.partyId!))
+        .limit(1);
+      if (existing) throw new Error("Your party is already in a coalition");
+
       const [newCoalition] = await tx
         .insert(coalitions)
         .values({
@@ -230,6 +319,27 @@ export const createCoalition = createServerFn()
         coalitionId: newCoalition.id,
         partyId: user.partyId!,
       });
+      await tx.insert(organizationLifecycleEvents).values({
+        organizationType: "coalition",
+        organizationId: newCoalition.id,
+        organizationName: newCoalition.name,
+        action: "created",
+        actorUserId: user.id,
+        sponsorPartyId: user.partyId!,
+      });
+      await tx.insert(feed).values({
+        userId: user.id,
+        content: `formed ${newCoalition.name}`,
+      });
+      await tx
+        .update(joinRequests)
+        .set({ status: "Declined" })
+        .where(
+          and(
+            eq(joinRequests.partyId, user.partyId!),
+            eq(joinRequests.status, "Pending"),
+          ),
+        );
 
       return newCoalition;
     });
@@ -250,8 +360,19 @@ export const requestJoinCoalition = createServerFn()
       throw new Error("Only a party leader can request to join a coalition");
     }
 
+    await requireNoActiveElection();
+
     const existing = await getPartyCoalitionId(user.partyId);
     if (existing) throw new Error("Your party is already in a coalition");
+
+    const [coalition] = await db
+      .select({ id: coalitions.id })
+      .from(coalitions)
+      .where(
+        and(eq(coalitions.id, data.coalitionId), isNull(coalitions.archivedAt)),
+      )
+      .limit(1);
+    if (!coalition) throw new Error("Coalition not found");
 
     const [existingReq] = await db
       .select()
@@ -303,19 +424,42 @@ export const acceptJoinRequest = createServerFn()
       throw new Error("Only a party leader can accept join requests");
     }
 
-    const alreadyIn = await getPartyCoalitionId(request.partyId);
-    if (alreadyIn) throw new Error("That party is already in a coalition");
+    await requireNoActiveElection();
 
     await db.transaction(async (tx) => {
-      await tx
+      await tx.execute(sql`select pg_advisory_xact_lock(${request.partyId})`);
+      const [alreadyIn] = await tx
+        .select({ coalitionId: coalitionMembers.coalitionId })
+        .from(coalitionMembers)
+        .where(eq(coalitionMembers.partyId, request.partyId))
+        .limit(1);
+      if (alreadyIn) throw new Error("That party is already in a coalition");
+
+      const [accepted] = await tx
         .update(joinRequests)
         .set({ status: "Accepted" })
-        .where(eq(joinRequests.id, data.requestId));
+        .where(
+          and(
+            eq(joinRequests.id, data.requestId),
+            eq(joinRequests.status, "Pending"),
+          ),
+        )
+        .returning({ id: joinRequests.id });
+      if (!accepted) throw new Error("Request not found or already processed");
 
       await tx.insert(coalitionMembers).values({
         coalitionId: request.coalitionId,
         partyId: request.partyId,
       });
+      await tx
+        .update(joinRequests)
+        .set({ status: "Declined" })
+        .where(
+          and(
+            eq(joinRequests.partyId, request.partyId),
+            eq(joinRequests.status, "Pending"),
+          ),
+        );
     });
 
     return true;
@@ -348,6 +492,8 @@ export const declineJoinRequest = createServerFn()
       throw new Error("Only a party leader can decline join requests");
     }
 
+    await requireNoActiveElection();
+
     await db
       .update(joinRequests)
       .set({ status: "Declined" })
@@ -373,6 +519,8 @@ export const updateCoalition = createServerFn()
       throw new Error("Only a party leader can update coalition information");
     }
 
+    await requireNoActiveElection();
+
     await db
       .update(coalitions)
       .set({
@@ -381,7 +529,9 @@ export const updateCoalition = createServerFn()
         logo: data.logo ?? null,
         bio: data.bio ?? null,
       })
-      .where(eq(coalitions.id, data.coalitionId));
+      .where(
+        and(eq(coalitions.id, data.coalitionId), isNull(coalitions.archivedAt)),
+      );
 
     return true;
   });
@@ -399,32 +549,115 @@ export const leaveCoalition = createServerFn()
       throw new Error("Only a party leader can leave a coalition");
     }
 
+    await requireNoActiveElection();
+
     if (!(await isPartyInCoalition(user.partyId, data.coalitionId))) {
       throw new Error("Your party is not in this coalition");
     }
 
-    await db
-      .delete(coalitionMembers)
-      .where(
-        and(
-          eq(coalitionMembers.coalitionId, data.coalitionId),
-          eq(coalitionMembers.partyId, user.partyId),
-        ),
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${-data.coalitionId})`);
+      await leaveCoalitionMembership(
+        tx,
+        data.coalitionId,
+        user.partyId!,
+        user.id,
       );
-
-    const remaining = await db
-      .select()
-      .from(coalitionMembers)
-      .where(eq(coalitionMembers.coalitionId, data.coalitionId));
-
-    if (remaining.length === 0) {
-      await db.transaction(async (tx) => {
-        await tx
-          .delete(joinRequests)
-          .where(eq(joinRequests.coalitionId, data.coalitionId));
-        await tx.delete(coalitions).where(eq(coalitions.id, data.coalitionId));
-      });
-    }
+    });
 
     return true;
+  });
+
+export const reviveCoalition = createServerFn({ method: "POST" })
+  .middleware([requireAuthMiddleware])
+  .inputValidator(z.object({ coalitionId: z.number().int().positive() }))
+  .handler(async ({ data, context }) => {
+    if (!context.user?.email) throw new Error("Authentication required");
+    const actorEmail = context.user.email;
+    const user = await resolveUser(actorEmail);
+    if (!user?.partyId) {
+      throw new Error("You must lead an active sponsoring party");
+    }
+    const sponsorPartyId = user.partyId;
+
+    await requireNoActiveElection();
+
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${sponsorPartyId})`);
+      await tx.execute(sql`select pg_advisory_xact_lock(${-data.coalitionId})`);
+      const [[coalition], [party], [membership], [formerMembership]] =
+        await Promise.all([
+          tx
+            .select({
+              id: coalitions.id,
+              name: coalitions.name,
+              archivedAt: coalitions.archivedAt,
+            })
+            .from(coalitions)
+            .where(eq(coalitions.id, data.coalitionId))
+            .limit(1),
+          tx
+            .select({
+              leaderId: parties.leaderId,
+              archivedAt: parties.archivedAt,
+            })
+            .from(parties)
+            .where(eq(parties.id, sponsorPartyId))
+            .limit(1),
+          tx
+            .select({ coalitionId: coalitionMembers.coalitionId })
+            .from(coalitionMembers)
+            .where(eq(coalitionMembers.partyId, sponsorPartyId))
+            .limit(1),
+          tx
+            .select({ partyId: coalitionFormerMembers.partyId })
+            .from(coalitionFormerMembers)
+            .where(
+              and(
+                eq(coalitionFormerMembers.coalitionId, data.coalitionId),
+                eq(coalitionFormerMembers.partyId, sponsorPartyId),
+              ),
+            )
+            .limit(1),
+        ]);
+      if (!coalition?.archivedAt)
+        throw new Error("Archived coalition not found");
+      if (
+        !canReviveCoalition({
+          actorPartyId: sponsorPartyId,
+          actorIsPartyLeader: party?.leaderId === user.id,
+          actorPartyCoalitionId: membership?.coalitionId ?? null,
+          actorPartyWasMember: Boolean(formerMembership),
+          actorPartyIsArchived: Boolean(party?.archivedAt),
+          isAdmin: isAdminEmail(actorEmail),
+        })
+      ) {
+        throw new Error(
+          "Only an eligible former member party leader or admin can revive this coalition",
+        );
+      }
+
+      await tx
+        .update(coalitions)
+        .set({ archivedAt: null })
+        .where(eq(coalitions.id, coalition.id));
+      await tx.insert(coalitionMembers).values({
+        coalitionId: coalition.id,
+        partyId: sponsorPartyId,
+      });
+      await tx.insert(organizationLifecycleEvents).values({
+        organizationType: "coalition",
+        organizationId: coalition.id,
+        organizationName: coalition.name,
+        action: "revived",
+        actorUserId: user.id,
+        sponsorPartyId,
+        metadata: { restoredPartyIds: [sponsorPartyId] },
+      });
+      await tx.insert(feed).values({
+        userId: user.id,
+        content: `revived ${coalition.name} with their party as its sole member`,
+      });
+      return true;
+    });
   });

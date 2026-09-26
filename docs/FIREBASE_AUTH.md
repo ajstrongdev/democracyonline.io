@@ -8,6 +8,10 @@ This project uses Firebase Authentication with email/password sign-in.
    - Go to [Firebase Console](https://console.firebase.google.com/)
    - Create a new project or select an existing one
    - Enable Authentication > Sign-in method > Email/Password
+   - The initial VPS deployment shares one Firebase project. Authorize both
+     `oscana.nya.je` and `dev.oscana.nya.je` in that project.
+   - For full identity separation later, create a dev Firebase project and
+     authorize only `dev.oscana.nya.je` there.
 
 2. **Get Firebase Configuration**
    - In your Firebase project, go to Project Settings
@@ -16,8 +20,10 @@ This project uses Firebase Authentication with email/password sign-in.
    - Copy the configuration values
 
 3. **Configure Environment Variables**
-   - Copy `.env.local.example` to `.env.local`
-   - Fill in your Firebase configuration values:
+   - Local development uses the repository-root `.env`
+   - VPS production and development each use the `.env` in their checkout
+   - VPS production and development currently share Firebase project values
+     and a service account, while their application databases stay separate.
 
 4. **Environment Variables**
 
@@ -40,6 +46,14 @@ This project uses Firebase Authentication with email/password sign-in.
    - In Firebase Console, go to Project Settings > Service Accounts
    - Click "Generate new private key"
    - Use the values from the downloaded JSON file for the server-side environment variables
+   - Run `jq -r '.private_key | @json' service-account.json` locally and paste
+     the complete quoted result after `FIREBASE_PRIVATE_KEY=` so newlines stay
+     encoded as `\n`
+   - Never commit or upload the service-account JSON to the repository
+
+For the complete production procedure, including creating Firebase users that
+match the seeded provisional officeholders, see [the VPS deployment
+runbook](../deploy.md#2-fill-the-environment-files).
 
 ## Features
 

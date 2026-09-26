@@ -6,6 +6,7 @@ import {
   signOut,
   updateProfile,
 } from "./firebase";
+import { deleteSessionCookie } from "./server/session";
 
 export interface SignUpData {
   email: string;
@@ -56,6 +57,17 @@ export async function logOut() {
   } catch (error: any) {
     return { error: error.message || "Failed to sign out" };
   }
+}
+
+export async function switchAccount() {
+  const result = await logOut();
+  if (result.error) return result;
+  try {
+    await deleteSessionCookie();
+  } finally {
+    window.location.assign("/login");
+  }
+  return { error: null };
 }
 
 export async function resetPassword(email: string) {

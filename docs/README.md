@@ -1,8 +1,8 @@
-# Democracy Online - Technical Documentation
+# Oscana - Technical Documentation
 
 ## Project Overview
 
-Democracy Online is a full-stack web application that simulates an online democratic government system. Users can form political parties, propose and vote on legislation, participate in elections, and engage in the democratic process through a modern, interactive platform.
+Oscana is a full-stack web application that simulates a democratic government system. Users can form political parties, propose and vote on legislation, participate in elections, and engage in the democratic process through a modern, interactive platform.
 
 ## Additional Documentation
 
@@ -74,7 +74,6 @@ democracy-online/
 │   │   ├── server/             # Server functions
 │   │   │   ├── bills.ts        # Bill-related server logic
 │   │   │   ├── party.ts        # Party-related server logic
-│   │   │   ├── party-merge.ts  # Party merging logic
 │   │   │   ├── theme.ts        # Theme management
 │   │   │   └── users.ts        # User management
 │   │   └── utils/              # Utility functions
@@ -170,8 +169,7 @@ The application uses a relational PostgreSQL database with the following main en
 
 - **Users**: User accounts, profiles, and authentication data
 - **Parties**: Political party information and leadership
-- **Party Stances**: Political positions on various issues
-- **Merge Requests**: Party merger proposals and negotiations
+- **Party Platforms**: Revisioned Markdown published on party wiki pages
 - **Bills**: Legislative proposals and content
 - **Bill Votes**: Votes on bills at different legislative stages
 - **Elections**: Electoral contests for government positions
@@ -221,19 +219,10 @@ See [src/db/schema.ts](../src/db/schema.ts) for complete schema definitions.
 
 - Create and manage political parties
 - Join parties and collaborate with members
-- Define party platforms and political stances
+- Publish revisioned party platforms in Markdown
 - Party leadership and governance
 
-### 3. Party Merging
-
-[Detailed Documentation](features/party-merging.md)
-
-- Propose mergers between multiple parties
-- Negotiate terms of merged party
-- Multi-party approval process
-- Automatic member migration
-
-### 4. Legislative System
+### 3. Legislative System
 
 [Detailed Documentation](features/legislative-system.md)
 
@@ -242,7 +231,7 @@ See [src/db/schema.ts](../src/db/schema.ts) for complete schema definitions.
 - Track bill progress through legislative process
 - Vote counting and bill advancement
 
-### 5. Elections System
+### 4. Elections System
 
 [Detailed Documentation](features/elections-system.md)
 
@@ -251,7 +240,39 @@ See [src/db/schema.ts](../src/db/schema.ts) for complete schema definitions.
 - Multiple election types (House, Senate, Presidential)
 - Automatic role assignment for winners
 
-### 6. Theme System
+#### Election lifecycle and demo
+
+Each presidential and Senate race advances through four persisted stages:
+`CANDIDACY`, `VOTING`, `ELECTION_NIGHT`, and `CONCLUDED`. Stage changes use the
+authoritative `*_starts_at`, `*_ends_at`, and `concluded_at` timestamps rather
+than a browser timer. Normal election night is intended to run for 12 hours,
+from 20:00 to 08:00 in `Europe/London`.
+
+At the end of voting, final Borda totals are calculated from complete ranked
+ballots. The server uses the pure reveal engine in
+`src/lib/elections/reveal.ts` with the race's persisted reporting seed, then
+stores the resulting events and their reveal timestamps in
+`election_night_updates`. Dashboard polling reads only events whose timestamp
+has passed, so a process does not need to stay running and a restart does not
+change the reveal order.
+
+For a five-minute local demonstration after applying migrations and seeding:
+
+```bash
+pnpm election:dry-run
+pnpm election:dry-run --player ajstrongdev
+pnpm election:dry-run --player 1
+```
+
+The command replaces only the current Senate race's candidates, ballots, and
+election-night updates. It reuses existing active users and parties, creates
+one valid complete ballot per active user, submits the selected player's
+ballot automatically, and prints the real dashboard URL. It refuses to run
+when `NODE_ENV=production`; a non-local `DATABASE_URL` also requires the
+explicit `ELECTION_DEMO_ALLOW_REMOTE=true` override. It never truncates users,
+parties, bills, nation data, or other application state.
+
+### 5. Theme System
 
 [Detailed Documentation](features/theme-system.md)
 
@@ -367,7 +388,6 @@ All server-side logic is organized into domain-specific modules:
 
 - `src/lib/server/bills.ts` - Bill creation, voting, advancement
 - `src/lib/server/party.ts` - Party CRUD operations
-- `src/lib/server/party-merge.ts` - Party merger logic
 - `src/lib/server/users.ts` - User management
 - `src/lib/server/theme.ts` - Theme preferences
 
@@ -415,17 +435,9 @@ export const createParty = createServerFn()
 
 ## Deployment
 
-See [docs/CI_CD.md](CI_CD.md) for CI/CD pipeline documentation.
-
-Typical deployment flow:
-
-1. Push to `develop` branch
-2. CI runs tests and linting
-3. Build application
-4. Run database migrations
-5. Deploy to staging environment
-6. Manual approval
-7. Deploy to production
+See the [VPS deployment runbook](../deploy.md). Each environment has its own
+checkout, Compose project, PostgreSQL volume, and Firebase project. Deploy
+development first, verify it, then update production separately.
 
 ## Contributing
 

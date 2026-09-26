@@ -262,7 +262,7 @@ GET /api/bot?endpoint=bills&stage=House&status=Voting
 **Parameters:**
 
 - `stage` (string, optional) - Legislative stage (`House`, `Senate`, or `Presidency`)
-- `status` (string, optional) - Bill status (e.g., `Queued`, `Voting`, `Awaiting Signature`)
+- `status` (string, optional) - Bill status (e.g., `Committee`, `Voting`, `Passed`)
 
 Both parameters can be used independently or together to filter bills.
 
@@ -287,7 +287,7 @@ Both parameters can be used independently or together to filter bills.
 **Bill Fields:**
 
 - `id` - Unique bill identifier
-- `status` - Current status (`Queued`, `Voting`, `Awaiting Signature`, etc.)
+- `status` - Current status (`Committee`, `Voting`, `Passed`, or `Defeated`)
 - `stage` - Legislative stage (`House`, `Senate`, `Presidency`)
 - `title` - Bill title
 - `creatorId` - ID of user who created the bill
@@ -300,7 +300,7 @@ Both parameters can be used independently or together to filter bills.
 
 ### Get Candidates
 
-Retrieve information about election candidates with their vote counts and campaign statistics.
+Retrieve election candidates and their ranked-ballot point totals.
 
 #### Get All Candidates
 
@@ -317,10 +317,7 @@ GET /api/bot?endpoint=candidates
     "userId": 42,
     "username": "john_doe",
     "election": "President",
-    "votes": 1250,
-    "donations": 50000,
-    "votesPerHour": 45,
-    "donationsPerHour": 1200,
+    "points": 1250,
     "partyId": 5,
     "partyName": "Progressive Party",
     "partyColor": "#3B82F6"
@@ -330,10 +327,7 @@ GET /api/bot?endpoint=candidates
     "userId": 38,
     "username": "jane_smith",
     "election": "Senate",
-    "votes": 890,
-    "donations": 35000,
-    "votesPerHour": 32,
-    "donationsPerHour": 950,
+    "points": 890,
     "partyId": null,
     "partyName": null,
     "partyColor": null
@@ -349,7 +343,7 @@ GET /api/bot?endpoint=candidates&election=President
 
 **Parameters:**
 
-- `election` (string) - Election type (`President`, `Senate`, or `House`)
+- `election` (string) - Election type (`President` or `Senate`)
 
 **Response:**
 
@@ -360,10 +354,7 @@ GET /api/bot?endpoint=candidates&election=President
     "userId": 42,
     "username": "john_doe",
     "election": "President",
-    "votes": 1250,
-    "donations": 50000,
-    "votesPerHour": 45,
-    "donationsPerHour": 1200,
+    "points": 1250,
     "partyId": 5,
     "partyName": "Progressive Party",
     "partyColor": "#3B82F6"
@@ -373,10 +364,7 @@ GET /api/bot?endpoint=candidates&election=President
     "userId": 38,
     "username": "jane_smith",
     "election": "President",
-    "votes": 980,
-    "donations": 42000,
-    "votesPerHour": 38,
-    "donationsPerHour": 1100,
+    "points": 980,
     "partyId": null,
     "partyName": null,
     "partyColor": null
@@ -389,34 +377,31 @@ GET /api/bot?endpoint=candidates&election=President
 - `id` - Candidate ID
 - `userId` - User ID of the candidate
 - `username` - Candidate's username
-- `election` - Election type (`President`, `Senate`, `House`)
-- `votes` - Current vote count
-- `donations` - Total campaign donations received
-- `votesPerHour` - Rate of votes gained per hour
-- `donationsPerHour` - Rate of donations gained per hour
+- `election` - Election type (`President` or `Senate`)
+- `points` - Final ranked-ballot point total after conclusion; `null` while totals are sealed
 - `partyId` - ID of candidate's party (null if independent)
 - `partyName` - Name of candidate's party (null if independent)
 - `partyColor` - Hex color of candidate's party (null if independent)
 
-Candidates are sorted by vote count in descending order (highest votes first).
+Concluded candidates are sorted by point total. Before conclusion candidates use stable ballot order and points remain sealed. With `N` candidates, each complete ballot awards `N` points to first place, `N - 1` to second place, continuing down to one point.
 
 ---
 
 ### Get Game State
 
-Retrieve current election states for game update posts. When elections are in `Voting` or `Concluded` status, candidate information with vote counts is included.
+Retrieve current election states for game update posts. Candidate rosters are included during candidacy and voting, but ranked-ballot points remain sealed until conclusion.
 
 ```
 GET /api/bot?endpoint=game-state
 ```
 
-**Response (with candidates for Voting/Concluded elections):**
+**Response (with a sealed voting roster):**
 
 ```json
 [
   {
     "election": "President",
-    "status": "Voting",
+    "status": "VOTING",
     "seats": null,
     "daysLeft": 3,
     "candidates": [
@@ -425,8 +410,7 @@ GET /api/bot?endpoint=game-state
         "userId": 42,
         "username": "john_doe",
         "election": "President",
-        "votes": 1250,
-        "donations": 50000,
+        "points": null,
         "partyId": 5,
         "partyName": "Progressive Party",
         "partyColor": "#3B82F6"
@@ -436,8 +420,7 @@ GET /api/bot?endpoint=game-state
         "userId": 38,
         "username": "jane_smith",
         "election": "President",
-        "votes": 980,
-        "donations": 42000,
+        "points": null,
         "partyId": null,
         "partyName": null,
         "partyColor": null
@@ -446,7 +429,7 @@ GET /api/bot?endpoint=game-state
   },
   {
     "election": "Senate",
-    "status": "Candidate",
+    "status": "CANDIDACY",
     "seats": 10,
     "daysLeft": 5
   }
@@ -455,11 +438,11 @@ GET /api/bot?endpoint=game-state
 
 **Election State Fields:**
 
-- `election` - Election type (`President`, `Senate`, `House`)
-- `status` - Current phase (`Candidate`, `Voting`, `Concluded`, etc.)
+- `election` - Election type (`President` or `Senate`)
+- `status` - Current phase (`CANDIDACY`, `VOTING`, `ELECTION_NIGHT`, or `CONCLUDED`)
 - `seats` - Number of available seats (primarily for Senate)
 - `daysLeft` - Days remaining in current phase
-- `candidates` - Array of candidate objects (only present when status is `Voting` or `Concluded`)
+- `candidates` - Candidate roster during candidacy/voting and final results after conclusion
 
 **Candidate Fields (when included):**
 
@@ -467,13 +450,12 @@ GET /api/bot?endpoint=game-state
 - `userId` - User ID of the candidate
 - `username` - Candidate's username
 - `election` - Election type
-- `votes` - Current vote count
-- `donations` - Total campaign donations received
+- `points` - Final ranked-ballot point total after conclusion; otherwise `null`
 - `partyId` - ID of candidate's party (null if independent)
 - `partyName` - Name of candidate's party (null if independent)
 - `partyColor` - Hex color of candidate's party (null if independent)
 
-Candidates are sorted by vote count in descending order (highest votes first).
+Candidates are sorted by point total only after the result is concluded.
 
 ---
 
@@ -515,7 +497,7 @@ Candidates are sorted by vote count in descending order (highest votes first).
 ```json
 {
   "error": "Invalid election type",
-  "validElections": ["President", "Senate", "House"]
+  "validElections": ["President", "Senate"]
 }
 ```
 
@@ -623,7 +605,7 @@ Use `bills` endpoint to track bills moving through the legislative process and d
 
 ### Election Results
 
-Use `candidates` endpoint to display election leaderboards and track campaign progress with real-time vote and donation statistics.
+Use `candidates` to display election standings based on ranked-ballot points.
 
 ## Implementation
 

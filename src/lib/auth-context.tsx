@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, onAuthStateChanged } from "./firebase";
-import { createSessionCookie, deleteSessionCookie } from "./server/users";
+import { createSessionCookie, deleteSessionCookie } from "./server/session";
 import type { User } from "./firebase";
 
 interface AuthContextType {
@@ -14,8 +14,8 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => auth.currentUser ?? null);
+  const [loading, setLoading] = useState(() => !auth.currentUser);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {

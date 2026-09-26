@@ -4,16 +4,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import PartyLogo from "@/components/party-logo";
+import { PlayerAvatar } from "@/components/players/player-avatar";
 
 interface UserResult {
   id: number;
   username: string;
+  photoUrl?: string | null;
   bio: string | null;
   politicalLeaning: string | null;
   role: string | null;
   partyId: number | null;
   createdAt: Date | null;
-  lastActivity: number | null;
+  archivedAt: Date | null;
 }
 
 interface PartyInfo {
@@ -75,12 +77,17 @@ export function SearchResults({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <PlayerAvatar
+                        username={user.username}
+                        photoUrl={user.photoUrl}
+                        className="size-10"
+                      />
                       <h3 className="text-xl font-semibold wrap-break-word">
                         {user.username}
                       </h3>
-                      {user.lastActivity !== null && user.lastActivity > 14 && (
+                      {user.archivedAt && (
                         <Badge variant="secondary" className="text-xs shrink-0">
-                          Inactive
+                          Archived
                         </Badge>
                       )}
                     </div>
@@ -116,7 +123,10 @@ export function SearchResults({
                     size="default"
                     className="shrink-0 w-full sm:w-auto"
                   >
-                    <Link to="/profile/$id" params={{ id: user.id.toString() }}>
+                    <Link
+                      to="/dashboard/players/$playerId"
+                      params={{ playerId: user.id.toString() }}
+                    >
                       View Profile
                     </Link>
                   </Button>

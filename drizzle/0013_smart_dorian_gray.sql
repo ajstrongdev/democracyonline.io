@@ -14,7 +14,7 @@ CREATE TABLE "coalitions" (
 	CONSTRAINT "coalitions_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
-CREATE TABLE "finance_kpi_snapshots" (
+CREATE TABLE IF NOT EXISTS "finance_kpi_snapshots" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"company_id" integer NOT NULL,
 	"policy" varchar(32) NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE "finance_kpi_snapshots" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "game_state" (
+CREATE TABLE IF NOT EXISTS "game_state" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"current_game_hour" bigint DEFAULT 0 NOT NULL
 );
@@ -39,7 +39,7 @@ CREATE TABLE "join_requests" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "order_fills" (
+CREATE TABLE IF NOT EXISTS "order_fills" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"buy_order_id" integer NOT NULL,
 	"sell_order_id" integer NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE "order_fills" (
 	"filled_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "share_issuance_events" (
+CREATE TABLE IF NOT EXISTS "share_issuance_events" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"company_id" integer NOT NULL,
 	"policy" varchar(32) NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE "share_issuance_events" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "stock_orders" (
+CREATE TABLE IF NOT EXISTS "stock_orders" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" integer NOT NULL,
 	"company_id" integer NOT NULL,

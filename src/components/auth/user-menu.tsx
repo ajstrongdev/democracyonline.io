@@ -1,14 +1,22 @@
 import { Link } from "@tanstack/react-router";
-import { LogOut, User } from "lucide-react";
+import { LogIn, LogOut, Settings, Users } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
-import { logOut } from "@/lib/auth-utils";
+import { switchAccount } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
+import { AccountSettingsDialog } from "@/components/settings/account-settings-dialog";
 
 export function UserMenu() {
   const { user, loading } = useAuth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleLogout = async () => {
-    await logOut();
+    const result = await switchAccount();
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
   };
 
   if (loading) {
@@ -17,26 +25,32 @@ export function UserMenu() {
 
   if (!user) {
     return (
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" asChild>
-          <Link to="/login">Sign In</Link>
-        </Button>
-        <Button asChild>
-          <Link to="/register">Sign Up</Link>
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/login" aria-label="Sign in">
+            <LogIn className="size-4" />
+            <span>Sign In</span>
+          </Link>
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex items-center gap-2">
-        <User className="size-4" />
-        <span className="text-sm font-medium">
-          {user.displayName || user.email}
-        </span>
-      </div>
-      <Button variant="ghost" size="icon" onClick={handleLogout}>
+    <div className="flex items-center gap-1">
+      <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="Account settings">
+          <Settings className="size-4" />
+      </Button>
+      <AccountSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Switch account" title="Switch account (sign out and sign in)">
+        <Users className="size-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleLogout}
+        aria-label="Sign out"
+      >
         <LogOut className="size-4" />
       </Button>
     </div>

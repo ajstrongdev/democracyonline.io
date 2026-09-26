@@ -1,4 +1,4 @@
-import { Link, createFileRoute, useNavigate  } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { signIn } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ function LoginPage() {
           onSubmit: error,
         });
       } else if (user) {
-        navigate({ to: "/profile" });
+        await navigate({ to: "/dashboard" });
       }
     },
   });
@@ -110,10 +110,7 @@ function LoginPage() {
           </form>
         </Card>
         <p className="text-center text-sm text-muted-foreground">
-          Don't have an account?{" "}
-          <Link to="/register" className="text-primary hover:underline">
-            Sign up
-          </Link>
+          Don't have an account? Ask a player for an invite link to sign up.
         </p>
       </div>
     </div>

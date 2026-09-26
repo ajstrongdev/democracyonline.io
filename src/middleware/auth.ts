@@ -9,6 +9,37 @@ import { getAdminApp } from "@/lib/firebase-admin";
 import { userEmailEquals } from "@/lib/server/user-email";
 import { env } from "@/env";
 
+const activityCookieName = "user_activity_updated";
+const activityCookieMaxAge = 60 * 60;
+
+async function recordUserVisit(email?: string) {
+  if (!email) return;
+  try {
+    const matchingUsers = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(userEmailEquals(email))
+      .limit(2);
+    if (matchingUsers.length !== 1) return;
+    if (getCookie(activityCookieName) === String(matchingUsers[0].id)) return;
+
+    await db
+      .update(users)
+      .set({ lastSeenAt: new Date(), archivedAt: null })
+      .where(eq(users.id, matchingUsers[0].id));
+
+    setCookie(activityCookieName, String(matchingUsers[0].id), {
+      maxAge: activityCookieMaxAge,
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
+  } catch (error) {
+    console.error("Error updating user activity:", error);
+  }
+}
+
 export interface AuthContext {
   user: {
     uid: string;
@@ -51,6 +82,7 @@ export const authMiddleware = createMiddleware({ type: "function" })
             "[authMiddleware.server] Session cookie verified, email:",
             decoded.email,
           );
+          await recordUserVisit(decoded.email);
           return next({
             context: {
               user: {
@@ -82,6 +114,7 @@ export const authMiddleware = createMiddleware({ type: "function" })
         "[authMiddleware.server] Token verified, email:",
         decoded.email,
       );
+      await recordUserVisit(decoded.email);
 
       return next({
         context: {
@@ -102,61 +135,6 @@ export const requireAuthMiddleware = createMiddleware({ type: "function" })
   .server(async ({ next, context }) => {
     if (!context.user) {
       throw new Error("Authentication required");
-    }
-
-    return next();
-  });
-
-const activityCookieName = "user_activity_updated";
-const activityCookieMaxAge = 60 * 60;
-
-export const userActivityMiddleware = createMiddleware({ type: "function" })
-  .middleware([authMiddleware])
-  .server(async ({ next, context }) => {
-    if (!context.user?.email) {
-      return next();
-    }
-
-    try {
-      const activityCookie = getCookie(activityCookieName);
-
-      if (!activityCookie) {
-        const matchingUsers = await db
-          .select({ id: users.id })
-          .from(users)
-          .where(userEmailEquals(context.user.email))
-          .limit(2);
-
-        if (matchingUsers.length > 1) {
-          console.error(
-            "Refusing to update activity for duplicate case-insensitive user email:",
-            context.user.email,
-          );
-          return next();
-        }
-
-        if (matchingUsers.length === 0) {
-          return next();
-        }
-
-        await db
-          .update(users)
-          .set({
-            lastActivity: 0,
-            isActive: true,
-          })
-          .where(eq(users.id, matchingUsers[0].id));
-
-        setCookie(activityCookieName, "1", {
-          maxAge: activityCookieMaxAge,
-          httpOnly: true,
-          secure: env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-        });
-      }
-    } catch (error) {
-      console.error("Error updating user activity:", error);
     }
 
     return next();

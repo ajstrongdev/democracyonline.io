@@ -1,6 +1,105 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@keyframes workspace-page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.workspace-page {
+  animation: workspace-page-enter 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-page { animation: none; }
+}
+
+@layer components {
+  .wiki-page {
+    font-family: var(--font-sans);
+  }
+
+  .wiki-masthead {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) * 0.35);
+    background: var(--card);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .wiki-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  .wiki-section {
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) * 0.3);
+    background: var(--card);
+    box-shadow: var(--shadow-2xs);
+  }
+
+  .wiki-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 1.25rem;
+    background: color-mix(in oklab, var(--muted) 28%, transparent);
+  }
+
+  .wiki-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-serif);
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .wiki-section-content {
+    padding: 1.25rem;
+  }
+
+  .wiki-infobox {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-top-width: 4px;
+    border-radius: calc(var(--radius) * 0.25);
+    background: var(--card);
+    box-shadow: var(--shadow-2xs);
+  }
+
+  .wiki-heading {
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.35rem;
+    font-family: var(--font-serif);
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .wiki-markdown > :first-child {
+    margin-top: 0;
+  }
+
+  .wiki-record-row {
+    border-bottom: 1px solid var(--border);
+    padding: 0.85rem 0;
+  }
+
+  .wiki-record-row:last-child {
+    border-bottom: 0;
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

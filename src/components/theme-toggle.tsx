@@ -1,28 +1,32 @@
 import { Check, Palette } from "lucide-react";
 import { useState } from "react";
-import { useTheme } from "@ajstrongdev/start-themes";
+import { useAppTheme } from "@/components/app-theme-provider";
 import { themes } from "@/lib/server/theme";
-import type { ThemeId } from "@/lib/server/theme";
-import { SidebarMenuButton } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
-  PopoverTrigger,
   PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
 
 export function ModeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useAppTheme();
   const [open, setOpen] = useState(false);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <SidebarMenuButton>
-          <Palette />
-          <span className="flex-1">Theme</span>
-        </SidebarMenuButton>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          aria-label="Choose theme"
+          title="Choose theme"
+        >
+          <Palette className="h-4 w-4" />
+        </Button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="start" className="w-52 p-1.5">
+      <PopoverContent align="end" className="w-52 p-1.5">
         <p className="px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
           Choose a theme
         </p>
@@ -30,7 +34,7 @@ export function ModeToggle() {
           <button
             key={t.id}
             onClick={() => {
-              setTheme(t.id as ThemeId);
+              setTheme(t.id);
               setOpen(false);
             }}
             className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground ${

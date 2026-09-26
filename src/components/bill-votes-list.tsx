@@ -1,4 +1,5 @@
 import { CheckCircle2, XCircle } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import {
   Card,
   CardContent,
@@ -7,10 +8,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PlayerAvatar } from "@/components/players/player-avatar";
 
 interface Voter {
   id: number;
   username: string;
+  photoUrl: string | null;
   party_id: number | null;
   party_name: string | null;
   party_color: string | null;
@@ -47,7 +50,8 @@ function VoterCard({
               <XCircle className="h-4 w-4 sm:h-5 sm:w-5" />
             )}
           </div>
-          <div className="min-w-0 flex-1">
+           <PlayerAvatar username={voter.username} photoUrl={voter.photoUrl} className="size-10" />
+           <div className="min-w-0 flex-1">
             <p className="font-medium text-foreground text-sm sm:text-base wrap-break-words">
               {voter.username}
             </p>
@@ -66,9 +70,14 @@ function VoterCard({
         <Button
           size="sm"
           className="text-xs sm:text-sm w-full sm:w-auto whitespace-nowrap"
-          onClick={() => (window.location.href = `/profile/${voter.id}`)}
+          asChild
         >
-          View Profile
+          <Link
+            to="/dashboard/players/$playerId"
+            params={{ playerId: String(voter.id) }}
+          >
+            View article
+          </Link>
         </Button>
       </div>
     </div>
@@ -160,6 +169,7 @@ type VoterDataProps = {
   house: Array<{
     userId: number | null;
     username: string | null;
+    photoUrl: string | null;
     voteYes: boolean;
     partyId: number | null;
     partyName: string | null;
@@ -168,6 +178,7 @@ type VoterDataProps = {
   senate: Array<{
     userId: number | null;
     username: string | null;
+    photoUrl: string | null;
     voteYes: boolean;
     partyId: number | null;
     partyName: string | null;
@@ -176,6 +187,7 @@ type VoterDataProps = {
   presidential: Array<{
     userId: number | null;
     username: string | null;
+    photoUrl: string | null;
     voteYes: boolean;
     partyId: number | null;
     partyName: string | null;
@@ -193,6 +205,7 @@ export default function BillVotersList({
     house: votersData.house.map((v) => ({
       id: v.userId || 0,
       username: v.username || "Unknown",
+      photoUrl: v.photoUrl,
       party_id: v.partyId,
       party_name: v.partyName,
       party_color: v.partyColor,
@@ -201,6 +214,7 @@ export default function BillVotersList({
     senate: votersData.senate.map((v) => ({
       id: v.userId || 0,
       username: v.username || "Unknown",
+      photoUrl: v.photoUrl,
       party_id: v.partyId,
       party_name: v.partyName,
       party_color: v.partyColor,
@@ -209,6 +223,7 @@ export default function BillVotersList({
     presidential: votersData.presidential.map((v) => ({
       id: v.userId || 0,
       username: v.username || "Unknown",
+      photoUrl: v.photoUrl,
       party_id: v.partyId,
       party_name: v.partyName,
       party_color: v.partyColor,

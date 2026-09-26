@@ -1,10 +1,16 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, redirect } from "@tanstack/react-router";
 import { ArrowRight, CheckCircle2, Crown, Handshake, Vote } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { getCurrentUserInfo } from "@/lib/server/users";
 
 export const Route = createFileRoute("/")({
+  loader: async () => {
+    if (await getCurrentUserInfo()) {
+      throw redirect({ to: "/dashboard" });
+    }
+  },
   component: RouteComponent,
 });
 
@@ -73,7 +79,7 @@ function RouteComponent() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-balance max-w-prose mx-auto text-lg sm:text-xl md:text-2xl text-muted-foreground leading-relaxed"
           >
-            democracyonline.io is the ultimate political arena. Build parties,
+              Oscana is the ultimate political arena. Build parties,
             win elections, and pass legislation in a living democracy.
           </motion.p>
 
@@ -157,7 +163,7 @@ function RouteComponent() {
             className="text-center mb-12 md:mb-16"
           >
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
-              Why Join democracyonline.io?
+              Why Join Oscana?
             </h2>
           </motion.div>
 
@@ -218,7 +224,7 @@ function RouteComponent() {
             className="mt-12 md:mt-16 pt-8 border-t border-border"
           >
             <p className="text-xs md:text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} democracyonline.io - All rights
+              &copy; {new Date().getFullYear()} Oscana - All rights
               reserved.
             </p>
           </motion.div>

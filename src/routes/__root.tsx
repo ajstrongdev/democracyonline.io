@@ -3,6 +3,7 @@ import {
   Outlet,
   Scripts,
   createRootRouteWithContext,
+  redirect,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
@@ -12,18 +13,16 @@ import appCss from "../styles.css?url";
 import type { QueryClient } from "@tanstack/react-query";
 import type { User } from "firebase/auth";
 import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import {
-  getThemeServerFn,
   getThemeClasses,
-  setThemeServerFn,
+  getThemeServerFn,
+  themes,
 } from "@/lib/server/theme";
-import { ThemeProvider } from "@ajstrongdev/start-themes";
 import { NotFound } from "@/components/not-found";
+import { WikiNavigation } from "@/components/wiki/wiki-header";
+import { getAuthRedirect } from "@/lib/auth-guard";
+import { auth } from "@/lib/firebase";
+import { getSessionUser } from "@/lib/server/session";
+import { AppThemeProvider, useAppTheme } from "@/components/app-theme-provider";
 
 type AuthContext = {
   user: User | null;
@@ -36,6 +35,30 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
+  beforeLoad: async ({ location, context }) => {
+    const authUser =
+      context.auth?.user ??
+      (typeof window !== "undefined" ? (auth.currentUser ?? null) : null);
+    const sessionUser = authUser ? null : await getSessionUser();
+    const hasSessionCookie = Boolean(sessionUser);
+    const isLoading = context.auth?.loading && !authUser && !hasSessionCookie;
+
+    if (isLoading) {
+      return;
+    }
+
+    const pathname = location.pathname;
+    const redirectTarget = getAuthRedirect(
+      pathname,
+      Boolean(authUser || sessionUser),
+      false,
+      hasSessionCookie,
+    );
+
+    if (redirectTarget) {
+      throw redirect({ to: redirectTarget });
+    }
+  },
   loader: async () => {
     const theme = await getThemeServerFn();
     return { theme };
@@ -50,7 +73,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "democracyonline.io",
+        title: "Oscana",
       },
     ],
     links: [
@@ -74,23 +97,21 @@ function RootLayout() {
   const { theme } = Route.useLoaderData();
 
   return (
-    <ThemeProvider
-      theme={theme}
-      onThemeChange={(t) => setThemeServerFn({ data: t })}
-    >
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger className="-ml-1" />
-          </header>
-          <div className="flex flex-1 flex-col">
-            <Outlet />
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
-    </ThemeProvider>
+    <AppThemeProvider initialTheme={theme}>
+      <div className="flex min-h-svh flex-col">
+        <WikiNavigation />
+        <div className="flex flex-1 flex-col">
+          <Outlet />
+        </div>
+        <ThemedToaster />
+      </div>
+    </AppThemeProvider>
   );
+}
+
+function ThemedToaster() {
+  const { theme } = useAppTheme();
+  return <Toaster position="bottom-right" theme={themes.find((item) => item.id === theme)?.isDark ? "dark" : "light"} richColors />;
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
@@ -102,15 +123,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         {children}
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            classNames: {
-              success:
-                "bg-green-50 dark:bg-green-950 text-green-900 dark:text-green-50 border-green-200 dark:border-green-800",
-            },
-          }}
-        />
         <TanStackDevtools
           config={{
             position: "bottom-right",
