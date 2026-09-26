@@ -1,6 +1,6 @@
 import { Check, Palette } from "lucide-react";
 import { useState } from "react";
-import { useTheme } from "@ajstrongdev/start-themes";
+import { useAppTheme } from "@/components/app-theme-provider";
 import { themes } from "@/lib/server/theme";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/popover";
 
 export function ModeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useAppTheme();
   const [open, setOpen] = useState(false);
 
   return (

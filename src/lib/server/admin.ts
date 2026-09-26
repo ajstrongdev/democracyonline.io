@@ -25,6 +25,7 @@ import { generateElectionNightPlan } from "@/lib/elections/reveal";
 import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
 import { resolveElectionTiming } from "@/lib/server/game-speed";
 import { archivePartyIfEmpty } from "@/lib/server/organization-lifecycle";
+import { publicFirebaseUser } from "@/lib/firebase-user-public";
 
 async function getAdminElectionTiming() {
   return resolveElectionTiming();
@@ -310,16 +311,7 @@ export const listFirebaseUsers = createServerFn()
     const listUsersResult = await auth.listUsers(1000);
 
     return {
-      users: listUsersResult.users.map((user) => ({
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        disabled: user.disabled,
-        emailVerified: user.emailVerified,
-        creationTime: user.metadata.creationTime,
-        lastSignInTime: user.metadata.lastSignInTime,
-      })),
+      users: listUsersResult.users.map(publicFirebaseUser),
     };
   });
 

@@ -16,6 +16,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ModerationRouteImport } from './routes/moderation'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WikiIndexRouteImport } from './routes/wiki/index'
 import { Route as ProfileIndexRouteImport } from './routes/profile/index'
@@ -30,9 +31,12 @@ import { Route as PartiesCreateRouteImport } from './routes/parties/create'
 import { Route as PartiesIdRouteImport } from './routes/parties/$id'
 import { Route as ElectionsSenateRouteImport } from './routes/elections/senate'
 import { Route as ElectionsPresidentRouteImport } from './routes/elections/president'
+import { Route as DashboardSocialRouteImport } from './routes/dashboard/social'
 import { Route as DashboardNationRouteImport } from './routes/dashboard/nation'
+import { Route as DashboardModerationRouteImport } from './routes/dashboard/moderation'
 import { Route as DashboardGuideRouteImport } from './routes/dashboard/guide'
 import { Route as DashboardGovernmentRouteImport } from './routes/dashboard/government'
+import { Route as DashboardAdminRouteImport } from './routes/dashboard/admin'
 import { Route as BillsSenateRouteImport } from './routes/bills/senate'
 import { Route as BillsOvalOfficeRouteImport } from './routes/bills/oval-office'
 import { Route as BillsHouseOfRepresentativesRouteImport } from './routes/bills/house-of-representatives'
@@ -104,6 +108,11 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRouteRoute = DashboardRouteRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -130,9 +139,9 @@ const ElectionsIndexRoute = ElectionsIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
-  id: '/dashboard/',
-  path: '/dashboard/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const BillsIndexRoute = BillsIndexRouteImport.update({
   id: '/bills/',
@@ -174,20 +183,35 @@ const ElectionsPresidentRoute = ElectionsPresidentRouteImport.update({
   path: '/elections/president',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardSocialRoute = DashboardSocialRouteImport.update({
+  id: '/social',
+  path: '/social',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
 const DashboardNationRoute = DashboardNationRouteImport.update({
-  id: '/dashboard/nation',
-  path: '/dashboard/nation',
-  getParentRoute: () => rootRouteImport,
+  id: '/nation',
+  path: '/nation',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardModerationRoute = DashboardModerationRouteImport.update({
+  id: '/moderation',
+  path: '/moderation',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardGuideRoute = DashboardGuideRouteImport.update({
-  id: '/dashboard/guide',
-  path: '/dashboard/guide',
-  getParentRoute: () => rootRouteImport,
+  id: '/guide',
+  path: '/guide',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardGovernmentRoute = DashboardGovernmentRouteImport.update({
-  id: '/dashboard/government',
-  path: '/dashboard/government',
-  getParentRoute: () => rootRouteImport,
+  id: '/government',
+  path: '/government',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardAdminRoute = DashboardAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const BillsSenateRoute = BillsSenateRouteImport.update({
   id: '/bills/senate',
@@ -241,24 +265,24 @@ const PartiesCoalitionsIndexRoute = PartiesCoalitionsIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardPlayersIndexRoute = DashboardPlayersIndexRouteImport.update({
-  id: '/dashboard/players/',
-  path: '/dashboard/players/',
-  getParentRoute: () => rootRouteImport,
+  id: '/players/',
+  path: '/players/',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardPartiesIndexRoute = DashboardPartiesIndexRouteImport.update({
-  id: '/dashboard/parties/',
-  path: '/dashboard/parties/',
-  getParentRoute: () => rootRouteImport,
+  id: '/parties/',
+  path: '/parties/',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardElectionsIndexRoute = DashboardElectionsIndexRouteImport.update({
-  id: '/dashboard/elections/',
-  path: '/dashboard/elections/',
-  getParentRoute: () => rootRouteImport,
+  id: '/elections/',
+  path: '/elections/',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardBillsIndexRoute = DashboardBillsIndexRouteImport.update({
-  id: '/dashboard/bills/',
-  path: '/dashboard/bills/',
-  getParentRoute: () => rootRouteImport,
+  id: '/bills/',
+  path: '/bills/',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const PartiesManageIdRoute = PartiesManageIdRouteImport.update({
   id: '/parties/manage/$id',
@@ -277,64 +301,64 @@ const PartiesCoalitionsIdRoute = PartiesCoalitionsIdRouteImport.update({
 } as any)
 const DashboardPlayersPlayerIdRoute =
   DashboardPlayersPlayerIdRouteImport.update({
-    id: '/dashboard/players/$playerId',
-    path: '/dashboard/players/$playerId',
-    getParentRoute: () => rootRouteImport,
+    id: '/players/$playerId',
+    path: '/players/$playerId',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const DashboardPartiesPrimariesRoute =
   DashboardPartiesPrimariesRouteImport.update({
-    id: '/dashboard/parties/primaries',
-    path: '/dashboard/parties/primaries',
-    getParentRoute: () => rootRouteImport,
+    id: '/parties/primaries',
+    path: '/parties/primaries',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const DashboardPartiesCreateRoute = DashboardPartiesCreateRouteImport.update({
-  id: '/dashboard/parties/create',
-  path: '/dashboard/parties/create',
-  getParentRoute: () => rootRouteImport,
+  id: '/parties/create',
+  path: '/parties/create',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardPartiesPartyIdRoute = DashboardPartiesPartyIdRouteImport.update({
-  id: '/dashboard/parties/$partyId',
-  path: '/dashboard/parties/$partyId',
-  getParentRoute: () => rootRouteImport,
+  id: '/parties/$partyId',
+  path: '/parties/$partyId',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardElectionsParticipateRoute =
   DashboardElectionsParticipateRouteImport.update({
-    id: '/dashboard/elections/participate',
-    path: '/dashboard/elections/participate',
-    getParentRoute: () => rootRouteImport,
+    id: '/elections/participate',
+    path: '/elections/participate',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const DashboardElectionsElectionIdRoute =
   DashboardElectionsElectionIdRouteImport.update({
-    id: '/dashboard/elections/$electionId',
-    path: '/dashboard/elections/$electionId',
-    getParentRoute: () => rootRouteImport,
+    id: '/elections/$electionId',
+    path: '/elections/$electionId',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const DashboardBillsSenateRoute = DashboardBillsSenateRouteImport.update({
-  id: '/dashboard/bills/senate',
-  path: '/dashboard/bills/senate',
-  getParentRoute: () => rootRouteImport,
+  id: '/bills/senate',
+  path: '/bills/senate',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardBillsOvalOfficeRoute =
   DashboardBillsOvalOfficeRouteImport.update({
-    id: '/dashboard/bills/oval-office',
-    path: '/dashboard/bills/oval-office',
-    getParentRoute: () => rootRouteImport,
+    id: '/bills/oval-office',
+    path: '/bills/oval-office',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const DashboardBillsHouseOfRepresentativesRoute =
   DashboardBillsHouseOfRepresentativesRouteImport.update({
-    id: '/dashboard/bills/house-of-representatives',
-    path: '/dashboard/bills/house-of-representatives',
-    getParentRoute: () => rootRouteImport,
+    id: '/bills/house-of-representatives',
+    path: '/bills/house-of-representatives',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const DashboardBillsCreateRoute = DashboardBillsCreateRouteImport.update({
-  id: '/dashboard/bills/create',
-  path: '/dashboard/bills/create',
-  getParentRoute: () => rootRouteImport,
+  id: '/bills/create',
+  path: '/bills/create',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardBillsBillIdRoute = DashboardBillsBillIdRouteImport.update({
-  id: '/dashboard/bills/$billId',
-  path: '/dashboard/bills/$billId',
-  getParentRoute: () => rootRouteImport,
+  id: '/bills/$billId',
+  path: '/bills/$billId',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 const BillsEditIdRoute = BillsEditIdRouteImport.update({
   id: '/bills/edit/$id',
@@ -343,42 +367,43 @@ const BillsEditIdRoute = BillsEditIdRouteImport.update({
 } as any)
 const DashboardPartiesCoalitionsIndexRoute =
   DashboardPartiesCoalitionsIndexRouteImport.update({
-    id: '/dashboard/parties/coalitions/',
-    path: '/dashboard/parties/coalitions/',
-    getParentRoute: () => rootRouteImport,
+    id: '/parties/coalitions/',
+    path: '/parties/coalitions/',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const DashboardRevisionsEntityTypeEntityIdRoute =
   DashboardRevisionsEntityTypeEntityIdRouteImport.update({
-    id: '/dashboard/revisions/$entityType/$entityId',
-    path: '/dashboard/revisions/$entityType/$entityId',
-    getParentRoute: () => rootRouteImport,
+    id: '/revisions/$entityType/$entityId',
+    path: '/revisions/$entityType/$entityId',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const DashboardPartiesManageIdRoute =
   DashboardPartiesManageIdRouteImport.update({
-    id: '/dashboard/parties/manage/$id',
-    path: '/dashboard/parties/manage/$id',
-    getParentRoute: () => rootRouteImport,
+    id: '/parties/manage/$id',
+    path: '/parties/manage/$id',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const DashboardPartiesCoalitionsCreateRoute =
   DashboardPartiesCoalitionsCreateRouteImport.update({
-    id: '/dashboard/parties/coalitions/create',
-    path: '/dashboard/parties/coalitions/create',
-    getParentRoute: () => rootRouteImport,
+    id: '/parties/coalitions/create',
+    path: '/parties/coalitions/create',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const DashboardPartiesCoalitionsIdRoute =
   DashboardPartiesCoalitionsIdRouteImport.update({
-    id: '/dashboard/parties/coalitions/$id',
-    path: '/dashboard/parties/coalitions/$id',
-    getParentRoute: () => rootRouteImport,
+    id: '/parties/coalitions/$id',
+    path: '/parties/coalitions/$id',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const DashboardBillsEditIdRoute = DashboardBillsEditIdRouteImport.update({
-  id: '/dashboard/bills/edit/$id',
-  path: '/dashboard/bills/edit/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/bills/edit/$id',
+  path: '/bills/edit/$id',
+  getParentRoute: () => DashboardRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRouteRouteWithChildren
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/moderation': typeof ModerationRoute
@@ -395,9 +420,12 @@ export interface FileRoutesByFullPath {
   '/bills/house-of-representatives': typeof BillsHouseOfRepresentativesRoute
   '/bills/oval-office': typeof BillsOvalOfficeRoute
   '/bills/senate': typeof BillsSenateRoute
+  '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/government': typeof DashboardGovernmentRoute
   '/dashboard/guide': typeof DashboardGuideRoute
+  '/dashboard/moderation': typeof DashboardModerationRoute
   '/dashboard/nation': typeof DashboardNationRoute
+  '/dashboard/social': typeof DashboardSocialRoute
   '/elections/president': typeof ElectionsPresidentRoute
   '/elections/senate': typeof ElectionsSenateRoute
   '/parties/$id': typeof PartiesIdRoute
@@ -456,9 +484,12 @@ export interface FileRoutesByTo {
   '/bills/house-of-representatives': typeof BillsHouseOfRepresentativesRoute
   '/bills/oval-office': typeof BillsOvalOfficeRoute
   '/bills/senate': typeof BillsSenateRoute
+  '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/government': typeof DashboardGovernmentRoute
   '/dashboard/guide': typeof DashboardGuideRoute
+  '/dashboard/moderation': typeof DashboardModerationRoute
   '/dashboard/nation': typeof DashboardNationRoute
+  '/dashboard/social': typeof DashboardSocialRoute
   '/elections/president': typeof ElectionsPresidentRoute
   '/elections/senate': typeof ElectionsSenateRoute
   '/parties/$id': typeof PartiesIdRoute
@@ -502,6 +533,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRouteRouteWithChildren
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/moderation': typeof ModerationRoute
@@ -518,9 +550,12 @@ export interface FileRoutesById {
   '/bills/house-of-representatives': typeof BillsHouseOfRepresentativesRoute
   '/bills/oval-office': typeof BillsOvalOfficeRoute
   '/bills/senate': typeof BillsSenateRoute
+  '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/government': typeof DashboardGovernmentRoute
   '/dashboard/guide': typeof DashboardGuideRoute
+  '/dashboard/moderation': typeof DashboardModerationRoute
   '/dashboard/nation': typeof DashboardNationRoute
+  '/dashboard/social': typeof DashboardSocialRoute
   '/elections/president': typeof ElectionsPresidentRoute
   '/elections/senate': typeof ElectionsSenateRoute
   '/parties/$id': typeof PartiesIdRoute
@@ -565,6 +600,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/dashboard'
     | '/admin'
     | '/login'
     | '/moderation'
@@ -581,9 +617,12 @@ export interface FileRouteTypes {
     | '/bills/house-of-representatives'
     | '/bills/oval-office'
     | '/bills/senate'
+    | '/dashboard/admin'
     | '/dashboard/government'
     | '/dashboard/guide'
+    | '/dashboard/moderation'
     | '/dashboard/nation'
+    | '/dashboard/social'
     | '/elections/president'
     | '/elections/senate'
     | '/parties/$id'
@@ -642,9 +681,12 @@ export interface FileRouteTypes {
     | '/bills/house-of-representatives'
     | '/bills/oval-office'
     | '/bills/senate'
+    | '/dashboard/admin'
     | '/dashboard/government'
     | '/dashboard/guide'
+    | '/dashboard/moderation'
     | '/dashboard/nation'
+    | '/dashboard/social'
     | '/elections/president'
     | '/elections/senate'
     | '/parties/$id'
@@ -687,6 +729,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/dashboard'
     | '/admin'
     | '/login'
     | '/moderation'
@@ -703,9 +746,12 @@ export interface FileRouteTypes {
     | '/bills/house-of-representatives'
     | '/bills/oval-office'
     | '/bills/senate'
+    | '/dashboard/admin'
     | '/dashboard/government'
     | '/dashboard/guide'
+    | '/dashboard/moderation'
     | '/dashboard/nation'
+    | '/dashboard/social'
     | '/elections/president'
     | '/elections/senate'
     | '/parties/$id'
@@ -749,6 +795,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
   AdminRoute: typeof AdminRoute
   LoginRoute: typeof LoginRoute
   ModerationRoute: typeof ModerationRoute
@@ -765,9 +812,6 @@ export interface RootRouteChildren {
   BillsHouseOfRepresentativesRoute: typeof BillsHouseOfRepresentativesRoute
   BillsOvalOfficeRoute: typeof BillsOvalOfficeRoute
   BillsSenateRoute: typeof BillsSenateRoute
-  DashboardGovernmentRoute: typeof DashboardGovernmentRoute
-  DashboardGuideRoute: typeof DashboardGuideRoute
-  DashboardNationRoute: typeof DashboardNationRoute
   ElectionsPresidentRoute: typeof ElectionsPresidentRoute
   ElectionsSenateRoute: typeof ElectionsSenateRoute
   PartiesIdRoute: typeof PartiesIdRoute
@@ -776,37 +820,15 @@ export interface RootRouteChildren {
   ProfileIdRoute: typeof ProfileIdRoute
   WikiSplatRoute: typeof WikiSplatRoute
   BillsIndexRoute: typeof BillsIndexRoute
-  DashboardIndexRoute: typeof DashboardIndexRoute
   ElectionsIndexRoute: typeof ElectionsIndexRoute
   PartiesIndexRoute: typeof PartiesIndexRoute
   ProfileIndexRoute: typeof ProfileIndexRoute
   WikiIndexRoute: typeof WikiIndexRoute
   BillsEditIdRoute: typeof BillsEditIdRoute
-  DashboardBillsBillIdRoute: typeof DashboardBillsBillIdRoute
-  DashboardBillsCreateRoute: typeof DashboardBillsCreateRoute
-  DashboardBillsHouseOfRepresentativesRoute: typeof DashboardBillsHouseOfRepresentativesRoute
-  DashboardBillsOvalOfficeRoute: typeof DashboardBillsOvalOfficeRoute
-  DashboardBillsSenateRoute: typeof DashboardBillsSenateRoute
-  DashboardElectionsElectionIdRoute: typeof DashboardElectionsElectionIdRoute
-  DashboardElectionsParticipateRoute: typeof DashboardElectionsParticipateRoute
-  DashboardPartiesPartyIdRoute: typeof DashboardPartiesPartyIdRoute
-  DashboardPartiesCreateRoute: typeof DashboardPartiesCreateRoute
-  DashboardPartiesPrimariesRoute: typeof DashboardPartiesPrimariesRoute
-  DashboardPlayersPlayerIdRoute: typeof DashboardPlayersPlayerIdRoute
   PartiesCoalitionsIdRoute: typeof PartiesCoalitionsIdRoute
   PartiesCoalitionsCreateRoute: typeof PartiesCoalitionsCreateRoute
   PartiesManageIdRoute: typeof PartiesManageIdRoute
-  DashboardBillsIndexRoute: typeof DashboardBillsIndexRoute
-  DashboardElectionsIndexRoute: typeof DashboardElectionsIndexRoute
-  DashboardPartiesIndexRoute: typeof DashboardPartiesIndexRoute
-  DashboardPlayersIndexRoute: typeof DashboardPlayersIndexRoute
   PartiesCoalitionsIndexRoute: typeof PartiesCoalitionsIndexRoute
-  DashboardBillsEditIdRoute: typeof DashboardBillsEditIdRoute
-  DashboardPartiesCoalitionsIdRoute: typeof DashboardPartiesCoalitionsIdRoute
-  DashboardPartiesCoalitionsCreateRoute: typeof DashboardPartiesCoalitionsCreateRoute
-  DashboardPartiesManageIdRoute: typeof DashboardPartiesManageIdRoute
-  DashboardRevisionsEntityTypeEntityIdRoute: typeof DashboardRevisionsEntityTypeEntityIdRoute
-  DashboardPartiesCoalitionsIndexRoute: typeof DashboardPartiesCoalitionsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -860,6 +882,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -897,10 +926,10 @@ declare module '@tanstack/react-router' {
     }
     '/dashboard/': {
       id: '/dashboard/'
-      path: '/dashboard'
+      path: '/'
       fullPath: '/dashboard/'
       preLoaderRoute: typeof DashboardIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/bills/': {
       id: '/bills/'
@@ -958,26 +987,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ElectionsPresidentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/social': {
+      id: '/dashboard/social'
+      path: '/social'
+      fullPath: '/dashboard/social'
+      preLoaderRoute: typeof DashboardSocialRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/dashboard/nation': {
       id: '/dashboard/nation'
-      path: '/dashboard/nation'
+      path: '/nation'
       fullPath: '/dashboard/nation'
       preLoaderRoute: typeof DashboardNationRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/moderation': {
+      id: '/dashboard/moderation'
+      path: '/moderation'
+      fullPath: '/dashboard/moderation'
+      preLoaderRoute: typeof DashboardModerationRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/guide': {
       id: '/dashboard/guide'
-      path: '/dashboard/guide'
+      path: '/guide'
       fullPath: '/dashboard/guide'
       preLoaderRoute: typeof DashboardGuideRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/government': {
       id: '/dashboard/government'
-      path: '/dashboard/government'
+      path: '/government'
       fullPath: '/dashboard/government'
       preLoaderRoute: typeof DashboardGovernmentRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/admin': {
+      id: '/dashboard/admin'
+      path: '/admin'
+      fullPath: '/dashboard/admin'
+      preLoaderRoute: typeof DashboardAdminRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/bills/senate': {
       id: '/bills/senate'
@@ -1051,31 +1101,31 @@ declare module '@tanstack/react-router' {
     }
     '/dashboard/players/': {
       id: '/dashboard/players/'
-      path: '/dashboard/players'
+      path: '/players'
       fullPath: '/dashboard/players/'
       preLoaderRoute: typeof DashboardPlayersIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/parties/': {
       id: '/dashboard/parties/'
-      path: '/dashboard/parties'
+      path: '/parties'
       fullPath: '/dashboard/parties/'
       preLoaderRoute: typeof DashboardPartiesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/elections/': {
       id: '/dashboard/elections/'
-      path: '/dashboard/elections'
+      path: '/elections'
       fullPath: '/dashboard/elections/'
       preLoaderRoute: typeof DashboardElectionsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/bills/': {
       id: '/dashboard/bills/'
-      path: '/dashboard/bills'
+      path: '/bills'
       fullPath: '/dashboard/bills/'
       preLoaderRoute: typeof DashboardBillsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/parties/manage/$id': {
       id: '/parties/manage/$id'
@@ -1100,80 +1150,80 @@ declare module '@tanstack/react-router' {
     }
     '/dashboard/players/$playerId': {
       id: '/dashboard/players/$playerId'
-      path: '/dashboard/players/$playerId'
+      path: '/players/$playerId'
       fullPath: '/dashboard/players/$playerId'
       preLoaderRoute: typeof DashboardPlayersPlayerIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/parties/primaries': {
       id: '/dashboard/parties/primaries'
-      path: '/dashboard/parties/primaries'
+      path: '/parties/primaries'
       fullPath: '/dashboard/parties/primaries'
       preLoaderRoute: typeof DashboardPartiesPrimariesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/parties/create': {
       id: '/dashboard/parties/create'
-      path: '/dashboard/parties/create'
+      path: '/parties/create'
       fullPath: '/dashboard/parties/create'
       preLoaderRoute: typeof DashboardPartiesCreateRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/parties/$partyId': {
       id: '/dashboard/parties/$partyId'
-      path: '/dashboard/parties/$partyId'
+      path: '/parties/$partyId'
       fullPath: '/dashboard/parties/$partyId'
       preLoaderRoute: typeof DashboardPartiesPartyIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/elections/participate': {
       id: '/dashboard/elections/participate'
-      path: '/dashboard/elections/participate'
+      path: '/elections/participate'
       fullPath: '/dashboard/elections/participate'
       preLoaderRoute: typeof DashboardElectionsParticipateRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/elections/$electionId': {
       id: '/dashboard/elections/$electionId'
-      path: '/dashboard/elections/$electionId'
+      path: '/elections/$electionId'
       fullPath: '/dashboard/elections/$electionId'
       preLoaderRoute: typeof DashboardElectionsElectionIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/bills/senate': {
       id: '/dashboard/bills/senate'
-      path: '/dashboard/bills/senate'
+      path: '/bills/senate'
       fullPath: '/dashboard/bills/senate'
       preLoaderRoute: typeof DashboardBillsSenateRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/bills/oval-office': {
       id: '/dashboard/bills/oval-office'
-      path: '/dashboard/bills/oval-office'
+      path: '/bills/oval-office'
       fullPath: '/dashboard/bills/oval-office'
       preLoaderRoute: typeof DashboardBillsOvalOfficeRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/bills/house-of-representatives': {
       id: '/dashboard/bills/house-of-representatives'
-      path: '/dashboard/bills/house-of-representatives'
+      path: '/bills/house-of-representatives'
       fullPath: '/dashboard/bills/house-of-representatives'
       preLoaderRoute: typeof DashboardBillsHouseOfRepresentativesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/bills/create': {
       id: '/dashboard/bills/create'
-      path: '/dashboard/bills/create'
+      path: '/bills/create'
       fullPath: '/dashboard/bills/create'
       preLoaderRoute: typeof DashboardBillsCreateRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/bills/$billId': {
       id: '/dashboard/bills/$billId'
-      path: '/dashboard/bills/$billId'
+      path: '/bills/$billId'
       fullPath: '/dashboard/bills/$billId'
       preLoaderRoute: typeof DashboardBillsBillIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/bills/edit/$id': {
       id: '/bills/edit/$id'
@@ -1184,51 +1234,120 @@ declare module '@tanstack/react-router' {
     }
     '/dashboard/parties/coalitions/': {
       id: '/dashboard/parties/coalitions/'
-      path: '/dashboard/parties/coalitions'
+      path: '/parties/coalitions'
       fullPath: '/dashboard/parties/coalitions/'
       preLoaderRoute: typeof DashboardPartiesCoalitionsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/revisions/$entityType/$entityId': {
       id: '/dashboard/revisions/$entityType/$entityId'
-      path: '/dashboard/revisions/$entityType/$entityId'
+      path: '/revisions/$entityType/$entityId'
       fullPath: '/dashboard/revisions/$entityType/$entityId'
       preLoaderRoute: typeof DashboardRevisionsEntityTypeEntityIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/parties/manage/$id': {
       id: '/dashboard/parties/manage/$id'
-      path: '/dashboard/parties/manage/$id'
+      path: '/parties/manage/$id'
       fullPath: '/dashboard/parties/manage/$id'
       preLoaderRoute: typeof DashboardPartiesManageIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/parties/coalitions/create': {
       id: '/dashboard/parties/coalitions/create'
-      path: '/dashboard/parties/coalitions/create'
+      path: '/parties/coalitions/create'
       fullPath: '/dashboard/parties/coalitions/create'
       preLoaderRoute: typeof DashboardPartiesCoalitionsCreateRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/parties/coalitions/$id': {
       id: '/dashboard/parties/coalitions/$id'
-      path: '/dashboard/parties/coalitions/$id'
+      path: '/parties/coalitions/$id'
       fullPath: '/dashboard/parties/coalitions/$id'
       preLoaderRoute: typeof DashboardPartiesCoalitionsIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/bills/edit/$id': {
       id: '/dashboard/bills/edit/$id'
-      path: '/dashboard/bills/edit/$id'
+      path: '/bills/edit/$id'
       fullPath: '/dashboard/bills/edit/$id'
       preLoaderRoute: typeof DashboardBillsEditIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DashboardRouteRoute
     }
   }
 }
 
+interface DashboardRouteRouteChildren {
+  DashboardAdminRoute: typeof DashboardAdminRoute
+  DashboardGovernmentRoute: typeof DashboardGovernmentRoute
+  DashboardGuideRoute: typeof DashboardGuideRoute
+  DashboardModerationRoute: typeof DashboardModerationRoute
+  DashboardNationRoute: typeof DashboardNationRoute
+  DashboardSocialRoute: typeof DashboardSocialRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardBillsBillIdRoute: typeof DashboardBillsBillIdRoute
+  DashboardBillsCreateRoute: typeof DashboardBillsCreateRoute
+  DashboardBillsHouseOfRepresentativesRoute: typeof DashboardBillsHouseOfRepresentativesRoute
+  DashboardBillsOvalOfficeRoute: typeof DashboardBillsOvalOfficeRoute
+  DashboardBillsSenateRoute: typeof DashboardBillsSenateRoute
+  DashboardElectionsElectionIdRoute: typeof DashboardElectionsElectionIdRoute
+  DashboardElectionsParticipateRoute: typeof DashboardElectionsParticipateRoute
+  DashboardPartiesPartyIdRoute: typeof DashboardPartiesPartyIdRoute
+  DashboardPartiesCreateRoute: typeof DashboardPartiesCreateRoute
+  DashboardPartiesPrimariesRoute: typeof DashboardPartiesPrimariesRoute
+  DashboardPlayersPlayerIdRoute: typeof DashboardPlayersPlayerIdRoute
+  DashboardBillsIndexRoute: typeof DashboardBillsIndexRoute
+  DashboardElectionsIndexRoute: typeof DashboardElectionsIndexRoute
+  DashboardPartiesIndexRoute: typeof DashboardPartiesIndexRoute
+  DashboardPlayersIndexRoute: typeof DashboardPlayersIndexRoute
+  DashboardBillsEditIdRoute: typeof DashboardBillsEditIdRoute
+  DashboardPartiesCoalitionsIdRoute: typeof DashboardPartiesCoalitionsIdRoute
+  DashboardPartiesCoalitionsCreateRoute: typeof DashboardPartiesCoalitionsCreateRoute
+  DashboardPartiesManageIdRoute: typeof DashboardPartiesManageIdRoute
+  DashboardRevisionsEntityTypeEntityIdRoute: typeof DashboardRevisionsEntityTypeEntityIdRoute
+  DashboardPartiesCoalitionsIndexRoute: typeof DashboardPartiesCoalitionsIndexRoute
+}
+
+const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
+  DashboardAdminRoute: DashboardAdminRoute,
+  DashboardGovernmentRoute: DashboardGovernmentRoute,
+  DashboardGuideRoute: DashboardGuideRoute,
+  DashboardModerationRoute: DashboardModerationRoute,
+  DashboardNationRoute: DashboardNationRoute,
+  DashboardSocialRoute: DashboardSocialRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+  DashboardBillsBillIdRoute: DashboardBillsBillIdRoute,
+  DashboardBillsCreateRoute: DashboardBillsCreateRoute,
+  DashboardBillsHouseOfRepresentativesRoute:
+    DashboardBillsHouseOfRepresentativesRoute,
+  DashboardBillsOvalOfficeRoute: DashboardBillsOvalOfficeRoute,
+  DashboardBillsSenateRoute: DashboardBillsSenateRoute,
+  DashboardElectionsElectionIdRoute: DashboardElectionsElectionIdRoute,
+  DashboardElectionsParticipateRoute: DashboardElectionsParticipateRoute,
+  DashboardPartiesPartyIdRoute: DashboardPartiesPartyIdRoute,
+  DashboardPartiesCreateRoute: DashboardPartiesCreateRoute,
+  DashboardPartiesPrimariesRoute: DashboardPartiesPrimariesRoute,
+  DashboardPlayersPlayerIdRoute: DashboardPlayersPlayerIdRoute,
+  DashboardBillsIndexRoute: DashboardBillsIndexRoute,
+  DashboardElectionsIndexRoute: DashboardElectionsIndexRoute,
+  DashboardPartiesIndexRoute: DashboardPartiesIndexRoute,
+  DashboardPlayersIndexRoute: DashboardPlayersIndexRoute,
+  DashboardBillsEditIdRoute: DashboardBillsEditIdRoute,
+  DashboardPartiesCoalitionsIdRoute: DashboardPartiesCoalitionsIdRoute,
+  DashboardPartiesCoalitionsCreateRoute: DashboardPartiesCoalitionsCreateRoute,
+  DashboardPartiesManageIdRoute: DashboardPartiesManageIdRoute,
+  DashboardRevisionsEntityTypeEntityIdRoute:
+    DashboardRevisionsEntityTypeEntityIdRoute,
+  DashboardPartiesCoalitionsIndexRoute: DashboardPartiesCoalitionsIndexRoute,
+}
+
+const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
+  DashboardRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRouteRoute: DashboardRouteRouteWithChildren,
   AdminRoute: AdminRoute,
   LoginRoute: LoginRoute,
   ModerationRoute: ModerationRoute,
@@ -1245,9 +1364,6 @@ const rootRouteChildren: RootRouteChildren = {
   BillsHouseOfRepresentativesRoute: BillsHouseOfRepresentativesRoute,
   BillsOvalOfficeRoute: BillsOvalOfficeRoute,
   BillsSenateRoute: BillsSenateRoute,
-  DashboardGovernmentRoute: DashboardGovernmentRoute,
-  DashboardGuideRoute: DashboardGuideRoute,
-  DashboardNationRoute: DashboardNationRoute,
   ElectionsPresidentRoute: ElectionsPresidentRoute,
   ElectionsSenateRoute: ElectionsSenateRoute,
   PartiesIdRoute: PartiesIdRoute,
@@ -1256,39 +1372,15 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileIdRoute: ProfileIdRoute,
   WikiSplatRoute: WikiSplatRoute,
   BillsIndexRoute: BillsIndexRoute,
-  DashboardIndexRoute: DashboardIndexRoute,
   ElectionsIndexRoute: ElectionsIndexRoute,
   PartiesIndexRoute: PartiesIndexRoute,
   ProfileIndexRoute: ProfileIndexRoute,
   WikiIndexRoute: WikiIndexRoute,
   BillsEditIdRoute: BillsEditIdRoute,
-  DashboardBillsBillIdRoute: DashboardBillsBillIdRoute,
-  DashboardBillsCreateRoute: DashboardBillsCreateRoute,
-  DashboardBillsHouseOfRepresentativesRoute:
-    DashboardBillsHouseOfRepresentativesRoute,
-  DashboardBillsOvalOfficeRoute: DashboardBillsOvalOfficeRoute,
-  DashboardBillsSenateRoute: DashboardBillsSenateRoute,
-  DashboardElectionsElectionIdRoute: DashboardElectionsElectionIdRoute,
-  DashboardElectionsParticipateRoute: DashboardElectionsParticipateRoute,
-  DashboardPartiesPartyIdRoute: DashboardPartiesPartyIdRoute,
-  DashboardPartiesCreateRoute: DashboardPartiesCreateRoute,
-  DashboardPartiesPrimariesRoute: DashboardPartiesPrimariesRoute,
-  DashboardPlayersPlayerIdRoute: DashboardPlayersPlayerIdRoute,
   PartiesCoalitionsIdRoute: PartiesCoalitionsIdRoute,
   PartiesCoalitionsCreateRoute: PartiesCoalitionsCreateRoute,
   PartiesManageIdRoute: PartiesManageIdRoute,
-  DashboardBillsIndexRoute: DashboardBillsIndexRoute,
-  DashboardElectionsIndexRoute: DashboardElectionsIndexRoute,
-  DashboardPartiesIndexRoute: DashboardPartiesIndexRoute,
-  DashboardPlayersIndexRoute: DashboardPlayersIndexRoute,
   PartiesCoalitionsIndexRoute: PartiesCoalitionsIndexRoute,
-  DashboardBillsEditIdRoute: DashboardBillsEditIdRoute,
-  DashboardPartiesCoalitionsIdRoute: DashboardPartiesCoalitionsIdRoute,
-  DashboardPartiesCoalitionsCreateRoute: DashboardPartiesCoalitionsCreateRoute,
-  DashboardPartiesManageIdRoute: DashboardPartiesManageIdRoute,
-  DashboardRevisionsEntityTypeEntityIdRoute:
-    DashboardRevisionsEntityTypeEntityIdRoute,
-  DashboardPartiesCoalitionsIndexRoute: DashboardPartiesCoalitionsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

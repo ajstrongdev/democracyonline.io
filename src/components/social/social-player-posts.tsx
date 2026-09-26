@@ -1,6 +1,6 @@
+import { Link } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { Card, CardContent } from "@/components/ui/card";
 import { WikiEmpty, WikiSection } from "@/components/wiki/wiki-layout";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
 
@@ -16,16 +16,14 @@ export function SocialPlayerPosts({ posts }: { posts: Array<PlayerSocialPost> })
   return (
     <WikiSection title="Z.com posts" description="Recent posts shared from this player’s account.">
       {posts.length ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="divide-y border-y">
           {posts.map((post) => (
-            <Card key={post.id}>
-              <CardContent className="space-y-2 p-4">
-                <MarkdownContent content={post.content} compact />
-                <time className="block text-xs text-muted-foreground" dateTime={new Date(post.createdAt).toISOString()}>
-                  {dayjs(post.createdAt).fromNow()}
-                </time>
-              </CardContent>
-            </Card>
+            <article key={post.id} className="min-w-0 space-y-3 px-4 py-4 hover:bg-muted/20">
+              <div className="wrap-break-word text-sm leading-6"><MarkdownContent content={post.content} compact /></div>
+              <Link to="/dashboard/social" search={{ postId: post.id, commentId: undefined }} className="inline-block text-xs font-medium text-primary hover:underline" aria-label={`Open post from ${dayjs(post.createdAt).fromNow()}`}>
+                <time dateTime={new Date(post.createdAt).toISOString()}>{dayjs(post.createdAt).fromNow()}</time> · View conversation
+              </Link>
+            </article>
           ))}
         </div>
       ) : (

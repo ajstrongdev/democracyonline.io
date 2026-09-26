@@ -64,7 +64,7 @@ function PlayersIndex() {
                     <Badge variant="secondary">Archived</Badge>
                   )}
                 </div>
-                <PartyMark name={player.partyName} color={player.partyColor} />
+                <div className="min-w-0 overflow-hidden"><PartyMark name={player.partyName} color={player.partyColor} /></div>
                 <p className="line-clamp-2 text-sm text-muted-foreground">
                   {player.bio || "No biography provided."}
                 </p>

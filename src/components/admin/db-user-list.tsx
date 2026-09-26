@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
 import {
   Card,
@@ -57,7 +58,7 @@ export default function DBUserList({
       setUserToDelete(null);
     } catch (error) {
       console.error("Error purging user:", error);
-      alert("Failed to purge user");
+      toast.error("Failed to purge user");
     } finally {
       setLoading(false);
     }

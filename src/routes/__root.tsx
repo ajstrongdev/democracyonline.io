@@ -7,7 +7,6 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
-import { ThemeProvider } from "@ajstrongdev/start-themes";
 import { Toaster } from "sonner";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
@@ -16,13 +15,14 @@ import type { User } from "firebase/auth";
 import {
   getThemeClasses,
   getThemeServerFn,
-  setThemeServerFn,
+  themes,
 } from "@/lib/server/theme";
 import { NotFound } from "@/components/not-found";
 import { WikiNavigation } from "@/components/wiki/wiki-header";
 import { getAuthRedirect } from "@/lib/auth-guard";
 import { auth } from "@/lib/firebase";
 import { getSessionUser } from "@/lib/server/session";
+import { AppThemeProvider, useAppTheme } from "@/components/app-theme-provider";
 
 type AuthContext = {
   user: User | null;
@@ -97,18 +97,21 @@ function RootLayout() {
   const { theme } = Route.useLoaderData();
 
   return (
-    <ThemeProvider
-      theme={theme}
-      onThemeChange={(t) => setThemeServerFn({ data: t })}
-    >
+    <AppThemeProvider initialTheme={theme}>
       <div className="flex min-h-svh flex-col">
         <WikiNavigation />
         <div className="flex flex-1 flex-col">
           <Outlet />
         </div>
+        <ThemedToaster />
       </div>
-    </ThemeProvider>
+    </AppThemeProvider>
   );
+}
+
+function ThemedToaster() {
+  const { theme } = useAppTheme();
+  return <Toaster position="bottom-right" theme={themes.find((item) => item.id === theme)?.isDark ? "dark" : "light"} richColors />;
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
@@ -120,15 +123,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         {children}
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            classNames: {
-              success:
-                "bg-green-50 dark:bg-green-950 text-green-900 dark:text-green-50 border-green-200 dark:border-green-800",
-            },
-          }}
-        />
         <TanStackDevtools
           config={{
             position: "bottom-right",

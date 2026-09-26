@@ -145,7 +145,7 @@ export function AccountSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:rounded-2xl">
+      <DialogContent className="flex max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 data-[state=open]:animate-none data-[state=closed]:animate-none sm:rounded-2xl">
         <DialogHeader className="shrink-0 border-b bg-muted/30 px-5 py-5 text-left sm:px-7">
           <DialogTitle className="font-serif text-2xl">Account settings</DialogTitle>
           <DialogDescription>Manage your player profile and account.</DialogDescription>
@@ -155,7 +155,7 @@ export function AccountSettingsDialog({
         ) : !player ? (
           <p className="p-8 text-sm text-muted-foreground">Your player profile is unavailable.</p>
         ) : (
-          <Tabs defaultValue={initialTab} className="min-h-0 flex-1 gap-0 overflow-hidden">
+          <Tabs key={initialTab} defaultValue={initialTab} className="min-h-0 flex-1 gap-0 overflow-hidden">
             <div className="flex items-center gap-3 border-b px-5 py-4 sm:px-7">
               <PlayerAvatar username={player.username} photoUrl={player.photoUrl} className="size-12" />
               <div className="min-w-0">
@@ -185,7 +185,8 @@ export function AccountSettingsDialog({
                       <Label htmlFor="settings-bio">Bio</Label>
                       <ReferenceInsert textareaId="settings-bio" value={bio} onChange={setBio} />
                     </div>
-                    <Textarea id="settings-bio" value={bio} onChange={(event) => setBio(event.target.value)} required rows={4} />
+                    <Textarea id="settings-bio" value={bio} onChange={(event) => setBio(event.target.value)} maxLength={1000} required rows={4} />
+                    <p className="text-xs text-muted-foreground">{bio.length}/1000 characters</p>
                   </div>
                   <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
                     <div className="flex items-center justify-between gap-2">

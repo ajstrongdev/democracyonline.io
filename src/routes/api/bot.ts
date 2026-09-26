@@ -35,7 +35,8 @@ export const Route = createFileRoute("/api/bot")({
                     partyId: users.partyId,
                     politicalLeaning: users.politicalLeaning,
                     isActive: users.isActive,
-                    lastActivity: users.lastActivity,
+                    lastSeenAt: users.lastSeenAt,
+                    archivedAt: users.archivedAt,
                     partyName: parties.name,
                     partyColor: parties.color,
                   })
@@ -68,7 +69,8 @@ export const Route = createFileRoute("/api/bot")({
                     partyId: users.partyId,
                     politicalLeaning: users.politicalLeaning,
                     isActive: users.isActive,
-                    lastActivity: users.lastActivity,
+                    lastSeenAt: users.lastSeenAt,
+                    archivedAt: users.archivedAt,
                     partyName: parties.name,
                     partyColor: parties.color,
                   })

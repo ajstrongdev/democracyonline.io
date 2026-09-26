@@ -1,6 +1,19 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@keyframes workspace-page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.workspace-page {
+  animation: workspace-page-enter 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-page { animation: none; }
+}
+
 @layer components {
   .wiki-page {
     font-family: var(--font-sans);

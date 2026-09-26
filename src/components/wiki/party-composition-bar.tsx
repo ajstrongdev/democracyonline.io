@@ -30,10 +30,12 @@ export function PartyCompositionBar({
         .map((group) => (
           <div
             key={group.name}
-            className="min-w-1 border-r border-background/70 last:border-r-0"
+            className="min-w-[3px] border-r border-background/70 last:border-r-0"
             style={{
-              width: `${(group.count / total) * 100}%`,
+              flexGrow: group.count,
+              flexBasis: 0,
               backgroundColor: group.color,
+              backgroundImage: group.name === "Independent" ? "repeating-linear-gradient(135deg, transparent 0 4px, rgba(255,255,255,.35) 4px 7px)" : undefined,
             }}
             title={`${group.name}: ${group.count}`}
           />

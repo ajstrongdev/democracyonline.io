@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { AlertCircle, Crown, Trophy, Users, Vote } from "lucide-react";
 import {
@@ -88,7 +89,7 @@ function PrimariesPage() {
       await declarePrimaryCandidate();
       router.invalidate();
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error instanceof Error ? error.message : "Could not declare candidacy");
     } finally {
       setIsSubmitting(false);
     }
@@ -103,7 +104,7 @@ function PrimariesPage() {
       setShowWithdrawDialog(false);
       router.invalidate();
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error instanceof Error ? error.message : "Could not withdraw candidacy");
     } finally {
       setIsSubmitting(false);
       setEndorseCandidateId(null);
@@ -117,7 +118,7 @@ function PrimariesPage() {
       await voteInPrimary({ data: { candidateId: selectedCandidateId } });
       router.invalidate();
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error instanceof Error ? error.message : "Could not cast vote");
     } finally {
       setIsSubmitting(false);
       setSelectedCandidateId(null);

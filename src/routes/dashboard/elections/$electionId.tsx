@@ -123,6 +123,11 @@ function ElectionArticle() {
         <WikiStat label="Ranked points" value={totalPoints} />
         <WikiStat label="Seats" value={election.seats ?? 1} />
       </WikiStatGrid>
+      {election.election === "Senate" && (election.seats ?? 1) > candidates.length && (
+        <p className="border-l-2 border-primary bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          {election.seats} seats are available; {candidates.length} {candidates.length === 1 ? "candidate is" : "candidates are"} listed. Seat availability does not guarantee enough candidates to fill them.
+        </p>
+      )}
       <WikiArticleSection
         entityType="election"
         entityId={entityId}

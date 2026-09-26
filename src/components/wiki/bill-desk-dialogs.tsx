@@ -1,6 +1,8 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { CheckCircle2, ScrollText, XCircle } from "lucide-react";
+import { toast } from "sonner";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MessageDialog } from "@/components/message-dialog";
 import { PartyCompositionBar } from "@/components/wiki/party-composition-bar";
 import { createBill } from "@/lib/server/bills";
+import { dashboardComposeEvent } from "@/lib/dashboard-commands";
 import { hasVotedOnHouseBill, voteOnHouseBill } from "@/lib/server/house-bills";
 import {
   hasVotedOnPresidentialBill,
@@ -55,9 +58,13 @@ export type BillDeskData = Record<
 export function NewBillDialog({
   userId,
   autoOpen = false,
+  trigger,
+  dashboardCommand = false,
 }: {
   userId: number | null | undefined;
   autoOpen?: boolean;
+  trigger?: ReactNode;
+  dashboardCommand?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(autoOpen);
@@ -65,6 +72,13 @@ export function NewBillDialog({
   const [content, setContent] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!dashboardCommand) return;
+    const openComposer = (event: Event) => { event.preventDefault(); setOpen(true); };
+    window.addEventListener(dashboardComposeEvent.bill, openComposer);
+    return () => window.removeEventListener(dashboardComposeEvent.bill, openComposer);
+  }, [dashboardCommand]);
 
   const submit = async () => {
     if (!userId) return setError("Sign in to draft a bill.");
@@ -86,6 +100,7 @@ export function NewBillDialog({
       setContent("");
       setOpen(false);
       await router.invalidate();
+      toast.success("Bill submitted to the Senate Committee");
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Could not create bill",
@@ -98,7 +113,7 @@ export function NewBillDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">Draft a bill</Button>
+        {trigger ?? <Button size="sm">Draft a bill</Button>}
       </DialogTrigger>
       <DialogContent className="max-h-[90svh] overflow-y-auto rounded-sm sm:max-w-2xl">
         <DialogHeader className="border-b pb-4">

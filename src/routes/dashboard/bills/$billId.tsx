@@ -1,4 +1,6 @@
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Check, Clock3, Megaphone, X } from "lucide-react";
 import {
   BillStageCountdown,
@@ -25,13 +27,16 @@ import { CommitteeOutcome } from "@/components/wiki/committee-outcome";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
 import { BillComments } from "@/components/bills/bill-comments";
 import { getBillComments, getBillWhips } from "@/lib/server/bill-comments";
+import { getCurrentUserInfo } from "@/lib/server/users";
+import { reviveDefeatedBill } from "@/lib/server/bills";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/dashboard/bills/$billId")({
   loader: async ({ params }) => {
     const id = Number(params.billId);
     if (!Number.isInteger(id))
       throw new Response("Bill not found", { status: 404 });
-    const [billData, article, committee, comments, whipData] =
+    const [billData, article, committee, comments, whipData, currentUser] =
       await Promise.all([
         getWikiBill({ data: { id } }),
         getWikiArticle({
@@ -40,18 +45,35 @@ export const Route = createFileRoute("/dashboard/bills/$billId")({
         getCommitteeData({ data: { billId: id } }),
         getBillComments({ data: { billId: id } }),
         getBillWhips({ data: { billId: id } }),
+        getCurrentUserInfo(),
       ]);
     if (!billData) throw new Response("Bill not found", { status: 404 });
-    return { billData, article, committee, comments, whipData };
+    return { billData, article, committee, comments, whipData, currentUser };
   },
   component: BillArticle,
 });
 
 function BillArticle() {
-  const { billData, article, committee, comments, whipData } =
+  const { billData, article, committee, comments, whipData, currentUser } =
     Route.useLoaderData();
   const { bill, rollCalls } = billData;
   const router = useRouter();
+  const [reviveOpen, setReviveOpen] = useState(false);
+  const [reviving, setReviving] = useState(false);
+  const revive = async () => {
+    setReviving(true);
+    try {
+      const created = await reviveDefeatedBill({ data: { billId: bill.id } });
+      setReviveOpen(false);
+      await router.navigate({ to: "/dashboard/bills/$billId", params: { billId: String(created.id) } });
+      await router.invalidate();
+      toast.success("Bill resubmitted for a new review");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not resubmit bill");
+    } finally {
+      setReviving(false);
+    }
+  };
   return (
     <WikiPage width="article">
       <WikiHeader
@@ -65,7 +87,22 @@ function BillArticle() {
             <a href="#party-guidance"><Megaphone className="size-4" /> Party voting guidance</a>
           </Button>
         )}
+        {bill.status === "Defeated" && currentUser?.id === bill.creatorId && (
+          <Button size="sm" onClick={() => setReviveOpen(true)}>Revive this bill</Button>
+        )}
       </WikiHeader>
+      <Dialog open={reviveOpen} onOpenChange={setReviveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resubmit this bill?</DialogTitle>
+            <DialogDescription>The defeated bill stays in the archive. A new bill with the same text starts a fresh review and vote.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={reviving} onClick={() => setReviveOpen(false)}>Cancel</Button>
+            <Button disabled={reviving} onClick={revive}>{reviving ? "Resubmitting…" : "Revive bill"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <WikiArticleSection
           entityType="bill"

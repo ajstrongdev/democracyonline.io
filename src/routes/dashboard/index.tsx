@@ -1,13 +1,13 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import {
-  Activity,
   ArrowRight,
   BellRing,
   CheckCircle2,
   ClipboardCheck,
+  Crown,
   Flag,
   History,
   Landmark,
@@ -16,14 +16,21 @@ import {
   MessageSquareText,
   Radio,
   ScrollText,
-  ShieldCheck,
   Users,
   Vote,
 } from "lucide-react";
+import type { getDashboardData } from "@/lib/server/dashboard";
 import {
+  CompactCandidacyStatus,
+  DashboardElectionBallot,
   DashboardElectionHub,
+  canDeclareNationalCandidacy,
   isElectionNightActive,
 } from "@/components/dashboard-election-hub";
+import { DashboardActionDeadline } from "@/components/dashboard-action-deadline";
+import { DashboardPrimaryAction } from "@/components/dashboard-primary-action";
+import { DashboardSocialPostDialog } from "@/components/dashboard-social-post-dialog";
+import { NewBillDialog } from "@/components/wiki/bill-desk-dialogs";
 import { WikiHeader } from "@/components/wiki/wiki-header";
 import {
   WikiEmpty,
@@ -32,19 +39,18 @@ import {
   WikiStat,
   WikiStatGrid,
 } from "@/components/wiki/wiki-layout";
-import { getDashboardData } from "@/lib/server/dashboard";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { ZNotifications } from "@/components/social/z-notifications";
 import { Button } from "@/components/ui/button";
 import { AccountSettingsDialog } from "@/components/settings/account-settings-dialog";
 import { getFeedItems } from "@/lib/server/feed";
 import { getFeedDestination } from "@/lib/feed-destination";
+import { DashboardBillVoteAction } from "@/components/dashboard-bill-vote-action";
 
 dayjs.extend(relativeTime);
 
 export const Route = createFileRoute("/dashboard/")({
-  loader: () => getDashboardData(),
-  component: Dashboard,
+  component: () => null,
 });
 
 function LiveLabel() {
@@ -66,25 +72,38 @@ function formatGreetingRole(role: string | null | undefined) {
   return role ?? "Citizen";
 }
 
-function Dashboard() {
+export function DashboardContent({ data }: { data: Awaited<ReturnType<typeof getDashboardData>> }) {
+  const router = useRouter();
   const {
     currentUser,
     pendingBillVotes,
     pendingCommitteeAssessments,
+    primaryActions,
     zMentionSummary,
     activity,
     electionDashboard,
     counts,
-    nation,
-  } = Route.useLoaderData();
+    recentBills,
+  } = data;
+  const electionVotes = currentUser?.active
+    ? electionDashboard.races.filter((race) => race.status === "VOTING" && !race.player.hasVoted && race.candidates.length > 0)
+    : [];
+  const nationalCandidacies = currentUser?.active
+    ? electionDashboard.races.filter((race) => canDeclareNationalCandidacy(race, electionDashboard.races, currentUser))
+    : [];
   const actionCount =
-    pendingBillVotes.length + pendingCommitteeAssessments.length;
+    pendingBillVotes.length + pendingCommitteeAssessments.length + Number(primaryActions.stand) + Number(primaryActions.vote) + electionVotes.length + nationalCandidacies.length;
   const electionNight = isElectionNightActive(electionDashboard);
   const [activityItems, setActivityItems] = useState(() => activity.slice(0, 6));
   const [hasMoreActivity, setHasMoreActivity] = useState(activity.length > 6);
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [activityError, setActivityError] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+
+  useEffect(() => {
+    setActivityItems(activity.slice(0, 6));
+    setHasMoreActivity(activity.length > 6);
+  }, [activity]);
 
   const loadMoreActivity = async () => {
     if (loadingActivity) return;
@@ -120,47 +139,27 @@ function Dashboard() {
             ? `Welcome back, ${formatGreetingRole(currentUser.role)} ${currentUser.username}`
             : "Welcome to Oscana."
         }
-        description={
-          currentUser
-            ? electionNight
-              ? "Election night is underway. Watch the results roll in below."
-              : `Everything at a glance, welcome to your office ${currentUser.role}!`
-            : "Everything at a glance, welcome to Oscana!"
-        }
+        description={currentUser ? (actionCount ? `You have ${actionCount} ${actionCount === 1 ? "action" : "actions"} to take. Start below.` : "You're caught up. Explore what's happening in Oscana below.") : "See what's happening and learn how to play."}
         status={!electionNight ? <LiveLabel /> : undefined}
       >
         {currentUser && (
           <WikiStatGrid>
             <WikiStat label="Office" value={currentUser.role ?? "Citizen"} />
-            <WikiStat
-              label="Party"
-              value={currentUser.partyName ?? "Independent"}
-              detail={currentUser.politicalLeaning ?? undefined}
-            />
-            <WikiStat label="Pending actions" value={actionCount} />
-            <WikiStat
-              label="Player record"
-              value={
-                <Link
-                  to="/dashboard/players/$playerId"
-                  params={{ playerId: String(currentUser.id) }}
-                  className="text-primary hover:underline"
-                >
-                  View profile
-                </Link>
-              }
-            />
+            <WikiStat label="Party" value={currentUser.partyName ?? "Independent"} detail={currentUser.politicalLeaning ?? undefined} />
+            <WikiStat label="Pending actions" value={<a href="#next-moves" className="text-primary hover:underline">{actionCount}</a>} />
+            <WikiStat label="Player record" value={
+              <Link to="/dashboard/players/$playerId" params={{ playerId: String(currentUser.id) }} className="text-primary hover:underline">View profile</Link>
+            } />
           </WikiStatGrid>
         )}
       </WikiHeader>
 
-      {(currentUser || nation) && (
-        <div className="grid items-stretch gap-6 md:grid-cols-2">
-          {currentUser && (
-            <WikiSection
-              title="Game notifications"
-              icon={BellRing}
-              description="Game actions that need your attention."
+      {currentUser && (
+        <div id="next-moves" className="grid scroll-mt-20 items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(19rem,1fr)]">
+             <WikiSection
+               title="Your next moves"
+               icon={BellRing}
+               description="Only the decisions waiting for you. Finished actions disappear."
               className="flex h-full flex-col [&>.wiki-section-content]:flex-1"
               aside={
                 <span className="font-mono text-xs text-muted-foreground">
@@ -170,27 +169,47 @@ function Dashboard() {
             >
               {actionCount ? (
                 <div className="divide-y border-y">
-                  {pendingBillVotes.map((bill) => (
-                    <Link
-                      key={`bill-${bill.id}`}
-                      to={bill.route}
-                      search={{ desk: bill.stage }}
-                      className="group flex flex-col gap-3 px-3 py-4 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:px-4"
+                  {primaryActions.stand && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+                      <span className="space-y-1"><span className="block font-semibold">Stand in your presidential primary</span><DashboardActionDeadline deadline={primaryActions.deadline} onExpire={() => void router.invalidate()} /></span>
+                      <DashboardPrimaryAction />
+                    </div>
+                  )}
+                  {primaryActions.vote && (
+                    <Link to="/dashboard/parties/primaries" className="flex items-center justify-between gap-3 px-4 py-4 hover:bg-muted/30">
+                      <span className="space-y-1"><span className="block font-semibold">Vote in your presidential primary</span><DashboardActionDeadline deadline={primaryActions.deadline} onExpire={() => void router.invalidate()} /></span>
+                      <span className="text-sm font-semibold text-primary">Vote now →</span>
+                    </Link>
+                  )}
+                  {nationalCandidacies.map((race) => (
+                    <div key={`declare-${race.election}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+                      <span className="space-y-1"><span className="flex items-center gap-2 font-semibold">{race.election === "Senate" ? <Landmark className="size-4 shrink-0 text-primary" /> : <Crown className="size-4 shrink-0 text-primary" />} Stand in the {race.election} election</span><DashboardActionDeadline deadline={race.timestamps.candidacyEndsAt} onExpire={() => void router.invalidate()} /></span>
+                      <CompactCandidacyStatus race={race} races={electionDashboard.races} currentUser={currentUser} onActionComplete={() => void router.invalidate()} />
+                    </div>
+                  ))}
+                  {electionVotes.map((race) => (
+                    <div key={race.election} className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+                      <span className="space-y-1"><span className="block font-semibold">Vote in the {race.election} election</span><DashboardActionDeadline deadline={race.timestamps.votingEndsAt} onExpire={() => void router.invalidate()} /></span>
+                      <DashboardElectionBallot race={race} currentUser={currentUser} onActionComplete={() => void router.invalidate()} />
+                    </div>
+                  ))}
+                   {pendingBillVotes.map((bill) => (
+                     <div
+                       key={`bill-${bill.id}`}
+                       className="flex flex-col gap-3 px-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-4"
                     >
                       <div className="flex min-w-0 gap-3">
                         <Vote className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                         <div className="min-w-0">
-                          <p className="font-semibold">Vote on {bill.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            A vote is waiting in the {bill.chamber}.
-                          </p>
+                           <Link to="/dashboard/bills/$billId" params={{ billId: String(bill.id) }} className="font-semibold text-primary hover:underline">Vote on {bill.title}</Link>
+                           <p className="text-sm text-muted-foreground">
+                             A vote is waiting in the {bill.chamber}.
+                           </p>
+                           <DashboardActionDeadline deadline={bill.stageEndsAt} onExpire={() => void router.invalidate()} />
                         </div>
                       </div>
-                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
-                        Go to chamber
-                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                      </span>
-                    </Link>
+                       <DashboardBillVoteAction billId={bill.id} title={bill.title} stage={bill.stage} userId={currentUser.id} />
+                     </div>
                   ))}
                   {pendingCommitteeAssessments.map((bill) => (
                     <Link
@@ -203,10 +222,11 @@ function Dashboard() {
                         <ClipboardCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                         <div className="min-w-0">
                           <p className="font-semibold">Assess {bill.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            The Senate Committee is waiting for your assessment
-                            of this bill's national effects.
-                          </p>
+                           <p className="text-sm text-muted-foreground">
+                             The Senate Committee is waiting for your assessment
+                             of this bill's national effects.
+                           </p>
+                           <DashboardActionDeadline deadline={bill.stageEndsAt} onExpire={() => void router.invalidate()} />
                         </div>
                       </div>
                       <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
@@ -219,174 +239,91 @@ function Dashboard() {
               ) : (
                 <div className="flex items-center gap-3 border border-dashed px-4 py-6 text-sm text-muted-foreground">
                   <CheckCircle2 className="h-5 w-5 text-primary" />
-                  You are caught up. New legislative actions will appear here.
+                   You are caught up. New game actions will appear here.
                 </div>
               )}
-            </WikiSection>
-          )}
+             </WikiSection>
 
-          {currentUser && (
-            <WikiSection
-              title="Z.com notifications"
-              icon={MessageSquareText}
-              description="Mentions across the social accounts you control."
-              className="flex h-full flex-col [&>.wiki-section-content]:flex-1"
+              <WikiSection
+                title="Your notifications"
+               icon={MessageSquareText}
+               description="Mentions across accounts you control."
+                className="flex h-full flex-col [&>.wiki-section-content]:flex-1"
             >
               <ZNotifications initialPage={zMentionSummary} />
-            </WikiSection>
-          )}
+              </WikiSection>
 
-          {nation && (
-            <WikiSection
-              title="National health"
-              icon={Landmark}
-              description={`A snapshot of ${nation.name} across three headline measures.`}
-              className="flex h-full flex-col [&>.wiki-section-content]:flex-1 md:col-span-2"
-              aside={
-                <Link
-                  to="/dashboard/nation"
-                  className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
-                >
-                  Explore <ArrowRight className="h-4 w-4" />
-                </Link>
-              }
-            >
-              <Link to="/dashboard/nation" className="group block">
-                <div className="grid overflow-hidden border bg-card md:grid-cols-3 md:divide-x">
-                  <NationPulse
-                    label="Civil rights"
-                    value={nation.civilRights}
-                    icon={ShieldCheck}
-                  />
-                  <NationPulse
-                    label="Economy"
-                    value={nation.economy}
-                    icon={Activity}
-                  />
-                  <NationPulse
-                    label="Political freedoms"
-                    value={nation.politicalFreedoms}
-                    icon={Landmark}
-                  />
-                </div>
-              </Link>
-            </WikiSection>
-          )}
-        </div>
-      )}
+         </div>
+        )}
 
-      <DashboardElectionHub
-        initialData={electionDashboard}
-        currentUser={currentUser}
-      />
+      <div className={currentUser?.active ? "grid items-stretch gap-6 lg:grid-cols-2" : ""}>
+        {currentUser?.active && (
+        <WikiSection title="Take initiative" icon={Vote} description="Start something new without leaving your dashboard." className="h-full">
+          <div className="grid gap-px overflow-hidden border-y bg-border">
+            <NewBillDialog userId={currentUser.id} dashboardCommand trigger={
+              <button type="button" className="group flex min-h-24 min-w-0 items-start gap-3 bg-card px-4 py-4 text-left transition-colors hover:bg-muted/50 sm:px-5">
+                <ScrollText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+                <span className="min-w-0 flex-1"><span className="block font-semibold">Draft a bill</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">Submit a proposal to the Senate Committee.</span></span>
+                <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
+              </button>
+            } />
+            <DashboardSocialPostDialog user={currentUser} />
+          </div>
+        </WikiSection>
+        )}
 
-      <WikiSection
-        title="Quick access"
-        icon={Users}
-        description="Explore government, daily tools, and public records."
-      >
-        <nav className="grid gap-px overflow-hidden border-y bg-border sm:grid-cols-2 lg:grid-cols-3">
+      <WikiSection title="Explore Oscana" icon={Users} description="Browse the community and learn how the game works." className="h-full">
+        <nav aria-label="Explore Oscana" className="grid gap-px overflow-hidden border-y bg-border sm:grid-cols-2">
           {[
-            {
-              to: "/social",
-              title: "Z.com",
-              description: "Post updates, reply, like, and repost across the community.",
-              icon: MessageSquareText,
-            },
-            {
-              to: "/dashboard/bills",
-              title: "Bills",
-              description: "Legislation and roll-call records.",
-              count: counts.bills,
-              icon: ScrollText,
-            },
-            {
-              to: "/dashboard/nation",
-              title: "Nation",
-              description: "National profile and current state.",
-              icon: Flag,
-            },
-            {
-              to: "/dashboard/parties",
-              title: "Parties",
-              description: "Party histories and representation.",
-              count: counts.parties,
-              icon: Vote,
-            },
-            {
-              to: "/dashboard/elections",
-              title: "Election Archive",
-              description: "National races and certified results.",
-              count: counts.elections,
-              icon: Landmark,
-            },
-            {
-              to: "/dashboard/government",
-              title: "Historical Composition",
-              description: "How the composition of government has changed.",
-              icon: History,
-            },
-            {
-              to: "/dashboard/players",
-              title: "Players",
-              description: "Officeholders, candidates, and their records.",
-              count: counts.players,
-              icon: Users,
-            },
-            {
-              to: "/dashboard/guide",
-              title: "Player Guide",
-              description: "A plain-language guide to getting started and taking part.",
-              icon: LifeBuoy,
-            },
-          ].map(({ to, title, description, count, icon: Icon }) => (
-            <Link
-              key={to}
-              to={to}
-              className="group flex min-h-24 min-w-0 items-start gap-3 bg-card px-4 py-4 transition-colors hover:bg-muted/50 sm:px-5"
-            >
-              <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+            { to: "/dashboard/social", title: "Z.com", description: "Join the public conversation.", icon: MessageSquareText },
+            { to: "/dashboard/parties", title: "Parties", description: "Find your political home.", icon: Vote, count: counts.parties },
+            { to: "/dashboard/players", title: "Players", description: "Meet the people shaping Oscana.", icon: Users, count: counts.players },
+            { to: "/dashboard/guide", title: "Player guide", description: "How to take part and get started.", icon: LifeBuoy },
+          ].map(({ to, title, description, icon: Icon, count }) => (
+            <Link key={to} to={to} search={to === "/dashboard/social" ? { postId: undefined, commentId: undefined } : undefined} className="group flex min-h-24 min-w-0 items-start gap-3 bg-card px-4 py-4 transition-colors hover:bg-muted/50 sm:px-5">
+              <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
               <span className="min-w-0 flex-1">
-                <span className="flex items-center justify-between gap-2">
-                  <span className="font-semibold">{title}</span>
-                  {count !== undefined && (
-                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                      {count}
-                    </span>
-                  )}
-                </span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {description}
-                </span>
+                <span className="flex items-center justify-between gap-2"><span className="font-semibold">{title}</span>{count !== undefined && <span className="font-mono text-xs text-muted-foreground">{count}</span>}</span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
               </span>
-              <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
+              <ArrowRight className="mt-0.5 size-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
             </Link>
           ))}
-          {currentUser && (
-            <button
-              type="button"
-              onClick={() => setInviteOpen(true)}
-              className="group flex min-h-24 min-w-0 items-start gap-3 bg-card px-4 py-4 text-left transition-colors hover:bg-muted/50 sm:px-5"
-            >
-              <MailPlus className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
-              <span className="min-w-0 flex-1">
-                <span className="font-semibold">Invite</span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  Create a link to invite a new player.
-                </span>
-              </span>
-              <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
-            </button>
-          )}
         </nav>
-        {currentUser && (
-          <AccountSettingsDialog
-            open={inviteOpen}
-            onOpenChange={setInviteOpen}
-            initialTab="invites"
-          />
-        )}
+        <details className="mt-4 border-t pt-3 text-sm">
+          <summary className="cursor-pointer font-semibold text-primary">More records and tools</summary>
+          <nav aria-label="More records and tools" className="mt-3 flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline"><Link to="/dashboard/nation"><Flag className="size-4" /> Nation</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/dashboard/government"><History className="size-4" /> Government history</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/dashboard/elections"><Landmark className="size-4" /> Election archive</Link></Button>
+            {currentUser && <Button type="button" size="sm" variant="outline" onClick={() => setInviteOpen(true)}><MailPlus className="size-4" /> Invite a player</Button>}
+          </nav>
+        </details>
+        {currentUser && <AccountSettingsDialog open={inviteOpen} onOpenChange={setInviteOpen} initialTab="invites" />}
       </WikiSection>
+      </div>
+
+      <div className={electionNight ? "space-y-6" : "grid items-start gap-6 lg:grid-cols-2"}>
+        <WikiSection
+          title="Bill status"
+          icon={ScrollText}
+          description="Where current proposals stand. Your votes appear above."
+          aside={<Link to="/dashboard/bills" className="text-sm font-semibold text-primary hover:underline">All bills</Link>}
+        >
+          {recentBills.length ? (
+            <div className="divide-y border-y">
+              {recentBills.map((bill) => (
+                <Link key={bill.id} to="/dashboard/bills/$billId" params={{ billId: String(bill.id) }} className="flex min-w-0 items-center justify-between gap-3 px-4 py-2 text-sm hover:bg-muted/30">
+                  <span className="min-w-0 truncate">#{bill.id} {bill.title}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{bill.status} · {bill.stage}</span>
+                </Link>
+              ))}
+            </div>
+          ) : <WikiEmpty>No bills yet.</WikiEmpty>}
+        </WikiSection>
+
+        <DashboardElectionHub initialData={electionDashboard} currentUser={currentUser} actionsInQueue />
+      </div>
 
       <WikiSection
         title="Latest activity"
@@ -432,40 +369,7 @@ function Dashboard() {
           </div>
         </div>
       </WikiSection>
+
     </WikiPage>
-  );
-}
-
-function NationPulse({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value: number;
-  icon: typeof Activity;
-}) {
-  const description =
-    value >= 70 ? "Strong" : value >= 40 ? "Developing" : "Under pressure";
-
-  return (
-    <div className="p-4 transition-colors group-hover:bg-muted/30 sm:p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="wiki-kicker">{label}</p>
-          <p className="mt-1 font-serif text-3xl font-bold">
-            {Math.round(value)}
-          </p>
-        </div>
-        <Icon className="h-5 w-5 text-primary" />
-      </div>
-      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full bg-primary transition-[width]"
-          style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
-        />
-      </div>
-      <p className="mt-2 text-xs text-muted-foreground">{description}</p>
-    </div>
   );
 }

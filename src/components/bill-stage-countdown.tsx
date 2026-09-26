@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useState } from "react";
+import { DeadlineTooltip } from "@/components/deadline-tooltip";
 
 /**
  * Display label for a bill status. The database value stays "Committee" —
@@ -90,8 +91,8 @@ export function BillStageCountdown({
   if (remaining === null) return null;
 
   return (
-    <span className="font-mono tabular-nums" aria-live="off">
-      {formatRemaining(remaining)}
-    </span>
+    <DeadlineTooltip target={target}>
+      <span className="font-mono tabular-nums" aria-live="off">{formatRemaining(remaining)}</span>
+    </DeadlineTooltip>
   );
 }

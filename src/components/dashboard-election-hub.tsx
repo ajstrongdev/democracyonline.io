@@ -42,7 +42,17 @@ type CurrentUser = {
   role: string | null;
   partyId: number | null;
   partyName: string | null;
+  active?: boolean | null;
 } | null;
+
+export function canDeclareNationalCandidacy(race: Race, races: CurrentElectionDashboard["races"], currentUser: CurrentUser) {
+  if (!currentUser || currentUser.active === false || currentUser.active === null || race.status !== "CANDIDACY" || race.player.isCandidate) return false;
+  if (race.election === "President" && currentUser.partyId) return false;
+  if (races.some((other) => other.election !== race.election && other.player.isCandidate)) return false;
+  if (race.election === "Senate" && (race.player.isPrimaryCandidate || currentUser.role === "President")) return false;
+  if (race.election === "President" && currentUser.role === "Senator") return false;
+  return true;
+}
 
 export function isElectionNightActive(data: CurrentElectionDashboard) {
   return data.races.some((race) => race.status === "ELECTION_NIGHT");
@@ -95,9 +105,11 @@ function toBallotCandidate(race: Race, candidate: Race["candidates"][number]) {
 export function DashboardElectionHub({
   initialData,
   currentUser,
+  actionsInQueue = false,
 }: {
   initialData: CurrentElectionDashboard;
   currentUser: CurrentUser;
+  actionsInQueue?: boolean;
 }) {
   const router = useRouter();
   const [data, setData] = useState(initialData);
@@ -180,7 +192,8 @@ export function DashboardElectionHub({
               race={race}
               races={data.races}
               timing={data.timing}
-              currentUser={currentUser}
+               currentUser={currentUser}
+               actionsInQueue={actionsInQueue}
               onRefresh={() => void refresh()}
               onActionComplete={() => void router.invalidate()}
             />
@@ -217,7 +230,8 @@ export function DashboardElectionHub({
               race={race}
               races={data.races}
               timing={data.timing}
-              currentUser={currentUser}
+               currentUser={currentUser}
+               actionsInQueue={actionsInQueue}
               onRefresh={() => void refresh()}
               onActionComplete={() => void router.invalidate()}
             />
@@ -233,6 +247,7 @@ function CompactRaceRow({
   races,
   timing,
   currentUser,
+  actionsInQueue,
   onRefresh,
   onActionComplete,
 }: {
@@ -240,6 +255,7 @@ function CompactRaceRow({
   races: CurrentElectionDashboard["races"];
   timing: CurrentElectionDashboard["timing"];
   currentUser: CurrentUser;
+  actionsInQueue: boolean;
   onRefresh: () => void;
   onActionComplete: () => void;
 }) {
@@ -276,6 +292,7 @@ function CompactRaceRow({
               race={race}
               races={races}
               currentUser={currentUser}
+              actionsInQueue={actionsInQueue}
               onActionComplete={onActionComplete}
             />
           )}
@@ -283,6 +300,7 @@ function CompactRaceRow({
             <CompactVotingStatus
               race={race}
               currentUser={currentUser}
+              actionsInQueue={actionsInQueue}
               onActionComplete={onActionComplete}
             />
           )}
@@ -336,29 +354,30 @@ function CompactRaceRow({
   );
 }
 
-function CompactCandidacyStatus({
+export function CompactCandidacyStatus({
   race,
   races,
   currentUser,
   onActionComplete,
+  actionsInQueue = false,
 }: {
   race: Race;
   races: CurrentElectionDashboard["races"];
   currentUser: CurrentUser;
   onActionComplete: () => void;
+  actionsInQueue?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const partyPrimary =
     race.election === "President" && Boolean(currentUser?.partyId);
-  const candidateElsewhere = races.some(
-    (other) => other.election !== race.election && other.player.isCandidate,
-  );
-  const primaryElsewhere =
-    race.election === "Senate" && race.player.isPrimaryCandidate;
+  const eligible = canDeclareNationalCandidacy(race, races, currentUser);
   const roleBlocked =
     (race.election === "Senate" && currentUser?.role === "President") ||
     (race.election === "President" && currentUser?.role === "Senator");
+  const candidateElsewhere = races.some(
+    (other) => other.election !== race.election && other.player.isCandidate,
+  );
 
   const declare = async () => {
     setSubmitting(true);
@@ -409,20 +428,27 @@ function CompactCandidacyStatus({
             {submitting ? "Withdrawing..." : "Withdraw"}
           </Button>
         </>
+      ) : currentUser && roleBlocked ? (
+        <p className="text-xs text-muted-foreground">
+          You cannot stand in the {race.election === "Senate" ? "Senate" : "presidential"} election while serving as {currentUser.role}.
+        </p>
+      ) : currentUser && !currentUser.active && currentUser.active !== undefined ? (
+        <p className="text-xs text-muted-foreground">Only active players can stand in elections.</p>
+      ) : candidateElsewhere ? (
+        <p className="text-xs text-muted-foreground">You are already standing in another national election.</p>
+      ) : race.election === "Senate" && race.player.isPrimaryCandidate ? (
+        <p className="text-xs text-muted-foreground">You are already standing in the presidential primary.</p>
       ) : partyPrimary ? (
-        <Link
-          to="/dashboard/parties/primaries"
-          className="text-xs font-semibold text-primary hover:underline"
-        >
-          Go to primaries
-        </Link>
-      ) : currentUser ? (
+        actionsInQueue ? <span className="text-xs text-muted-foreground">Primary actions appear above.</span> :
+          <Link to="/dashboard/parties/primaries" className="text-xs font-semibold text-primary hover:underline">Go to primaries</Link>
+      ) : actionsInQueue && eligible ? (
+        <span className="text-xs text-muted-foreground">Declaration available in your actions above.</span>
+      ) : currentUser && eligible ? (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button
               size="sm"
               className="h-7 text-xs"
-              disabled={candidateElsewhere || primaryElsewhere || roleBlocked}
             >
               <Vote className="h-3 w-3" /> Declare candidacy
             </Button>
@@ -466,10 +492,12 @@ function CompactVotingStatus({
   race,
   currentUser,
   onActionComplete,
+  actionsInQueue = false,
 }: {
   race: Race;
   currentUser: CurrentUser;
   onActionComplete: () => void;
+  actionsInQueue?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ballotCandidates = race.candidates.map((candidate) =>
@@ -482,6 +510,8 @@ function CompactVotingStatus({
         <Badge variant="secondary" className="gap-1">
           <ShieldCheck className="h-3 w-3" /> You voted
         </Badge>
+      ) : currentUser && race.candidates.length && actionsInQueue ? (
+        <span className="text-xs text-muted-foreground">Your ballot is waiting in the action queue above.</span>
       ) : currentUser && race.candidates.length ? (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -519,6 +549,14 @@ function CompactVotingStatus({
       )}
     </div>
   );
+}
+
+export function DashboardElectionBallot({ race, currentUser, onActionComplete }: {
+  race: Race;
+  currentUser: CurrentUser;
+  onActionComplete: () => void;
+}) {
+  return <CompactVotingStatus race={race} currentUser={currentUser} onActionComplete={onActionComplete} />;
 }
 
 function CompactConcludedStatus({ race }: { race: Race }) {

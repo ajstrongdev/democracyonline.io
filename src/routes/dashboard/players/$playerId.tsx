@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Crown, FileText, Vote } from "lucide-react";
 import { WikiArticleSection } from "@/components/wiki/wiki-article-section";
 import { PartyMark, WikiHeader } from "@/components/wiki/wiki-header";
@@ -44,6 +45,7 @@ export const Route = createFileRoute("/dashboard/players/$playerId")({
 });
 
 function PlayerArticle() {
+  const [bioExpanded, setBioExpanded] = useState(false);
   const { playerData, article, socialProfile } = Route.useLoaderData();
   const {
     player,
@@ -83,7 +85,16 @@ function PlayerArticle() {
         eyebrow="Player article"
         title={player.username}
         description={
-          <EntityReferenceText content={player.bio || "A player in Oscana."} />
+          <>
+            <span className={bioExpanded ? "block break-words" : "block line-clamp-3 break-words"}>
+              <EntityReferenceText content={player.bio || "A player in Oscana."} />
+            </span>
+            {(player.bio?.length ?? 0) > 180 && (
+              <button type="button" className="mt-1 font-medium text-primary hover:underline" onClick={() => setBioExpanded(!bioExpanded)}>
+                {bioExpanded ? "Show less" : "Read full bio"}
+              </button>
+            )}
+          </>
         }
         status={
           <div className="flex items-center gap-2">

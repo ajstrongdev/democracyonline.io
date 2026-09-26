@@ -648,7 +648,10 @@ function CommentThread({
                 size="sm"
                 className="rounded-xl text-muted-foreground"
                 aria-expanded={replyOpen}
-                onClick={() => setReplyOpen((value) => !value)}
+                onClick={() => {
+                  setReplyOpen((value) => !value);
+                  if (!replyOpen && !replyText.trim()) setReplyText(`@${comment.username} `);
+                }}
               >
                 <MessageCircle className="size-4" /> Reply
               </Button>

@@ -17,6 +17,7 @@ import { getCurrentUserInfo } from "@/lib/server/users";
 import { houseBillsPageData } from "@/lib/server/house-bills";
 import { senateBillsPageData } from "@/lib/server/senate-bills";
 import { presidentialBillsPageData } from "@/lib/server/oval-office-bills";
+import { getMyBillVoteIds } from "@/lib/server/bill-vote-status";
 import {
   BillDeskDialog,
   NewBillDialog,
@@ -46,9 +47,11 @@ export const Route = createFileRoute("/dashboard/bills/")({
         presidentialBillsPageData(),
       ],
     );
+    const votedBillIds = await getMyBillVoteIds();
     return {
       bills,
       currentUser,
+      votedBillIds,
       desks: {
         House: {
           bills: house.bills.map((bill) => ({
@@ -78,7 +81,7 @@ export const Route = createFileRoute("/dashboard/bills/")({
 });
 
 function BillsIndex() {
-  const { bills, currentUser, desks } = Route.useLoaderData();
+  const { bills, currentUser, desks, votedBillIds } = Route.useLoaderData();
   const { create, desk } = Route.useSearch();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -223,6 +226,14 @@ function BillsIndex() {
                       View bill
                     </Link>
                   </Button>
+                   {bill.status === "Voting" && currentUser?.role === (
+                     bill.stage === "House" ? "Representative" : bill.stage === "Senate" ? "Senator" : "President"
+                   ) && !votedBillIds.includes(bill.id) && (
+                     <span className="inline-flex items-center text-xs font-semibold text-primary">Vote pending · use the chamber desk</span>
+                   )}
+                   {bill.status === "Voting" && votedBillIds.includes(bill.id) && (
+                     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><CheckCircle2 className="size-4" /> You voted</span>
+                   )}
                   {currentUser?.id === bill.creatorId &&
                     bill.status === "Committee" && (
                       <Button asChild variant="ghost" size="sm">

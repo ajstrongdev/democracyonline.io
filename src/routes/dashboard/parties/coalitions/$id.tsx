@@ -154,7 +154,7 @@ function CoalitionPage() {
         params: { id: coalition.id.toString() },
       });
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e instanceof Error ? e.message : "Could not update coalition");
     }
   };
 
@@ -166,7 +166,7 @@ function CoalitionPage() {
         params: { id: coalition.id.toString() },
       });
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e instanceof Error ? e.message : "Could not join coalition");
     }
   };
 
@@ -175,7 +175,7 @@ function CoalitionPage() {
       await leaveCoalition({ data: { coalitionId: coalition.id } });
       navigate({ to: "/dashboard/parties" });
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e instanceof Error ? e.message : "Could not leave coalition");
     }
   };
 
@@ -204,7 +204,7 @@ function CoalitionPage() {
         params: { id: coalition.id.toString() },
       });
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e instanceof Error ? e.message : "Could not accept request");
     }
   };
 
@@ -216,7 +216,7 @@ function CoalitionPage() {
         params: { id: coalition.id.toString() },
       });
     } catch (e: any) {
-      alert(e.message);
+      toast.error(e instanceof Error ? e.message : "Could not decline request");
     }
   };
 

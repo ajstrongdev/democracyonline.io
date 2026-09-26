@@ -3,6 +3,7 @@ import { BookOpen } from "lucide-react";
 import type { ReactNode } from "react";
 import { ModeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/auth/user-menu";
+import { QuickNavigation } from "@/components/wiki/quick-navigation";
 
 export function WikiNavigation() {
   return (
@@ -18,6 +19,7 @@ export function WikiNavigation() {
         </Link>
         <div className="min-w-0 flex-1" />
         <div className="flex shrink-0 items-center border-l px-1 sm:px-2">
+          <QuickNavigation />
           <ModeToggle />
           <UserMenu />
         </div>
@@ -73,12 +75,12 @@ export function PartyMark({
   color: string | null;
 }) {
   return (
-    <span className="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+    <span className="inline-flex min-w-0 max-w-full items-center gap-2 overflow-hidden text-sm text-muted-foreground">
       <span
         className="h-2.5 w-2.5 shrink-0 rounded-full border"
         style={{ backgroundColor: color ?? "#64748b" }}
       />
-      <span className="truncate">{name ?? "Independent"}</span>
+      <span className="min-w-0 flex-1 truncate" title={name ?? "Independent"}>{name ?? "Independent"}</span>
     </span>
   );
 }

@@ -217,6 +217,7 @@ export function AvatarEditor({ initialConfig, username, onSaved }: { initialConf
       await updatePlayerAvatar({ data: next });
       setSaved(next);
       onSaved?.(next);
+      window.dispatchEvent(new CustomEvent("player-avatar-updated", { detail: { username, photoUrl: renderAvatar(next) } }));
       await router.invalidate();
       setOpen(false);
     } catch {

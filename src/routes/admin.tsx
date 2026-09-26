@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Clock3, FileText, Gamepad2, Gauge, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/admin")({
-  component: RouteComponent,
+  beforeLoad: () => { throw redirect({ to: "/dashboard/admin" }); },
 });
 
 interface FirebaseUser {
@@ -57,7 +57,7 @@ interface DatabaseUser {
   createdAt: Date | null;
 }
 
-function RouteComponent() {
+export function AdminContent() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);

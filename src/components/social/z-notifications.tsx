@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { ArrowRight, BellOff, X } from "lucide-react";
@@ -10,6 +10,7 @@ import {
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { SocialAccountAvatar } from "@/components/social/social-account-avatar";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type NotificationPage = Awaited<ReturnType<typeof getZNotificationPage>>;
 
@@ -23,10 +24,12 @@ export function ZNotifications({
   const [page, setPage] = useState(initialPage);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmAll, setConfirmAll] = useState(false);
+
+  useEffect(() => setPage(initialPage), [initialPage]);
 
   const dismiss = async (entry?: NotificationPage["entries"][number]) => {
     if (busy) return;
-    if (!entry && !window.confirm("Dismiss all Z.com notifications?")) return;
     setBusy(true);
     setError(null);
     try {
@@ -44,6 +47,7 @@ export function ZNotifications({
         data: { limit: 5, offset: 0 },
       });
       setPage(updated);
+      setConfirmAll(false);
     } catch {
       setError("Could not dismiss notifications. Please try again.");
     } finally {
@@ -85,7 +89,7 @@ export function ZNotifications({
             variant="ghost"
             className="rounded-lg text-muted-foreground"
             disabled={busy}
-            onClick={() => dismiss()}
+            onClick={() => setConfirmAll(true)}
           >
             <BellOff className="size-4" /> Dismiss all
           </Button>
@@ -180,6 +184,18 @@ export function ZNotifications({
           Load more mentions
         </Button>
       )}
+      <Dialog open={confirmAll} onOpenChange={setConfirmAll}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Dismiss all notifications?</DialogTitle>
+            <DialogDescription>This clears your current Z.com notifications.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmAll(false)}>Cancel</Button>
+            <Button disabled={busy} onClick={() => dismiss()}>Dismiss all</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

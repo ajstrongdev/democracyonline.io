@@ -22,7 +22,7 @@ const CreateUserSchema = z.object({
   inviteToken: z.string().min(1, "Invite link is required"),
   email: z.string().email(),
   username: z.string().min(1, "Username is required"),
-  bio: z.string().optional(),
+  bio: z.string().max(1000, "Bio must be 1000 characters or fewer").optional(),
   politicalLeaning: z.string().optional(),
   pronouns: z
     .string()

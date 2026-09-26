@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Eye, FileText, PenLine, Search, Send, Users, X } from "lucide-react";
 import type { SocialEntry } from "@/components/social/social-timeline";
@@ -22,8 +22,7 @@ type AccountFilter = "all" | "players" | "parties" | "potro";
 type FeedSort = "newest" | "popular" | "least-popular";
 type BillOption = Awaited<ReturnType<typeof searchDiscussionBills>>[number];
 
-export const Route = createFileRoute("/social")({
-  validateSearch: (search: Record<string, unknown>) => ({
+export const parseSocialSearch = (search: Record<string, unknown>) => ({
     postId:
       Number.isInteger(Number(search.postId)) && Number(search.postId) > 0
         ? Number(search.postId)
@@ -32,27 +31,33 @@ export const Route = createFileRoute("/social")({
       Number.isInteger(Number(search.commentId)) && Number(search.commentId) > 0
         ? Number(search.commentId)
         : undefined,
-  }),
-  loaderDeps: ({ search }) => ({ postId: search.postId }),
-  loader: async ({ deps }) => {
+  });
+
+export async function loadSocialData(postId?: number) {
     const [feed, focused] = await Promise.all([
       getSocialFeed({ data: { limit: 20, offset: 0 } }),
-      deps.postId
-        ? getSocialFeed({ data: { limit: 1, offset: 0, postId: deps.postId } })
+      postId
+        ? getSocialFeed({ data: { limit: 1, offset: 0, postId } })
         : Promise.resolve(null),
     ]);
     return { ...feed, focusedEntry: focused?.entries[0] ?? null };
-  },
-  component: SocialPage,
+}
+
+export const Route = createFileRoute("/social")({
+  validateSearch: parseSocialSearch,
+  beforeLoad: ({ search }) => { throw redirect({ to: "/dashboard/social", search }); },
 });
 
-function SocialPage() {
+export function SocialContent({ data, search }: {
+  data: Awaited<ReturnType<typeof loadSocialData>>;
+  search: ReturnType<typeof parseSocialSearch>;
+}) {
   const {
     viewer,
     entries: initialEntries,
     focusedEntry,
-  } = Route.useLoaderData();
-  const { postId, commentId } = Route.useSearch();
+  } = data;
+  const { postId, commentId } = search;
   const [entries, setEntries] = useState<Array<SocialEntry>>(initialEntries);
   const [content, setContent] = useState("");
   const [busy, setBusy] = useState(false);
@@ -280,31 +285,22 @@ function SocialPage() {
                   {((viewer?.role === "President" && viewer.isActive) ||
                     (viewer?.partyId &&
                       viewer.partyLeaderId === viewer.id)) && (
-                    <label className="block space-y-1.5 text-xs font-semibold text-muted-foreground">
-                      <span>Posting as</span>
-                      <select
-                        value={postAs}
-                        onChange={(event) => {
-                          setPostAs(event.target.value as typeof postAs);
-                          setSelectedBill(null);
-                          setBillPickerOpen(false);
-                        }}
-                        className="w-full rounded-xl border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                      >
-                        <option value="player">@{viewer.username}</option>
-                        {viewer?.partyId &&
-                          viewer.partyLeaderId === viewer.id && (
-                            <option value="party">
-                              {viewer.partyName} party account
-                            </option>
-                          )}
-                        {viewer?.role === "President" && viewer.isActive && (
-                          <option value="potro">
-                            POTRO · President of Oscana
-                          </option>
-                        )}
-                      </select>
-                    </label>
+                    <fieldset className="space-y-2">
+                      <legend className="text-xs font-semibold text-muted-foreground">Post as</legend>
+                      <div className="flex flex-wrap gap-2">
+                        {([
+                          { key: "player", label: `@${viewer.username}` },
+                          ...(viewer.partyId && viewer.partyLeaderId === viewer.id ? [{ key: "party", label: viewer.partyName ?? "Party" }] : []),
+                          ...(viewer.role === "President" && viewer.isActive ? [{ key: "potro", label: "POTRO" }] : []),
+                        ] as Array<{ key: typeof postAs; label: string }>).map((identity) => (
+                          <Button key={identity.key} type="button" size="sm" variant={postAs === identity.key ? "default" : "outline"} aria-pressed={postAs === identity.key} onClick={() => {
+                            setPostAs(identity.key);
+                            setSelectedBill(null);
+                            setBillPickerOpen(false);
+                          }}>{identity.label}</Button>
+                        ))}
+                      </div>
+                    </fieldset>
                   )}
                   <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                     <span>Markdown and linked references supported.</span>

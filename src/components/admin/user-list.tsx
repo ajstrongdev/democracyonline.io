@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
 import {
   Card,
@@ -57,7 +58,7 @@ export default function UserList({ initialUsers, onRefresh }: UserListProps) {
       );
     } catch (error) {
       console.error("Error toggling user:", error);
-      alert("Failed to update user status");
+      toast.error("Failed to update user status");
     } finally {
       setLoading(false);
     }
@@ -74,7 +75,7 @@ export default function UserList({ initialUsers, onRefresh }: UserListProps) {
       setUserToDelete(null);
     } catch (error) {
       console.error("Error deleting user:", error);
-      alert("Failed to delete user");
+      toast.error("Failed to delete user");
     } finally {
       setLoading(false);
     }

@@ -148,6 +148,7 @@ export function SignupForm({ inviteToken }: { inviteToken: string }) {
                 id={field.name}
                 name={field.name}
                 value={field.state.value}
+                maxLength={1000}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring min-h-20"

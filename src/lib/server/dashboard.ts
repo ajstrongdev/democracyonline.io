@@ -18,6 +18,7 @@ import { userEmailEquals } from "@/lib/server/user-email";
 import { getWikiHome } from "@/lib/server/history";
 import { getFeedItems } from "@/lib/server/feed";
 import { getZNotificationPage } from "@/lib/server/social-notifications";
+import { getPrimariesData } from "@/lib/server/primaries";
 
 const officeVotingConfig = {
   Representative: {
@@ -43,7 +44,7 @@ const officeVotingConfig = {
 export const getDashboardData = createServerFn()
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    const [record, activity, electionDashboard, nation] = await Promise.all([
+    const [record, activity, electionDashboard, nation, recentBills] = await Promise.all([
       getWikiHome(),
        getFeedItems({ data: { limit: 7, offset: 0 } }),
       getCurrentElectionDashboard(),
@@ -57,6 +58,15 @@ export const getDashboardData = createServerFn()
         .from(nations)
         .limit(1)
         .then((rows) => rows[0] ?? null),
+      db.select({
+        id: bills.id,
+        title: bills.title,
+        status: bills.status,
+        stage: bills.stage,
+        stageEndsAt: bills.stageEndsAt,
+      }).from(bills)
+        .orderBy(sql`case when ${bills.status} in ('Voting', 'Committee') then 0 else 1 end`, desc(bills.createdAt))
+        .limit(6),
     ]);
 
     const recentElectionCandidateData = await Promise.all(
@@ -82,10 +92,12 @@ export const getDashboardData = createServerFn()
         currentUser: null,
         pendingBillVotes: [],
         pendingCommitteeAssessments: [],
+        primaryActions: { stand: false, vote: false, deadline: null },
         zMentionSummary: { notifications: 0, accounts: 0, entries: [], hasMore: false },
         activity,
         electionDashboard,
         nation,
+        recentBills,
         recentElectionCandidateData,
         ...record,
       };
@@ -102,6 +114,7 @@ export const getDashboardData = createServerFn()
         partyId: parties.id,
         partyName: parties.name,
         partyColor: parties.color,
+        partyLeaderId: parties.leaderId,
       })
       .from(users)
       .leftJoin(parties, eq(users.partyId, parties.id))
@@ -113,22 +126,32 @@ export const getDashboardData = createServerFn()
         currentUser: null,
         pendingBillVotes: [],
         pendingCommitteeAssessments: [],
+        primaryActions: { stand: false, vote: false, deadline: null },
         zMentionSummary: { notifications: 0, accounts: 0, entries: [], hasMore: false },
         activity,
         electionDashboard,
         nation,
+        recentBills,
         recentElectionCandidateData,
         ...record,
       };
     }
 
-    const zMentionSummary = await getZNotificationPage({ data: { limit: 5, offset: 0 } });
+    const [zMentionSummary, primary] = await Promise.all([
+      getZNotificationPage({ data: { limit: 5, offset: 0 } }),
+      currentUser.partyId && currentUser.active ? getPrimariesData() : Promise.resolve(null),
+    ]);
+    const primaryActions = {
+      stand: primary?.electionStatus === "CANDIDACY" && !primary.isCandidate && currentUser.role !== "Senator" && !electionDashboard.races.some((race) => race.player.isCandidate),
+      vote: primary?.electionStatus === "CANDIDACY" && primary.candidates.length > 0 && !primary.hasVoted,
+      deadline: primary?.candidacyEndsAt ?? null,
+    };
     const config =
       officeVotingConfig[currentUser.role as keyof typeof officeVotingConfig];
     const [pendingBillVotes, pendingCommitteeAssessments] = await Promise.all([
-      config
+      config && currentUser.active
         ? db
-            .select({ id: bills.id, title: bills.title })
+            .select({ id: bills.id, title: bills.title, stageEndsAt: bills.stageEndsAt })
             .from(bills)
             .where(
               and(
@@ -141,7 +164,7 @@ export const getDashboardData = createServerFn()
         : Promise.resolve([]),
       currentUser.role === "Senator" && currentUser.active
         ? db
-            .select({ id: bills.id, title: bills.title })
+            .select({ id: bills.id, title: bills.title, stageEndsAt: bills.stageEndsAt })
             .from(bills)
             .where(
               and(
@@ -162,10 +185,12 @@ export const getDashboardData = createServerFn()
         stage: config?.stage ?? "House",
       })),
       pendingCommitteeAssessments,
+      primaryActions,
       zMentionSummary,
       activity,
       electionDashboard,
       nation,
+      recentBills,
       recentElectionCandidateData,
       ...record,
     };

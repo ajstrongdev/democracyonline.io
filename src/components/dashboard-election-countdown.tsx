@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useState } from "react";
+import { DeadlineTooltip } from "@/components/deadline-tooltip";
 
 function formatRemaining(milliseconds: number) {
   if (milliseconds <= 0) return "Closing now";
@@ -46,8 +47,10 @@ export function DashboardElectionCountdown({
   }, [targetTime]);
 
   return (
-    <span className="font-mono tabular-nums" aria-live="off">
-      {remaining === null ? "Calculating..." : formatRemaining(remaining)}
-    </span>
+    <DeadlineTooltip target={target}>
+      <span className="font-mono tabular-nums" aria-live="off">
+        {remaining === null ? "Calculating..." : formatRemaining(remaining)}
+      </span>
+    </DeadlineTooltip>
   );
 }
