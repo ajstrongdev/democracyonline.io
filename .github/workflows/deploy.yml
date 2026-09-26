@@ -1,19 +1,10 @@
-name: Deploy VPS
+name: Deploy Dev VPS
 
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: Environment to deploy
-        required: true
-        default: Dev
-        type: choice
-        options:
-          - Dev
-          - Prod
 
 concurrency:
-  group: deploy-vps-${{ inputs.environment }}
+  group: deploy-vps-dev
   cancel-in-progress: false
 
 permissions:
@@ -21,9 +12,9 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy ${{ inputs.environment }}
+    name: Deploy Dev
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: Dev
     steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.5
@@ -35,18 +26,5 @@ jobs:
           script_stop: true
           script: |
             set -eu
-            # Each environment is its own checkout with its own .env, so the
-            # same commands deploy either one. VPS_PROD_DIR / VPS_DEV_DIR are
-            # per-environment secrets defaulting to the bootstrap layout.
-            if [ '${{ inputs.environment }}' = 'Prod' ]; then
-              DIR='${{ secrets.VPS_PROD_DIR }}'
-              [ -n "$DIR" ] || DIR='/srv/democracyonline-prod'
-            else
-              DIR='${{ secrets.VPS_DEV_DIR }}'
-              [ -n "$DIR" ] || DIR='/srv/democracyonline-dev'
-            fi
-            cd "$DIR"
-            # Preserve the branch currently selected in this checkout. The
-            # update script refuses dirty or detached checkouts and pulls only
-            # a fast-forward from that branch's origin counterpart.
+            cd /srv/democracyonline-dev
             bash scripts/vps.sh update

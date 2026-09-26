@@ -47,6 +47,10 @@ backup() {
   echo "Backup: $file"
 }
 deploy() {
+  if [[ "$(value DEPLOYED_ENV)" == production && -e /etc/democracyonline/production-offline ]]; then
+    echo "Production is offline; refusing to start its app or scheduler" >&2
+    return 1
+  fi
   check
   compose up -d --wait db
   backup
@@ -65,6 +69,9 @@ case "${1:-}" in
   backup) check; compose up -d --wait db; backup ;;
   seed)
     check
+    if [[ "$(value DEPLOYED_ENV)" == production && -e /etc/democracyonline/production-offline ]]; then
+      echo "Production is offline; refusing to seed or start it" >&2; exit 1
+    fi
     if [[ "$(value DEPLOYED_ENV)" == production && "${2:-}" != --allow-production ]]; then
       echo "Production seed resets game data; pass --allow-production explicitly" >&2; exit 1
     fi
@@ -81,6 +88,9 @@ case "${1:-}" in
     ;;
   restore)
     check
+    if [[ "$(value DEPLOYED_ENV)" == production && -e /etc/democracyonline/production-offline ]]; then
+      echo "Production is offline; refusing to restore and start it" >&2; exit 1
+    fi
     archive="${2:-}"
     [[ -f "$archive" && -s "$archive" ]] || { echo "Restore requires an existing dump file" >&2; exit 1; }
     [[ "${3:-}" == "--confirm-$(value DEPLOYED_ENV)" ]] || { echo "Pass --confirm-$(value DEPLOYED_ENV) to restore this environment" >&2; exit 1; }
@@ -93,6 +103,9 @@ case "${1:-}" in
     compose up -d app election-scheduler
     ;;
   update)
+    if [[ "$(value DEPLOYED_ENV)" == production && -e /etc/democracyonline/production-offline ]]; then
+      echo "Production is offline; refusing to update and start it" >&2; exit 1
+    fi
     test -z "$(git status --porcelain)" || { echo "Checkout is dirty" >&2; exit 1; }
     branch="$(git symbolic-ref --quiet --short HEAD)" || { echo "Checkout is detached" >&2; exit 1; }
     git fetch --prune origin

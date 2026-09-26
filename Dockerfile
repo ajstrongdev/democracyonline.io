@@ -83,8 +83,8 @@ RUN pnpm install --prod --frozen-lockfile
 
 # Copy built application from builder stage
 # TanStack Start with Nitro outputs to .output directory
-COPY --from=builder /usr/src/app/.output ./.output
-COPY --from=builder /usr/src/app/scripts ./scripts
+COPY --chown=node:node --from=builder /usr/src/app/.output ./.output
+COPY --chown=node:node --from=builder /usr/src/app/scripts ./scripts
 
 # Expose the application port (non-privileged port)
 EXPOSE 3000
