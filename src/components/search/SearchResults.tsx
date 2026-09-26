@@ -15,7 +15,7 @@ interface UserResult {
   role: string | null;
   partyId: number | null;
   createdAt: Date | null;
-  lastActivity: number | null;
+  archivedAt: Date | null;
 }
 
 interface PartyInfo {
@@ -76,14 +76,18 @@ export function SearchResults({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                       <PlayerAvatar username={user.username} photoUrl={user.photoUrl} className="size-10" />
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <PlayerAvatar
+                        username={user.username}
+                        photoUrl={user.photoUrl}
+                        className="size-10"
+                      />
                       <h3 className="text-xl font-semibold wrap-break-word">
                         {user.username}
                       </h3>
-                      {user.lastActivity !== null && user.lastActivity > 14 && (
+                      {user.archivedAt && (
                         <Badge variant="secondary" className="text-xs shrink-0">
-                          Inactive
+                          Archived
                         </Badge>
                       )}
                     </div>

@@ -45,10 +45,24 @@ function PlayersIndex() {
             <Card className="h-full rounded-sm shadow-none transition-colors hover:border-primary">
               <CardContent className="space-y-3 pt-5">
                 <div className="flex items-start justify-between gap-3">
-                   <div className="flex min-w-0 items-center gap-3"><PlayerAvatar username={player.username} photoUrl={player.photoUrl} /><h2 className="break-words font-serif text-xl font-bold">{player.username}</h2></div>
-                  <Badge variant="outline" className="font-mono text-[10px] uppercase">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <PlayerAvatar
+                      username={player.username}
+                      photoUrl={player.photoUrl}
+                    />
+                    <h2 className="break-words font-serif text-xl font-bold">
+                      {player.username}
+                    </h2>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-[10px] uppercase"
+                  >
                     {player.role ?? "Representative"}
                   </Badge>
+                  {player.archivedAt && (
+                    <Badge variant="secondary">Archived</Badge>
+                  )}
                 </div>
                 <PartyMark name={player.partyName} color={player.partyColor} />
                 <p className="line-clamp-2 text-sm text-muted-foreground">

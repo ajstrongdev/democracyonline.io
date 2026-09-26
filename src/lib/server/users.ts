@@ -24,7 +24,11 @@ const CreateUserSchema = z.object({
   username: z.string().min(1, "Username is required"),
   bio: z.string().optional(),
   politicalLeaning: z.string().optional(),
-  pronouns: z.string().trim().max(80, "Pronouns must be 80 characters or fewer").optional(),
+  pronouns: z
+    .string()
+    .trim()
+    .max(80, "Pronouns must be 80 characters or fewer")
+    .optional(),
 });
 
 export const createUser = createServerFn({ method: "POST" })
@@ -312,7 +316,7 @@ export const searchUsers = createServerFn()
           photoUrl: users.photoUrl,
           partyId: users.partyId,
           createdAt: users.createdAt,
-          lastActivity: users.lastActivity,
+          archivedAt: users.archivedAt,
         })
         .from(users)
         .where(
@@ -335,7 +339,7 @@ export const getUserStats = createServerFn().handler(async () => {
     const result = await db.execute(sql`
       SELECT
         COUNT(*) as total_users,
-        COUNT(*) FILTER (WHERE is_active = TRUE) as active_users
+        COUNT(*) FILTER (WHERE is_active = TRUE AND archived_at IS NULL) as active_users
       FROM users
       WHERE username NOT LIKE 'Banned User%'
     `);

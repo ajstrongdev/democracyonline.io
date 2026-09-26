@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { feed, parties, users } from "@/db/schema";
 import { env } from "@/env";
@@ -14,6 +14,7 @@ import {
 } from "@/lib/server/game-speed";
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { archiveEmptyParties } from "@/lib/server/organization-lifecycle";
+import { playerArchiveCutoff } from "@/lib/player-archive";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -43,9 +44,71 @@ export const Route = createFileRoute("/api/game-advance")({
           return authFailure;
         }
 
-        // Server-side throttle: inactivity counters must advance at game
-        // pace (24h at regular speed), not on every scheduler tick. The
-        // scheduler may call every minute; this no-ops until due.
+        // Archive on wall-clock time even when the game lifecycle is throttled.
+        // Keep the account usable, but remove archived players from their parties.
+        try {
+          const now = new Date();
+          const cutoff = playerArchiveCutoff(now);
+          await db.transaction(async (tx) => {
+            const archived = await tx
+              .update(users)
+              .set({ archivedAt: now })
+              .where(and(isNull(users.archivedAt), lt(users.lastSeenAt, cutoff)))
+              .returning({ id: users.id });
+
+            // Also clean up players archived before party removal was introduced.
+            const members = await tx
+              .select({ id: users.id, partyId: users.partyId })
+              .from(users)
+              .where(and(isNotNull(users.archivedAt), isNotNull(users.partyId)))
+              .for("update");
+            if (members.length) {
+              await tx
+                .update(users)
+                .set({ partyId: null })
+                .where(inArray(users.id, members.map((member) => member.id)));
+
+              const partyIds = [
+                ...new Set(
+                  members.flatMap((member) =>
+                    member.partyId === null ? [] : [member.partyId],
+                  ),
+                ),
+              ];
+              await archiveEmptyParties(tx, partyIds);
+              await tx
+                .update(parties)
+                .set({ leaderId: null })
+                .where(
+                  and(
+                    inArray(parties.id, partyIds),
+                    inArray(parties.leaderId, members.map((member) => member.id)),
+                  ),
+                );
+            }
+
+            if (archived.length) {
+              await tx.insert(feed).values(
+                archived.map((user) => ({
+                  userId: user.id,
+                  content:
+                    "was archived after 14 real-life days without visiting",
+                })),
+              );
+            }
+          });
+        } catch (error) {
+          console.error("[game-advance] Error archiving players:", error);
+          return new Response(
+            JSON.stringify({ success: false, error: "Internal Server Error" }),
+            {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        // The game lifecycle still runs at game speed.
         const gameSpeed = await getGameSpeed();
         const gameIntervalMs = getGameAdvanceIntervalMs(gameSpeed.multiplier);
         const lastRun = await getLastGameAdvanceAt();
@@ -75,80 +138,6 @@ export const Route = createFileRoute("/api/game-advance")({
         }
 
         try {
-          if (env.DEPLOYED_ENV === "dev") {
-            // In dev deployment, skip inactivity — keep all users active
-            console.log(
-              "[game-advance] Dev environment: skipping inactivity, keeping all users active",
-            );
-            await db.update(users).set({ isActive: true, lastActivity: 0 });
-          } else {
-            console.log("[game-advance] Updating user activity");
-            await db
-              .update(users)
-              .set({ lastActivity: sql`${users.lastActivity} + 1` });
-
-            const newlyInactive = await db
-              .select({ id: users.id })
-              .from(users)
-              .where(
-                and(eq(users.isActive, true), sql`${users.lastActivity} >= 14`),
-              );
-
-            // Ensure users with recent activity are marked active
-            await db
-              .update(users)
-              .set({ isActive: true })
-              .where(sql`${users.lastActivity} < 14`);
-
-            await db
-              .update(users)
-              .set({ isActive: false })
-              .where(sql`${users.lastActivity} >= 14`);
-
-            if (newlyInactive.length) {
-              await db.insert(feed).values(
-                newlyInactive.map((user) => ({
-                  userId: user.id,
-                  content: "went inactive after 14 days without activity",
-                })),
-              );
-            }
-
-            const inactiveUsers = await db
-              .select({ id: users.id, partyId: users.partyId })
-              .from(users)
-              .where(
-                and(
-                  eq(users.isActive, false),
-                  sql`${users.partyId} IS NOT NULL`,
-                ),
-              );
-
-            const partyIds = [
-              ...new Set(
-                inactiveUsers.flatMap((user) =>
-                  user.partyId === null ? [] : [user.partyId],
-                ),
-              ),
-            ];
-            const inactiveUserIds = inactiveUsers.map((user) => user.id);
-
-            await db
-              .update(users)
-              .set({ partyId: null })
-              .where(eq(users.isActive, false));
-
-            await db.transaction(async (tx) => {
-              await archiveEmptyParties(tx, partyIds);
-              if (inactiveUserIds.length) {
-                await tx
-                  .update(parties)
-                  .set({ leaderId: null })
-                  .where(inArray(parties.leaderId, inactiveUserIds));
-              }
-            });
-          }
-
           await db.transaction((tx) => archiveEmptyParties(tx));
 
           await markGameAdvanceRun(new Date());

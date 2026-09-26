@@ -83,14 +83,20 @@ function PlayerArticle() {
         eyebrow="Player article"
         title={player.username}
         description={
-          <EntityReferenceText
-            content={player.bio || "A player in Oscana."}
-          />
+          <EntityReferenceText content={player.bio || "A player in Oscana."} />
         }
         status={
           <div className="flex items-center gap-2">
-            <Badge variant={player.isActive ? "default" : "secondary"}>
-              {player.isActive ? "Active" : "Inactive"}
+            <Badge
+              variant={
+                player.archivedAt || !player.isActive ? "secondary" : "default"
+              }
+            >
+              {!player.isActive
+                ? "Suspended"
+                : player.archivedAt
+                  ? "Archived"
+                  : "Active"}
             </Badge>
             <ReportPlayerDialog
               playerId={player.id}
@@ -106,7 +112,13 @@ function PlayerArticle() {
           article={article}
         />
         <WikiInfobox title={player.username} accent={player.partyColor}>
-          <div className="flex justify-center border-b p-5"><PlayerAvatar username={player.username} photoUrl={player.photoUrl} className="size-28 text-3xl" /></div>
+          <div className="flex justify-center border-b p-5">
+            <PlayerAvatar
+              username={player.username}
+              photoUrl={player.photoUrl}
+              className="size-28 text-3xl"
+            />
+          </div>
           <WikiInfoboxRow label="Office">
             {player.role ?? "Representative"}
           </WikiInfoboxRow>
@@ -131,6 +143,11 @@ function PlayerArticle() {
           </WikiInfoboxRow>
           <WikiInfoboxRow label="Joined">
             {player.createdAt ? formatWikiDate(player.createdAt) : "Unknown"}
+          </WikiInfoboxRow>
+          <WikiInfoboxRow label="Last seen">
+            {player.lastSeenAt
+              ? `${formatWikiDate(player.lastSeenAt)} at ${new Date(player.lastSeenAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`
+              : "Unknown"}
           </WikiInfoboxRow>
           <WikiInfoboxRow label="Bills">{authoredBills.length}</WikiInfoboxRow>
           <WikiInfoboxRow label="Votes">{billVotes.length}</WikiInfoboxRow>

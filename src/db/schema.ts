@@ -33,6 +33,8 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
   isActive: boolean("is_active").default(true),
   lastActivity: bigint("last_activity", { mode: "number" }).default(0),
+  lastSeenAt: timestamp("last_seen_at").defaultNow(),
+  archivedAt: timestamp("archived_at"),
   moderationRole: varchar("moderation_role", { length: 20 })
     .default("player")
     .notNull(),
@@ -769,9 +771,12 @@ export const billComments = pgTable(
   "bill_comments",
   {
     id: serial("id").primaryKey(),
-    parentId: integer("parent_id").references((): AnyPgColumn => billComments.id, {
-      onDelete: "cascade",
-    }),
+    parentId: integer("parent_id").references(
+      (): AnyPgColumn => billComments.id,
+      {
+        onDelete: "cascade",
+      },
+    ),
     billId: integer("bill_id")
       .notNull()
       .references(() => bills.id, { onDelete: "cascade" }),
@@ -830,7 +835,9 @@ export const socialPosts = pgTable(
       onDelete: "set null",
     }),
     content: text("content").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [index("social_posts_created_idx").on(table.createdAt, table.id)],
 );
@@ -842,15 +849,20 @@ export const socialComments = pgTable(
     postId: integer("post_id")
       .notNull()
       .references(() => socialPosts.id, { onDelete: "cascade" }),
-    parentId: integer("parent_id").references((): AnyPgColumn => socialComments.id, {
-      onDelete: "cascade",
-    }),
+    parentId: integer("parent_id").references(
+      (): AnyPgColumn => socialComments.id,
+      {
+        onDelete: "cascade",
+      },
+    ),
     userId: integer("user_id").references(() => users.id, {
       onDelete: "set null",
     }),
     username: varchar("username", { length: 255 }).notNull(),
     content: varchar("content", { length: 2_000 }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     index("social_comments_post_idx").on(table.postId, table.createdAt),
@@ -867,7 +879,9 @@ export const socialLikes = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.postId, table.userId] }),
@@ -884,7 +898,9 @@ export const socialDislikes = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.postId, table.userId] }),
@@ -901,7 +917,9 @@ export const socialCommentLikes = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.commentId, table.userId] }),
@@ -918,7 +936,9 @@ export const socialCommentDislikes = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.commentId, table.userId] }),
@@ -929,13 +949,26 @@ export const socialCommentDislikes = pgTable(
 export const socialNotificationDismissals = pgTable(
   "social_notification_dismissals",
   {
-    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     accountKey: varchar("account_key", { length: 100 }).notNull(),
     sourceType: varchar("source_type", { length: 10 }).notNull(),
     sourceId: integer("source_id").notNull(),
-    dismissedAt: timestamp("dismissed_at", { withTimezone: true }).defaultNow().notNull(),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
-  (table) => [primaryKey({ columns: [table.userId, table.accountKey, table.sourceType, table.sourceId] })],
+  (table) => [
+    primaryKey({
+      columns: [
+        table.userId,
+        table.accountKey,
+        table.sourceType,
+        table.sourceId,
+      ],
+    }),
+  ],
 );
 
 export const socialReposts = pgTable(
@@ -948,7 +981,9 @@ export const socialReposts = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     unique("social_reposts_post_user_unique").on(table.postId, table.userId),
