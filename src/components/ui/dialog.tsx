@@ -47,22 +47,22 @@ const DialogContent = React.forwardRef<
       )}
       {...props}
     >
-      {children}
       {onBack ? (
         <button
           type="button"
           onClick={onBack}
-          className="absolute left-4 top-4 inline-flex items-center gap-1 rounded-sm text-sm font-medium text-muted-foreground ring-offset-background transition-colors hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+          className="relative z-10 ml-6 mt-4 inline-flex w-fit items-center gap-1 rounded-sm text-sm font-medium text-muted-foreground ring-offset-background transition-colors hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Back</span>
         </button>
       ) : (
-        <DialogPrimitive.Close className="absolute left-4 top-4 inline-flex items-center gap-1 rounded-sm text-sm font-medium text-muted-foreground ring-offset-background transition-colors hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+        <DialogPrimitive.Close className="relative z-10 ml-6 mt-4 inline-flex w-fit items-center gap-1 rounded-sm text-sm font-medium text-muted-foreground ring-offset-background transition-colors hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
           <ArrowLeft className="h-4 w-4" />
           <span>Back</span>
         </DialogPrimitive.Close>
       )}
+      {children}
       <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
