@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import {
   ArrowRight,
+  Activity,
   BellRing,
   CheckCircle2,
   ClipboardCheck,
@@ -15,6 +16,8 @@ import {
   MailPlus,
   MessageSquareText,
   Radio,
+  Scale,
+  ShieldCheck,
   ScrollText,
   Users,
   Vote,
@@ -46,6 +49,7 @@ import { AccountSettingsDialog } from "@/components/settings/account-settings-di
 import { getFeedItems } from "@/lib/server/feed";
 import { getFeedDestination } from "@/lib/feed-destination";
 import { DashboardBillVoteAction } from "@/components/dashboard-bill-vote-action";
+import { ResultBar } from "@/components/wiki/wiki-header";
 
 dayjs.extend(relativeTime);
 
@@ -88,6 +92,7 @@ export function DashboardContent({
     electionDashboard,
     counts,
     recentBills,
+    nation,
   } = data;
   const electionVotes = currentUser?.active
     ? electionDashboard.races.filter(
@@ -416,6 +421,53 @@ export function DashboardContent({
             <ZNotifications initialPage={zMentionSummary} />
           </WikiSection>
         </div>
+      )}
+
+      {nation && (
+        <WikiSection
+          title="National health"
+          icon={Scale}
+          description="A quick snapshot of the country's current condition."
+          aside={
+            <Link
+              to="/dashboard/nation"
+              className="text-sm font-semibold text-primary hover:underline"
+            >
+              Full report <ArrowRight className="inline size-3.5" />
+            </Link>
+          }
+        >
+          <div className="grid gap-px border bg-border sm:grid-cols-3">
+            {[
+              {
+                label: "Civil rights",
+                value: nation.civilRights,
+                icon: ShieldCheck,
+              },
+              { label: "Economy", value: nation.economy, icon: Activity },
+              {
+                label: "Political freedoms",
+                value: nation.politicalFreedoms,
+                icon: Landmark,
+              },
+            ].map(({ label, value, icon: Icon }) => (
+              <div key={label} className="bg-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="wiki-kicker">{label}</p>
+                    <p className="mt-1 font-serif text-2xl font-bold">
+                      {Math.round(value)}
+                    </p>
+                  </div>
+                  <Icon className="size-4 text-primary" />
+                </div>
+                <div className="mt-3">
+                  <ResultBar value={value} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </WikiSection>
       )}
 
       <WikiSection
