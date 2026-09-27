@@ -40,6 +40,23 @@ async function recordUserVisit(email?: string) {
   }
 }
 
+async function isDatabaseAccountActive(email?: string) {
+  if (!email) return true;
+  try {
+    const [user] = await db
+      .select({ isActive: users.isActive })
+      .from(users)
+      .where(userEmailEquals(email))
+      .limit(1);
+    // Auth-only accounts may still be completing registration. Only deny a
+    // known database profile that has explicitly been banned/deactivated.
+    return !user || user.isActive !== false;
+  } catch (error) {
+    console.error("Could not verify player account status", error);
+    return false;
+  }
+}
+
 export interface AuthContext {
   user: {
     uid: string;
@@ -83,12 +100,13 @@ export const authMiddleware = createMiddleware({ type: "function" })
             decoded.email,
           );
           await recordUserVisit(decoded.email);
+          const active = await isDatabaseAccountActive(decoded.email);
           return next({
             context: {
-              user: {
+              user: active ? {
                 uid: decoded.uid,
                 email: decoded.email,
-              },
+              } : null,
             } as AuthContext,
           });
         } catch (error) {
@@ -109,19 +127,20 @@ export const authMiddleware = createMiddleware({ type: "function" })
       }
 
       const token = authHeader.slice(7);
-      const decoded = await getAuth(getAdminApp()).verifyIdToken(token);
+      const decoded = await getAuth(getAdminApp()).verifyIdToken(token, true);
       console.log(
         "[authMiddleware.server] Token verified, email:",
         decoded.email,
       );
       await recordUserVisit(decoded.email);
+      const active = await isDatabaseAccountActive(decoded.email);
 
       return next({
         context: {
-          user: {
+          user: active ? {
             uid: decoded.uid,
             email: decoded.email,
-          },
+          } : null,
         } as AuthContext,
       });
     } catch (error) {

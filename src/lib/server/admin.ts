@@ -425,6 +425,12 @@ export const setPlayerBan = createServerFn({ method: "POST" }).middleware([authM
     if (data.reason.trim().length < 3 || data.reason.length > 1000) throw new Error("A reason of at least 3 characters is required");
     const [actor] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
     if (!actor || actor.id === data.userId) throw new Error("Cannot ban this account");
+    const [target] = await db.select({ email: users.email }).from(users).where(eq(users.id, data.userId)).limit(1);
+    if (!target) throw new Error("Player not found");
+    const auth = getAdminAuth();
+    const authUser = await auth.getUserByEmail(target.email);
+    await auth.updateUser(authUser.uid, { disabled: data.banned });
+    if (data.banned) await auth.revokeRefreshTokens(authUser.uid);
     await db.transaction(async (tx) => {
       await tx.update(users).set({ isActive: !data.banned }).where(eq(users.id, data.userId));
       await tx.insert(moderationAuditLog).values({ actorUserId: actor.id, targetUserId: data.userId, action: data.banned ? "ban_user" : "unban_user", reason: data.reason.trim() });
