@@ -89,7 +89,9 @@ function PrimariesPage() {
       await declarePrimaryCandidate();
       router.invalidate();
     } catch (error: any) {
-      toast.error(error instanceof Error ? error.message : "Could not declare candidacy");
+      toast.error(
+        error instanceof Error ? error.message : "Could not declare candidacy",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -104,7 +106,9 @@ function PrimariesPage() {
       setShowWithdrawDialog(false);
       router.invalidate();
     } catch (error: any) {
-      toast.error(error instanceof Error ? error.message : "Could not withdraw candidacy");
+      toast.error(
+        error instanceof Error ? error.message : "Could not withdraw candidacy",
+      );
     } finally {
       setIsSubmitting(false);
       setEndorseCandidateId(null);
@@ -118,7 +122,9 @@ function PrimariesPage() {
       await voteInPrimary({ data: { candidateId: selectedCandidateId } });
       router.invalidate();
     } catch (error: any) {
-      toast.error(error instanceof Error ? error.message : "Could not cast vote");
+      toast.error(
+        error instanceof Error ? error.message : "Could not cast vote",
+      );
     } finally {
       setIsSubmitting(false);
       setSelectedCandidateId(null);
@@ -285,15 +291,6 @@ function PrimariesPage() {
                 Declare Candidacy
               </Button>
             )}
-            {isCandidate && (
-              <Button
-                variant="destructive"
-                onClick={() => setShowWithdrawDialog(true)}
-                disabled={isSubmitting}
-              >
-                Withdraw Candidacy
-              </Button>
-            )}
             {userRole === "Senator" && (
               <p className="self-center text-sm text-muted-foreground">
                 Senators cannot run for President.
@@ -345,7 +342,11 @@ function PrimariesPage() {
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <PartyLogo party_id={candidate.partyId} size={40} />
-                      <PlayerAvatar username={candidate.username} photoUrl={candidate.photoUrl} className="size-10" />
+                      <PlayerAvatar
+                        username={candidate.username}
+                        photoUrl={candidate.photoUrl}
+                        className="size-10"
+                      />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <Link
@@ -398,7 +399,16 @@ function PrimariesPage() {
                       </div>
                     </div>
 
-                    {!hasVoted && isCandidatePhase && (
+                    {isSelf && isCandidatePhase ? (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setShowWithdrawDialog(true)}
+                        disabled={isSubmitting}
+                      >
+                        Withdraw
+                      </Button>
+                    ) : !hasVoted && isCandidatePhase ? (
                       <Button
                         size="sm"
                         onClick={() => {
@@ -409,7 +419,7 @@ function PrimariesPage() {
                         <Vote className="mr-1 h-4 w-4" />
                         Vote
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                 );
               })}
