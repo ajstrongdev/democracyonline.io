@@ -21,7 +21,7 @@ for dir in "$PROD_DIR" "$DEV_DIR"; do
     exit 1
   fi
 done
-if [[ -f /etc/caddy/Caddyfile ]] && ! grep -q 'Managed by Oscana vps-bootstrap' /etc/caddy/Caddyfile; then
+if [[ -f /etc/caddy/Caddyfile ]] && ! grep -Eq '^# Managed by (Democracy Online|Oscana) vps-bootstrap$' /etc/caddy/Caddyfile; then
   echo "Existing Caddyfile is not managed by this script. Back it up and merge it manually." >&2
   exit 1
 fi
@@ -64,6 +64,10 @@ fi
 if ! id "$APP_USER" >/dev/null 2>&1; then
   adduser --disabled-password --gecos "" "$APP_USER"
 fi
+# Some pre-provisioned VPS images leave the existing deploy home owned by root.
+APP_HOME="$(getent passwd "$APP_USER" | cut -d: -f6)"
+install -d -o "$APP_USER" -g "$APP_USER" "$APP_HOME"
+chown -R "$APP_USER:$APP_USER" "$APP_HOME"
 usermod -aG docker "$APP_USER"
 if [[ -f /root/.ssh/authorized_keys && ! -f "/home/$APP_USER/.ssh/authorized_keys" ]]; then
   install -d -m 700 -o "$APP_USER" -g "$APP_USER" "/home/$APP_USER/.ssh"
@@ -129,8 +133,10 @@ install -d -m 700 -o "$APP_USER" -g "$APP_USER" /srv/democracyonline-backups
 cat > /usr/local/sbin/democracyonline-backup <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ ! -e /etc/democracyonline/production-offline ]]; then
 cd "$PROD_DIR"
 bash scripts/vps.sh backup
+fi
 cd "$DEV_DIR"
 bash scripts/vps.sh backup
 EOF
@@ -161,18 +167,8 @@ EOF
 systemctl daemon-reload
 systemctl enable --now democracyonline-backup.timer
 
-cat > /etc/caddy/Caddyfile <<EOF
-# Managed by Oscana vps-bootstrap
-$PROD_DOMAIN {
-    reverse_proxy 127.0.0.1:3000
-}
-$DEV_DOMAIN {
-    reverse_proxy 127.0.0.1:3001
-}
-EOF
-caddy validate --config /etc/caddy/Caddyfile
-systemctl enable --now caddy
-systemctl reload caddy
+PROD_DOMAIN="$PROD_DOMAIN" DEV_DOMAIN="$DEV_DOMAIN" PROD_DIR="$PROD_DIR" \
+  bash "$ROOT/scripts/vps-site.sh" "${PROD_SITE_MODE:-offline}"
 
 # Preserve the configured SSH port before enabling UFW.
 while read -r ssh_port; do ufw allow "$ssh_port/tcp"; done < <(sshd -T | awk '$1 == "port" {print $2}')
@@ -180,6 +176,6 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
 
-echo "Bootstrap complete. Fill each .env, then deploy development and production separately."
+echo "Bootstrap complete. Production site mode: ${PROD_SITE_MODE:-offline}."
 echo "Run: sudo -iu $APP_USER; cd $DEV_DIR; bash scripts/vps.sh deploy"
 echo "See $ROOT/deploy.md for seeding, verification, backup, and recovery."
