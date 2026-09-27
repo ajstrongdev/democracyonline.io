@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { PartyCompositionBar } from "@/components/wiki/party-composition-bar";
 
 type Composition = {
@@ -15,6 +16,8 @@ type Snapshot = {
   electionId: number | null;
   label: string;
   type: string;
+  kind: "defection" | "election";
+  election: string | null;
   date: string;
   composition: Array<Composition>;
 };
@@ -30,6 +33,20 @@ export function GovernmentCompositionTimeline({
 }: {
   snapshots: Array<Snapshot>;
 }) {
+  const [showDefections, setShowDefections] = useState(true);
+  const [showPresidential, setShowPresidential] = useState(true);
+  const [showSenate, setShowSenate] = useState(true);
+  const visibleSnapshots = useMemo(
+    () =>
+      snapshots.filter((snapshot) => {
+        if (snapshot.kind === "defection") return showDefections;
+        if (snapshot.election === "President") return showPresidential;
+        if (snapshot.election === "Senate") return showSenate;
+        return true;
+      }),
+    [snapshots, showDefections, showPresidential, showSenate],
+  );
+
   return (
     <section className="wiki-section overflow-hidden">
       <header className="wiki-section-header">
@@ -44,10 +61,36 @@ export function GovernmentCompositionTimeline({
           Latest first
         </span>
       </header>
+      <div className="flex flex-wrap gap-x-5 gap-y-2 border-b px-4 py-3 text-sm sm:px-6">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showDefections}
+            onChange={(event) => setShowDefections(event.target.checked)}
+          />
+          Party switches
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showSenate}
+            onChange={(event) => setShowSenate(event.target.checked)}
+          />
+          Senate election snapshots
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showPresidential}
+            onChange={(event) => setShowPresidential(event.target.checked)}
+          />
+          Presidential election snapshots
+        </label>
+      </div>
       <div className="wiki-section-content px-3 py-6 sm:px-6 sm:py-8">
-        {snapshots.length ? (
+        {visibleSnapshots.length ? (
           <div className="ml-2 border-l-2 border-primary/25 sm:ml-3">
-            {snapshots.map((snapshot, index) => (
+            {visibleSnapshots.map((snapshot, index) => (
               <article
                 key={snapshot.id}
                 className="relative pb-9 pl-6 last:pb-0 sm:pl-9"
@@ -83,7 +126,7 @@ export function GovernmentCompositionTimeline({
                       title={chamber.title}
                       office={chamber.key}
                       composition={snapshot.composition}
-                      previous={snapshots[index + 1]?.composition}
+                      previous={visibleSnapshots[index + 1]?.composition}
                     />
                   ))}
                 </div>
@@ -92,7 +135,7 @@ export function GovernmentCompositionTimeline({
           </div>
         ) : (
           <p className="border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">
-            No certified governments have been recorded yet.
+            No government events match these filters.
           </p>
         )}
       </div>

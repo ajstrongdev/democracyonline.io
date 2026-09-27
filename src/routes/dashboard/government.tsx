@@ -29,6 +29,8 @@ function GovernmentHistory() {
       ? `${snapshot.event.username}: ${snapshot.event.fromPartyName ?? "Independent"} to ${snapshot.event.toPartyName ?? "Independent"}`
       : formatElectionTitle(snapshot.election, snapshot.cycle),
     type: snapshot.event ? "Defection" : "Certified election",
+    kind: snapshot.event ? ("defection" as const) : ("election" as const),
+    election: snapshot.election,
     date: formatWikiDate(snapshot.occurredAt),
     composition: snapshot.composition,
   }));
