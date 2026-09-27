@@ -29,7 +29,14 @@ import { BillComments } from "@/components/bills/bill-comments";
 import { getBillComments, getBillWhips } from "@/lib/server/bill-comments";
 import { getCurrentUserInfo } from "@/lib/server/users";
 import { reviveDefeatedBill } from "@/lib/server/bills";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/dashboard/bills/$billId")({
   loader: async ({ params }) => {
@@ -84,11 +91,16 @@ function BillArticle() {
     try {
       const created = await reviveDefeatedBill({ data: { billId: bill.id } });
       setReviveOpen(false);
-      await router.navigate({ to: "/dashboard/bills/$billId", params: { billId: String(created.id) } });
+      await router.navigate({
+        to: "/dashboard/bills/$billId",
+        params: { billId: String(created.id) },
+      });
       await router.invalidate();
       toast.success("Bill resubmitted for a new review");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not resubmit bill");
+      toast.error(
+        error instanceof Error ? error.message : "Could not resubmit bill",
+      );
     } finally {
       setReviving(false);
     }
@@ -103,22 +115,37 @@ function BillArticle() {
       >
         {partyGuidance.isLeader && (
           <Button asChild variant="outline" size="sm">
-            <a href="#party-guidance"><Megaphone className="size-4" /> Party voting guidance</a>
+            <a href="#party-guidance">
+              <Megaphone className="size-4" /> Party voting guidance
+            </a>
           </Button>
         )}
         {bill.status === "Defeated" && currentUser?.id === bill.creatorId && (
-          <Button size="sm" onClick={() => setReviveOpen(true)}>Revive this bill</Button>
+          <Button size="sm" onClick={() => setReviveOpen(true)}>
+            Revive this bill
+          </Button>
         )}
       </WikiHeader>
       <Dialog open={reviveOpen} onOpenChange={setReviveOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Resubmit this bill?</DialogTitle>
-            <DialogDescription>The defeated bill stays in the archive. A new bill with the same text starts a fresh review and vote.</DialogDescription>
+            <DialogDescription>
+              The defeated bill stays in the archive. A new bill with the same
+              text starts a fresh review and vote.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" disabled={reviving} onClick={() => setReviveOpen(false)}>Cancel</Button>
-            <Button disabled={reviving} onClick={revive}>{reviving ? "Resubmitting…" : "Revive bill"}</Button>
+            <Button
+              variant="outline"
+              disabled={reviving}
+              onClick={() => setReviveOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button disabled={reviving} onClick={revive}>
+              {reviving ? "Resubmitting…" : "Revive bill"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
