@@ -153,6 +153,7 @@ export const coalitions = pgTable("coalitions", {
   color: varchar("color", { length: 7 }).notNull(),
   logo: varchar("logo", { length: 255 }),
   bio: text("bio"),
+  discord: varchar("discord", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow(),
   archivedAt: timestamp("archived_at"),
 });

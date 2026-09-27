@@ -79,6 +79,7 @@ const coalitionEditSchema = z.object({
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
   bio: z.string().max(1000),
   logo: z.string().max(255).nullable(),
+  discord: z.string().url().refine((url) => url.startsWith("https://")).max(255).nullable(),
 });
 
 export const getCoalitionProposals = createServerFn()
@@ -433,6 +434,7 @@ export const resolveProposal = createServerFn({ method: "POST" })
             color: p.color,
             bio: p.bio,
             logo: p.logo,
+            discord: p.discord,
           })
           .where(eq(coalitions.id, proposal.coalitionId));
       }

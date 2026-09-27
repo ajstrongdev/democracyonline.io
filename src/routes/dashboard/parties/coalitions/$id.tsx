@@ -106,6 +106,7 @@ function CoalitionPage() {
   const [editName, setEditName] = useState(coalition?.name ?? "");
   const [editColor, setEditColor] = useState(coalition?.color ?? "#3b82f6");
   const [editBio, setEditBio] = useState(coalition?.bio ?? "");
+  const [editDiscord, setEditDiscord] = useState(coalition?.discord ?? "");
   const [editLogo, setEditLogo] = useState<string | null>(
     coalition?.logo ?? null,
   );
@@ -144,6 +145,7 @@ function CoalitionPage() {
             color: editColor,
             bio: editBio,
             logo: editLogo,
+            discord: editDiscord.trim() || null,
           },
         },
       });
@@ -293,6 +295,9 @@ function CoalitionPage() {
             </div>
           }
         />
+        {coalition.discord && (
+          <p className="-mt-4 text-right text-sm"><a href={coalition.discord} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Join the {coalition.name} Discord</a></p>
+        )}
         <nav className="flex flex-wrap gap-2 border-y bg-card px-4 py-3">
           <Button asChild variant="outline" size="sm">
             <Link to="/dashboard/parties/coalitions">Coalition archive</Link>
@@ -383,6 +388,10 @@ function CoalitionPage() {
                   onChange={(e) => setEditBio(e.target.value)}
                   rows={3}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-discord">Coalition Discord invite</Label>
+                <Input id="edit-discord" type="url" value={editDiscord} onChange={(e) => setEditDiscord(e.target.value)} placeholder="https://discord.gg/…" />
               </div>
               <div className="space-y-4">
                 <Label className="text-sm font-medium">Logo</Label>

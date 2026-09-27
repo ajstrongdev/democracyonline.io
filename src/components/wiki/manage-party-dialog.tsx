@@ -27,6 +27,7 @@ type ManagedParty = {
   bio: string | null;
   logo: string | null;
   leaning: string | null;
+  discord?: string | null;
 };
 
 export function ManagePartyDialog({ party }: { party: ManagedParty }) {
@@ -37,6 +38,7 @@ export function ManagePartyDialog({ party }: { party: ManagedParty }) {
   const [color, setColor] = useState(party.color);
   const [logo, setLogo] = useState(party.logo ?? "");
   const [leaning, setLeaning] = useState(party.leaning ?? "Center");
+  const [discord, setDiscord] = useState(party.discord ?? "");
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
@@ -51,6 +53,7 @@ export function ManagePartyDialog({ party }: { party: ManagedParty }) {
             color,
             logo: logo || null,
             leaning,
+            discord: discord.trim() || null,
           },
         },
       });
@@ -142,6 +145,17 @@ export function ManagePartyDialog({ party }: { party: ManagedParty }) {
                 <option key={value}>{value}</option>
               ))}
             </select>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="manage-party-discord">Party Discord invite</Label>
+            <Input
+              id="manage-party-discord"
+              type="url"
+              value={discord}
+              onChange={(event) => setDiscord(event.target.value)}
+              placeholder="https://discord.gg/…"
+            />
+            <p className="text-xs text-muted-foreground">Shown as a join link on the party wiki card.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="manage-party-logo">Logo</Label>

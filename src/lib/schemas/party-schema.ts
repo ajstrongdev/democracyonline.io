@@ -5,7 +5,12 @@ export const PartySchema = z.object({
   bio: z.string().min(1, "Party bio is required"),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
   logo: z.string().nullable().optional(),
-  discord: z.string().nullable().optional(),
+  discord: z
+    .string()
+    .url("Enter a valid Discord invite URL")
+    .refine((url) => url.startsWith("https://"), "Discord links must use HTTPS")
+    .nullable()
+    .optional(),
   leaning: z.string(),
 });
 

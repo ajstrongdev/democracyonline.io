@@ -624,6 +624,21 @@ export function DashboardContent({
           {currentUser && (
             <div className="mt-3 flex justify-end">
               <Button
+                asChild
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 text-xs"
+              >
+                <a
+                  href="https://discord.gg/kYdDXfJFdn"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageSquareText className="size-3.5" /> Oscana Discord
+                </a>
+              </Button>
+              <Button
                 type="button"
                 size="sm"
                 variant="ghost"

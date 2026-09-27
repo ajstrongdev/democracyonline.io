@@ -46,6 +46,7 @@ function CreateCoalitionPage() {
       name: "",
       color: "#3b82f6",
       bio: "",
+      discord: "",
     },
     onSubmit: async ({ value }) => {
       setSubmitError(null);
@@ -56,6 +57,7 @@ function CreateCoalitionPage() {
             color: value.color,
             bio: value.bio.trim() || undefined,
             logo: selectedLogo,
+            discord: value.discord.trim() || null,
           },
         });
         navigate({
@@ -266,6 +268,15 @@ function CreateCoalitionPage() {
                       {field.state.meta.errors.join(", ")}
                     </span>
                   )}
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="discord">
+              {(field) => (
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor={field.name}>Coalition Discord invite</Label>
+                  <Input id={field.name} type="url" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="https://discord.gg/…" />
                 </div>
               )}
             </form.Field>

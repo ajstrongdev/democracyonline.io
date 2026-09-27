@@ -161,6 +161,11 @@ function PartyArticle() {
             </WikiInfoboxRow>
           )}
           <WikiInfoboxRow label="Members">{members.length}</WikiInfoboxRow>
+          {party.discord && (
+            <WikiInfoboxRow label="Discord">
+              <a href={party.discord} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Join server</a>
+            </WikiInfoboxRow>
+          )}
           {!party.current && party.archivedAt && (
             <WikiInfoboxRow label="Archived">
               {formatWikiDate(party.archivedAt)}
