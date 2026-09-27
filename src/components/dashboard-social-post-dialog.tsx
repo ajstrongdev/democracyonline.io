@@ -76,10 +76,10 @@ export function DashboardSocialPostDialog({ user }: {
 
   return <Dialog open={open} onOpenChange={setOpen}>
     <DialogTrigger asChild>
-      <button type="button" className="group flex min-h-24 min-w-0 items-start gap-3 bg-card px-4 py-4 text-left transition-colors hover:bg-muted/50 sm:px-5">
-        <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
-        <span className="min-w-0 flex-1"><span className="block font-semibold">Create a Z.com post</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">Share an update or discuss a bill.</span></span>
-        <Send className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
+      <button type="button" className="group flex min-h-[4.5rem] min-w-0 items-center gap-3 rounded-lg border bg-card px-3 py-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/30 sm:px-4">
+        <MessageSquareText className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+        <span className="min-w-0 flex-1"><span className="block font-semibold">Create a Z.com post</span><span className="mt-0.5 block text-xs leading-4 text-muted-foreground">Share an update or discuss a bill.</span></span>
+        <Send className="size-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
       </button>
     </DialogTrigger>
     <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">

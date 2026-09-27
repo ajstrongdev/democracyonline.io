@@ -104,7 +104,7 @@ async function beginVoting(
     await tx
       .update(elections)
       .set({
-        seats: Math.max(3, Math.ceil((candidateCount?.count ?? 0) * 0.5)),
+        seats: Math.ceil((candidateCount?.count ?? 0) * 0.5),
       })
       .where(eq(elections.election, election));
   }
@@ -198,6 +198,17 @@ async function concludeElection(
     .from(candidates)
     .where(eq(candidates.election, election))
     .orderBy(desc(candidates.votes), candidates.id);
+  const firstChoiceRows = await tx
+    .select({ candidateId: votes.candidateId, count: sql<number>`count(*)::int` })
+    .from(votes)
+    .where(and(eq(votes.voteType, election), eq(votes.rank, 1)))
+    .groupBy(votes.candidateId);
+  const firstChoiceCounts = new Map(firstChoiceRows.map((row) => [row.candidateId, row.count]));
+  allCandidates.sort((a, b) =>
+    (b.votes ?? 0) - (a.votes ?? 0) ||
+    (firstChoiceCounts.get(b.id) ?? 0) - (firstChoiceCounts.get(a.id) ?? 0) ||
+    a.id - b.id,
+  );
   const seats = election === "President" ? 1 : seatsValue || 1;
   const winners = allCandidates.slice(0, seats);
   const winnerUserIds = winners

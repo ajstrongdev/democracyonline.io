@@ -1,11 +1,12 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Clock3, FileText, Gamepad2, Gauge, ShieldCheck, Trash2 } from "lucide-react";
+import { Clock3, FileText, Gamepad2, Gauge, ShieldCheck, Trash2, UsersRound, Database, ScrollText } from "lucide-react";
 import { toast } from "sonner";
 import {
   checkIsAdmin,
   forceNextElectionStage,
   listDatabaseUsers,
+  listAdminAuditLog,
   listFirebaseUsers,
   purgeAllOtherAccounts,
   setElectionStageDeadline,
@@ -53,6 +54,7 @@ interface DatabaseUser {
   username: string;
   role: string | null;
   moderationRole: string;
+  isActive: boolean | null;
   partyId: number | null;
   createdAt: Date | null;
 }
@@ -63,6 +65,7 @@ export function AdminContent() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [firebaseUsers, setFirebaseUsers] = useState<Array<FirebaseUser>>([]);
   const [dbUsers, setDbUsers] = useState<Array<DatabaseUser>>([]);
+  const [auditEntries, setAuditEntries] = useState<Array<{ id: number; action: string; reason: string; createdAt: Date; target: string | null; actorId: number; targetUserId: number | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [advanceLoading, setAdvanceLoading] = useState<{
     game: boolean;
@@ -110,15 +113,17 @@ export function AdminContent() {
           return;
         }
 
-        const [fbUsers, databaseUsers, speed] = await Promise.all([
+        const [fbUsers, databaseUsers, speed, audit] = await Promise.all([
           listFirebaseUsers(),
           listDatabaseUsers(),
           getGameSpeedFn(),
+          listAdminAuditLog(),
         ]);
 
         setFirebaseUsers(fbUsers.users);
         setDbUsers(databaseUsers.users);
         setGameSpeed(speed);
+        setAuditEntries(audit.entries);
       } catch {
         navigate({ to: "/" });
       } finally {
@@ -323,24 +328,24 @@ export function AdminContent() {
   };
 
   return (
-    <div className="container mx-auto p-4 sm:p-8 max-w-7xl">
-      <div className="mb-6">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-2">Admin Dashboard</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
-          Manage users, game operations, and moderation
-        </p>
-      </div>
+    <div className="container mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-8 sm:py-10">
+      <header className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-6 shadow-sm sm:p-8">
+        <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
+          <div><p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Control room</p>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Admin dashboard</h1>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">Manage player access, moderation, and live game operations from one place.</p>
+          </div>
+          <Button variant="outline" className="w-fit gap-2" onClick={() => navigate({ to: "/moderation" })}><ShieldCheck className="size-4" /> Moderation queue</Button>
+        </div>
+        <div className="mt-7 grid grid-cols-3 gap-2 border-t pt-5 sm:max-w-lg sm:gap-6">
+          <div><p className="text-2xl font-bold tabular-nums">{firebaseUsers.length}</p><p className="text-xs text-muted-foreground">Auth accounts</p></div>
+          <div><p className="text-2xl font-bold tabular-nums">{dbUsers.length}</p><p className="text-xs text-muted-foreground">Player profiles</p></div>
+          <div><p className="text-2xl font-bold tabular-nums">{auditEntries.length}</p><p className="text-xs text-muted-foreground">Audit events</p></div>
+        </div>
+      </header>
 
-      <Button
-        variant="outline"
-        className="mb-6"
-        onClick={() => navigate({ to: "/moderation" })}
-      >
-        <ShieldCheck className="h-4 w-4" /> Open moderation queue
-      </Button>
-
-      <div className="mb-6 p-4 border rounded-lg bg-card">
-        <h2 className="text-xl font-semibold mb-4">Manual Advance Triggers</h2>
+      <section className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+        <div className="mb-6 flex items-start gap-3"><div className="rounded-xl bg-primary/10 p-2.5 text-primary"><Gauge className="size-5" /></div><div><h2 className="text-xl font-semibold tracking-tight">Game operations</h2><p className="text-sm text-muted-foreground">Run scheduler tasks and adjust the pace of the simulation.</p></div></div>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-3">
             <Label>Election heartbeat</Label>
@@ -486,7 +491,7 @@ export function AdminContent() {
           </div>
         </div>
 
-        <div className="mt-6 border-t pt-6">
+        <div className="mt-7 border-t pt-6">
           <div className="mb-1 flex items-center gap-2">
             <Gauge className="h-4 w-4" />
             <h3 className="text-lg font-semibold">Game speed</h3>
@@ -528,7 +533,7 @@ export function AdminContent() {
             })}
           </div>
         </div>
-      </div>
+      </section>
 
       <AlertDialog
         open={pendingSpeed !== null}
@@ -557,7 +562,7 @@ export function AdminContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <section className="my-6 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+      <section className="rounded-2xl border border-destructive/30 bg-destructive/[0.035] p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="font-semibold text-destructive">Delete all other accounts</h2>
@@ -614,12 +619,13 @@ export function AdminContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full max-w-xl grid-cols-2">
-          <TabsTrigger value="users">
+      <Tabs defaultValue="dbusers" className="w-full">
+        <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl bg-muted/70 p-1 sm:max-w-2xl">
+          <TabsTrigger className="gap-2 rounded-lg py-2.5" value="users"><UsersRound className="hidden size-4 sm:block" />
             Users ({firebaseUsers.length})
           </TabsTrigger>
-          <TabsTrigger value="dbusers">DB Users ({dbUsers.length})</TabsTrigger>
+          <TabsTrigger className="gap-2 rounded-lg py-2.5" value="dbusers"><Database className="hidden size-4 sm:block" /> Players ({dbUsers.length})</TabsTrigger>
+          <TabsTrigger className="gap-2 rounded-lg py-2.5" value="audit"><ScrollText className="hidden size-4 sm:block" /> Audit log ({auditEntries.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="users" className="mt-6">
           <UserList
@@ -629,6 +635,11 @@ export function AdminContent() {
         </TabsContent>
         <TabsContent value="dbusers" className="mt-6">
           <DBUserList initialUsers={dbUsers} onRefresh={refreshDbUsers} />
+        </TabsContent>
+        <TabsContent value="audit" className="mt-6">
+          <div className="rounded-lg border bg-card"><div className="border-b p-4"><h2 className="font-semibold">Moderation audit log</h2><p className="text-sm text-muted-foreground">Recent account actions and their recorded reasons.</p></div>
+            <div className="divide-y">{auditEntries.map((entry) => <article key={entry.id} className="grid gap-1 p-4 sm:grid-cols-[1fr_auto]"><div><p className="font-medium">{entry.action.replaceAll("_", " ")} · {entry.target ?? `User #${entry.targetUserId ?? "deleted"}`}</p><p className="text-sm text-muted-foreground">{entry.reason}</p><p className="text-xs text-muted-foreground">Actor #{entry.actorId}</p></div><time className="text-xs text-muted-foreground">{new Date(entry.createdAt).toLocaleString()}</time></article>)}{auditEntries.length === 0 && <p className="p-6 text-sm text-muted-foreground">No audit entries yet.</p>}</div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

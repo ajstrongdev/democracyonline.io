@@ -283,9 +283,9 @@ function CompactRaceRow({
             </Badge>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Cycle {race.cycle} · {race.seats ?? 1}{" "}
-            {race.seats === 1 ? "seat" : "seats"} · {race.candidates.length}{" "}
+            Cycle {race.cycle} · {race.candidates.length}{" "}
             {race.candidates.length === 1 ? "candidate" : "candidates"}
+            {race.status !== "CANDIDACY" && race.seats != null && <> · {race.seats} {race.seats === 1 ? "seat" : "seats"}</>}
           </p>
           {race.status === "CANDIDACY" && (
             <CompactCandidacyStatus
@@ -561,7 +561,9 @@ export function DashboardElectionBallot({ race, currentUser, onActionComplete }:
 
 function CompactConcludedStatus({ race }: { race: Race }) {
   const standings = [...race.candidates].sort(
-    (a, b) => (b.points ?? 0) - (a.points ?? 0) || a.id - b.id,
+    (a, b) => (b.points ?? 0) - (a.points ?? 0) ||
+      (b.firstChoiceVotes ?? 0) - (a.firstChoiceVotes ?? 0) ||
+      a.id - b.id,
   );
   const winners = standings.filter((c) => c.hasWon);
 

@@ -22,6 +22,16 @@ const reportCategories = [
   "other",
 ] as const;
 
+export const canAccessModerationQueue = createServerFn()
+  .middleware([requireAuthMiddleware])
+  .handler(async ({ context }) => {
+    const identity = context.user;
+    if (!identity) return null;
+    if (identity.email && isAdminEmail(identity.email)) return "admin" as const;
+    const user = await getCurrentDatabaseUser(identity);
+    return user?.moderationRole === "moderator" ? "moderator" as const : null;
+  });
+
 function asSuspicionAssessment(value: unknown): SuspicionAssessment {
   return value as SuspicionAssessment;
 }

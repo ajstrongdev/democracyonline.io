@@ -495,6 +495,12 @@ export const getCurrentElectionDashboard = createServerFn()
           not(like(users.username, "Banned User%")),
         ),
       );
+    const firstChoiceRows = await db
+      .select({ candidateId: votes.candidateId, count: sql<number>`count(*)::int` })
+      .from(votes)
+      .where(and(inArray(votes.voteType, [...raceTypes]), eq(votes.rank, 1)))
+      .groupBy(votes.candidateId);
+    const firstChoiceCounts = new Map(firstChoiceRows.map((row) => [row.candidateId, row.count]));
     const [ballotRows, primaryCandidacy] = currentUserId
       ? await Promise.all([
           db
@@ -529,7 +535,9 @@ export const getCurrentElectionDashboard = createServerFn()
         const raceCandidates = candidateRows
           .filter((candidate) => candidate.election === raceType)
           .sort((a, b) => election.status === "CONCLUDED"
-            ? (b.certifiedPoints ?? 0) - (a.certifiedPoints ?? 0) || a.username.localeCompare(b.username)
+            ? (b.certifiedPoints ?? 0) - (a.certifiedPoints ?? 0) ||
+              (firstChoiceCounts.get(b.id) ?? 0) - (firstChoiceCounts.get(a.id) ?? 0) ||
+              a.username.localeCompare(b.username)
             : a.username.localeCompare(b.username))
           .map((candidate) => {
             const party = candidate.partyId
@@ -580,6 +588,7 @@ export const getCurrentElectionDashboard = createServerFn()
               coalition,
               affiliation,
               points,
+              firstChoiceVotes: firstChoiceCounts.get(candidate.id) ?? 0,
               hasWon: election.status === "CONCLUDED" ? candidate.hasWon : null,
             };
           });

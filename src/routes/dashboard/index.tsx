@@ -91,8 +91,9 @@ export function DashboardContent({ data }: { data: Awaited<ReturnType<typeof get
   const nationalCandidacies = currentUser?.active
     ? electionDashboard.races.filter((race) => canDeclareNationalCandidacy(race, electionDashboard.races, currentUser))
     : [];
+  const partyPrompt = Boolean(currentUser && !currentUser.partyId);
   const actionCount =
-    pendingBillVotes.length + pendingCommitteeAssessments.length + Number(primaryActions.stand) + Number(primaryActions.vote) + electionVotes.length + nationalCandidacies.length;
+    pendingBillVotes.length + pendingCommitteeAssessments.length + Number(primaryActions.stand) + Number(primaryActions.vote) + electionVotes.length + nationalCandidacies.length + Number(partyPrompt);
   const electionNight = isElectionNightActive(electionDashboard);
   const [activityItems, setActivityItems] = useState(() => activity.slice(0, 6));
   const [hasMoreActivity, setHasMoreActivity] = useState(activity.length > 6);
@@ -168,7 +169,11 @@ export function DashboardContent({ data }: { data: Awaited<ReturnType<typeof get
               }
             >
               {actionCount ? (
-                <div className="divide-y border-y">
+               <div className="divide-y border-y">
+                  {partyPrompt && <div className="flex flex-wrap items-center justify-between gap-3 bg-primary/[0.035] px-4 py-3">
+                    <div className="flex min-w-0 items-start gap-3"><Users className="mt-0.5 size-4 shrink-0 text-primary" /><div><p className="font-semibold">Find your place in Oscana</p><p className="text-sm text-muted-foreground">Join a party or create one to shape the nation together.</p></div></div>
+                    <Button asChild size="sm" variant="outline"><Link to="/dashboard/parties">Explore parties <ArrowRight className="size-3.5" /></Link></Button>
+                  </div>}
                   {primaryActions.stand && (
                     <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
                       <span className="space-y-1"><span className="block font-semibold">Stand in your presidential primary</span><DashboardActionDeadline deadline={primaryActions.deadline} onExpire={() => void router.invalidate()} /></span>
@@ -256,12 +261,12 @@ export function DashboardContent({ data }: { data: Awaited<ReturnType<typeof get
          </div>
         )}
 
-      <div className={currentUser?.active ? "grid items-stretch gap-6 lg:grid-cols-2" : ""}>
-        {currentUser?.active && (
-        <WikiSection title="Take initiative" icon={Vote} description="Start something new without leaving your dashboard." className="h-full">
-          <div className="grid gap-px overflow-hidden border-y bg-border">
+      <WikiSection title="Explore Oscana" icon={Users} description="Take action, discover the community, and explore the nation." className="h-full">
+        {currentUser?.active && <section className="mb-5" aria-labelledby="take-initiative-heading">
+          <h3 id="take-initiative-heading" className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Take initiative</h3>
+          <div className="grid gap-2 sm:grid-cols-2">
             <NewBillDialog userId={currentUser.id} dashboardCommand trigger={
-              <button type="button" className="group flex min-h-24 min-w-0 items-start gap-3 bg-card px-4 py-4 text-left transition-colors hover:bg-muted/50 sm:px-5">
+              <button type="button" className="group flex min-h-[4.5rem] min-w-0 items-center gap-3 rounded-lg border bg-card px-3 py-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/30 sm:px-4">
                 <ScrollText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
                 <span className="min-w-0 flex-1"><span className="block font-semibold">Draft a bill</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">Submit a proposal to the Senate Committee.</span></span>
                 <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
@@ -269,46 +274,43 @@ export function DashboardContent({ data }: { data: Awaited<ReturnType<typeof get
             } />
             <DashboardSocialPostDialog user={currentUser} />
           </div>
-        </WikiSection>
-        )}
+        </section>}
 
-      <WikiSection title="Explore Oscana" icon={Users} description="Browse the community and learn how the game works." className="h-full">
-        <nav aria-label="Explore Oscana" className="grid gap-px overflow-hidden border-y bg-border sm:grid-cols-2">
+        <section aria-labelledby="explore-destinations-heading">
+        <h3 id="explore-destinations-heading" className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Explore</h3>
+        <nav aria-label="Explore Oscana" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            { to: "/dashboard/social", title: "Z.com", description: "Join the public conversation.", icon: MessageSquareText },
-            { to: "/dashboard/parties", title: "Parties", description: "Find your political home.", icon: Vote, count: counts.parties },
-            { to: "/dashboard/players", title: "Players", description: "Meet the people shaping Oscana.", icon: Users, count: counts.players },
-            { to: "/dashboard/guide", title: "Player guide", description: "How to take part and get started.", icon: LifeBuoy },
+            { to: "/dashboard/nation", title: "Nation", description: "Explore Oscana’s laws, economy, and national stats.", icon: Flag, featured: true },
+            { to: "/dashboard/elections", title: "Elections", description: "Follow active races, candidates, and past results.", icon: Landmark },
+            { to: "/dashboard/bills", title: "Bills", description: "Read legislation and see what each chamber is debating.", icon: ScrollText },
+            { to: "/dashboard/parties", title: "Parties", description: "Find a political home or build a coalition.", icon: Vote, count: counts.parties },
+            { to: "/dashboard/social", title: "Z.com", description: "Join the public conversation across Oscana.", icon: MessageSquareText },
+            { to: "/dashboard/players", title: "Players", description: "Meet the people shaping the nation.", icon: Users, count: counts.players },
+            { to: "/dashboard/government", title: "Government history", description: "Browse past officeholders and government composition.", icon: History },
+            { to: "/dashboard/guide", title: "Player guide", description: "Learn how the game works and how to take part.", icon: LifeBuoy },
           ].map(({ to, title, description, icon: Icon, count }) => (
-            <Link key={to} to={to} search={to === "/dashboard/social" ? { postId: undefined, commentId: undefined } : undefined} className="group flex min-h-24 min-w-0 items-start gap-3 bg-card px-4 py-4 transition-colors hover:bg-muted/50 sm:px-5">
-              <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+            <Link key={to} to={to} search={to === "/dashboard/social" ? { postId: undefined, commentId: undefined } : undefined} className="group flex min-h-[4.75rem] min-w-0 items-center gap-2.5 rounded-lg border bg-card px-3 py-2.5 transition-all hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm">
+              <span className="rounded-md bg-primary/5 p-1.5 text-primary transition-colors group-hover:bg-primary/10"><Icon className="size-3.5 shrink-0" /></span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center justify-between gap-2"><span className="font-semibold">{title}</span>{count !== undefined && <span className="font-mono text-xs text-muted-foreground">{count}</span>}</span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
+                <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">{description}</span>
               </span>
               <ArrowRight className="mt-0.5 size-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
             </Link>
           ))}
         </nav>
-        <details className="mt-4 border-t pt-3 text-sm">
-          <summary className="cursor-pointer font-semibold text-primary">More records and tools</summary>
-          <nav aria-label="More records and tools" className="mt-3 flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="outline"><Link to="/dashboard/nation"><Flag className="size-4" /> Nation</Link></Button>
-            <Button asChild size="sm" variant="outline"><Link to="/dashboard/government"><History className="size-4" /> Government history</Link></Button>
-            <Button asChild size="sm" variant="outline"><Link to="/dashboard/elections"><Landmark className="size-4" /> Election archive</Link></Button>
-            {currentUser && <Button type="button" size="sm" variant="outline" onClick={() => setInviteOpen(true)}><MailPlus className="size-4" /> Invite a player</Button>}
-          </nav>
-        </details>
+        {currentUser && <div className="mt-3 flex justify-end"><Button type="button" size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setInviteOpen(true)}><MailPlus className="size-3.5" /> Invite a player</Button></div>}
         {currentUser && <AccountSettingsDialog open={inviteOpen} onOpenChange={setInviteOpen} initialTab="invites" />}
+        </section>
       </WikiSection>
-      </div>
 
-      <div className={electionNight ? "space-y-6" : "grid items-start gap-6 lg:grid-cols-2"}>
+      <div className={electionNight ? "space-y-6" : "grid items-stretch gap-6 lg:grid-cols-2"}>
         <WikiSection
           title="Bill status"
           icon={ScrollText}
           description="Where current proposals stand. Your votes appear above."
           aside={<Link to="/dashboard/bills" className="text-sm font-semibold text-primary hover:underline">All bills</Link>}
+          className="h-full"
         >
           {recentBills.length ? (
             <div className="divide-y border-y">

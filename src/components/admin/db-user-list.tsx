@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ShieldCheck, Ban } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -21,13 +22,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { purgeUserFromDatabase } from "@/lib/server/admin";
+import { purgeUserFromDatabase, setPlayerBan } from "@/lib/server/admin";
+import { setModerationRole } from "@/lib/server/moderation";
 
 interface DatabaseUser {
   id: number;
   email: string;
   username: string;
   role: string | null;
+  moderationRole: string;
+  isActive: boolean | null;
   partyId: number | null;
   createdAt: Date | null;
 }
@@ -46,22 +50,41 @@ export default function DBUserList({
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<DatabaseUser | null>(null);
+  const [reason, setReason] = useState("");
 
   const handlePurgeUser = async () => {
     if (!userToDelete) return;
 
     try {
       setLoading(true);
-      await purgeUserFromDatabase({ data: { userId: userToDelete.id } });
+      if (reason.trim().length < 3) throw new Error("A deletion reason is required.");
+      await purgeUserFromDatabase({ data: { userId: userToDelete.id, reason } });
       setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
       setDeleteDialogOpen(false);
       setUserToDelete(null);
+      setReason("");
+      toast.success("User deleted and recorded in the audit log");
     } catch (error) {
       console.error("Error purging user:", error);
       toast.error("Failed to purge user");
     } finally {
       setLoading(false);
     }
+  };
+
+  const manageRoleOrBan = async (user: DatabaseUser, action: "ban" | "unban" | "promote" | "demote") => {
+    const why = window.prompt(`Reason for ${action} of ${user.username}:`);
+    if (!why || why.trim().length < 3) return;
+    try {
+      if (action === "ban" || action === "unban") {
+        await setPlayerBan({ data: { userId: user.id, banned: action === "ban", reason: why } });
+        setUsers((prev) => prev.map((item) => item.id === user.id ? { ...item, isActive: action !== "ban" } : item));
+      } else {
+        await setModerationRole({ data: { userId: user.id, role: action === "promote" ? "moderator" : "player", reason: why } });
+        setUsers((prev) => prev.map((item) => item.id === user.id ? { ...item, moderationRole: action === "promote" ? "moderator" : "player" } : item));
+      }
+      toast.success("Action completed and recorded");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Action failed"); }
   };
 
   const openDeleteDialog = (user: DatabaseUser) => {
@@ -92,7 +115,7 @@ export default function DBUserList({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Database Users</CardTitle>
-              <CardDescription>Purge users from the database</CardDescription>
+              <CardDescription>Search player profiles, manage moderator access, and review account status.</CardDescription>
             </div>
             <Button
               variant="outline"
@@ -117,14 +140,19 @@ export default function DBUserList({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {filteredUsers.map((user) => (
-              <Card key={user.id}>
-                <CardHeader>
+              <Card key={user.id} className="overflow-hidden transition-shadow hover:shadow-md">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
                   <CardTitle>{user.username}</CardTitle>
                   <CardDescription className="truncate">
                     {user.email}
                   </CardDescription>
+                    </div>
+                    <Badge variant={user.isActive === false ? "destructive" : user.moderationRole === "moderator" ? "default" : "secondary"} className="shrink-0">{user.isActive === false ? "Banned" : user.moderationRole === "moderator" ? "Moderator" : "Player"}</Badge>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2 text-sm">
@@ -133,8 +161,9 @@ export default function DBUserList({
                     </div>
                     <div>
                       <span className="font-semibold">Role:</span>{" "}
-                      {user.role || "None"}
+                      {user.role || "None"} · {user.moderationRole || "player"}
                     </div>
+                    {user.isActive === false && <div className="font-medium text-destructive">Banned</div>}
                     <div>
                       <span className="font-semibold">Party ID:</span>{" "}
                       {user.partyId || "None"}
@@ -147,7 +176,11 @@ export default function DBUserList({
                     )}
                   </div>
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="flex flex-col items-stretch gap-2 pt-0">
+                  <div className="grid w-full grid-cols-2 gap-2">
+                    <Button variant="outline" size="sm" onClick={() => manageRoleOrBan(user, user.isActive === false ? "unban" : "ban")}><Ban className="mr-1 size-4" />{user.isActive === false ? "Unban" : "Ban"}</Button>
+                    <Button variant="outline" size="sm" onClick={() => manageRoleOrBan(user, user.moderationRole === "moderator" ? "demote" : "promote")}><ShieldCheck className="mr-1 size-4" />{user.moderationRole === "moderator" ? "Remove mod" : "Make mod"}</Button>
+                  </div>
                   <Button
                     variant="destructive"
                     onClick={() => openDeleteDialog(user)}
@@ -181,9 +214,10 @@ export default function DBUserList({
               bills, votes, and party membership. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2"><label htmlFor="delete-reason" className="text-sm font-medium">Deletion reason (required)</label><Input id="delete-reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Explain why this account is being deleted" /></div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handlePurgeUser}>
+            <AlertDialogAction disabled={loading || reason.trim().length < 3} onClick={handlePurgeUser}>
               Purge
             </AlertDialogAction>
           </AlertDialogFooter>

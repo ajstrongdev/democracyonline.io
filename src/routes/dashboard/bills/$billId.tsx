@@ -44,7 +44,19 @@ export const Route = createFileRoute("/dashboard/bills/$billId")({
         }),
         getCommitteeData({ data: { billId: id } }),
         getBillComments({ data: { billId: id } }),
-        getBillWhips({ data: { billId: id } }),
+        getBillWhips({ data: { billId: id } }).catch((error) => {
+          // Party guidance is an optional bill feature. Older seeded databases
+          // can be missing its migration; keep the bill readable and log the
+          // schema error so it can be diagnosed instead of crashing the route.
+          console.error("Could not load bill party guidance", error);
+          return {
+            whips: [],
+            currentPartyId: null,
+            isLeader: false,
+            canWhip: false,
+            isVoting: false,
+          };
+        }),
         getCurrentUserInfo(),
       ]);
     if (!billData) throw new Response("Bill not found", { status: 404 });
@@ -56,6 +68,13 @@ export const Route = createFileRoute("/dashboard/bills/$billId")({
 function BillArticle() {
   const { billData, article, committee, comments, whipData, currentUser } =
     Route.useLoaderData();
+  const partyGuidance = whipData ?? {
+    whips: [],
+    currentPartyId: null,
+    isLeader: false,
+    canWhip: false,
+    isVoting: false,
+  };
   const { bill, rollCalls } = billData;
   const router = useRouter();
   const [reviveOpen, setReviveOpen] = useState(false);
@@ -82,7 +101,7 @@ function BillArticle() {
         description={`Proposed by ${bill.creator ?? "Unknown"}${bill.createdAt ? ` on ${formatWikiDate(bill.createdAt)}` : ""}.`}
         status={<Badge variant="outline">{billStatusLabel(bill.status)}</Badge>}
       >
-        {whipData.isLeader && (
+        {partyGuidance.isLeader && (
           <Button asChild variant="outline" size="sm">
             <a href="#party-guidance"><Megaphone className="size-4" /> Party voting guidance</a>
           </Button>
@@ -156,11 +175,11 @@ function BillArticle() {
       <BillComments
         billId={bill.id}
         comments={comments}
-        whips={whipData.whips}
-        currentPartyId={whipData.currentPartyId}
-        isLeader={whipData.isLeader}
-        canWhip={whipData.canWhip}
-        isVoting={whipData.isVoting}
+        whips={partyGuidance.whips}
+        currentPartyId={partyGuidance.currentPartyId}
+        isLeader={partyGuidance.isLeader}
+        canWhip={partyGuidance.canWhip}
+        isVoting={partyGuidance.isVoting}
       />
       <section className="grid gap-4 lg:grid-cols-3">
         <RollCall title="House of Representatives" votes={rollCalls.house} />

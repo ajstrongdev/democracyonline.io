@@ -32,9 +32,7 @@ async function getAdminElectionTiming() {
 }
 
 export function isAdminEmail(email: string) {
-  return env.ADMIN_EMAILS.some(
-    (adminEmail) => adminEmail.toLowerCase() === email.toLowerCase(),
-  );
+  return ["ajstrongdev@pm.me", "jenewland1999@gmail.com"].includes(email.toLowerCase());
 }
 
 export const checkIsAdmin = createServerFn()
@@ -396,12 +394,42 @@ export const listDatabaseUsers = createServerFn()
         username: users.username,
         role: users.role,
         moderationRole: users.moderationRole,
+        isActive: users.isActive,
         partyId: users.partyId,
         createdAt: users.createdAt,
       })
       .from(users);
 
     return { users: allUsers };
+  });
+
+export const listAdminAuditLog = createServerFn()
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    const email = context.user?.email;
+    if (!email || !isAdminEmail(email)) throw new Error("Unauthorized");
+    const entries = await db.select({ id: moderationAuditLog.id, action: moderationAuditLog.action,
+      reason: moderationAuditLog.reason,
+      createdAt: moderationAuditLog.createdAt, target: users.username,
+      actorId: moderationAuditLog.actorUserId, targetUserId: moderationAuditLog.targetUserId })
+      .from(moderationAuditLog).leftJoin(users, eq(users.id, moderationAuditLog.targetUserId))
+      .orderBy(sql`${moderationAuditLog.createdAt} DESC`).limit(250);
+    return { entries };
+  });
+
+export const setPlayerBan = createServerFn({ method: "POST" }).middleware([authMiddleware])
+  .inputValidator((data: { userId: number; banned: boolean; reason: string }) => data)
+  .handler(async ({ context, data }) => {
+    const email = context.user?.email;
+    if (!email || !isAdminEmail(email)) throw new Error("Unauthorized");
+    if (data.reason.trim().length < 3 || data.reason.length > 1000) throw new Error("A reason of at least 3 characters is required");
+    const [actor] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (!actor || actor.id === data.userId) throw new Error("Cannot ban this account");
+    await db.transaction(async (tx) => {
+      await tx.update(users).set({ isActive: !data.banned }).where(eq(users.id, data.userId));
+      await tx.insert(moderationAuditLog).values({ actorUserId: actor.id, targetUserId: data.userId, action: data.banned ? "ban_user" : "unban_user", reason: data.reason.trim() });
+    });
+    return { success: true };
   });
 
 const ACCOUNT_PRESERVATION_EMAILS = [
@@ -486,13 +514,16 @@ export const purgeAllOtherAccounts = createServerFn({ method: "POST" })
 
 export const purgeUserFromDatabase = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator((data: { userId: number }) => data)
+  .inputValidator((data: { userId: number; reason: string }) => data)
   .handler(
-    async ({ context, data }: { context: any; data: { userId: number } }) => {
+    async ({ context, data }: { context: any; data: { userId: number; reason: string } }) => {
       const email = context.user?.email;
       if (!email || !isAdminEmail(email)) {
         throw new Error("Unauthorized");
       }
+      if (data.reason.trim().length < 3 || data.reason.length > 1000) throw new Error("A reason of at least 3 characters is required");
+      const [actor] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+      if (!actor) throw new Error("Admin player profile not found");
 
       const [submittedBallot] = await db
         .select({ id: votes.id })
@@ -557,6 +588,7 @@ export const purgeUserFromDatabase = createServerFn({ method: "POST" })
         .limit(1);
 
       await db.transaction(async (tx) => {
+        await tx.insert(moderationAuditLog).values({ actorUserId: actor.id, targetUserId: data.userId, action: "delete_user", reason: data.reason.trim() });
         if (userMembership?.partyId) {
           await tx
             .update(users)
