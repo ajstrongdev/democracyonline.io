@@ -366,10 +366,16 @@ export const requestJoinCoalition = createServerFn()
 
     if (existingReq) throw new Error("You already have a pending request");
 
-    await db.insert(joinRequests).values({
-      partyId: user.partyId,
-      coalitionId: data.coalitionId,
-      status: "Pending",
+    await db.transaction(async (tx) => {
+      await tx.insert(joinRequests).values({
+        partyId: user.partyId!,
+        coalitionId: data.coalitionId,
+        status: "Pending",
+      });
+      await tx.insert(feed).values({
+        userId: user.id,
+        content: `requested to join coalition #${data.coalitionId} on behalf of party #${user.partyId}`,
+      });
     });
 
     return true;

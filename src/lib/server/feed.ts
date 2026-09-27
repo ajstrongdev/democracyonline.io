@@ -1,22 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { feed, users } from "@/db/schema";
 import { requireAuthMiddleware } from "@/middleware/auth";
 import { userEmailEquals } from "@/lib/server/user-email";
 
 export const getFeedItems = createServerFn()
-  .inputValidator(
-    (data: { limit?: number; offset?: number; visibility?: string }) => data,
-  )
+  .inputValidator((data: { limit?: number; offset?: number }) => data)
   .handler(async ({ data }) => {
     const limit = Math.min(50, Math.max(1, data.limit ?? 25));
     const offset = Math.max(0, data.offset ?? 0);
-
-    const conditions = [];
-    if (data.visibility) {
-      conditions.push(eq(feed.visibility, data.visibility));
-    }
 
     const feedItems = await db
       .select({
@@ -30,7 +23,7 @@ export const getFeedItems = createServerFn()
       })
       .from(feed)
       .leftJoin(users, eq(feed.userId, users.id))
-      .where(conditions.length ? and(...conditions) : undefined)
+      .where(eq(feed.visibility, "player"))
       .orderBy(desc(feed.createdAt), desc(feed.id))
       .limit(limit)
       .offset(offset);

@@ -1,9 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { billVotesPresidential, bills, parties, users } from "@/db/schema";
+import {
+  billVotesPresidential,
+  bills,
+  feed,
+  parties,
+  users,
+} from "@/db/schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
-import { addFeedItem } from "@/lib/server/feed";
 import { userEmailEquals } from "@/lib/server/user-email";
 
 // Types
@@ -148,7 +153,7 @@ export const voteOnPresidentialBill = createServerFn({ method: "POST" })
       throw new Error("You must be the President to sign or veto bills");
     }
 
-    const bill = await db.transaction(async (tx) => {
+    await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(24092026)`);
       const [currentBill] = await tx
         .select({ id: bills.id, title: bills.title })
@@ -187,15 +192,10 @@ export const voteOnPresidentialBill = createServerFn({ method: "POST" })
         voterId: user.id,
         voteYes: data.voteYes,
       });
-      return currentBill;
-    });
-
-    // Add feed item
-    await addFeedItem({
-      data: {
+      await tx.insert(feed).values({
         userId: user.id,
-        content: `${data.voteYes ? "Signed" : "Vetoed"} bill #${data.billId}: ${bill.title}.`,
-      },
+        content: `${data.voteYes ? "Signed" : "Vetoed"} bill #${data.billId}: ${currentBill.title}.`,
+      });
     });
 
     return { success: true };

@@ -557,6 +557,12 @@ export const toggleSocialVote = createServerFn({ method: "POST" })
         (data.vote === "up" && removedUp) ||
         (data.vote === "down" && removedDown)
       ) {
+        await tx
+          .insert(feed)
+          .values({
+            userId: player.id,
+            content: `removed their Z.com vote on post #${data.postId}`,
+          });
         return { vote: null };
       }
       if (data.vote === "up") {
@@ -568,6 +574,12 @@ export const toggleSocialVote = createServerFn({ method: "POST" })
           .insert(socialDislikes)
           .values({ postId: data.postId, userId: player.id });
       }
+      await tx
+        .insert(feed)
+        .values({
+          userId: player.id,
+          content: `${data.vote === "up" ? "liked" : "disliked"} Z.com post #${data.postId}`,
+        });
       return { vote: data.vote };
     });
   });
@@ -614,8 +626,15 @@ export const toggleSocialCommentVote = createServerFn({ method: "POST" })
       if (
         (data.vote === "up" && removedUp) ||
         (data.vote === "down" && removedDown)
-      )
+      ) {
+        await tx
+          .insert(feed)
+          .values({
+            userId: player.id,
+            content: `removed their Z.com vote on comment #${data.commentId}`,
+          });
         return { vote: null };
+      }
       if (data.vote === "up") {
         await tx
           .insert(socialCommentLikes)
@@ -625,6 +644,12 @@ export const toggleSocialCommentVote = createServerFn({ method: "POST" })
           .insert(socialCommentDislikes)
           .values({ commentId: data.commentId, userId: player.id });
       }
+      await tx
+        .insert(feed)
+        .values({
+          userId: player.id,
+          content: `${data.vote === "up" ? "liked" : "disliked"} Z.com comment #${data.commentId}`,
+        });
       return { vote: data.vote };
     });
   });
@@ -635,19 +660,43 @@ export const toggleSocialRepost = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     if (!context.user?.email) throw new Error("Authentication required");
     const player = await getActivePlayer(context.user.email);
-    const [deleted] = await db
-      .delete(socialReposts)
-      .where(
-        and(
-          eq(socialReposts.postId, data.postId),
-          eq(socialReposts.userId, player.id),
-        ),
-      )
-      .returning({ postId: socialReposts.postId });
-    if (deleted) return { reposted: false };
-    await db
-      .insert(socialReposts)
-      .values({ postId: data.postId, userId: player.id })
-      .onConflictDoNothing();
-    return { reposted: true };
+    return db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(${data.postId}, ${player.id})`,
+      );
+      const [post] = await tx
+        .select({ id: socialPosts.id })
+        .from(socialPosts)
+        .where(eq(socialPosts.id, data.postId))
+        .limit(1);
+      if (!post) throw new Error("Post not found");
+      const [deleted] = await tx
+        .delete(socialReposts)
+        .where(
+          and(
+            eq(socialReposts.postId, data.postId),
+            eq(socialReposts.userId, player.id),
+          ),
+        )
+        .returning({ postId: socialReposts.postId });
+      if (deleted) {
+        await tx
+          .insert(feed)
+          .values({
+            userId: player.id,
+            content: `removed their Z.com repost of post #${data.postId}`,
+          });
+        return { reposted: false };
+      }
+      await tx
+        .insert(socialReposts)
+        .values({ postId: data.postId, userId: player.id });
+      await tx
+        .insert(feed)
+        .values({
+          userId: player.id,
+          content: `reposted Z.com post #${data.postId}`,
+        });
+      return { reposted: true };
+    });
   });

@@ -455,10 +455,10 @@ export const resolveProposal = createServerFn({ method: "POST" })
       }
 
       await tx.insert(feed).values({
-        userId: proposal.proposerUserId,
+        userId: user.id,
         content: approved
-          ? `Proposal to ${proposal.proposalType} coalition was approved`
-          : `Proposal to ${proposal.proposalType} coalition was rejected`,
+          ? `resolved coalition #${proposal.coalitionId} proposal #${proposal.id}: approved`
+          : `resolved coalition #${proposal.coalitionId} proposal #${proposal.id}: rejected`,
       });
 
       return { approved };

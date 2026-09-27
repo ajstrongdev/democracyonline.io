@@ -1,9 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { billVotesHouse, bills, parties, users } from "@/db/schema";
+import { billVotesHouse, bills, feed, parties, users } from "@/db/schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
-import { addFeedItem } from "@/lib/server/feed";
 import { userEmailEquals } from "@/lib/server/user-email";
 
 // Types
@@ -189,14 +188,10 @@ export const voteOnHouseBill = createServerFn({ method: "POST" })
         voterId: user.id,
         voteYes: data.voteYes,
       });
-    });
-
-    // Add feed item
-    await addFeedItem({
-      data: {
+      await tx.insert(feed).values({
         userId: user.id,
         content: `Voted ${data.voteYes ? "FOR" : "AGAINST"} bill #${data.billId} in the House of Representatives.`,
-      },
+      });
     });
 
     return { success: true };

@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { SuspicionAssessment } from "@/lib/moderation/suspicion";
 import { db } from "@/db";
 import {
+  feed,
   gameSettings,
   moderationAuditLog,
   moderationFlags,
@@ -244,6 +245,11 @@ export const reportPlayer = createServerFn({ method: "POST" })
         category: data.category,
         details: data.details,
       });
+      await tx.insert(feed).values({
+        userId: reporter.id,
+        content: `reported player #${data.reportedUserId} for moderation review`,
+        visibility: "admin",
+      });
     });
     try {
       await refreshAutomaticFlag(data.reportedUserId);
@@ -413,6 +419,11 @@ export const moderatePlayer = createServerFn({ method: "POST" })
         action: data.action,
         reason: data.reason,
       });
+      await tx.insert(feed).values({
+        userId: actor.id,
+        content: `${data.action} moderation case for player #${data.targetUserId}`,
+        visibility: "admin",
+      });
     });
     return { success: true };
   });
@@ -440,6 +451,11 @@ export const setModerationRole = createServerFn({ method: "POST" })
         action: "set_moderation_role",
         reason: data.reason,
         metadata: { role: data.role },
+      });
+      await tx.insert(feed).values({
+        userId: actor.id,
+        content: `set moderation role for player #${data.userId} to ${data.role}`,
+        visibility: "admin",
       });
     });
     return { success: true };

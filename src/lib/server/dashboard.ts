@@ -1,11 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   billVotesHouse,
   billVotesPresidential,
   billVotesSenate,
   bills,
+  coalitionMembers,
+  coalitionProposals,
+  coalitionVotes,
   committeeAssessments,
   electionCandidateHistory,
   nations,
@@ -105,6 +108,7 @@ export const getDashboardData = createServerFn()
           hasVoted: false,
           deadline: null,
         },
+        pendingCoalitionProposals: [],
         zMentionSummary: {
           notifications: 0,
           accounts: 0,
@@ -150,6 +154,7 @@ export const getDashboardData = createServerFn()
           hasVoted: false,
           deadline: null,
         },
+        pendingCoalitionProposals: [],
         zMentionSummary: {
           notifications: 0,
           accounts: 0,
@@ -180,13 +185,18 @@ export const getDashboardData = createServerFn()
       withdraw: primary?.electionStatus === "CANDIDACY" && primary.isCandidate,
       vote:
         primary?.electionStatus === "CANDIDACY" &&
-        primary.candidates.length > 0,
+        primary.candidates.length > 0 &&
+        !primary.hasVoted,
       hasVoted: primary?.hasVoted ?? false,
       deadline: primary?.candidacyEndsAt ?? null,
     };
     const config =
       officeVotingConfig[currentUser.role as keyof typeof officeVotingConfig];
-    const [pendingBillVotes, pendingCommitteeAssessments] = await Promise.all([
+    const [
+      pendingBillVotes,
+      pendingCommitteeAssessments,
+      pendingCoalitionProposals,
+    ] = await Promise.all([
       config && currentUser.active
         ? db
             .select({
@@ -199,6 +209,7 @@ export const getDashboardData = createServerFn()
               and(
                 eq(bills.status, "Voting"),
                 eq(bills.stage, config.stage),
+                gt(bills.stageEndsAt, new Date()),
                 sql`not exists (select 1 from ${config.votes} where ${config.votes.billId} = ${bills.id} and ${config.votes.voterId} = ${currentUser.id})`,
               ),
             )
@@ -215,10 +226,39 @@ export const getDashboardData = createServerFn()
             .where(
               and(
                 eq(bills.status, "Committee"),
+                gt(bills.stageEndsAt, new Date()),
                 sql`not exists (select 1 from ${committeeAssessments} where ${committeeAssessments.billId} = ${bills.id} and ${committeeAssessments.senatorId} = ${currentUser.id})`,
               ),
             )
             .orderBy(bills.createdAt)
+        : Promise.resolve([]),
+      currentUser.active &&
+      currentUser.partyId &&
+      currentUser.partyLeaderId === currentUser.id
+        ? db
+            .select({
+              id: coalitionProposals.id,
+              proposalType: coalitionProposals.proposalType,
+              coalitionId: coalitionProposals.coalitionId,
+            })
+            .from(coalitionProposals)
+            .innerJoin(
+              coalitionMembers,
+              and(
+                eq(
+                  coalitionMembers.coalitionId,
+                  coalitionProposals.coalitionId,
+                ),
+                eq(coalitionMembers.partyId, currentUser.partyId),
+              ),
+            )
+            .where(
+              and(
+                eq(coalitionProposals.status, "open"),
+                sql`not exists (select 1 from ${coalitionVotes} where ${coalitionVotes.proposalId} = ${coalitionProposals.id} and ${coalitionVotes.voterPartyId} = ${currentUser.partyId})`,
+              ),
+            )
+            .orderBy(coalitionProposals.createdAt)
         : Promise.resolve([]),
     ]);
 
@@ -231,6 +271,7 @@ export const getDashboardData = createServerFn()
         stage: config?.stage ?? "House",
       })),
       pendingCommitteeAssessments,
+      pendingCoalitionProposals,
       primaryActions,
       zMentionSummary,
       activity,

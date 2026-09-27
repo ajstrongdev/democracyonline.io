@@ -3,7 +3,7 @@ import { getCookie, setCookie } from "@tanstack/react-start/server";
 import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { colorSchemes, users } from "@/db/schema";
+import { colorSchemes, feed, users } from "@/db/schema";
 import {
   colorSchemeInput,
   selectedColorSchemeCookie,
@@ -59,9 +59,7 @@ export const getSelectedColorScheme = createServerFn()
 
 export const getColorSchemeCatalog = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator(
-    z.object({ beforeId: databaseId.optional() }),
-  )
+  .inputValidator(z.object({ beforeId: databaseId.optional() }))
   .handler(async ({ context, data }) => {
     const player = context.user
       ? await getCurrentDatabaseUser(context.user)
@@ -140,6 +138,12 @@ export const saveColorScheme = createServerFn({ method: "POST" })
           )
           .returning();
         if (!updated) throw new Error("Theme not found or not yours");
+        await tx
+          .insert(feed)
+          .values({
+            userId: player.id,
+            content: `updated color scheme #${updated.id}`,
+          });
         return updated;
       }
       const [count] = await tx
@@ -154,6 +158,12 @@ export const saveColorScheme = createServerFn({ method: "POST" })
         .insert(colorSchemes)
         .values({ ...data.scheme, ownerId: player.id })
         .returning();
+      await tx
+        .insert(feed)
+        .values({
+          userId: player.id,
+          content: `created color scheme #${created.id}`,
+        });
       return created;
     });
   });
@@ -165,13 +175,24 @@ export const deleteColorScheme = createServerFn({ method: "POST" })
     if (!context.user) throw new Error("Sign in to delete a theme");
     const player = await getCurrentDatabaseUser(context.user);
     if (!player) throw new Error("Player profile not found");
-    const deleted = await db
-      .delete(colorSchemes)
-      .where(
-        and(eq(colorSchemes.id, data.id), eq(colorSchemes.ownerId, player.id)),
-      )
-      .returning({ id: colorSchemes.id });
-    if (!deleted.length) throw new Error("Theme not found or not yours");
+    await db.transaction(async (tx) => {
+      const deleted = await tx
+        .delete(colorSchemes)
+        .where(
+          and(
+            eq(colorSchemes.id, data.id),
+            eq(colorSchemes.ownerId, player.id),
+          ),
+        )
+        .returning({ id: colorSchemes.id });
+      if (!deleted.length) throw new Error("Theme not found or not yours");
+      await tx
+        .insert(feed)
+        .values({
+          userId: player.id,
+          content: `deleted color scheme #${data.id}`,
+        });
+    });
     if (getCookie(selectedColorSchemeCookie) === String(data.id))
       writeSelectedCookie(null);
   });

@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import {
-  ArrowRight,
   Activity,
+  ArrowRight,
   BellRing,
   CheckCircle2,
   ClipboardCheck,
@@ -17,8 +17,8 @@ import {
   MessageSquareText,
   Radio,
   Scale,
-  ShieldCheck,
   ScrollText,
+  ShieldCheck,
   Users,
   Vote,
 } from "lucide-react";
@@ -34,7 +34,7 @@ import { DashboardActionDeadline } from "@/components/dashboard-action-deadline"
 import { DashboardPrimaryAction } from "@/components/dashboard-primary-action";
 import { DashboardSocialPostDialog } from "@/components/dashboard-social-post-dialog";
 import { NewBillDialog } from "@/components/wiki/bill-desk-dialogs";
-import { WikiHeader } from "@/components/wiki/wiki-header";
+import { ResultBar, WikiHeader } from "@/components/wiki/wiki-header";
 import {
   WikiEmpty,
   WikiPage,
@@ -49,7 +49,6 @@ import { AccountSettingsDialog } from "@/components/settings/account-settings-di
 import { getFeedItems } from "@/lib/server/feed";
 import { getFeedDestination } from "@/lib/feed-destination";
 import { DashboardBillVoteAction } from "@/components/dashboard-bill-vote-action";
-import { ResultBar } from "@/components/wiki/wiki-header";
 
 dayjs.extend(relativeTime);
 
@@ -86,6 +85,7 @@ export function DashboardContent({
     currentUser,
     pendingBillVotes,
     pendingCommitteeAssessments,
+    pendingCoalitionProposals,
     primaryActions,
     zMentionSummary,
     activity,
@@ -107,10 +107,11 @@ export function DashboardContent({
         canDeclareNationalCandidacy(race, electionDashboard.races, currentUser),
       )
     : [];
-  const partyPrompt = Boolean(currentUser && !currentUser.partyId);
+  const partyPrompt = Boolean(currentUser?.active && !currentUser.partyId);
   const actionCount =
     pendingBillVotes.length +
     pendingCommitteeAssessments.length +
+    pendingCoalitionProposals.length +
     Number(primaryActions.stand) +
     Number(primaryActions.withdraw) +
     Number(primaryActions.vote) +
@@ -214,7 +215,7 @@ export function DashboardContent({
           <WikiSection
             title="Your next moves"
             icon={BellRing}
-            description="Only the decisions waiting for you. Finished actions disappear."
+            description="Decisions currently waiting for you. Completed actions disappear."
             className="flex h-full flex-col [&>.wiki-section-content]:flex-1"
             aside={
               <span className="font-mono text-xs text-muted-foreground">
@@ -280,9 +281,7 @@ export function DashboardContent({
                   >
                     <span className="space-y-1">
                       <span className="block font-semibold">
-                        {primaryActions.hasVoted
-                          ? "Your presidential primary vote"
-                          : "Vote in your presidential primary"}
+                        Vote in your presidential primary
                       </span>
                       <DashboardActionDeadline
                         deadline={primaryActions.deadline}
@@ -290,9 +289,7 @@ export function DashboardContent({
                       />
                     </span>
                     <span className="text-sm font-semibold text-primary">
-                      {primaryActions.hasVoted
-                        ? "View primary →"
-                        : "Vote now →"}
+                      Vote now →
                     </span>
                   </Link>
                 )}
@@ -403,11 +400,28 @@ export function DashboardContent({
                     </span>
                   </Link>
                 ))}
+                {pendingCoalitionProposals.map((proposal) => (
+                  <Link
+                    key={`coalition-${proposal.id}`}
+                    to="/dashboard/parties/coalitions/$id"
+                    params={{ id: String(proposal.coalitionId) }}
+                    className="group flex items-center justify-between gap-3 px-4 py-4 hover:bg-muted/30"
+                  >
+                    <span className="flex items-center gap-2 font-semibold">
+                      <Users className="size-4 text-primary" /> Vote on a
+                      coalition {proposal.proposalType.replaceAll("_", " ")}{" "}
+                      proposal
+                    </span>
+                    <span className="text-sm font-semibold text-primary">
+                      Review proposal →
+                    </span>
+                  </Link>
+                ))}
               </div>
             ) : (
               <div className="flex items-center gap-3 border border-dashed px-4 py-6 text-sm text-muted-foreground">
                 <CheckCircle2 className="h-5 w-5 text-primary" />
-                You are caught up. New game actions will appear here.
+                You are caught up. New pending decisions will appear here.
               </div>
             )}
           </WikiSection>

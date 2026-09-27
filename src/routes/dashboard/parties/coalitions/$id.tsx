@@ -445,7 +445,15 @@ function CoalitionPage() {
         </WikiStatGrid>
 
         {/* Tabs: Parties | Join Requests | Proposals */}
-        <Tabs defaultValue="parties" className="w-full">
+        <Tabs
+          defaultValue={
+            isMemberPartyLeader &&
+            proposals.some((proposal) => proposal.status === "open")
+              ? "proposals"
+              : "parties"
+          }
+          className="w-full"
+        >
           <TabsList
             className={`grid w-full ${coalition.archivedAt ? "grid-cols-1" : "grid-cols-3"} mb-4`}
           >

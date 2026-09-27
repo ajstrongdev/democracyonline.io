@@ -223,27 +223,24 @@ export const updateUserProfile = createServerFn({ method: "POST" })
       throw new Error("You can only update your own profile");
     }
 
-    const updatedUser = await db
-      .update(users)
-      .set({
-        username: data.username,
-        bio: data.bio,
-        pronouns: data.pronouns?.trim() || null,
-        politicalLeaning: data.politicalLeaning,
-      })
-      .where(eq(users.id, data.userId))
-      .returning();
-
-    if (updatedUser.length === 0) {
-      throw new Error("Failed to update user profile");
-    }
-
-    await db.insert(feed).values({
-      userId: updatedUser[0].id,
-      content: "updated their player profile",
+    return db.transaction(async (tx) => {
+      const [updatedUser] = await tx
+        .update(users)
+        .set({
+          username: data.username,
+          bio: data.bio,
+          pronouns: data.pronouns?.trim() || null,
+          politicalLeaning: data.politicalLeaning,
+        })
+        .where(eq(users.id, data.userId))
+        .returning();
+      if (!updatedUser) throw new Error("Failed to update user profile");
+      await tx.insert(feed).values({
+        userId: updatedUser.id,
+        content: "updated their player profile",
+      });
+      return updatedUser;
     });
-
-    return updatedUser[0];
   });
 
 export const updatePlayerAvatar = createServerFn({ method: "POST" })
@@ -251,12 +248,18 @@ export const updatePlayerAvatar = createServerFn({ method: "POST" })
   .inputValidator(avatarSchema)
   .handler(async ({ data, context }) => {
     if (!context.user?.email) throw new Error("Authentication required");
-    const [player] = await db
-      .update(users)
-      .set({ avatarConfig: data, photoUrl: renderAvatar(data) })
-      .where(userEmailEquals(context.user.email))
-      .returning({ id: users.id });
-    if (!player) throw new Error("Player account not found");
+    await db.transaction(async (tx) => {
+      const [player] = await tx
+        .update(users)
+        .set({ avatarConfig: data, photoUrl: renderAvatar(data) })
+        .where(userEmailEquals(context.user!.email!))
+        .returning({ id: users.id });
+      if (!player) throw new Error("Player account not found");
+      await tx.insert(feed).values({
+        userId: player.id,
+        content: "updated their player avatar",
+      });
+    });
     return { saved: true };
   });
 

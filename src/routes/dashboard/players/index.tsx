@@ -11,6 +11,7 @@ import {
   usePlayerPresenceData,
   usePresenceClock,
 } from "@/components/players/player-last-seen";
+import { isPlayerOnline } from "@/lib/player-presence";
 
 export const Route = createFileRoute("/dashboard/players/")({
   loader: () => getWikiPlayers(),
@@ -22,12 +23,18 @@ function PlayersIndex() {
   const now = usePresenceClock();
   const presence = usePlayerPresenceData();
   const [query, setQuery] = useState("");
+  const [onlineOnly, setOnlineOnly] = useState(false);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
-  const filtered = players.filter((player) =>
-    `${player.username} ${player.partyName ?? ""} ${player.role ?? ""}`
-      .toLowerCase()
-      .includes(deferredQuery),
-  );
+  const filtered = players.filter((player) => {
+    const matchesSearch =
+      `${player.username} ${player.partyName ?? ""} ${player.role ?? ""}`
+        .toLowerCase()
+        .includes(deferredQuery);
+    if (!matchesSearch) return false;
+    if (!onlineOnly) return true;
+    const playerPresence = presence[player.id] ?? player;
+    return now !== null && isPlayerOnline({ ...playerPresence, now });
+  });
 
   return (
     <WikiPage>
@@ -41,6 +48,21 @@ function PlayersIndex() {
         onChange={setQuery}
         placeholder="Search players, parties, or offices"
         resultCount={filtered.length}
+        filterControl={
+          <label className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-sm border bg-muted/50 px-2 text-xs text-foreground transition-colors hover:bg-muted sm:gap-2 sm:px-3 sm:text-sm">
+            <input
+              type="checkbox"
+              checked={onlineOnly}
+              onChange={(event) => setOnlineOnly(event.target.checked)}
+              className="size-4 accent-primary"
+            />
+            <span
+              className="size-2 rounded-full bg-emerald-500"
+              aria-hidden="true"
+            />
+            Online now
+          </label>
+        }
       />
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((player) => (
@@ -93,7 +115,11 @@ function PlayersIndex() {
         ))}
         {!filtered.length && (
           <div className="col-span-full">
-            <WikiEmpty>No players match this search.</WikiEmpty>
+            <WikiEmpty>
+              {onlineOnly
+                ? "No online players match this search."
+                : "No players match this search."}
+            </WikiEmpty>
           </div>
         )}
       </section>

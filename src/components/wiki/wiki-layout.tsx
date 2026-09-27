@@ -93,24 +93,29 @@ export function WikiSearch({
   onChange,
   placeholder,
   resultCount,
+  filterControl,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   resultCount: number;
+  filterControl?: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-2 border-y bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <label className="relative block w-full max-w-xl">
-        <span className="sr-only">Search the archive</span>
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={placeholder}
-          className="h-10 rounded-sm border-0 bg-muted/50 pl-9 shadow-none focus-visible:ring-1"
-        />
-      </label>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <label className="relative block min-w-0 w-full max-w-xl flex-1">
+          <span className="sr-only">Search the archive</span>
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder={placeholder}
+            className="h-10 rounded-sm border-0 bg-muted/50 pl-9 shadow-none focus-visible:ring-1"
+          />
+        </label>
+        {filterControl}
+      </div>
       <span className="shrink-0 font-mono text-xs text-muted-foreground">
         {resultCount} {resultCount === 1 ? "record" : "records"}
       </span>

@@ -7,6 +7,7 @@ import {
   coalitionMembers,
   coalitions,
   elections,
+  feed,
   parties,
   primaryCandidates,
   users,
@@ -137,12 +138,17 @@ export const getCandidates = createServerFn()
     const publicStatus = election?.status.toUpperCase();
     const hideTotals =
       publicStatus === "VOTING" || publicStatus === "ELECTION_NIGHT";
-    return candidateRows.map((candidate) => ({
-      ...candidate,
-      votes: hideTotals ? null : candidate.votes,
-    })).sort((a, b) => publicStatus === "CONCLUDED"
-      ? (b.votes ?? 0) - (a.votes ?? 0) || a.username.localeCompare(b.username)
-      : a.username.localeCompare(b.username));
+    return candidateRows
+      .map((candidate) => ({
+        ...candidate,
+        votes: hideTotals ? null : candidate.votes,
+      }))
+      .sort((a, b) =>
+        publicStatus === "CONCLUDED"
+          ? (b.votes ?? 0) - (a.votes ?? 0) ||
+            a.username.localeCompare(b.username)
+          : a.username.localeCompare(b.username),
+      );
   });
 
 export const declareCandidate = createServerFn({ method: "POST" })
@@ -359,6 +365,10 @@ export const submitRankedBallot = createServerFn({ method: "POST" })
           })
           .where(eq(candidates.id, entry.candidateId));
       }
+      await tx.insert(feed).values({
+        userId,
+        content: `voted in the ${data.election === "President" ? "presidential" : "Senate"} election`,
+      });
       return { success: true };
     });
   });
@@ -496,11 +506,16 @@ export const getCurrentElectionDashboard = createServerFn()
         ),
       );
     const firstChoiceRows = await db
-      .select({ candidateId: votes.candidateId, count: sql<number>`count(*)::int` })
+      .select({
+        candidateId: votes.candidateId,
+        count: sql<number>`count(*)::int`,
+      })
       .from(votes)
       .where(and(inArray(votes.voteType, [...raceTypes]), eq(votes.rank, 1)))
       .groupBy(votes.candidateId);
-    const firstChoiceCounts = new Map(firstChoiceRows.map((row) => [row.candidateId, row.count]));
+    const firstChoiceCounts = new Map(
+      firstChoiceRows.map((row) => [row.candidateId, row.count]),
+    );
     const [ballotRows, primaryCandidacy] = currentUserId
       ? await Promise.all([
           db
@@ -534,11 +549,14 @@ export const getCurrentElectionDashboard = createServerFn()
         );
         const raceCandidates = candidateRows
           .filter((candidate) => candidate.election === raceType)
-          .sort((a, b) => election.status === "CONCLUDED"
-            ? (b.certifiedPoints ?? 0) - (a.certifiedPoints ?? 0) ||
-              (firstChoiceCounts.get(b.id) ?? 0) - (firstChoiceCounts.get(a.id) ?? 0) ||
-              a.username.localeCompare(b.username)
-            : a.username.localeCompare(b.username))
+          .sort((a, b) =>
+            election.status === "CONCLUDED"
+              ? (b.certifiedPoints ?? 0) - (a.certifiedPoints ?? 0) ||
+                (firstChoiceCounts.get(b.id) ?? 0) -
+                  (firstChoiceCounts.get(a.id) ?? 0) ||
+                a.username.localeCompare(b.username)
+              : a.username.localeCompare(b.username),
+          )
           .map((candidate) => {
             const party = candidate.partyId
               ? {

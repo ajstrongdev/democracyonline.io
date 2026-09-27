@@ -7,6 +7,7 @@ import {
   billVotesPresidential,
   billVotesSenate,
   bills,
+  feed,
   parties,
   users,
 } from "@/db/schema";
@@ -15,7 +16,6 @@ import {
   UpdateBillsSchema,
 } from "@/lib/schemas/bills-schema";
 import { requireAuthMiddleware } from "@/middleware/auth";
-import { addFeedItem } from "@/lib/server/feed";
 import { getBillStageDurationMs, getGameSpeed } from "@/lib/server/game-speed";
 import { userEmailEquals } from "@/lib/server/user-email";
 
@@ -271,23 +271,23 @@ export const reviveDefeatedBill = createServerFn({ method: "POST" })
     const stageDurationMs = getBillStageDurationMs(
       (await getGameSpeed()).multiplier,
     );
-    const [revived] = await db
-      .insert(bills)
-      .values({
-        title: source.title,
-        content: source.content,
-        creatorId: actor.id,
-        stageStartedAt: new Date(),
-        stageEndsAt: new Date(Date.now() + stageDurationMs),
-      })
-      .returning({ id: bills.id });
-    await addFeedItem({
-      data: {
+    return db.transaction(async (tx) => {
+      const [revived] = await tx
+        .insert(bills)
+        .values({
+          title: source.title,
+          content: source.content,
+          creatorId: actor.id,
+          stageStartedAt: new Date(),
+          stageEndsAt: new Date(Date.now() + stageDurationMs),
+        })
+        .returning({ id: bills.id });
+      await tx.insert(feed).values({
         userId: actor.id,
         content: `Resubmitted defeated Bill #${data.billId} as Bill #${revived.id}: ${source.title}`,
-      },
+      });
+      return revived;
     });
-    return revived;
   });
 
 export const createBill = createServerFn()
@@ -305,26 +305,23 @@ export const createBill = createServerFn()
     const stageDurationMs = getBillStageDurationMs(
       (await getGameSpeed()).multiplier,
     );
-    const result = await db
-      .insert(bills)
-      .values({
-        title: data.title,
-        content: data.content,
-        creatorId: data.creatorId,
-        stageStartedAt: new Date(),
-        stageEndsAt: new Date(Date.now() + stageDurationMs),
-      })
-      .returning({ id: bills.id });
-
-    const billId = result[0].id;
-
-    await addFeedItem({
-      data: {
+    return db.transaction(async (tx) => {
+      const result = await tx
+        .insert(bills)
+        .values({
+          title: data.title,
+          content: data.content,
+          creatorId: data.creatorId,
+          stageStartedAt: new Date(),
+          stageEndsAt: new Date(Date.now() + stageDurationMs),
+        })
+        .returning({ id: bills.id });
+      await tx.insert(feed).values({
         userId: data.creatorId,
-        content: `Created a new bill: "Bill #${billId}: ${data.title}"`,
-      },
+        content: `Created a new bill: "Bill #${result[0].id}: ${data.title}"`,
+      });
+      return result;
     });
-    return result;
   });
 
 export const getBillForEdit = createServerFn()
@@ -396,31 +393,25 @@ export const updateBill = createServerFn()
     }
 
     // Update only title and content
-    const result = await db
-      .update(bills)
-      .set({
-        title: data.title,
-        content: data.content,
-      })
-      .where(
-        and(
-          eq(bills.id, data.id),
-          eq(bills.creatorId, actor.id),
-          eq(bills.status, "Committee"),
-          gt(bills.stageEndsAt, new Date()),
-        ),
-      )
-      .returning({ id: bills.id });
-
-    if (!result.length)
-      throw new Error("Senate Committee has closed for this bill");
-
-    await addFeedItem({
-      data: {
+    return db.transaction(async (tx) => {
+      const result = await tx
+        .update(bills)
+        .set({ title: data.title, content: data.content })
+        .where(
+          and(
+            eq(bills.id, data.id),
+            eq(bills.creatorId, actor.id),
+            eq(bills.status, "Committee"),
+            gt(bills.stageEndsAt, new Date()),
+          ),
+        )
+        .returning({ id: bills.id });
+      if (!result.length)
+        throw new Error("Senate Committee has closed for this bill");
+      await tx.insert(feed).values({
         userId: data.creatorId,
         content: `Updated bill: "Bill #${data.id}: ${data.title}"`,
-      },
+      });
+      return result;
     });
-
-    return result;
   });
