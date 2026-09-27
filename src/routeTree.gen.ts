@@ -43,6 +43,7 @@ import { Route as BillsOvalOfficeRouteImport } from './routes/bills/oval-office'
 import { Route as BillsHouseOfRepresentativesRouteImport } from './routes/bills/house-of-representatives'
 import { Route as BillsCreateRouteImport } from './routes/bills/create'
 import { Route as BillsIdRouteImport } from './routes/bills/$id'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
 import { Route as ApiElectionAdvanceRouteImport } from './routes/api/election-advance'
 import { Route as ApiBotRouteImport } from './routes/api/bot'
@@ -245,6 +246,11 @@ const BillsIdRoute = BillsIdRouteImport.update({
   path: '/bills/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGameAdvanceRoute = ApiGameAdvanceRouteImport.update({
   id: '/api/game-advance',
   path: '/api/game-advance',
@@ -422,6 +428,7 @@ export interface FileRoutesByFullPath {
   '/api/bot': typeof ApiBotRoute
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
+  '/api/health': typeof ApiHealthRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
   '/bills/house-of-representatives': typeof BillsHouseOfRepresentativesRoute
@@ -487,6 +494,7 @@ export interface FileRoutesByTo {
   '/api/bot': typeof ApiBotRoute
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
+  '/api/health': typeof ApiHealthRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
   '/bills/house-of-representatives': typeof BillsHouseOfRepresentativesRoute
@@ -554,6 +562,7 @@ export interface FileRoutesById {
   '/api/bot': typeof ApiBotRoute
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
+  '/api/health': typeof ApiHealthRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
   '/bills/house-of-representatives': typeof BillsHouseOfRepresentativesRoute
@@ -622,6 +631,7 @@ export interface FileRouteTypes {
     | '/api/bot'
     | '/api/election-advance'
     | '/api/game-advance'
+    | '/api/health'
     | '/bills/$id'
     | '/bills/create'
     | '/bills/house-of-representatives'
@@ -687,6 +697,7 @@ export interface FileRouteTypes {
     | '/api/bot'
     | '/api/election-advance'
     | '/api/game-advance'
+    | '/api/health'
     | '/bills/$id'
     | '/bills/create'
     | '/bills/house-of-representatives'
@@ -753,6 +764,7 @@ export interface FileRouteTypes {
     | '/api/bot'
     | '/api/election-advance'
     | '/api/game-advance'
+    | '/api/health'
     | '/bills/$id'
     | '/bills/create'
     | '/bills/house-of-representatives'
@@ -820,6 +832,7 @@ export interface RootRouteChildren {
   ApiBotRoute: typeof ApiBotRoute
   ApiElectionAdvanceRoute: typeof ApiElectionAdvanceRoute
   ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   BillsIdRoute: typeof BillsIdRoute
   BillsCreateRoute: typeof BillsCreateRoute
   BillsHouseOfRepresentativesRoute: typeof BillsHouseOfRepresentativesRoute
@@ -1082,6 +1095,13 @@ declare module '@tanstack/react-router' {
       path: '/bills/$id'
       fullPath: '/bills/$id'
       preLoaderRoute: typeof BillsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/game-advance': {
@@ -1380,6 +1400,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBotRoute: ApiBotRoute,
   ApiElectionAdvanceRoute: ApiElectionAdvanceRoute,
   ApiGameAdvanceRoute: ApiGameAdvanceRoute,
+  ApiHealthRoute: ApiHealthRoute,
   BillsIdRoute: BillsIdRoute,
   BillsCreateRoute: BillsCreateRoute,
   BillsHouseOfRepresentativesRoute: BillsHouseOfRepresentativesRoute,

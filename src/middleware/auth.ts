@@ -10,7 +10,8 @@ import { userEmailEquals } from "@/lib/server/user-email";
 import { env } from "@/env";
 
 const activityCookieName = "user_activity_updated";
-const activityCookieMaxAge = 60 * 60;
+// Keep the fallback visit timestamp reasonably fresh even without a heartbeat.
+const activityCookieMaxAge = 2 * 60;
 
 async function recordUserVisit(email?: string) {
   if (!email) return;
@@ -92,7 +93,10 @@ export const authMiddleware = createMiddleware({ type: "function" })
       );
       if (sessionCookie) {
         try {
-          const decoded = await getAuth(getAdminApp()).verifySessionCookie(sessionCookie, false);
+          const decoded = await getAuth(getAdminApp()).verifySessionCookie(
+            sessionCookie,
+            false,
+          );
           console.log(
             "[authMiddleware.server] Session cookie verified, email:",
             decoded.email,
@@ -101,10 +105,12 @@ export const authMiddleware = createMiddleware({ type: "function" })
           const active = await isDatabaseAccountActive(decoded.email);
           return next({
             context: {
-              user: active ? {
-                uid: decoded.uid,
-                email: decoded.email,
-              } : null,
+              user: active
+                ? {
+                    uid: decoded.uid,
+                    email: decoded.email,
+                  }
+                : null,
               banned: !active,
             } as AuthContext,
           });
@@ -136,10 +142,12 @@ export const authMiddleware = createMiddleware({ type: "function" })
 
       return next({
         context: {
-          user: active ? {
-            uid: decoded.uid,
-            email: decoded.email,
-          } : null,
+          user: active
+            ? {
+                uid: decoded.uid,
+                email: decoded.email,
+              }
+            : null,
           banned: !active,
         } as AuthContext,
       });

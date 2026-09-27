@@ -6,6 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getWikiPlayers } from "@/lib/server/history";
 import { PlayerAvatar } from "@/components/players/player-avatar";
+import {
+  PlayerLastSeen,
+  usePlayerPresenceData,
+  usePresenceClock,
+} from "@/components/players/player-last-seen";
 
 export const Route = createFileRoute("/dashboard/players/")({
   loader: () => getWikiPlayers(),
@@ -14,6 +19,8 @@ export const Route = createFileRoute("/dashboard/players/")({
 
 function PlayersIndex() {
   const players = Route.useLoaderData();
+  const now = usePresenceClock();
+  const presence = usePlayerPresenceData();
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
   const filtered = players.filter((player) =>
@@ -64,9 +71,21 @@ function PlayersIndex() {
                     <Badge variant="secondary">Archived</Badge>
                   )}
                 </div>
-                <div className="min-w-0 overflow-hidden"><PartyMark name={player.partyName} color={player.partyColor} /></div>
+                <div className="min-w-0 overflow-hidden">
+                  <PartyMark
+                    name={player.partyName}
+                    color={player.partyColor}
+                  />
+                </div>
                 <p className="line-clamp-2 text-sm text-muted-foreground">
                   {player.bio || "No biography provided."}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <PlayerLastSeen
+                    presence={presence[player.id] ?? player}
+                    now={now}
+                    prefix="Last seen: "
+                  />
                 </p>
               </CardContent>
             </Card>

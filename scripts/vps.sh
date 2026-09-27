@@ -59,7 +59,8 @@ deploy() {
   compose build app
   compose stop app election-scheduler >/dev/null 2>&1 || true
   compose --profile tools run --rm migrator
-  compose up -d --remove-orphans app election-scheduler
+  # Fail deployment if the app cannot answer its DB-backed readiness probe.
+  compose up -d --wait --remove-orphans app election-scheduler
   compose ps
 }
 

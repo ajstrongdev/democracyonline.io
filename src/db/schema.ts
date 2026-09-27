@@ -41,6 +41,37 @@ export const users = pgTable("users", {
   isAncestryRoot: boolean("is_ancestry_root").default(false).notNull(),
 });
 
+export const colorSchemes = pgTable(
+  "color_schemes",
+  {
+    id: serial("id").primaryKey(),
+    ownerId: integer("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 60 }).notNull(),
+    mode: varchar("mode", { length: 5 }).notNull(),
+    background: varchar("background", { length: 7 }).notNull(),
+    foreground: varchar("foreground", { length: 7 }).notNull(),
+    primary: varchar("primary", { length: 7 }).notNull(),
+    accent: varchar("accent", { length: 7 }).notNull(),
+    isPublished: boolean("is_published").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("color_schemes_owner_idx").on(table.ownerId),
+    index("color_schemes_public_idx").on(table.isPublished, table.id),
+    check("color_schemes_mode_valid", sql`${table.mode} in ('light', 'dark')`),
+    ...[table.background, table.foreground, table.primary, table.accent].map(
+      (column, colorIndex) =>
+        check(
+          `color_schemes_hex_${colorIndex}_valid`,
+          sql`${column} ~ '^#[0-9a-fA-F]{6}$'`,
+        ),
+    ),
+  ],
+);
+
 // Parties table
 export const parties = pgTable("parties", {
   id: serial("id").primaryKey(),

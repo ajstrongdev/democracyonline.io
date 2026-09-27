@@ -1,5 +1,6 @@
 import { GoogleAuth } from "google-auth-library";
 import { env } from "@/env";
+import { shouldScheduleElectionTask } from "@/lib/elections/task-config";
 
 type ElectionType = "President" | "Senate";
 
@@ -28,23 +29,18 @@ export async function ensureElectionConclusionTask({
   cycle: number;
   deadline: Date;
 }) {
-  if (env.NODE_ENV !== "production") return;
-
   const requiredConfig = {
     projectId: env.GCP_PROJECT_ID,
     location: env.CLOUD_TASKS_LOCATION,
     queue: env.ELECTION_TASK_QUEUE,
     serviceAccount: env.ELECTION_TASK_SERVICE_ACCOUNT,
     schedulerToken: env.CRON_SCHEDULER_TOKEN,
+    internalToken: env.CRON_INTERNAL_TOKEN,
   };
-  const missing = Object.entries(requiredConfig)
-    .filter(([, value]) => !value)
-    .map(([key]) => key);
-  if (missing.length) {
-    throw new Error(
-      `Election task configuration is incomplete: ${missing.join(", ")}`,
-    );
-  }
+  if (
+    !shouldScheduleElectionTask(env.NODE_ENV === "production", requiredConfig)
+  )
+    return;
 
   const parent = `projects/${requiredConfig.projectId}/locations/${requiredConfig.location}/queues/${requiredConfig.queue}`;
   const origin = new URL(env.SITE_URL).origin;

@@ -72,6 +72,8 @@ curl -I https://dev.oscana.nya.je
 
 `deploy` checks configuration, starts its database, makes a timestamped custom-format backup, builds the app and migration image, applies Drizzle migrations, and starts the app and scheduler. `seed` resets game data, so run it only once for an empty environment. It also makes a backup first. Create Firebase users for seeded officeholders if needed; see [Firebase Authentication](docs/FIREBASE_AUTH.md). Verify login, admin, a bill stage, and an election advancement on development.
 
+The app now has a database-backed `/api/health` readiness probe, and deploy waits for it before reporting success. This probe does not validate the scheduler, migrations' data semantics, or external services. Follow the pre-production API and migration checklist in [API operations](docs/API_OPERATIONS.md), especially the duplicate-vote preflight before migration 0051.
+
 Production currently stays offline. Its app, scheduler, and database containers are stopped, while its database volume remains available for a later launch. The production hostname returns `503`. The production lock at `/etc/democracyonline/production-offline` makes `deploy`, `update`, `seed`, and `restore` refuse to start it. The daily backup timer skips production while this lock exists.
 
 When you decide to launch production, run these steps in order. Its existing database was seeded during the initial rollout; preserve that data:
@@ -132,6 +134,7 @@ After confirming the new deployment works, disable the old systemd units and hos
 - `sudo journalctl -u caddy -n 100` and `sudo caddy validate --config /etc/caddy/Caddyfile` diagnose HTTPS. DNS must point to the VPS and ports 80/443 must be reachable for Caddy certificates.
 - Check `sudo ufw status` and Hostinger firewall rules if the site is unreachable. Only Caddy ports and SSH should be public.
 - `docker compose --env-file .env exec db pg_isready -U democracyonline -d democracyonline` checks the selected database.
+- `curl -fsS https://dev.oscana.nya.je/api/health` checks the app's database readiness; verify `election-scheduler` logs separately.
 
 ## Reference documentation
 

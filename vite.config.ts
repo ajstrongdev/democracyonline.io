@@ -7,10 +7,14 @@ import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
 
 const config = defineConfig({
+  // pg's optional native binding must stay in Node's CommonJS resolution path.
+  // Bundling pg turns the absent pg-native peer into a startup-time 500.
+  ssr: { external: ["pg"] },
   plugins: [
     devtools(),
     nitro({
       rollupConfig: {
+        external: ["pg"],
         treeshake: {
           moduleSideEffects: (id) => id.includes("node-forge"),
         },

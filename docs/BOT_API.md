@@ -1,612 +1,76 @@
-# Discord Bot API Documentation
+# Public Discord Bot API
 
-Public-facing API endpoints for the Discord bot integration.
+The public, read-only API is `GET /api/bot?endpoint=…`. It requires no token and returns JSON. Do not use it for private account information or write operations. Examples below use the production hostname; substitute the development hostname for staging checks.
 
-**Base URL:** `/api/bot`
-
-## Overview
-
-The Bot API provides public access to game data including users, parties, and game state information. All endpoints use GET requests with query parameters and return JSON responses.
-
-## Authentication
-
-No authentication required - all endpoints are publicly accessible.
-
-## Endpoints
-
-### Get Users
-
-Retrieve information about users in the game.
-
-#### Get All Users
-
-```
-GET /api/bot?endpoint=users
+```bash
+curl -fsS 'https://oscana.nya.je/api/bot?endpoint=game-state'
 ```
 
-**Response:**
+## Query contract
 
-```json
-[
-  {
-    "id": 1,
-    "username": "john_doe",
-    "bio": "Political enthusiast from California",
-    "role": "Representative",
-    "partyId": 5,
-    "politicalLeaning": "Center Left",
-    "isActive": true,
-    "lastActivity": 0,
-    "partyName": "Progressive Party",
-    "partyColor": "#3B82F6"
-  }
-]
-```
+| `endpoint` (required) | Optional parameters | Response |
+| --- | --- | --- |
+| `users` | `id` **or** `limit` and `offset` | User object for `id`, otherwise an array of users |
+| `parties` | `id` **or** `limit` and `offset` | Party object with `members` for `id`, otherwise an array of parties |
+| `bills` | `stage`, `status`, `limit`, `offset` | Filtered array; **without** `stage` and `status`, an object grouped by stage |
+| `candidates` | `election`, `limit`, `offset` | Array of current-cycle candidates |
+| `game-state` | None | Array of current President/Senate election states, each with a `candidates` array |
 
-#### Get Specific User
+`id` must be an integer from 1 to 2,147,483,647. IDs cannot be combined with pagination. Lists default to `limit=50&offset=0`; `limit` must be 1–100 and `offset` 0–10,000. Follow pages by incrementing `offset` until the page has fewer than `limit` records. Users, parties, and bills sort by ascending ID; candidates sort by concluded points and then ID (see below). Updates to the database between requests can shift offset pages. The bills page applies **before** grouping, so a grouped page can have fewer than `limit` entries in each stage. The party-detail `members` array and `game-state` rosters are not paginated.
 
-```
-GET /api/bot?endpoint=users&id=1
-```
+Allowed filters (case-sensitive):
 
-**Parameters:**
+- `stage=House|Senate|Presidential` (`Presidency` is accepted as a legacy alias for `Presidential`, but responses always say `Presidential`).
+- `status=Committee|Voting|Passed|Defeated`.
+- `election=President|Senate`.
 
-- `id` (integer) - User ID
+Unknown, repeated, empty, or out-of-range query parameters return `400` with `{ "error": "…" }`. Supply each query parameter only once. Unfiltered bills are grouped under `House`, `Senate`, and `Presidential`, including empty arrays; filtered bills return an array even if the filter matches zero rows.
 
-**Response:**
+## Response fields
 
-```json
-{
-  "id": 1,
-  "username": "john_doe",
-  "bio": "Political enthusiast from California",
-  "role": "Senator",
-  "partyId": 5,
-  "politicalLeaning": "Center Left",
-  "isActive": true,
-  "lastActivity": 0,
-  "partyName": "Progressive Party",
-  "partyColor": "#3B82F6"
-}
-```
+All nullable fields below can be `null`. Timestamps are JSON ISO 8601 strings (or `null`). Field names are case-sensitive.
 
-**User Fields:**
+**Users** (`?endpoint=users` or `?endpoint=users&id=1`): `id`, `username`, `bio`, `role`, `partyId`, `politicalLeaning`, `isActive`, `lastSeenAt`, `archivedAt`, `partyName`, `partyColor`. `lastSeenAt` is a timestamp, **not** a day count; it approximates recent activity rather than a live socket connection. The deprecated `lastActivity` field is not returned.
 
-- `id` - Unique user identifier
-- `username` - Display name
-- `bio` - User biography/description
-- `role` - Position in government (`Representative`, `Senator`, `President`)
-- `partyId` - ID of party membership (null if independent)
-- `politicalLeaning` - Political ideology
-- `isActive` - Whether user is currently active
-- `lastActivity` - Days since last activity (0 = today)
-- `partyName` - Name of party (null if independent)
-- `partyColor` - Hex color code of party
+**Parties** (`?endpoint=parties` or `?endpoint=parties&id=5`): `id`, `name`, `color`, `bio`, `leaderId`, `politicalLeaning`, `leaning`, `logo`, `discord`, `memberCount`. Detail responses add `members: [{ id, username, role }]`; list responses do not. `memberCount` counts current members, including inactive members still assigned to the party.
 
----
+**Bills** (`?endpoint=bills`, `?endpoint=bills&stage=House`, `?endpoint=bills&status=Voting`, or both filters): `id`, `status`, `stage`, `title`, `creatorId`, `content`, `createdAt`, `pool`, `creatorUsername`. `content` is the bill's full text. A missing creator yields `creatorUsername: null`. The unfiltered response shape is `{ "House": [...], "Senate": [...], "Presidential": [...] }`.
 
-### Get Parties
+**Candidates** (`?endpoint=candidates` or `?endpoint=candidates&election=President`): `id`, `userId`, `username`, `election`, `points`, `partyId`, `partyName`, `partyColor`. `points` is **null until that election reaches `CONCLUDED`**, including during election night; do not treat null as zero or infer live rankings. Concluded candidates sort by points descending, with candidate ID as the tie-breaker; sealed candidates follow in ID order. These are current-cycle candidates, not a historical election archive.
 
-Retrieve information about political parties.
+**Game state** (`?endpoint=game-state`): one entry per configured President or Senate election with `election`, `status`, `seats`, `cycle`, `candidacyStartsAt`, `candidacyEndsAt`, `votingStartsAt`, `votingEndsAt`, `electionNightStartsAt`, `electionNightEndsAt`, `concludedAt`, and `candidates` (with the candidate fields above). Status is `CANDIDACY`, `VOTING`, `ELECTION_NIGHT`, or `CONCLUDED`. Some deadlines are null outside their phase. The API returns raw deadlines; calculate time remaining relative to the current clock rather than relying on a `daysLeft` field (none is returned). A newly initialized database may have no election rows yet.
 
-#### Get All Parties
-
-```
-GET /api/bot?endpoint=parties
-```
-
-**Response:**
-
-```json
-[
-  {
-    "id": 5,
-    "name": "Progressive Party",
-    "color": "#3B82F6",
-    "bio": "Fighting for progress and equality",
-    "leaderId": 12,
-    "politicalLeaning": "Left",
-    "leaning": "Center Left",
-    "logo": "progressive-logo.png",
-    "discord": "https://discord.gg/example",
-    "memberCount": 15
-  }
-]
-```
-
-#### Get Specific Party
-
-```
-GET /api/bot?endpoint=parties&id=5
-```
-
-**Parameters:**
-
-- `id` (integer) - Party ID
-
-**Response:**
-
-```json
-{
-  "id": 5,
-  "name": "Progressive Party",
-  "color": "#3B82F6",
-  "bio": "Fighting for progress and equality",
-  "leaderId": 12,
-  "politicalLeaning": "Left",
-  "leaning": "Center Left",
-  "logo": "progressive-logo.png",
-  "discord": "https://discord.gg/example",
-  "memberCount": 15,
-  "members": [
-    {
-      "id": 1,
-      "username": "john_doe",
-      "role": "Representative"
-    },
-    {
-      "id": 12,
-      "username": "jane_smith",
-      "role": "Senator"
-    }
-  ]
-}
-```
-
-**Party Fields:**
-
-- `id` - Unique party identifier
-- `name` - Party name
-- `color` - Hex color code for party branding
-- `bio` - Party description/platform
-- `leaderId` - User ID of party leader
-- `politicalLeaning` - Political ideology
-- `leaning` - Specific political position
-- `logo` - Logo filename
-- `discord` - Discord invite link
-- `memberCount` - Total number of party members
-- `members` - Array of member objects (only in specific party query)
-
----
-
-### Get Bills
-
-Retrieve information about bills in the legislative process.
-
-#### Get All Bills (Grouped by Stage)
-
-```
-GET /api/bot?endpoint=bills
-```
-
-**Response:**
-
-```json
-{
-  "House": [
-    {
-      "id": 1,
-      "status": "Voting",
-      "stage": "House",
-      "title": "Infrastructure Investment Act",
-      "creatorId": 5,
-      "content": "A comprehensive bill to improve national infrastructure...",
-      "createdAt": "2026-02-01T10:30:00.000Z",
-      "pool": 1,
-      "creatorUsername": "john_doe"
-    }
-  ],
-  "Senate": [
-    {
-      "id": 2,
-      "status": "Voting",
-      "stage": "Senate",
-      "title": "Healthcare Reform Bill",
-      "creatorId": 12,
-      "content": "Reforms to the national healthcare system...",
-      "createdAt": "2026-01-28T14:20:00.000Z",
-      "pool": 1,
-      "creatorUsername": "jane_smith"
-    }
-  ],
-  "Presidency": [
-    {
-      "id": 3,
-      "status": "Awaiting Signature",
-      "stage": "Presidency",
-      "title": "Education Funding Act",
-      "creatorId": 8,
-      "content": "Increases funding for public education...",
-      "createdAt": "2026-01-25T09:15:00.000Z",
-      "pool": 1,
-      "creatorUsername": "alex_johnson"
-    }
-  ]
-}
-```
-
-#### Get Bills by Stage
-
-```
-GET /api/bot?endpoint=bills&stage=House
-```
-
-**Parameters:**
-
-- `stage` (string) - Legislative stage (`House`, `Senate`, or `Presidency`)
-
-**Response:**
-
-```json
-[
-  {
-    "id": 1,
-    "status": "Voting",
-    "stage": "House",
-    "title": "Infrastructure Investment Act",
-    "creatorId": 5,
-    "content": "A comprehensive bill to improve national infrastructure...",
-    "createdAt": "2026-02-01T10:30:00.000Z",
-    "pool": 1,
-    "creatorUsername": "john_doe"
-  }
-]
-```
-
-#### Get Bills by Stage and Status
-
-```
-GET /api/bot?endpoint=bills&stage=House&status=Voting
-```
-
-**Parameters:**
-
-- `stage` (string, optional) - Legislative stage (`House`, `Senate`, or `Presidency`)
-- `status` (string, optional) - Bill status (e.g., `Committee`, `Voting`, `Passed`)
-
-Both parameters can be used independently or together to filter bills.
-
-**Response:**
-
-```json
-[
-  {
-    "id": 1,
-    "status": "Voting",
-    "stage": "House",
-    "title": "Infrastructure Investment Act",
-    "creatorId": 5,
-    "content": "A comprehensive bill to improve national infrastructure...",
-    "createdAt": "2026-02-01T10:30:00.000Z",
-    "pool": 1,
-    "creatorUsername": "john_doe"
-  }
-]
-```
-
-**Bill Fields:**
-
-- `id` - Unique bill identifier
-- `status` - Current status (`Committee`, `Voting`, `Passed`, or `Defeated`)
-- `stage` - Legislative stage (`House`, `Senate`, `Presidency`)
-- `title` - Bill title
-- `creatorId` - ID of user who created the bill
-- `content` - Full text of the bill
-- `createdAt` - Timestamp of bill creation
-- `pool` - Bill pool number
-- `creatorUsername` - Username of bill creator
-
----
-
-### Get Candidates
-
-Retrieve election candidates and their ranked-ballot point totals.
-
-#### Get All Candidates
-
-```
-GET /api/bot?endpoint=candidates
-```
-
-**Response:**
-
-```json
-[
-  {
-    "id": 15,
-    "userId": 42,
-    "username": "john_doe",
-    "election": "President",
-    "points": 1250,
-    "partyId": 5,
-    "partyName": "Progressive Party",
-    "partyColor": "#3B82F6"
-  },
-  {
-    "id": 22,
-    "userId": 38,
-    "username": "jane_smith",
-    "election": "Senate",
-    "points": 890,
-    "partyId": null,
-    "partyName": null,
-    "partyColor": null
-  }
-]
-```
-
-#### Get Candidates for Specific Election
-
-```
-GET /api/bot?endpoint=candidates&election=President
-```
-
-**Parameters:**
-
-- `election` (string) - Election type (`President` or `Senate`)
-
-**Response:**
-
-```json
-[
-  {
-    "id": 15,
-    "userId": 42,
-    "username": "john_doe",
-    "election": "President",
-    "points": 1250,
-    "partyId": 5,
-    "partyName": "Progressive Party",
-    "partyColor": "#3B82F6"
-  },
-  {
-    "id": 16,
-    "userId": 38,
-    "username": "jane_smith",
-    "election": "President",
-    "points": 980,
-    "partyId": null,
-    "partyName": null,
-    "partyColor": null
-  }
-]
-```
-
-**Candidate Fields:**
-
-- `id` - Candidate ID
-- `userId` - User ID of the candidate
-- `username` - Candidate's username
-- `election` - Election type (`President` or `Senate`)
-- `points` - Final ranked-ballot point total after conclusion; `null` while totals are sealed
-- `partyId` - ID of candidate's party (null if independent)
-- `partyName` - Name of candidate's party (null if independent)
-- `partyColor` - Hex color of candidate's party (null if independent)
-
-Concluded candidates are sorted by point total. Before conclusion candidates use stable ballot order and points remain sealed. With `N` candidates, each complete ballot awards `N` points to first place, `N - 1` to second place, continuing down to one point.
-
----
-
-### Get Game State
-
-Retrieve current election states for game update posts. Candidate rosters are included during candidacy and voting, but ranked-ballot points remain sealed until conclusion.
-
-```
-GET /api/bot?endpoint=game-state
-```
-
-**Response (with a sealed voting roster):**
+Example (sealed results during voting):
 
 ```json
 [
   {
     "election": "President",
     "status": "VOTING",
-    "seats": null,
-    "daysLeft": 3,
+    "seats": 1,
+    "cycle": 1,
+    "candidacyStartsAt": "2026-09-20T00:00:00.000Z",
+    "candidacyEndsAt": "2026-09-22T00:00:00.000Z",
+    "votingStartsAt": "2026-09-22T00:00:00.000Z",
+    "votingEndsAt": "2026-09-28T00:00:00.000Z",
+    "electionNightStartsAt": null,
+    "electionNightEndsAt": null,
+    "concludedAt": null,
     "candidates": [
-      {
-        "id": 15,
-        "userId": 42,
-        "username": "john_doe",
-        "election": "President",
-        "points": null,
-        "partyId": 5,
-        "partyName": "Progressive Party",
-        "partyColor": "#3B82F6"
-      },
-      {
-        "id": 16,
-        "userId": 38,
-        "username": "jane_smith",
-        "election": "President",
-        "points": null,
-        "partyId": null,
-        "partyName": null,
-        "partyColor": null
-      }
+      { "id": 15, "userId": 42, "username": "example", "election": "President", "points": null, "partyId": 5, "partyName": "Example Party", "partyColor": "#3B82F6" }
     ]
-  },
-  {
-    "election": "Senate",
-    "status": "CANDIDACY",
-    "seats": 10,
-    "daysLeft": 5
   }
 ]
 ```
 
-**Election State Fields:**
+## HTTP behavior and operations
 
-- `election` - Election type (`President` or `Senate`)
-- `status` - Current phase (`CANDIDACY`, `VOTING`, `ELECTION_NIGHT`, or `CONCLUDED`)
-- `seats` - Number of available seats (primarily for Senate)
-- `daysLeft` - Days remaining in current phase
-- `candidates` - Candidate roster during candidacy/voting and final results after conclusion
+- `200`: successful JSON object, array, or grouped bills object.
+- `400`: invalid endpoint or parameter; `{ "error": "…" }`.
+- `404`: user or party ID not found; `{ "error": "User not found" }` or `{ "error": "Party not found" }`.
+- `500`: database/internal error; `{ "error": "Internal server error" }`. Error details are logged server-side, not exposed to callers.
+- Successful public responses allow 15 seconds of caching. Error responses are `no-store`. No application-level rate limit is currently enforced; clients should cache, paginate, back off on errors, and avoid high-frequency polling.
 
-**Candidate Fields (when included):**
+For deploy monitoring, `GET /api/health` returns `{ "status": "ok" }` (200) if the app can query its database and `{ "status": "unavailable" }` (503) otherwise. It is not a test of the scheduler, migrations, Firebase, or game correctness. This endpoint is not a bot data source.
 
-- `id` - Candidate ID
-- `userId` - User ID of the candidate
-- `username` - Candidate's username
-- `election` - Election type
-- `points` - Final ranked-ballot point total after conclusion; otherwise `null`
-- `partyId` - ID of candidate's party (null if independent)
-- `partyName` - Name of candidate's party (null if independent)
-- `partyColor` - Hex color of candidate's party (null if independent)
-
-Candidates are sorted by point total only after the result is concluded.
-
----
-
-## Error Responses
-
-### Invalid Endpoint
-
-```json
-{
-  "error": "Invalid endpoint",
-  "available": ["users", "parties", "game-state"],
-  "usage": {
-    "users": "/api/bot?endpoint=users or /api/bot?endpoint=users&id=1",
-    "parties": "/api/bot?endpoint=parties or /api/bot?endpoint=parties&id=1",
-    "gameState": "/api/bot?endpoint=game-state"
-  }
-}
-```
-
-### Invalid ID
-
-```json
-{
-  "error": "Invalid user ID"
-}
-```
-
-### Invalid Stage
-
-```json
-{
-  "error": "Invalid stage",
-  "validStages": ["House", "Senate", "Presidency"]
-}
-```
-
-### Invalid Election
-
-```json
-{
-  "error": "Invalid election type",
-  "validElections": ["President", "Senate"]
-}
-```
-
-### Not Found
-
-```json
-{
-  "error": "User not found"
-}
-```
-
-### Server Error
-
-```json
-{
-  "error": "Internal server error",
-  "message": "Detailed error message"
-}
-```
-
-## Status Codes
-
-- `200` - Success
-- `400` - Bad request (invalid endpoint or ID)
-- `404` - Resource not found
-- `500` - Internal server error
-
-## Rate Limiting
-
-Currently no rate limiting is implemented. Please be respectful with request frequency.
-
-## Examples
-
-### Get All Active Users
-
-```bash
-curl "https://democracyonline.io/api/bot?endpoint=users"
-```
-
-### Get Specific Party with Members
-
-```bash
-curl "https://democracyonline.io/api/bot?endpoint=parties&id=5"
-```
-
-### Get Current Election Status
-
-```bash
-curl "https://democracyonline.io/api/bot?endpoint=game-state"
-```
-
-### Get All Bills
-
-```bash
-curl "https://democracyonline.io/api/bot?endpoint=bills"
-```
-
-### Get Bills in House
-
-```bash
-curl "https://democracyonline.io/api/bot?endpoint=bills&stage=House"
-```
-
-### Get Bills in House that are Voting
-
-```bash
-curl "https://democracyonline.io/api/bot?endpoint=bills&stage=House&status=Voting"
-```
-
-### Get All Bills with Voting Status
-
-```bash
-curl "https://democracyonline.io/api/bot?endpoint=bills&status=Voting"
-```
-
-### Get Presidential Candidates
-
-```bash
-curl "https://democracyonline.io/api/bot?endpoint=candidates&election=President"
-```
-
-### Get All Candidates
-
-```bash
-curl "https://democracyonline.io/api/bot?endpoint=candidates"
-```
-
-## Use Cases
-
-### Game Update Posts
-
-Use `game-state` endpoint to generate daily game update messages showing election progress.
-
-### User Profiles
-
-Use `users` endpoint with ID to display detailed user information in Discord.
-
-### Party Information
-
-Use `parties` endpoint to show party details, member lists, and recruitment information.
-
-### Legislative Tracking
-
-Use `bills` endpoint to track bills moving through the legislative process and display voting information.
-
-### Election Results
-
-Use `candidates` to display election standings based on ranked-ballot points.
-
-## Implementation
-
-The Bot API is implemented in `/src/routes/api/bot.ts` using TanStack Start server routes with direct database queries via Drizzle ORM.
+For the internal game-advance endpoints and their authentication, see [API operations](API_OPERATIONS.md). Implementation: [`src/routes/api/bot.ts`](../src/routes/api/bot.ts), [`src/lib/bot-api.ts`](../src/lib/bot-api.ts).

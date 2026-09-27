@@ -192,6 +192,7 @@ export const getWikiPlayers = createServerFn().handler(() =>
       politicalLeaning: users.politicalLeaning,
       isActive: users.isActive,
       archivedAt: users.archivedAt,
+      lastSeenAt: users.lastSeenAt,
       partyId: parties.id,
       partyName: parties.name,
       partyColor: parties.color,

@@ -12,17 +12,16 @@ import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
 import type { QueryClient } from "@tanstack/react-query";
 import type { User } from "firebase/auth";
-import {
-  getThemeClasses,
-  getThemeServerFn,
-  themes,
-} from "@/lib/server/theme";
+import { getThemeClasses, getThemeServerFn, themes } from "@/lib/server/theme";
 import { NotFound } from "@/components/not-found";
 import { WikiNavigation } from "@/components/wiki/wiki-header";
 import { getAuthRedirect } from "@/lib/auth-guard";
 import { auth } from "@/lib/firebase";
 import { getCurrentBanStatus, getSessionUser } from "@/lib/server/session";
 import { AppThemeProvider, useAppTheme } from "@/components/app-theme-provider";
+import { colorSchemeStyle } from "@/lib/color-schemes";
+import { getSelectedColorScheme } from "@/lib/server/color-schemes";
+import { PlayerPresenceHeartbeat } from "@/components/players/player-presence-heartbeat";
 
 type AuthContext = {
   user: User | null;
@@ -64,8 +63,16 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     }
   },
   loader: async () => {
-    const theme = await getThemeServerFn();
-    return { theme };
+    const [storedTheme, customScheme] = await Promise.all([
+      getThemeServerFn(),
+      getSelectedColorScheme(),
+    ]);
+    const theme = customScheme
+      ? customScheme.mode === "dark"
+        ? "dark"
+        : "light"
+      : storedTheme;
+    return { theme, customScheme };
   },
   head: () => ({
     meta: [
@@ -98,10 +105,11 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 });
 
 function RootLayout() {
-  const { theme } = Route.useLoaderData();
+  const { theme, customScheme } = Route.useLoaderData();
 
   return (
-    <AppThemeProvider initialTheme={theme}>
+    <AppThemeProvider initialTheme={theme} initialColorScheme={customScheme}>
+      <PlayerPresenceHeartbeat />
       <div className="flex min-h-svh flex-col">
         <WikiNavigation />
         <div className="flex flex-1 flex-col">
@@ -114,14 +122,37 @@ function RootLayout() {
 }
 
 function ThemedToaster() {
-  const { theme } = useAppTheme();
-  return <Toaster position="bottom-right" theme={themes.find((item) => item.id === theme)?.isDark ? "dark" : "light"} richColors />;
+  const { theme, customScheme } = useAppTheme();
+  return (
+    <Toaster
+      position="bottom-right"
+      theme={
+        customScheme
+          ? customScheme.mode === "dark"
+            ? "dark"
+            : "light"
+          : themes.find((item) => item.id === theme)?.isDark
+            ? "dark"
+            : "light"
+      }
+      richColors
+    />
+  );
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const { theme } = Route.useLoaderData();
+  const { theme, customScheme } = Route.useLoaderData();
   return (
-    <html lang="en" className={getThemeClasses(theme)} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={getThemeClasses(theme)}
+      style={
+        customScheme
+          ? (colorSchemeStyle(customScheme) as React.CSSProperties)
+          : undefined
+      }
+      suppressHydrationWarning
+    >
       <head>
         <HeadContent />
       </head>

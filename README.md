@@ -27,5 +27,6 @@ The host needs Docker, Compose, Caddy, and Git. Node and PostgreSQL run only in 
 - [Firebase Authentication](docs/FIREBASE_AUTH.md)
 - [Bill lifecycle](docs/BILL_HANDOVER.md)
 - [Bot API](docs/BOT_API.md)
+- [API operations and release checks](docs/API_OPERATIONS.md)
 
 GNU GPL v3.0; see [LICENSE](LICENSE).

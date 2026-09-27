@@ -1,435 +1,211 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { bills, candidates, elections, parties, users } from "@/db/schema";
+import { groupBotBills, parseBotQuery } from "@/lib/bot-api";
+
+const publicHeaders = {
+  "Cache-Control": "public, max-age=15",
+  "X-Content-Type-Options": "nosniff",
+};
+const errorHeaders = { "Cache-Control": "no-store" };
+
+const userFields = {
+  id: users.id,
+  username: users.username,
+  bio: users.bio,
+  role: users.role,
+  partyId: users.partyId,
+  politicalLeaning: users.politicalLeaning,
+  isActive: users.isActive,
+  lastSeenAt: users.lastSeenAt,
+  archivedAt: users.archivedAt,
+  partyName: parties.name,
+  partyColor: parties.color,
+};
+
+const partyFields = {
+  id: parties.id,
+  name: parties.name,
+  color: parties.color,
+  bio: parties.bio,
+  leaderId: parties.leaderId,
+  politicalLeaning: parties.politicalLeaning,
+  leaning: parties.leaning,
+  logo: parties.logo,
+  discord: parties.discord,
+  memberCount:
+    sql<number>`(SELECT COUNT(*)::int FROM ${users} WHERE ${users.partyId} = ${parties.id})`.as(
+      "member_count",
+    ),
+};
+
+const billFields = {
+  id: bills.id,
+  status: bills.status,
+  stage: bills.stage,
+  title: bills.title,
+  creatorId: bills.creatorId,
+  content: bills.content,
+  createdAt: bills.createdAt,
+  pool: bills.pool,
+  creatorUsername: users.username,
+};
+
+const candidateFields = {
+  id: candidates.id,
+  userId: candidates.userId,
+  username: users.username,
+  election: candidates.election,
+  points: sql<
+    number | null
+  >`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} else null end`,
+  partyId: users.partyId,
+  partyName: parties.name,
+  partyColor: parties.color,
+};
+
+const candidateOrder = sql`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} end desc nulls last`;
 
 export const Route = createFileRoute("/api/bot")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const url = new URL(request.url);
-        const endpoint = url.searchParams.get("endpoint");
-        const id = url.searchParams.get("id");
+        const parsed = parseBotQuery(new URL(request.url));
+        if (!parsed.ok)
+          return Response.json(
+            { error: parsed.error },
+            { status: 400, headers: errorHeaders },
+          );
+        const query = parsed.query;
 
         try {
-          switch (endpoint) {
-            case "users": {
-              if (id) {
-                const userId = parseInt(id);
-                if (isNaN(userId)) {
-                  return new Response(
-                    JSON.stringify({ error: "Invalid user ID" }),
-                    {
-                      status: 400,
-                      headers: { "Content-Type": "application/json" },
-                    },
-                  );
-                }
-
-                const userResults = await db
-                  .select({
-                    id: users.id,
-                    username: users.username,
-                    bio: users.bio,
-                    role: users.role,
-                    partyId: users.partyId,
-                    politicalLeaning: users.politicalLeaning,
-                    isActive: users.isActive,
-                    lastSeenAt: users.lastSeenAt,
-                    archivedAt: users.archivedAt,
-                    partyName: parties.name,
-                    partyColor: parties.color,
-                  })
-                  .from(users)
-                  .leftJoin(parties, eq(users.partyId, parties.id))
-                  .where(eq(users.id, userId))
-                  .limit(1);
-
-                if (userResults.length === 0) {
-                  return new Response(
-                    JSON.stringify({ error: "User not found" }),
-                    {
-                      status: 404,
-                      headers: { "Content-Type": "application/json" },
-                    },
-                  );
-                }
-
-                return new Response(JSON.stringify(userResults[0]), {
-                  status: 200,
-                  headers: { "Content-Type": "application/json" },
-                });
-              } else {
-                const allUsers = await db
-                  .select({
-                    id: users.id,
-                    username: users.username,
-                    bio: users.bio,
-                    role: users.role,
-                    partyId: users.partyId,
-                    politicalLeaning: users.politicalLeaning,
-                    isActive: users.isActive,
-                    lastSeenAt: users.lastSeenAt,
-                    archivedAt: users.archivedAt,
-                    partyName: parties.name,
-                    partyColor: parties.color,
-                  })
-                  .from(users)
-                  .leftJoin(parties, eq(users.partyId, parties.id));
-
-                return new Response(JSON.stringify(allUsers), {
-                  status: 200,
-                  headers: { "Content-Type": "application/json" },
-                });
-              }
-            }
-
-            case "parties": {
-              if (id) {
-                const partyId = parseInt(id);
-                if (isNaN(partyId)) {
-                  return new Response(
-                    JSON.stringify({ error: "Invalid party ID" }),
-                    {
-                      status: 400,
-                      headers: { "Content-Type": "application/json" },
-                    },
-                  );
-                }
-
-                const partyResults = await db
-                  .select({
-                    id: parties.id,
-                    name: parties.name,
-                    color: parties.color,
-                    bio: parties.bio,
-                    leaderId: parties.leaderId,
-                    politicalLeaning: parties.politicalLeaning,
-                    leaning: parties.leaning,
-                    logo: parties.logo,
-                    discord: parties.discord,
-                    memberCount:
-                      sql<number>`(SELECT COUNT(*)::int FROM ${users} WHERE ${users.partyId} = ${parties.id})`.as(
-                        "member_count",
-                      ),
-                  })
-                  .from(parties)
-                  .where(eq(parties.id, partyId))
-                  .limit(1);
-
-                if (partyResults.length === 0) {
-                  return new Response(
-                    JSON.stringify({ error: "Party not found" }),
-                    {
-                      status: 404,
-                      headers: { "Content-Type": "application/json" },
-                    },
-                  );
-                }
-
-                const members = await db
-                  .select({
-                    id: users.id,
-                    username: users.username,
-                    role: users.role,
-                  })
-                  .from(users)
-                  .where(eq(users.partyId, partyId));
-
-                return new Response(
-                  JSON.stringify({
-                    ...partyResults[0],
-                    members,
-                  }),
-                  {
-                    status: 200,
-                    headers: { "Content-Type": "application/json" },
-                  },
-                );
-              } else {
-                const allParties = await db
-                  .select({
-                    id: parties.id,
-                    name: parties.name,
-                    color: parties.color,
-                    bio: parties.bio,
-                    leaderId: parties.leaderId,
-                    politicalLeaning: parties.politicalLeaning,
-                    leaning: parties.leaning,
-                    logo: parties.logo,
-                    discord: parties.discord,
-                    memberCount:
-                      sql<number>`(SELECT COUNT(*)::int FROM ${users} WHERE ${users.partyId} = ${parties.id})`.as(
-                        "member_count",
-                      ),
-                  })
-                  .from(parties);
-
-                return new Response(JSON.stringify(allParties), {
-                  status: 200,
-                  headers: { "Content-Type": "application/json" },
-                });
-              }
-            }
-
-            case "bills": {
-              const stage = url.searchParams.get("stage");
-              const status = url.searchParams.get("status");
-
-              // Validate stage parameter if provided
-              if (stage && !["House", "Senate", "Presidency"].includes(stage)) {
-                return new Response(
-                  JSON.stringify({
-                    error: "Invalid stage",
-                    validStages: ["House", "Senate", "Presidency"],
-                  }),
-                  {
-                    status: 400,
-                    headers: { "Content-Type": "application/json" },
-                  },
-                );
-              }
-
-              if (stage || status) {
-                // Build where conditions
-                const conditions = [];
-                if (stage) {
-                  conditions.push(eq(bills.stage, stage));
-                }
-                if (status) {
-                  conditions.push(eq(bills.status, status));
-                }
-
-                const filteredBills = await db
-                  .select({
-                    id: bills.id,
-                    status: bills.status,
-                    stage: bills.stage,
-                    title: bills.title,
-                    creatorId: bills.creatorId,
-                    content: bills.content,
-                    createdAt: bills.createdAt,
-                    pool: bills.pool,
-                    creatorUsername: users.username,
-                  })
-                  .from(bills)
-                  .leftJoin(users, eq(bills.creatorId, users.id))
-                  .where(
-                    conditions.length > 1 ? and(...conditions) : conditions[0],
-                  );
-
-                return new Response(JSON.stringify(filteredBills), {
-                  status: 200,
-                  headers: { "Content-Type": "application/json" },
-                });
-              } else {
-                // Return all bills grouped by stage
-                const allBills = await db
-                  .select({
-                    id: bills.id,
-                    status: bills.status,
-                    stage: bills.stage,
-                    title: bills.title,
-                    creatorId: bills.creatorId,
-                    content: bills.content,
-                    createdAt: bills.createdAt,
-                    pool: bills.pool,
-                    creatorUsername: users.username,
-                  })
-                  .from(bills)
-                  .leftJoin(users, eq(bills.creatorId, users.id));
-
-                // Group by stage
-                const grouped = {
-                  House: allBills.filter((b) => b.stage === "House"),
-                  Senate: allBills.filter((b) => b.stage === "Senate"),
-                  Presidency: allBills.filter((b) => b.stage === "Presidency"),
-                };
-
-                return new Response(JSON.stringify(grouped), {
-                  status: 200,
-                  headers: { "Content-Type": "application/json" },
-                });
-              }
-            }
-
-            case "candidates": {
-              const election = url.searchParams.get("election");
-
-              if (election) {
-                // Validate election parameter
-                if (!["President", "Senate"].includes(election)) {
-                  return new Response(
-                    JSON.stringify({
-                      error: "Invalid election type",
-                      validElections: ["President", "Senate"],
-                    }),
-                    {
-                      status: 400,
-                      headers: { "Content-Type": "application/json" },
-                    },
-                  );
-                }
-
-                // Get candidates for specific election
-                const electionCandidates = await db
-                  .select({
-                    id: candidates.id,
-                    userId: candidates.userId,
-                    username: users.username,
-                    election: candidates.election,
-                    points: sql<
-                      number | null
-                    >`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} else null end`,
-                    partyId: users.partyId,
-                    partyName: parties.name,
-                    partyColor: parties.color,
-                  })
-                  .from(candidates)
-                  .leftJoin(users, eq(candidates.userId, users.id))
-                  .leftJoin(parties, eq(users.partyId, parties.id))
-                  .leftJoin(
-                    elections,
-                    eq(candidates.election, elections.election),
-                  )
-                  .where(eq(candidates.election, election))
-                  .orderBy(
-                    sql`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} end desc nulls last`,
-                    candidates.id,
-                  );
-
-                return new Response(JSON.stringify(electionCandidates), {
-                  status: 200,
-                  headers: { "Content-Type": "application/json" },
-                });
-              } else {
-                // Get all candidates across all elections
-                const allCandidates = await db
-                  .select({
-                    id: candidates.id,
-                    userId: candidates.userId,
-                    username: users.username,
-                    election: candidates.election,
-                    points: sql<
-                      number | null
-                    >`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} else null end`,
-                    partyId: users.partyId,
-                    partyName: parties.name,
-                    partyColor: parties.color,
-                  })
-                  .from(candidates)
-                  .leftJoin(users, eq(candidates.userId, users.id))
-                  .leftJoin(parties, eq(users.partyId, parties.id))
-                  .leftJoin(
-                    elections,
-                    eq(candidates.election, elections.election),
-                  )
-                  .orderBy(
-                    sql`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} end desc nulls last`,
-                    candidates.id,
-                  );
-
-                return new Response(JSON.stringify(allCandidates), {
-                  status: 200,
-                  headers: { "Content-Type": "application/json" },
-                });
-              }
-            }
-
-            case "game-state": {
-              const electionStates = await db.select().from(elections);
-
-              // Unrevealed totals remain sealed until an election concludes.
-              const enrichedStates = await Promise.all(
-                electionStates.map(async (election) => {
-                  if (
-                    election.status === "CANDIDACY" ||
-                    election.status === "VOTING" ||
-                    election.status === "CONCLUDED"
-                  ) {
-                    // Get candidates for this election with user and party info
-                    const electionCandidates = await db
-                      .select({
-                        id: candidates.id,
-                        userId: candidates.userId,
-                        username: users.username,
-                        election: candidates.election,
-                        points: sql<
-                          number | null
-                        >`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} else null end`,
-                        partyId: users.partyId,
-                        partyName: parties.name,
-                        partyColor: parties.color,
-                      })
-                      .from(candidates)
-                      .leftJoin(users, eq(candidates.userId, users.id))
-                      .leftJoin(parties, eq(users.partyId, parties.id))
-                      .leftJoin(
-                        elections,
-                        eq(candidates.election, elections.election),
-                      )
-                      .where(eq(candidates.election, election.election))
-                      .orderBy(
-                        sql`case when ${elections.status} = 'CONCLUDED' then ${candidates.votes} end desc nulls last`,
-                        candidates.id,
-                      );
-
-                    return {
-                      ...election,
-                      candidates: electionCandidates,
-                    };
-                  }
-                  return election;
-                }),
+          if (query.endpoint === "users") {
+            const rows = await db
+              .select(userFields)
+              .from(users)
+              .leftJoin(parties, eq(users.partyId, parties.id))
+              .where(query.id === null ? undefined : eq(users.id, query.id))
+              .orderBy(users.id)
+              .limit(query.id === null ? query.limit : 1)
+              .offset(query.id === null ? query.offset : 0);
+            if (query.id !== null && !rows.length)
+              return Response.json(
+                { error: "User not found" },
+                { status: 404, headers: errorHeaders },
               );
-
-              return new Response(JSON.stringify(enrichedStates), {
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-              });
-            }
-
-            default: {
-              return new Response(
-                JSON.stringify({
-                  error: "Invalid endpoint",
-                  available: [
-                    "users",
-                    "parties",
-                    "bills",
-                    "candidates",
-                    "game-state",
-                  ],
-                  usage: {
-                    users:
-                      "/api/bot?endpoint=users or /api/bot?endpoint=users&id=1",
-                    parties:
-                      "/api/bot?endpoint=parties or /api/bot?endpoint=parties&id=1",
-                    bills:
-                      "/api/bot?endpoint=bills or /api/bot?endpoint=bills&stage=House or /api/bot?endpoint=bills&stage=House&status=Voting",
-                    candidates:
-                      "/api/bot?endpoint=candidates or /api/bot?endpoint=candidates&election=President",
-                    gameState: "/api/bot?endpoint=game-state",
-                  },
-                }),
-                {
-                  status: 400,
-                  headers: { "Content-Type": "application/json" },
-                },
-              );
-            }
+            return Response.json(query.id === null ? rows : rows[0], {
+              headers: publicHeaders,
+            });
           }
+
+          if (query.endpoint === "parties") {
+            const rows = await db
+              .select(partyFields)
+              .from(parties)
+              .where(query.id === null ? undefined : eq(parties.id, query.id))
+              .orderBy(parties.id)
+              .limit(query.id === null ? query.limit : 1)
+              .offset(query.id === null ? query.offset : 0);
+            if (query.id !== null && !rows.length)
+              return Response.json(
+                { error: "Party not found" },
+                { status: 404, headers: errorHeaders },
+              );
+            if (query.id === null)
+              return Response.json(rows, { headers: publicHeaders });
+            const members = await db
+              .select({
+                id: users.id,
+                username: users.username,
+                role: users.role,
+              })
+              .from(users)
+              .where(eq(users.partyId, query.id))
+              .orderBy(users.id);
+            return Response.json(
+              { ...rows[0], members },
+              { headers: publicHeaders },
+            );
+          }
+
+          if (query.endpoint === "bills") {
+            const rows = await db
+              .select(billFields)
+              .from(bills)
+              .leftJoin(users, eq(bills.creatorId, users.id))
+              .where(
+                and(
+                  query.stage ? eq(bills.stage, query.stage) : undefined,
+                  query.status ? eq(bills.status, query.status) : undefined,
+                ),
+              )
+              .orderBy(bills.id)
+              .limit(query.limit)
+              .offset(query.offset);
+            return Response.json(
+              query.stage || query.status ? rows : groupBotBills(rows),
+              { headers: publicHeaders },
+            );
+          }
+
+          if (query.endpoint === "candidates") {
+            const rows = await db
+              .select(candidateFields)
+              .from(candidates)
+              .innerJoin(users, eq(candidates.userId, users.id))
+              .leftJoin(parties, eq(users.partyId, parties.id))
+              .innerJoin(elections, eq(candidates.election, elections.election))
+              .where(
+                query.election
+                  ? eq(candidates.election, query.election)
+                  : undefined,
+              )
+              .orderBy(candidateOrder, candidates.id)
+              .limit(query.limit)
+              .offset(query.offset);
+            return Response.json(rows, { headers: publicHeaders });
+          }
+
+          const races = await db
+            .select({
+              election: elections.election,
+              status: elections.status,
+              seats: elections.seats,
+              cycle: elections.cycle,
+              candidacyStartsAt: elections.candidacyStartsAt,
+              candidacyEndsAt: elections.candidacyEndsAt,
+              votingStartsAt: elections.votingStartsAt,
+              votingEndsAt: elections.votingEndsAt,
+              electionNightStartsAt: elections.electionNightStartsAt,
+              electionNightEndsAt: elections.electionNightEndsAt,
+              concludedAt: elections.concludedAt,
+            })
+            .from(elections)
+            .where(inArray(elections.election, ["President", "Senate"]))
+            .orderBy(elections.election);
+          const roster = await db
+            .select(candidateFields)
+            .from(candidates)
+            .innerJoin(users, eq(candidates.userId, users.id))
+            .leftJoin(parties, eq(users.partyId, parties.id))
+            .innerJoin(elections, eq(candidates.election, elections.election))
+            .where(inArray(candidates.election, ["President", "Senate"]))
+            .orderBy(candidateOrder, candidates.id);
+          return Response.json(
+            races.map((race) => ({
+              ...race,
+              candidates: roster.filter(
+                (candidate) => candidate.election === race.election,
+              ),
+            })),
+            { headers: publicHeaders },
+          );
         } catch (error) {
-          console.error("Bot API error:", error);
-          return new Response(
-            JSON.stringify({
-              error: "Internal server error",
-              message: error instanceof Error ? error.message : "Unknown error",
-            }),
-            {
-              status: 500,
-              headers: { "Content-Type": "application/json" },
-            },
+          console.error("Bot API request failed", error);
+          return Response.json(
+            { error: "Internal server error" },
+            { status: 500, headers: errorHeaders },
           );
         }
       },

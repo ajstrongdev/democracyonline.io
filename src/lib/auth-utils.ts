@@ -59,7 +59,7 @@ export async function logOut() {
   }
 }
 
-export async function switchAccount() {
+export async function signOutAndRedirect() {
   const result = await logOut();
   if (result.error) return result;
   try {

@@ -38,6 +38,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 8s
+      retries: 5
+      start_period: 30s
     networks:
       - web
       - database
@@ -50,7 +56,8 @@ services:
       APP_BASE_URL: http://app:3000
     command: ["node", "/usr/src/app/scripts/scheduler.mjs"]
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     networks:
       - web
     restart: unless-stopped

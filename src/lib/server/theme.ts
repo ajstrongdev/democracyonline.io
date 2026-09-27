@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie, setCookie } from "@tanstack/react-start/server";
 import { defineThemes } from "@ajstrongdev/start-themes";
+import { selectedColorSchemeCookie } from "@/lib/color-schemes";
 
 export const themeConfig = defineThemes({
   themes: [
@@ -72,10 +73,11 @@ export const getThemeServerFn = createServerFn().handler(() =>
 
 export const setThemeServerFn = createServerFn({ method: "POST" })
   .inputValidator(themeConfig.validateTheme)
-  .handler(({ data }) =>
-    setCookie(themeConfig.cookieKey, data, {
+  .handler(({ data }) => {
+    setCookie(selectedColorSchemeCookie, "", { maxAge: 0, path: "/" });
+    return setCookie(themeConfig.cookieKey, data, {
       maxAge: themeConfig.cookieMaxAge,
-    }),
-  );
+    });
+  });
 
 export const getThemeClasses = themeConfig.getClasses;

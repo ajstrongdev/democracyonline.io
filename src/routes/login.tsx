@@ -110,7 +110,17 @@ function LoginPage() {
           </form>
         </Card>
         <p className="text-center text-sm text-muted-foreground">
-          Don't have an account? Ask a player for an invite link to sign up.
+          Don't have an account? Ask a player for an invite link to sign up, or
+          ask in our{" "}
+          <a
+            href="https://discord.gg/kYdDXfJFdn"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-primary underline underline-offset-4 hover:text-primary/80"
+          >
+            Discord
+          </a>
+          .
         </p>
       </div>
     </div>

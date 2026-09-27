@@ -13,6 +13,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ReportPlayerDialog } from "@/components/players/report-player-dialog";
 import { PlayerAvatar } from "@/components/players/player-avatar";
+import {
+  PlayerLastSeen,
+  usePlayerPresenceData,
+  usePresenceClock,
+} from "@/components/players/player-last-seen";
 import { getWikiPlayer } from "@/lib/server/history";
 import { getWikiArticle } from "@/lib/server/wiki-articles";
 import {
@@ -47,6 +52,8 @@ export const Route = createFileRoute("/dashboard/players/$playerId")({
 function PlayerArticle() {
   const [bioExpanded, setBioExpanded] = useState(false);
   const { playerData, article, socialProfile } = Route.useLoaderData();
+  const now = usePresenceClock();
+  const presence = usePlayerPresenceData(playerData.player.id);
   const {
     player,
     candidacies,
@@ -86,11 +93,23 @@ function PlayerArticle() {
         title={player.username}
         description={
           <>
-            <span className={bioExpanded ? "block break-words" : "block line-clamp-3 break-words"}>
-              <EntityReferenceText content={player.bio || "A player in Oscana."} />
+            <span
+              className={
+                bioExpanded
+                  ? "block break-words"
+                  : "block line-clamp-3 break-words"
+              }
+            >
+              <EntityReferenceText
+                content={player.bio || "A player in Oscana."}
+              />
             </span>
             {(player.bio?.length ?? 0) > 180 && (
-              <button type="button" className="mt-1 font-medium text-primary hover:underline" onClick={() => setBioExpanded(!bioExpanded)}>
+              <button
+                type="button"
+                className="mt-1 font-medium text-primary hover:underline"
+                onClick={() => setBioExpanded(!bioExpanded)}
+              >
                 {bioExpanded ? "Show less" : "Read full bio"}
               </button>
             )}
@@ -156,9 +175,10 @@ function PlayerArticle() {
             {player.createdAt ? formatWikiDate(player.createdAt) : "Unknown"}
           </WikiInfoboxRow>
           <WikiInfoboxRow label="Last seen">
-            {player.lastSeenAt
-              ? `${formatWikiDate(player.lastSeenAt)} at ${new Date(player.lastSeenAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`
-              : "Unknown"}
+            <PlayerLastSeen
+              presence={presence[player.id] ?? player}
+              now={now}
+            />
           </WikiInfoboxRow>
           <WikiInfoboxRow label="Bills">{authoredBills.length}</WikiInfoboxRow>
           <WikiInfoboxRow label="Votes">{billVotes.length}</WikiInfoboxRow>

@@ -365,6 +365,13 @@
       "when": 1790134273255,
       "tag": "0051_unique_governance_votes",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1790134273256,
+      "tag": "0052_shared_color_schemes",
+      "breakpoints": true
     }
   ]
 }

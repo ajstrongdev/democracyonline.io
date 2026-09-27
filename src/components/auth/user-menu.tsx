@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { LogIn, LogOut, Settings, Users, ShieldCheck } from "lucide-react";
+import { LogIn, LogOut, Settings, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
-import { switchAccount } from "@/lib/auth-utils";
+import { signOutAndRedirect } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
 import { AccountSettingsDialog } from "@/components/settings/account-settings-dialog";
 import { canAccessModerationQueue } from "@/lib/server/moderation";
@@ -28,7 +28,7 @@ export function UserMenu() {
   }, [user]);
 
   const handleLogout = async () => {
-    const result = await switchAccount();
+    const result = await signOutAndRedirect();
     if (result.error) {
       toast.error(result.error);
       return;
@@ -67,9 +67,6 @@ export function UserMenu() {
           <Settings className="size-4" />
       </Button>
       <AccountSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Switch account" title="Switch account (sign out and sign in)">
-        <Users className="size-4" />
-      </Button>
       <Button
         variant="ghost"
         size="icon"
