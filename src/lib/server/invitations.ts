@@ -65,43 +65,52 @@ export const createInvitation = createServerFn({ method: "POST" })
     if (!currentUser || !currentUser.isActive) {
       throw new Error("Only active players can create invitations");
     }
-    const openInvitations = await db
-      .select({ id: playerInvitations.id })
-      .from(playerInvitations)
-      .where(
-        and(
-          eq(playerInvitations.inviterId, currentUser.id),
-          isNull(playerInvitations.redeemedAt),
-          isNull(playerInvitations.revokedAt),
-          gt(playerInvitations.expiresAt, new Date()),
-        ),
-      );
-    if (openInvitations.length >= maximumOpenInvitations) {
-      throw new Error(
-        `You can have at most ${maximumOpenInvitations} open invitations`,
-      );
-    }
-
-    const token = generateInvitationToken();
-    const [invitation] = await db
-      .insert(playerInvitations)
-      .values({
-        tokenHash: hashInvitationToken(token),
-        tokenPrefix: invitationTokenPrefix(token),
-        inviterId: currentUser.id,
-        expiresAt: new Date(Date.now() + invitationLifetimeMs),
-      })
-      .returning({
-        id: playerInvitations.id,
-        tokenPrefix: playerInvitations.tokenPrefix,
-        createdAt: playerInvitations.createdAt,
-        expiresAt: playerInvitations.expiresAt,
+    const result = await db.transaction(async (tx) => {
+      const [inviter] = await tx
+        .select({ isActive: users.isActive })
+        .from(users)
+        .where(eq(users.id, currentUser.id))
+        .for("update");
+      if (!inviter?.isActive)
+        throw new Error("Only active players can create invitations");
+      const openInvitations = await tx
+        .select({ id: playerInvitations.id })
+        .from(playerInvitations)
+        .where(
+          and(
+            eq(playerInvitations.inviterId, currentUser.id),
+            isNull(playerInvitations.redeemedAt),
+            isNull(playerInvitations.revokedAt),
+            gt(playerInvitations.expiresAt, new Date()),
+          ),
+        );
+      if (openInvitations.length >= maximumOpenInvitations) {
+        throw new Error(
+          `You can have at most ${maximumOpenInvitations} open invitations`,
+        );
+      }
+      const token = generateInvitationToken();
+      const [invitation] = await tx
+        .insert(playerInvitations)
+        .values({
+          tokenHash: hashInvitationToken(token),
+          tokenPrefix: invitationTokenPrefix(token),
+          inviterId: currentUser.id,
+          expiresAt: new Date(Date.now() + invitationLifetimeMs),
+        })
+        .returning({
+          id: playerInvitations.id,
+          tokenPrefix: playerInvitations.tokenPrefix,
+          createdAt: playerInvitations.createdAt,
+          expiresAt: playerInvitations.expiresAt,
+        });
+      await tx.insert(feed).values({
+        userId: currentUser.id,
+        content: "created a player invitation",
       });
-    await db.insert(feed).values({
-      userId: currentUser.id,
-      content: "created a player invitation",
+      return { token, invitation };
     });
-    return { invitation, token };
+    return result;
   });
 
 export const revokeInvitation = createServerFn({ method: "POST" })

@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { SuspicionAssessment } from "@/lib/moderation/suspicion";
 import { db } from "@/db";
 import {
+  gameSettings,
   moderationAuditLog,
   moderationFlags,
   playerReports,
@@ -29,7 +30,7 @@ export const canAccessModerationQueue = createServerFn()
     if (!identity) return null;
     if (identity.email && isAdminEmail(identity.email)) return "admin" as const;
     const user = await getCurrentDatabaseUser(identity);
-    return user?.moderationRole === "moderator" ? "moderator" as const : null;
+    return user?.moderationRole === "moderator" ? ("moderator" as const) : null;
   });
 
 function asSuspicionAssessment(value: unknown): SuspicionAssessment {
@@ -51,8 +52,10 @@ async function requireModerator(
   return { user, role: isAdmin ? ("admin" as const) : ("moderator" as const) };
 }
 
-async function getSuspicionAssessment(userId: number) {
-  const result = await db.execute(sql`
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function getSuspicionAssessment(tx: Transaction, userId: number) {
+  const result = await tx.execute(sql`
     WITH RECURSIVE ancestry AS (
       SELECT invitation.inviter_id AS user_id, 1 AS depth
       FROM player_invitations invitation
@@ -76,8 +79,8 @@ async function getSuspicionAssessment(userId: number) {
       (SELECT count(*)::int
        FROM player_invitations sibling
        WHERE sibling.inviter_id = target.inviter_id
-         AND sibling.redeemed_at BETWEEN target.redeemed_at - interval '24 hours'
-           AND target.redeemed_at) AS inviter_redemptions,
+         AND sibling.redeemed_at BETWEEN now() - interval '24 hours'
+           AND now()) AS inviter_redemptions,
       coalesce((SELECT max(depth) FROM ancestry), 0)::int AS ancestry_depth,
       (SELECT count(DISTINCT reporter_id)::int
        FROM player_reports
@@ -101,32 +104,99 @@ async function getSuspicionAssessment(userId: number) {
 }
 
 export async function refreshAutomaticFlag(userId: number) {
-  const assessment = await getSuspicionAssessment(userId);
-  if (!assessment.shouldFlag) return assessment;
-  const [openFlag] = await db
-    .select({ id: moderationFlags.id })
-    .from(moderationFlags)
-    .where(
-      and(
-        eq(moderationFlags.userId, userId),
-        eq(moderationFlags.status, "open"),
-        eq(moderationFlags.source, "automatic"),
-      ),
-    )
-    .limit(1);
-  if (openFlag) {
-    await db
-      .update(moderationFlags)
-      .set({ suspicionScore: assessment.score, explanation: assessment })
-      .where(eq(moderationFlags.id, openFlag.id));
-  } else {
-    await db.insert(moderationFlags).values({
-      userId,
-      suspicionScore: assessment.score,
-      explanation: assessment,
-    });
-  }
-  return assessment;
+  return db.transaction(async (tx) => {
+    // Serialize score calculations and flag creation for the same player.
+    await tx.execute(sql`select pg_advisory_xact_lock(${userId}, 73003)`);
+    const assessment = await getSuspicionAssessment(tx, userId);
+    const [openFlag] = await tx
+      .select({ id: moderationFlags.id })
+      .from(moderationFlags)
+      .where(
+        and(
+          eq(moderationFlags.userId, userId),
+          eq(moderationFlags.status, "open"),
+          eq(moderationFlags.source, "automatic"),
+        ),
+      )
+      .limit(1);
+    if (openFlag) {
+      await tx
+        .update(moderationFlags)
+        .set({ suspicionScore: assessment.score, explanation: assessment })
+        .where(eq(moderationFlags.id, openFlag.id));
+    } else if (assessment.shouldFlag) {
+      // A moderator's resolved/dismissed flag should not immediately reopen
+      // on the next refresh unless new signals increase the score.
+      const [resolvedFlag] = await tx
+        .select({ suspicionScore: moderationFlags.suspicionScore })
+        .from(moderationFlags)
+        .where(
+          and(
+            eq(moderationFlags.userId, userId),
+            eq(moderationFlags.status, "resolved"),
+            eq(moderationFlags.source, "automatic"),
+          ),
+        )
+        .orderBy(desc(moderationFlags.id))
+        .limit(1);
+      if (resolvedFlag && resolvedFlag.suspicionScore >= assessment.score)
+        return assessment;
+      await tx.insert(moderationFlags).values({
+        userId,
+        suspicionScore: assessment.score,
+        explanation: assessment,
+      });
+    }
+    // Leave existing flags for a moderator to resolve, even if the score
+    // falls below the threshold after a report is handled.
+    return assessment;
+  });
+}
+
+/** Refresh recent invitees whenever their common inviter redeems a new link. */
+export async function refreshInvitationFlags(
+  inviterId: number,
+  userId: number,
+) {
+  const recentInvitees = await db.execute(sql`
+    SELECT DISTINCT redeemed_by_user_id AS id
+    FROM player_invitations
+    WHERE inviter_id = ${inviterId}
+      AND redeemed_at >= now() - interval '24 hours'
+      AND redeemed_by_user_id IS NOT NULL
+    ORDER BY id
+  `);
+  const ids = new Set<number>([userId]);
+  for (const row of recentInvitees.rows) ids.add(Number(row.id));
+  for (const id of ids) await refreshAutomaticFlag(id);
+}
+
+/** Retry scoring after transient failures, without doing the work every tick. */
+export async function reconcileAutomaticFlags() {
+  const now = new Date();
+  const [claimed] = await db
+    .insert(gameSettings)
+    .values({
+      key: "moderation_last_reconciled_at",
+      value: now.toISOString(),
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: gameSettings.key,
+      set: { value: now.toISOString(), updatedAt: now },
+      setWhere: sql`${gameSettings.updatedAt} < ${new Date(now.getTime() - 60 * 60 * 1_000)}`,
+    })
+    .returning({ key: gameSettings.key });
+  if (!claimed) return;
+
+  const candidates = await db.execute(sql`
+    SELECT redeemed_by_user_id AS id FROM player_invitations
+    WHERE redeemed_at >= now() - interval '24 hours'
+      AND redeemed_by_user_id IS NOT NULL
+    UNION
+    SELECT reported_user_id AS id FROM player_reports WHERE status = 'pending'
+  `);
+  for (const row of candidates.rows) await refreshAutomaticFlag(Number(row.id));
 }
 
 export const reportPlayer = createServerFn({ method: "POST" })
@@ -151,27 +221,38 @@ export const reportPlayer = createServerFn({ method: "POST" })
       .where(eq(users.id, data.reportedUserId))
       .limit(1);
     if (!reportedUser) throw new Error("Player not found");
-    const [duplicate] = await db
-      .select({ id: playerReports.id })
-      .from(playerReports)
-      .where(
-        and(
-          eq(playerReports.reporterId, reporter.id),
-          eq(playerReports.reportedUserId, data.reportedUserId),
-          eq(playerReports.status, "pending"),
-        ),
-      )
-      .limit(1);
-    if (duplicate)
-      throw new Error("You already have a pending report for this player");
-
-    await db.insert(playerReports).values({
-      reporterId: reporter.id,
-      reportedUserId: data.reportedUserId,
-      category: data.category,
-      details: data.details,
+    await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(${reporter.id}, ${data.reportedUserId})`,
+      );
+      const [duplicate] = await tx
+        .select({ id: playerReports.id })
+        .from(playerReports)
+        .where(
+          and(
+            eq(playerReports.reporterId, reporter.id),
+            eq(playerReports.reportedUserId, data.reportedUserId),
+            eq(playerReports.status, "pending"),
+          ),
+        )
+        .limit(1);
+      if (duplicate)
+        throw new Error("You already have a pending report for this player");
+      await tx.insert(playerReports).values({
+        reporterId: reporter.id,
+        reportedUserId: data.reportedUserId,
+        category: data.category,
+        details: data.details,
+      });
     });
-    await refreshAutomaticFlag(data.reportedUserId);
+    try {
+      await refreshAutomaticFlag(data.reportedUserId);
+    } catch (error) {
+      console.error(
+        "Could not refresh reported player's moderation flag",
+        error,
+      );
+    }
     return { success: true };
   });
 
@@ -282,6 +363,11 @@ export const moderatePlayer = createServerFn({ method: "POST" })
       throw new Error("You cannot suspend yourself");
     }
     await db.transaction(async (tx) => {
+      if (data.flagId) {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(${data.targetUserId}, 73003)`,
+        );
+      }
       const now = new Date();
       if (data.reportId) {
         await tx

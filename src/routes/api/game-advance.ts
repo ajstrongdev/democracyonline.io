@@ -15,6 +15,7 @@ import {
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { archiveEmptyParties } from "@/lib/server/organization-lifecycle";
 import { playerArchiveCutoff } from "@/lib/player-archive";
+import { reconcileAutomaticFlags } from "@/lib/server/moderation";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -53,7 +54,9 @@ export const Route = createFileRoute("/api/game-advance")({
             const archived = await tx
               .update(users)
               .set({ archivedAt: now })
-              .where(and(isNull(users.archivedAt), lt(users.lastSeenAt, cutoff)))
+              .where(
+                and(isNull(users.archivedAt), lt(users.lastSeenAt, cutoff)),
+              )
               .returning({ id: users.id });
 
             // Also clean up players archived before party removal was introduced.
@@ -66,7 +69,12 @@ export const Route = createFileRoute("/api/game-advance")({
               await tx
                 .update(users)
                 .set({ partyId: null })
-                .where(inArray(users.id, members.map((member) => member.id)));
+                .where(
+                  inArray(
+                    users.id,
+                    members.map((member) => member.id),
+                  ),
+                );
 
               const partyIds = [
                 ...new Set(
@@ -82,7 +90,10 @@ export const Route = createFileRoute("/api/game-advance")({
                 .where(
                   and(
                     inArray(parties.id, partyIds),
-                    inArray(parties.leaderId, members.map((member) => member.id)),
+                    inArray(
+                      parties.leaderId,
+                      members.map((member) => member.id),
+                    ),
                   ),
                 );
             }
@@ -105,6 +116,15 @@ export const Route = createFileRoute("/api/game-advance")({
               status: 500,
               headers: { "Content-Type": "application/json" },
             },
+          );
+        }
+
+        try {
+          await reconcileAutomaticFlags();
+        } catch (error) {
+          console.error(
+            "[game-advance] Moderation reconciliation failed:",
+            error,
           );
         }
 

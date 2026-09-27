@@ -54,7 +54,7 @@ export const createUser = createServerFn({ method: "POST" })
       throw new Error("Email already exists");
     }
 
-    const newUser = await db.transaction(async (tx) => {
+    const registration = await db.transaction(async (tx) => {
       const [redeemedToken] = await tx
         .update(playerInvitations)
         .set({ redeemedAt: new Date() })
@@ -66,7 +66,10 @@ export const createUser = createServerFn({ method: "POST" })
             gt(playerInvitations.expiresAt, new Date()),
           ),
         )
-        .returning({ id: playerInvitations.id });
+        .returning({
+          id: playerInvitations.id,
+          inviterId: playerInvitations.inviterId,
+        });
 
       if (!redeemedToken) {
         throw new Error("Invite link is invalid or no longer available");
@@ -94,10 +97,24 @@ export const createUser = createServerFn({ method: "POST" })
         VALUES (${newUser.id}, ${welcomeMessage}, NOW())
       `);
 
-      return newUser;
+      return { newUser, inviterId: redeemedToken.inviterId };
     });
 
-    return newUser;
+    // A new redemption can push both this player and earlier invitees in the
+    // same 24-hour burst over the flag threshold. Never fail a completed
+    // registration if moderation scoring is temporarily unavailable.
+    try {
+      const { refreshInvitationFlags } =
+        await import("@/lib/server/moderation");
+      await refreshInvitationFlags(
+        registration.inviterId,
+        registration.newUser.id,
+      );
+    } catch (error) {
+      console.error("Could not refresh invitation moderation flags", error);
+    }
+
+    return registration.newUser;
   });
 
 export const fetchUserInfo = createServerFn()

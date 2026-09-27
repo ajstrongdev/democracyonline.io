@@ -227,7 +227,13 @@ export const coalitionVotes = pgTable(
     vote: boolean("vote").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [primaryKey({ columns: [table.proposalId, table.voterUserId] })],
+  (table) => [
+    primaryKey({ columns: [table.proposalId, table.voterUserId] }),
+    unique("coalition_votes_proposal_party_unique").on(
+      table.proposalId,
+      table.voterPartyId,
+    ),
+  ],
 );
 
 // Bills table
@@ -428,28 +434,55 @@ export const nationChanges = pgTable(
 );
 
 // Bill votes house table
-export const billVotesHouse = pgTable("bill_votes_house", {
-  id: serial("id").primaryKey(),
-  billId: integer("bill_id"),
-  voterId: integer("voter_id"),
-  voteYes: boolean("vote_yes").notNull(),
-});
+export const billVotesHouse = pgTable(
+  "bill_votes_house",
+  {
+    id: serial("id").primaryKey(),
+    billId: integer("bill_id"),
+    voterId: integer("voter_id"),
+    voteYes: boolean("vote_yes").notNull(),
+  },
+  (table) => [
+    unique("bill_votes_house_bill_voter_unique").on(
+      table.billId,
+      table.voterId,
+    ),
+  ],
+);
 
 // Bill votes senate table
-export const billVotesSenate = pgTable("bill_votes_senate", {
-  id: serial("id").primaryKey(),
-  billId: integer("bill_id"),
-  voterId: integer("voter_id"),
-  voteYes: boolean("vote_yes").notNull(),
-});
+export const billVotesSenate = pgTable(
+  "bill_votes_senate",
+  {
+    id: serial("id").primaryKey(),
+    billId: integer("bill_id"),
+    voterId: integer("voter_id"),
+    voteYes: boolean("vote_yes").notNull(),
+  },
+  (table) => [
+    unique("bill_votes_senate_bill_voter_unique").on(
+      table.billId,
+      table.voterId,
+    ),
+  ],
+);
 
 // Bill votes presidential table
-export const billVotesPresidential = pgTable("bill_votes_presidential", {
-  id: serial("id").primaryKey(),
-  billId: integer("bill_id"),
-  voterId: integer("voter_id"),
-  voteYes: boolean("vote_yes").notNull(),
-});
+export const billVotesPresidential = pgTable(
+  "bill_votes_presidential",
+  {
+    id: serial("id").primaryKey(),
+    billId: integer("bill_id"),
+    voterId: integer("voter_id"),
+    voteYes: boolean("vote_yes").notNull(),
+  },
+  (table) => [
+    unique("bill_votes_presidential_bill_voter_unique").on(
+      table.billId,
+      table.voterId,
+    ),
+  ],
+);
 
 // Elections table
 export const elections = pgTable(

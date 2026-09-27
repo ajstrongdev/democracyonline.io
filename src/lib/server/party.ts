@@ -132,6 +132,13 @@ export const createParty = createServerFn()
 
     const { party, platform } = data;
     const result = await db.transaction(async (tx) => {
+      const [member] = await tx
+        .select({ partyId: users.partyId })
+        .from(users)
+        .where(eq(users.id, creator.id))
+        .for("update");
+      if (!member || member.partyId)
+        throw new Error("Leave your current party first");
       const [newParty] = await tx
         .insert(parties)
         .values({
@@ -250,15 +257,22 @@ export const leaveParty = createServerFn()
       throw new Error("You can only leave a party as yourself");
     }
 
-    if (!currentUser.partyId) return true;
     await db.transaction(async (tx) => {
+      const [member] = await tx
+        .select({ partyId: users.partyId })
+        .from(users)
+        .where(eq(users.id, currentUser.id))
+        .for("update");
+      if (!member?.partyId) return;
+      const previousPartyId = member.partyId;
+      await tx.execute(sql`select pg_advisory_xact_lock(${previousPartyId})`);
       await tx
         .update(users)
         .set({ partyId: null })
         .where(eq(users.id, currentUser.id));
       const archived = await archivePartyIfEmpty(
         tx,
-        currentUser.partyId!,
+        previousPartyId,
         currentUser.id,
       );
       if (!archived) {
@@ -267,7 +281,7 @@ export const leaveParty = createServerFn()
           .set({ leaderId: null })
           .where(
             and(
-              eq(parties.id, currentUser.partyId!),
+              eq(parties.id, previousPartyId),
               eq(parties.leaderId, currentUser.id),
             ),
           );
@@ -275,7 +289,7 @@ export const leaveParty = createServerFn()
       const [party] = await tx
         .select({ name: parties.name })
         .from(parties)
-        .where(eq(parties.id, currentUser.partyId!))
+        .where(eq(parties.id, previousPartyId))
         .limit(1);
       await tx.insert(feed).values({
         userId: currentUser.id,
@@ -307,10 +321,19 @@ export const joinParty = createServerFn()
       throw new Error("You can only join a party as yourself");
     }
 
-    if (currentUser.partyId === data.partyId) return true;
     await db.transaction(async (tx) => {
-      const previousPartyId = currentUser.partyId;
-      const lockIds = [data.partyId, ...(previousPartyId ? [previousPartyId] : [])]
+      const [member] = await tx
+        .select({ partyId: users.partyId })
+        .from(users)
+        .where(eq(users.id, currentUser.id))
+        .for("update");
+      if (!member) throw new Error("Player account not found");
+      if (member.partyId === data.partyId) return;
+      const previousPartyId = member.partyId;
+      const lockIds = [
+        data.partyId,
+        ...(previousPartyId ? [previousPartyId] : []),
+      ]
         .filter((partyId, index, values) => values.indexOf(partyId) === index)
         .sort((left, right) => left - right);
       for (const partyId of lockIds) {
@@ -350,12 +373,10 @@ export const joinParty = createServerFn()
         .from(parties)
         .where(eq(parties.id, data.partyId))
         .limit(1);
-      await tx
-        .insert(feed)
-        .values({
-          userId: currentUser.id,
-          content: `joined ${party?.name ?? "a party"}`,
-        });
+      await tx.insert(feed).values({
+        userId: currentUser.id,
+        content: `joined ${party?.name ?? "a party"}`,
+      });
     });
     return true;
   });
@@ -379,32 +400,32 @@ export const becomePartyLeader = createServerFn()
       throw new Error("You can only become leader as yourself");
     }
 
-    // Check if user is a member of the party
-    if (currentUser.partyId !== data.partyId) {
-      throw new Error("You must be a member of the party to become leader");
-    }
-
-    // Check if party currently has no leader
-    const [party] = await db
-      .select({ leaderId: parties.leaderId, name: parties.name })
-      .from(parties)
-      .where(and(eq(parties.id, data.partyId), isNull(parties.archivedAt)))
-      .limit(1);
-
-    if (party?.leaderId) {
-      throw new Error("Party already has a leader");
-    }
-
-    await db
-      .update(parties)
-      .set({ leaderId: data.userId })
-      .where(eq(parties.id, data.partyId));
-    await db
-      .insert(feed)
-      .values({
+    await db.transaction(async (tx) => {
+      const [member] = await tx
+        .select({ partyId: users.partyId })
+        .from(users)
+        .where(eq(users.id, currentUser.id))
+        .for("update");
+      if (member?.partyId !== data.partyId) {
+        throw new Error("You must be a member of the party to become leader");
+      }
+      const [party] = await tx
+        .update(parties)
+        .set({ leaderId: currentUser.id })
+        .where(
+          and(
+            eq(parties.id, data.partyId),
+            isNull(parties.archivedAt),
+            isNull(parties.leaderId),
+          ),
+        )
+        .returning({ name: parties.name });
+      if (!party) throw new Error("Party already has a leader or is archived");
+      await tx.insert(feed).values({
         userId: currentUser.id,
-        content: `became leader of ${party?.name ?? "a party"}`,
+        content: `became leader of ${party.name}`,
       });
+    });
     return true;
   });
 
@@ -453,6 +474,14 @@ export const reviveParty = createServerFn({ method: "POST" })
     if (!actor) throw new Error("Player account not found");
 
     return db.transaction(async (tx) => {
+      const [member] = await tx
+        .select({ partyId: users.partyId })
+        .from(users)
+        .where(eq(users.id, actor.id))
+        .for("update");
+      if (!member || member.partyId) {
+        throw new Error("Leave your current party before reviving this party");
+      }
       await tx.execute(sql`select pg_advisory_xact_lock(${data.partyId})`);
       const [party] = await tx
         .select({
@@ -468,7 +497,7 @@ export const reviveParty = createServerFn({ method: "POST" })
       if (
         !canReviveParty({
           actorUserId: actor.id,
-          actorPartyId: actor.partyId,
+          actorPartyId: member.partyId,
           formerLeaderId: party.formerLeaderId,
           isAdmin: isAdminEmail(actorEmail),
         })

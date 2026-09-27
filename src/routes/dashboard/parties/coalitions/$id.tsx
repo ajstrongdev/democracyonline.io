@@ -16,20 +16,16 @@ import {
   ThumbsDown,
   ThumbsUp,
   Users,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  acceptJoinRequest,
-  declineJoinRequest,
   getCoalitionDetails,
-  leaveCoalition,
   requestJoinCoalition,
   reviveCoalition,
-  updateCoalition,
 } from "@/lib/server/coalitions";
 import {
   castVote,
+  createProposal,
   getCoalitionProposals,
   resolveProposal,
 } from "@/lib/server/coalition-proposals";
@@ -139,22 +135,28 @@ function CoalitionPage() {
 
   const handleSaveEdit = async () => {
     try {
-      await updateCoalition({
+      await createProposal({
         data: {
           coalitionId: coalition.id,
-          name: editName,
-          color: editColor,
-          bio: editBio,
-          logo: editLogo,
+          proposalType: "edit",
+          payload: {
+            name: editName,
+            color: editColor,
+            bio: editBio,
+            logo: editLogo,
+          },
         },
       });
+      toast.success("Coalition edit proposed for a member-party vote");
       setEditing(false);
       navigate({
         to: "/dashboard/parties/coalitions/$id",
         params: { id: coalition.id.toString() },
       });
     } catch (e: any) {
-      toast.error(e instanceof Error ? e.message : "Could not update coalition");
+      toast.error(
+        e instanceof Error ? e.message : "Could not update coalition",
+      );
     }
   };
 
@@ -172,8 +174,20 @@ function CoalitionPage() {
 
   const handleLeave = async () => {
     try {
-      await leaveCoalition({ data: { coalitionId: coalition.id } });
-      navigate({ to: "/dashboard/parties" });
+      if (!callerPartyId) throw new Error("You must lead a member party");
+      await createProposal({
+        data: {
+          coalitionId: coalition.id,
+          proposalType: "leave",
+          targetId: callerPartyId,
+        },
+      });
+      toast.success("Departure proposed for a member-party vote");
+      setShowLeaveDialog(false);
+      navigate({
+        to: "/dashboard/parties/coalitions/$id",
+        params: { id: coalition.id.toString() },
+      });
     } catch (e: any) {
       toast.error(e instanceof Error ? e.message : "Could not leave coalition");
     }
@@ -196,27 +210,22 @@ function CoalitionPage() {
     }
   };
 
-  const handleAccept = async (requestId: number) => {
+  const handleAccept = async (partyId: number) => {
     try {
-      await acceptJoinRequest({ data: { requestId } });
+      await createProposal({
+        data: {
+          coalitionId: coalition.id,
+          proposalType: "join_request",
+          targetId: partyId,
+        },
+      });
+      toast.success("Join request proposed for a member-party vote");
       navigate({
         to: "/dashboard/parties/coalitions/$id",
         params: { id: coalition.id.toString() },
       });
     } catch (e: any) {
       toast.error(e instanceof Error ? e.message : "Could not accept request");
-    }
-  };
-
-  const handleDecline = async (requestId: number) => {
-    try {
-      await declineJoinRequest({ data: { requestId } });
-      navigate({
-        to: "/dashboard/parties/coalitions/$id",
-        params: { id: coalition.id.toString() },
-      });
-    } catch (e: any) {
-      toast.error(e instanceof Error ? e.message : "Could not decline request");
     }
   };
 
@@ -243,7 +252,9 @@ function CoalitionPage() {
         params: { id: coalition.id.toString() },
       });
     } catch (e: any) {
-      toast.error(e instanceof Error ? e.message : "Could not resolve proposal");
+      toast.error(
+        e instanceof Error ? e.message : "Could not resolve proposal",
+      );
     }
   };
 
@@ -587,18 +598,10 @@ function CoalitionPage() {
                           <Button
                             variant="default"
                             size="sm"
-                            onClick={() => handleAccept(req.id)}
+                            onClick={() => handleAccept(req.partyId)}
                           >
                             <Check className="mr-1 h-4 w-4" />
-                            Accept
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDecline(req.id)}
-                          >
-                            <X className="mr-1 h-4 w-4" />
-                            Decline
+                            Propose acceptance
                           </Button>
                         </div>
                       )}
@@ -691,9 +694,7 @@ function CoalitionPage() {
                               <Button
                                 variant="default"
                                 size="sm"
-                                onClick={() =>
-                                  handleVote(proposal.id, true)
-                                }
+                                onClick={() => handleVote(proposal.id, true)}
                               >
                                 <ThumbsUp className="mr-1 h-4 w-4" />
                                 For
@@ -701,9 +702,7 @@ function CoalitionPage() {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() =>
-                                  handleVote(proposal.id, false)
-                                }
+                                onClick={() => handleVote(proposal.id, false)}
                               >
                                 <ThumbsDown className="mr-1 h-4 w-4" />
                                 Against
@@ -712,9 +711,7 @@ function CoalitionPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() =>
-                                    handleResolve(proposal.id)
-                                  }
+                                  onClick={() => handleResolve(proposal.id)}
                                 >
                                   Resolve
                                 </Button>
@@ -734,8 +731,8 @@ function CoalitionPage() {
           open={showLeaveDialog}
           onOpenChange={setShowLeaveDialog}
           title="Leave Coalition"
-          description="Are you sure you want your party to leave this coalition? If your party is the last member, the coalition will be dissolved."
-          confirmText="Leave"
+          description="Propose your party's departure for a member-party vote. The party remains in the coalition until the proposal is approved."
+          confirmText="Propose departure"
           variant="destructive"
           onConfirm={handleLeave}
         />

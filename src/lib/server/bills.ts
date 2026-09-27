@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, gt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   billVotesHouse,
@@ -143,20 +143,30 @@ export const getBillById = createServerFn()
   });
 
 export const getBillVotes = createServerFn()
-  .inputValidator((data: { id: number; stage: BillStages }) => data)
+  .inputValidator(
+    z.object({
+      id: z.number().int().positive(),
+      stage: z.enum(["house", "senate", "presidential"]),
+    }),
+  )
   .handler(async ({ data }) => {
-    const votes = await db.execute(sql`
-      SELECT
-        COUNT(*) FILTER (WHERE vote_yes = TRUE) as yes_count,
-        COUNT(*) FILTER (WHERE vote_yes = FALSE) as no_count
-        FROM ${sql.raw(`bill_votes_${data.stage.toLowerCase()}`)}
-        WHERE bill_id = ${data.id}
-    `);
-    const row = votes.rows[0] as { yes_count: string; no_count: string };
+    const table =
+      data.stage === "house"
+        ? billVotesHouse
+        : data.stage === "senate"
+          ? billVotesSenate
+          : billVotesPresidential;
+    const [row] = await db
+      .select({
+        yesCount: sql<number>`count(*) filter (where ${table.voteYes} = true)::int`,
+        noCount: sql<number>`count(*) filter (where ${table.voteYes} = false)::int`,
+      })
+      .from(table)
+      .where(eq(table.billId, data.id));
     return {
       count: {
-        yes: parseInt(row.yes_count, 10),
-        no: parseInt(row.no_count, 10),
+        yes: row.yesCount,
+        no: row.noCount,
       },
     };
   });
@@ -237,22 +247,46 @@ export const reviveDefeatedBill = createServerFn({ method: "POST" })
   .inputValidator(z.object({ billId: z.number().int().positive() }))
   .handler(async ({ context, data }) => {
     if (!context.user?.email) throw new Error("Authentication required");
-    const [actor] = await db.select({ id: users.id }).from(users).where(userEmailEquals(context.user.email)).limit(1);
+    const [actor] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(userEmailEquals(context.user.email))
+      .limit(1);
     if (!actor) throw new Error("Player not found");
-    const [source] = await db.select({ creatorId: bills.creatorId, title: bills.title, content: bills.content, status: bills.status })
-      .from(bills).where(eq(bills.id, data.billId)).limit(1);
-    if (!source || source.status !== "Defeated") throw new Error("Only defeated bills can be resubmitted");
-    if (source.creatorId !== actor.id) throw new Error("Only the proposer can resubmit this bill");
+    const [source] = await db
+      .select({
+        creatorId: bills.creatorId,
+        title: bills.title,
+        content: bills.content,
+        status: bills.status,
+      })
+      .from(bills)
+      .where(eq(bills.id, data.billId))
+      .limit(1);
+    if (!source || source.status !== "Defeated")
+      throw new Error("Only defeated bills can be resubmitted");
+    if (source.creatorId !== actor.id)
+      throw new Error("Only the proposer can resubmit this bill");
 
-    const stageDurationMs = getBillStageDurationMs((await getGameSpeed()).multiplier);
-    const [revived] = await db.insert(bills).values({
-      title: source.title,
-      content: source.content,
-      creatorId: actor.id,
-      stageStartedAt: new Date(),
-      stageEndsAt: new Date(Date.now() + stageDurationMs),
-    }).returning({ id: bills.id });
-    await addFeedItem({ data: { userId: actor.id, content: `Resubmitted defeated Bill #${data.billId} as Bill #${revived.id}: ${source.title}` } });
+    const stageDurationMs = getBillStageDurationMs(
+      (await getGameSpeed()).multiplier,
+    );
+    const [revived] = await db
+      .insert(bills)
+      .values({
+        title: source.title,
+        content: source.content,
+        creatorId: actor.id,
+        stageStartedAt: new Date(),
+        stageEndsAt: new Date(Date.now() + stageDurationMs),
+      })
+      .returning({ id: bills.id });
+    await addFeedItem({
+      data: {
+        userId: actor.id,
+        content: `Resubmitted defeated Bill #${data.billId} as Bill #${revived.id}: ${source.title}`,
+      },
+    });
     return revived;
   });
 
@@ -261,8 +295,13 @@ export const createBill = createServerFn()
   .inputValidator(CreateBillsSchema)
   .handler(async ({ data, context }) => {
     if (!context.user?.email) throw new Error("Authentication required");
-    const [actor] = await db.select({ id: users.id }).from(users).where(userEmailEquals(context.user.email)).limit(1);
-    if (!actor || actor.id !== data.creatorId) throw new Error("You can only create your own bills");
+    const [actor] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(userEmailEquals(context.user.email))
+      .limit(1);
+    if (!actor || actor.id !== data.creatorId)
+      throw new Error("You can only create your own bills");
     const stageDurationMs = getBillStageDurationMs(
       (await getGameSpeed()).multiplier,
     );
@@ -293,8 +332,13 @@ export const getBillForEdit = createServerFn()
   .inputValidator((data: { id: number; userId: number }) => data)
   .handler(async ({ data, context }) => {
     if (!context.user?.email) throw new Error("Authentication required");
-    const [actor] = await db.select({ id: users.id }).from(users).where(userEmailEquals(context.user.email)).limit(1);
-    if (!actor || actor.id !== data.userId) throw new Error("You can only edit your own bills");
+    const [actor] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(userEmailEquals(context.user.email))
+      .limit(1);
+    if (!actor || actor.id !== data.userId)
+      throw new Error("You can only edit your own bills");
     const bill = await db
       .select({
         ...getTableColumns(bills),
@@ -325,8 +369,13 @@ export const updateBill = createServerFn()
   .inputValidator(UpdateBillsSchema)
   .handler(async ({ data, context }) => {
     if (!context.user?.email) throw new Error("Authentication required");
-    const [actor] = await db.select({ id: users.id }).from(users).where(userEmailEquals(context.user.email)).limit(1);
-    if (!actor || actor.id !== data.creatorId) throw new Error("You can only edit your own bills");
+    const [actor] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(userEmailEquals(context.user.email))
+      .limit(1);
+    if (!actor || actor.id !== data.creatorId)
+      throw new Error("You can only edit your own bills");
     // Fetch the bill to validate ownership and status
     const existingBill = await db
       .select()
@@ -353,8 +402,18 @@ export const updateBill = createServerFn()
         title: data.title,
         content: data.content,
       })
-      .where(eq(bills.id, data.id))
+      .where(
+        and(
+          eq(bills.id, data.id),
+          eq(bills.creatorId, actor.id),
+          eq(bills.status, "Committee"),
+          gt(bills.stageEndsAt, new Date()),
+        ),
+      )
       .returning({ id: bills.id });
+
+    if (!result.length)
+      throw new Error("Senate Committee has closed for this bill");
 
     await addFeedItem({
       data: {

@@ -15,12 +15,12 @@ import { db } from "@/db";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware";
 import { isAdminEmail } from "@/lib/server/admin";
 import { canReviveCoalition } from "@/lib/organizations/lifecycle";
-import { leaveCoalitionMembership } from "@/lib/server/organization-lifecycle";
 
 async function requireNoActiveElection() {
-  const result = await db.execute(sql`SELECT status FROM elections LIMIT 1`);
-  const row = result.rows[0] as { status?: string } | undefined;
-  if (row?.status === "CANDIDACY" || row?.status === "VOTING") {
+  const result = await db.execute(
+    sql`SELECT 1 FROM elections WHERE status IN ('CANDIDACY', 'VOTING', 'ELECTION_NIGHT') LIMIT 1`,
+  );
+  if (result.rows.length) {
     throw new Error(
       "Coalition membership changes are frozen during active primaries or elections",
     );
@@ -30,14 +30,6 @@ async function requireNoActiveElection() {
 const CreateCoalitionSchema = z.object({
   name: z.string().trim().min(1, "Coalition name is required").max(255),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
-  logo: z.string().max(255).nullable().optional(),
-  bio: z.string().max(1000).optional(),
-});
-
-const UpdateCoalitionSchema = z.object({
-  coalitionId: z.number(),
-  name: z.string().trim().min(1).max(255),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
   logo: z.string().max(255).nullable().optional(),
   bio: z.string().max(1000).optional(),
 });
@@ -70,20 +62,6 @@ async function getPartyCoalitionId(partyId: number) {
     )
     .limit(1);
   return row?.coalitionId ?? null;
-}
-
-async function isPartyInCoalition(partyId: number, coalitionId: number) {
-  const [row] = await db
-    .select({ coalitionId: coalitionMembers.coalitionId })
-    .from(coalitionMembers)
-    .where(
-      and(
-        eq(coalitionMembers.partyId, partyId),
-        eq(coalitionMembers.coalitionId, coalitionId),
-      ),
-    )
-    .limit(1);
-  return !!row;
 }
 
 export const getPartyCoalition = createServerFn()
@@ -400,172 +378,31 @@ export const requestJoinCoalition = createServerFn()
 export const acceptJoinRequest = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { requestId: number }) => data)
-  .handler(async ({ data, context }) => {
-    if (!context.user?.email) throw new Error("Authentication required");
-
-    const user = await resolveUser(context.user.email);
-    if (!user?.partyId) throw new Error("You must be in a party");
-
-    const [request] = await db
-      .select()
-      .from(joinRequests)
-      .where(eq(joinRequests.id, data.requestId))
-      .limit(1);
-
-    if (!request || request.status !== "Pending") {
-      throw new Error("Request not found or already processed");
-    }
-
-    if (!(await isPartyInCoalition(user.partyId, request.coalitionId))) {
-      throw new Error("Your party is not in this coalition");
-    }
-
-    if (!(await isPartyLeader(user.id, user.partyId))) {
-      throw new Error("Only a party leader can accept join requests");
-    }
-
-    await requireNoActiveElection();
-
-    await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(${request.partyId})`);
-      const [alreadyIn] = await tx
-        .select({ coalitionId: coalitionMembers.coalitionId })
-        .from(coalitionMembers)
-        .where(eq(coalitionMembers.partyId, request.partyId))
-        .limit(1);
-      if (alreadyIn) throw new Error("That party is already in a coalition");
-
-      const [accepted] = await tx
-        .update(joinRequests)
-        .set({ status: "Accepted" })
-        .where(
-          and(
-            eq(joinRequests.id, data.requestId),
-            eq(joinRequests.status, "Pending"),
-          ),
-        )
-        .returning({ id: joinRequests.id });
-      if (!accepted) throw new Error("Request not found or already processed");
-
-      await tx.insert(coalitionMembers).values({
-        coalitionId: request.coalitionId,
-        partyId: request.partyId,
-      });
-      await tx
-        .update(joinRequests)
-        .set({ status: "Declined" })
-        .where(
-          and(
-            eq(joinRequests.partyId, request.partyId),
-            eq(joinRequests.status, "Pending"),
-          ),
-        );
-    });
-
-    return true;
+  .handler(() => {
+    throw new Error(
+      "Propose and approve this join request in a coalition vote",
+    );
   });
 
 export const declineJoinRequest = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { requestId: number }) => data)
-  .handler(async ({ data, context }) => {
-    if (!context.user?.email) throw new Error("Authentication required");
-
-    const user = await resolveUser(context.user.email);
-    if (!user?.partyId) throw new Error("You must be in a party");
-
-    const [request] = await db
-      .select()
-      .from(joinRequests)
-      .where(eq(joinRequests.id, data.requestId))
-      .limit(1);
-
-    if (!request || request.status !== "Pending") {
-      throw new Error("Request not found or already processed");
-    }
-
-    if (!(await isPartyInCoalition(user.partyId, request.coalitionId))) {
-      throw new Error("Your party is not in this coalition");
-    }
-
-    if (!(await isPartyLeader(user.id, user.partyId))) {
-      throw new Error("Only a party leader can decline join requests");
-    }
-
-    await requireNoActiveElection();
-
-    await db
-      .update(joinRequests)
-      .set({ status: "Declined" })
-      .where(eq(joinRequests.id, data.requestId));
-
-    return true;
+  .handler(() => {
+    throw new Error("Reject this join request through a coalition vote");
   });
 
 export const updateCoalition = createServerFn()
   .middleware([requireAuthMiddleware])
-  .inputValidator((data: unknown) => UpdateCoalitionSchema.parse(data))
-  .handler(async ({ data, context }) => {
-    if (!context.user?.email) throw new Error("Authentication required");
-
-    const user = await resolveUser(context.user.email);
-    if (!user?.partyId) throw new Error("You must be in a party");
-
-    if (!(await isPartyInCoalition(user.partyId, data.coalitionId))) {
-      throw new Error("Your party is not in this coalition");
-    }
-
-    if (!(await isPartyLeader(user.id, user.partyId))) {
-      throw new Error("Only a party leader can update coalition information");
-    }
-
-    await requireNoActiveElection();
-
-    await db
-      .update(coalitions)
-      .set({
-        name: data.name,
-        color: data.color,
-        logo: data.logo ?? null,
-        bio: data.bio ?? null,
-      })
-      .where(
-        and(eq(coalitions.id, data.coalitionId), isNull(coalitions.archivedAt)),
-      );
-
-    return true;
+  .inputValidator((data: { coalitionId: number }) => data)
+  .handler(() => {
+    throw new Error("Propose coalition edits for a member-party vote");
   });
 
 export const leaveCoalition = createServerFn()
   .middleware([requireAuthMiddleware])
   .inputValidator((data: { coalitionId: number }) => data)
-  .handler(async ({ data, context }) => {
-    if (!context.user?.email) throw new Error("Authentication required");
-
-    const user = await resolveUser(context.user.email);
-    if (!user?.partyId) throw new Error("You must be in a party");
-
-    if (!(await isPartyLeader(user.id, user.partyId))) {
-      throw new Error("Only a party leader can leave a coalition");
-    }
-
-    await requireNoActiveElection();
-
-    if (!(await isPartyInCoalition(user.partyId, data.coalitionId))) {
-      throw new Error("Your party is not in this coalition");
-    }
-
-    await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(${-data.coalitionId})`);
-      await leaveCoalitionMembership(
-        tx,
-        data.coalitionId,
-        user.partyId!,
-        user.id,
-      );
-    });
-
-    return true;
+  .handler(() => {
+    throw new Error("Propose your party's departure for a coalition vote");
   });
 
 export const reviveCoalition = createServerFn({ method: "POST" })

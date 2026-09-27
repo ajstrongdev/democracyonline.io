@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { archiveCoalitionIfEmpty } from "./organization-lifecycle";
+import { leaveCoalitionMembership } from "./organization-lifecycle";
 import {
   coalitionMembers,
   coalitionProposals,
@@ -13,6 +13,7 @@ import {
   users,
 } from "@/db/schema";
 import { db } from "@/db";
+import { decideCoalitionVote } from "@/lib/organizations/governance";
 import { requireAuthMiddleware } from "@/middleware";
 
 async function resolveUser(email: string) {
@@ -49,10 +50,10 @@ async function isPartyInCoalition(partyId: number, coalitionId: number) {
 
 async function isElectionOrPrimaryActive(): Promise<boolean> {
   const result = await db.execute(sql`
-    SELECT status FROM elections LIMIT 1
+    SELECT 1 FROM elections
+    WHERE status IN ('CANDIDACY', 'VOTING', 'ELECTION_NIGHT') LIMIT 1
   `);
-  const row = result.rows[0] as { status?: string } | undefined;
-  return row?.status === "CANDIDACY" || row?.status === "VOTING";
+  return result.rows.length > 0;
 }
 
 type ProposalRow = {
@@ -72,6 +73,13 @@ type ProposalRow = {
   proposerPartyName: string;
   proposerPartyColor: string;
 };
+
+const coalitionEditSchema = z.object({
+  name: z.string().trim().min(1).max(255),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  bio: z.string().max(1000),
+  logo: z.string().max(255).nullable(),
+});
 
 export const getCoalitionProposals = createServerFn()
   .inputValidator(z.object({ coalitionId: z.number().int().positive() }))
@@ -102,7 +110,8 @@ export const getCoalitionProposals = createServerFn()
 
     return rows.map((r) => ({
       ...r,
-      payload: (r.payload as Record<string, string | number | boolean | null>) ?? null,
+      payload:
+        (r.payload as Record<string, string | number | boolean | null>) ?? null,
     }));
   });
 
@@ -133,7 +142,12 @@ export const createProposal = createServerFn({ method: "POST" })
       coalitionId: z.number().int().positive(),
       proposalType: z.enum(["join_request", "edit", "leave"]),
       targetId: z.number().int().positive().optional(),
-      payload: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+      payload: z
+        .record(
+          z.string(),
+          z.union([z.string(), z.number(), z.boolean(), z.null()]),
+        )
+        .optional(),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -152,6 +166,14 @@ export const createProposal = createServerFn({ method: "POST" })
         "Coalition changes are frozen during active primaries or elections",
       );
     }
+
+    if (data.proposalType === "leave" && data.targetId !== user.partyId) {
+      throw new Error("You can only propose your own party's departure");
+    }
+    if (data.proposalType === "join_request" && !data.targetId) {
+      throw new Error("Select a party requesting to join");
+    }
+    if (data.proposalType === "edit") coalitionEditSchema.parse(data.payload);
 
     if (data.proposalType === "join_request" && data.targetId) {
       const existing = await db
@@ -201,60 +223,67 @@ export const castVote = createServerFn({ method: "POST" })
     if (!context.user?.email) throw new Error("Authentication required");
     const user = await resolveUser(context.user.email);
     if (!user?.partyId) throw new Error("You must be in a party");
+    const partyId = user.partyId;
     if (!(await isPartyLeader(user.id, user.partyId))) {
       throw new Error("Only party leaders can vote on coalition proposals");
     }
 
-    const [proposal] = await db
-      .select({
-        id: coalitionProposals.id,
-        coalitionId: coalitionProposals.coalitionId,
-        status: coalitionProposals.status,
-        votesFor: coalitionProposals.votesFor,
-        votesAgainst: coalitionProposals.votesAgainst,
-      })
-      .from(coalitionProposals)
-      .where(eq(coalitionProposals.id, data.proposalId))
-      .limit(1);
-    if (!proposal) throw new Error("Proposal not found");
-    if (proposal.status !== "open")
-      throw new Error("This proposal is no longer open");
-
-    if (!(await isPartyInCoalition(user.partyId, proposal.coalitionId))) {
-      throw new Error("Your party is not in this coalition");
-    }
-
-    const [existingVote] = await db
-      .select({ proposalId: coalitionVotes.proposalId })
-      .from(coalitionVotes)
-      .where(
-        and(
-          eq(coalitionVotes.proposalId, data.proposalId),
-          eq(coalitionVotes.voterUserId, user.id),
-        ),
-      )
-      .limit(1);
-    if (existingVote)
-      throw new Error("You have already voted on this proposal");
-
-    await db.insert(coalitionVotes).values({
-      proposalId: data.proposalId,
-      voterUserId: user.id,
-      voterPartyId: user.partyId,
-      vote: data.vote,
-    });
-
-    const field = data.vote ? "votesFor" : "votesAgainst";
-    await db
-      .update(coalitionProposals)
-      .set({
-        [field]: sql`${coalitionProposals[field]} + 1`,
-      })
-      .where(eq(coalitionProposals.id, data.proposalId));
-
-    await db.insert(feed).values({
-      userId: user.id,
-      content: `${data.vote ? "voted for" : "voted against"} a coalition proposal`,
+    await db.transaction(async (tx) => {
+      const [proposal] = await tx
+        .select()
+        .from(coalitionProposals)
+        .where(eq(coalitionProposals.id, data.proposalId))
+        .for("update");
+      if (!proposal || proposal.status !== "open")
+        throw new Error("This proposal is no longer open");
+      const [leader] = await tx
+        .select({ leaderId: parties.leaderId, partyId: users.partyId })
+        .from(users)
+        .innerJoin(parties, eq(parties.id, users.partyId))
+        .where(eq(users.id, user.id))
+        .limit(1);
+      if (leader?.leaderId !== user.id || leader.partyId !== partyId)
+        throw new Error("Only current party leaders can vote");
+      const [membership] = await tx
+        .select({ partyId: coalitionMembers.partyId })
+        .from(coalitionMembers)
+        .where(
+          and(
+            eq(coalitionMembers.partyId, partyId),
+            eq(coalitionMembers.coalitionId, proposal.coalitionId),
+          ),
+        )
+        .limit(1);
+      if (!membership) throw new Error("Your party is not in this coalition");
+      const [existingVote] = await tx
+        .select({ voterPartyId: coalitionVotes.voterPartyId })
+        .from(coalitionVotes)
+        .where(
+          and(
+            eq(coalitionVotes.proposalId, data.proposalId),
+            eq(coalitionVotes.voterPartyId, partyId),
+          ),
+        )
+        .limit(1);
+      if (existingVote)
+        throw new Error("Your party has already voted on this proposal");
+      await tx.insert(coalitionVotes).values({
+        proposalId: data.proposalId,
+        voterUserId: user.id,
+        voterPartyId: partyId,
+        vote: data.vote,
+      });
+      const field = data.vote ? "votesFor" : "votesAgainst";
+      await tx
+        .update(coalitionProposals)
+        .set({
+          [field]: sql`${coalitionProposals[field]} + 1`,
+        })
+        .where(eq(coalitionProposals.id, data.proposalId));
+      await tx.insert(feed).values({
+        userId: user.id,
+        content: `${data.vote ? "voted for" : "voted against"} a coalition proposal`,
+      });
     });
 
     return { success: true };
@@ -263,118 +292,175 @@ export const castVote = createServerFn({ method: "POST" })
 export const resolveProposal = createServerFn({ method: "POST" })
   .middleware([requireAuthMiddleware])
   .inputValidator(z.object({ proposalId: z.number().int().positive() }))
-  .handler(async ({ data }) => {
-    const [proposal] = await db
-      .select()
-      .from(coalitionProposals)
-      .where(eq(coalitionProposals.id, data.proposalId))
-      .limit(1);
-    if (!proposal) throw new Error("Proposal not found");
-    if (proposal.status !== "open") throw new Error("Already resolved");
-
-    const [memberCount] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(coalitionMembers)
-      .where(eq(coalitionMembers.coalitionId, proposal.coalitionId));
-    const totalMembers = memberCount?.count ?? 0;
-    const majority = Math.floor(totalMembers / 2) + 1;
-    const approved = proposal.votesFor >= majority;
-
-    await db
-      .update(coalitionProposals)
-      .set({
-        status: approved ? "approved" : "rejected",
-        resolvedAt: new Date(),
-      })
-      .where(eq(coalitionProposals.id, proposal.id));
-
-    if (
-      approved &&
-      proposal.proposalType === "join_request" &&
-      proposal.targetId
-    ) {
-      const [request] = await db
+  .handler(async ({ data, context }) => {
+    if (!context.user?.email) throw new Error("Authentication required");
+    const user = await resolveUser(context.user.email);
+    if (!user?.partyId)
+      throw new Error("Only member party leaders can resolve proposals");
+    const partyId = user.partyId;
+    return db.transaction(async (tx) => {
+      const [proposal] = await tx
         .select()
-        .from(joinRequests)
+        .from(coalitionProposals)
+        .where(eq(coalitionProposals.id, data.proposalId))
+        .for("update");
+      if (!proposal) throw new Error("Proposal not found");
+      if (proposal.status !== "open") throw new Error("Already resolved");
+
+      const [leader] = await tx
+        .select({ leaderId: parties.leaderId, partyId: users.partyId })
+        .from(users)
+        .innerJoin(parties, eq(parties.id, users.partyId))
+        .where(eq(users.id, user.id))
+        .limit(1);
+      const [membership] = await tx
+        .select({ partyId: coalitionMembers.partyId })
+        .from(coalitionMembers)
         .where(
           and(
-            eq(joinRequests.partyId, proposal.targetId),
-            eq(joinRequests.coalitionId, proposal.coalitionId),
-            eq(joinRequests.status, "Pending"),
+            eq(coalitionMembers.coalitionId, proposal.coalitionId),
+            eq(coalitionMembers.partyId, partyId),
           ),
         )
         .limit(1);
-      if (request) {
-        await db.transaction(async (tx) => {
-          await tx.execute(
-            sql`select pg_advisory_xact_lock(${proposal.targetId})`,
-          );
-          const [alreadyIn] = await tx
-            .select({ coalitionId: coalitionMembers.coalitionId })
-            .from(coalitionMembers)
-            .where(eq(coalitionMembers.partyId, proposal.targetId!))
-            .limit(1);
-          if (!alreadyIn) {
-            await tx.insert(coalitionMembers).values({
-              coalitionId: proposal.coalitionId,
-              partyId: proposal.targetId!,
-            });
-          }
-          await tx
-            .update(joinRequests)
-            .set({ status: "Accepted" })
-            .where(eq(joinRequests.id, request.id));
-          await tx
-            .update(joinRequests)
-            .set({ status: "Declined" })
-            .where(
-              and(
-                eq(joinRequests.partyId, proposal.targetId!),
-                eq(joinRequests.status, "Pending"),
-                sql`${joinRequests.id} != ${request.id}`,
-              ),
-            );
-        });
-      }
-    }
+      if (
+        leader?.leaderId !== user.id ||
+        leader.partyId !== partyId ||
+        !membership
+      )
+        throw new Error(
+          "Only current member party leaders can resolve proposals",
+        );
+      if (await isElectionOrPrimaryActive())
+        throw new Error("Coalition changes are frozen during active elections");
 
-    if (approved && proposal.proposalType === "leave" && proposal.targetId) {
-      await db.transaction(async (tx) => {
-        await tx
-          .delete(coalitionMembers)
+      const [memberCount] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(coalitionMembers)
+        .where(eq(coalitionMembers.coalitionId, proposal.coalitionId));
+      const totalMembers = memberCount?.count ?? 0;
+      const [tally] = await tx
+        .select({
+          yes: sql<number>`count(distinct ${coalitionVotes.voterPartyId}) filter (where ${coalitionVotes.vote} = true)::int`,
+          no: sql<number>`count(distinct ${coalitionVotes.voterPartyId}) filter (where ${coalitionVotes.vote} = false)::int`,
+        })
+        .from(coalitionVotes)
+        .innerJoin(
+          coalitionMembers,
+          and(
+            eq(coalitionMembers.partyId, coalitionVotes.voterPartyId),
+            eq(coalitionMembers.coalitionId, proposal.coalitionId),
+          ),
+        )
+        .where(eq(coalitionVotes.proposalId, proposal.id));
+      const yes = tally?.yes ?? 0;
+      const no = tally?.no ?? 0;
+      const decision = decideCoalitionVote(totalMembers, yes, no);
+      if (decision === "pending")
+        throw new Error("The coalition vote is still in progress");
+      const approved = decision === "approved";
+
+      await tx
+        .update(coalitionProposals)
+        .set({
+          status: approved ? "approved" : "rejected",
+          resolvedAt: new Date(),
+        })
+        .where(eq(coalitionProposals.id, proposal.id));
+
+      if (
+        approved &&
+        proposal.proposalType === "join_request" &&
+        proposal.targetId
+      ) {
+        const [request] = await tx
+          .select()
+          .from(joinRequests)
           .where(
             and(
-              eq(coalitionMembers.coalitionId, proposal.coalitionId),
-              eq(coalitionMembers.partyId, proposal.targetId!),
+              eq(joinRequests.partyId, proposal.targetId),
+              eq(joinRequests.coalitionId, proposal.coalitionId),
+              eq(joinRequests.status, "Pending"),
+            ),
+          )
+          .limit(1);
+        if (!request) throw new Error("The join request is no longer pending");
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(${proposal.targetId})`,
+        );
+        const [alreadyIn] = await tx
+          .select({ coalitionId: coalitionMembers.coalitionId })
+          .from(coalitionMembers)
+          .where(eq(coalitionMembers.partyId, proposal.targetId))
+          .limit(1);
+        if (alreadyIn)
+          throw new Error("The requested party already joined a coalition");
+        await tx.insert(coalitionMembers).values({
+          coalitionId: proposal.coalitionId,
+          partyId: proposal.targetId,
+        });
+        await tx
+          .update(joinRequests)
+          .set({ status: "Accepted" })
+          .where(eq(joinRequests.id, request.id));
+        await tx
+          .update(joinRequests)
+          .set({ status: "Declined" })
+          .where(
+            and(
+              eq(joinRequests.partyId, proposal.targetId),
+              eq(joinRequests.status, "Pending"),
+              sql`${joinRequests.id} != ${request.id}`,
             ),
           );
-        await archiveCoalitionIfEmpty(
+      }
+
+      if (approved && proposal.proposalType === "leave" && proposal.targetId) {
+        await leaveCoalitionMembership(
           tx,
           proposal.coalitionId,
+          proposal.targetId,
           proposal.proposerUserId,
         );
+      }
+
+      if (approved && proposal.proposalType === "edit") {
+        const p = coalitionEditSchema.parse(proposal.payload);
+        await tx
+          .update(coalitions)
+          .set({
+            name: p.name,
+            color: p.color,
+            bio: p.bio,
+            logo: p.logo,
+          })
+          .where(eq(coalitions.id, proposal.coalitionId));
+      }
+
+      if (
+        !approved &&
+        proposal.proposalType === "join_request" &&
+        proposal.targetId
+      ) {
+        await tx
+          .update(joinRequests)
+          .set({ status: "Declined" })
+          .where(
+            and(
+              eq(joinRequests.partyId, proposal.targetId),
+              eq(joinRequests.coalitionId, proposal.coalitionId),
+              eq(joinRequests.status, "Pending"),
+            ),
+          );
+      }
+
+      await tx.insert(feed).values({
+        userId: proposal.proposerUserId,
+        content: approved
+          ? `Proposal to ${proposal.proposalType} coalition was approved`
+          : `Proposal to ${proposal.proposalType} coalition was rejected`,
       });
-    }
 
-    if (approved && proposal.proposalType === "edit" && proposal.payload) {
-      const p = proposal.payload;
-      await db
-        .update(coalitions)
-        .set({
-          ...(typeof p.name === "string" ? { name: p.name } : {}),
-          ...(typeof p.color === "string" ? { color: p.color } : {}),
-          ...(typeof p.bio === "string" ? { bio: p.bio } : {}),
-          ...(typeof p.logo === "string" ? { logo: p.logo } : {}),
-        })
-        .where(eq(coalitions.id, proposal.coalitionId));
-    }
-
-    await db.insert(feed).values({
-      userId: proposal.proposerUserId,
-      content: approved
-        ? `Proposal to ${proposal.proposalType} coalition was approved`
-        : `Proposal to ${proposal.proposalType} coalition was rejected`,
+      return { approved };
     });
-
-    return { approved };
   });

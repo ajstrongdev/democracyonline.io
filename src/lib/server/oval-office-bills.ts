@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { billVotesPresidential, bills, parties, users } from "@/db/schema";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
@@ -158,11 +158,14 @@ export const voteOnPresidentialBill = createServerFn({ method: "POST" })
             eq(bills.id, data.billId),
             eq(bills.status, "Voting"),
             eq(bills.stage, "Presidential"),
+            gt(bills.stageEndsAt, new Date()),
           ),
         )
         .limit(1);
       if (!currentBill) {
-        throw new Error("Bill not found or not in Presidential voting stage");
+        throw new Error(
+          "Presidential voting has closed or the bill is not in this stage",
+        );
       }
 
       const [existingVote] = await tx

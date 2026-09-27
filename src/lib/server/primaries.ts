@@ -247,10 +247,17 @@ export const declarePrimaryCandidate = createServerFn({ method: "POST" })
       const [generalCandidacy] = await tx
         .select({ id: electionCandidates.id })
         .from(electionCandidates)
-        .where(eq(electionCandidates.userId, user.id))
+        .where(
+          sql`${electionCandidates.userId} = ${user.id} AND ${electionCandidates.election} = 'President'`,
+        )
         .limit(1);
       if (generalCandidacy) {
-        throw new Error("You are already a candidate in another election");
+        // A player may have declared as an independent before joining a party.
+        // Move their candidacy into the primary atomically so they cannot remain
+        // on the general-election ballot while competing in the primary.
+        await tx
+          .delete(electionCandidates)
+          .where(eq(electionCandidates.id, generalCandidacy.id));
       }
 
       const [newCandidate] = await tx

@@ -351,11 +351,15 @@ export const saveCommitteeAssessment = createServerFn({ method: "POST" })
         sql`select ${bills.id} from ${bills} where ${bills.id} = ${data.billId} for update`,
       );
       const [bill] = await tx
-        .select({ status: bills.status })
+        .select({ status: bills.status, stageEndsAt: bills.stageEndsAt })
         .from(bills)
         .where(eq(bills.id, data.billId))
         .limit(1);
-      if (bill?.status !== "Committee")
+      if (
+        bill?.status !== "Committee" ||
+        !bill.stageEndsAt ||
+        bill.stageEndsAt <= new Date()
+      )
         throw new Error("Senate Committee has closed for this bill");
       const [senator] = await tx
         .select({ id: users.id, role: users.role, active: users.isActive })

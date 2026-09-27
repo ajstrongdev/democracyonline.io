@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { ElectionTiming } from "@/lib/elections/timing";
 import { db } from "@/db";
 import {
@@ -199,15 +199,21 @@ async function concludeElection(
     .where(eq(candidates.election, election))
     .orderBy(desc(candidates.votes), candidates.id);
   const firstChoiceRows = await tx
-    .select({ candidateId: votes.candidateId, count: sql<number>`count(*)::int` })
+    .select({
+      candidateId: votes.candidateId,
+      count: sql<number>`count(*)::int`,
+    })
     .from(votes)
     .where(and(eq(votes.voteType, election), eq(votes.rank, 1)))
     .groupBy(votes.candidateId);
-  const firstChoiceCounts = new Map(firstChoiceRows.map((row) => [row.candidateId, row.count]));
-  allCandidates.sort((a, b) =>
-    (b.votes ?? 0) - (a.votes ?? 0) ||
-    (firstChoiceCounts.get(b.id) ?? 0) - (firstChoiceCounts.get(a.id) ?? 0) ||
-    a.id - b.id,
+  const firstChoiceCounts = new Map(
+    firstChoiceRows.map((row) => [row.candidateId, row.count]),
+  );
+  allCandidates.sort(
+    (a, b) =>
+      (b.votes ?? 0) - (a.votes ?? 0) ||
+      (firstChoiceCounts.get(b.id) ?? 0) - (firstChoiceCounts.get(a.id) ?? 0) ||
+      a.id - b.id,
   );
   const seats = election === "President" ? 1 : seatsValue || 1;
   const winners = allCandidates.slice(0, seats);
@@ -243,40 +249,45 @@ async function concludeElection(
     );
   }
 
-  if (election === "Senate") {
-    const remaining = Math.max(0, seats - winnerUserIds.length);
-    if (remaining > 0) {
-      const fillers = await tx
-        .select({ userId: users.id })
-        .from(users)
-        .where(
-          and(
-            sql`${users.username} NOT LIKE 'Banned User%'`,
-            sql`${users.role} NOT IN ('President', 'Senator')`,
-            winnerUserIds.length
-              ? sql`${users.id} <> ALL(ARRAY[${sql.join(
-                  winnerUserIds.map((id) => sql`${id}::integer`),
-                  sql`, `,
-                )}])`
-              : undefined,
-          ),
-        )
-        .orderBy(sql`RANDOM()`)
-        .limit(remaining);
-      if (fillers.length) {
-        const fillerIds = fillers.map((filler) => filler.userId);
-        await tx
-          .update(users)
-          .set({ role: "Senator" })
-          .where(inArray(users.id, fillerIds));
-        await tx.insert(feed).values(
-          fillerIds.map((userId) => ({
-            userId,
-            visibility: "admin" as const,
-            content: "has been appointed as a Senator!",
-          })),
-        );
-      }
+  const remaining = Math.max(0, seats - winnerUserIds.length);
+  if (remaining > 0) {
+    const fillers = await tx
+      .select({ userId: users.id })
+      .from(users)
+      .where(
+        and(
+          eq(users.isActive, true),
+          isNull(users.archivedAt),
+          sql`${users.username} NOT LIKE 'Banned User%'`,
+          sql`${users.role} NOT IN ('President', 'Senator')`,
+          winnerUserIds.length
+            ? sql`${users.id} <> ALL(ARRAY[${sql.join(
+                winnerUserIds.map((id) => sql`${id}::integer`),
+                sql`, `,
+              )}])`
+            : undefined,
+        ),
+      )
+      .orderBy(sql`RANDOM()`)
+      .limit(remaining);
+    if (fillers.length < remaining) {
+      console.warn(
+        `[election] ${election} cycle ${cycle}: ${remaining - fillers.length} seat(s) remain vacant; not enough eligible active players`,
+      );
+    }
+    if (fillers.length) {
+      const fillerIds = fillers.map((filler) => filler.userId);
+      await tx
+        .update(users)
+        .set({ role: office })
+        .where(inArray(users.id, fillerIds));
+      await tx.insert(feed).values(
+        fillerIds.map((userId) => ({
+          userId,
+          visibility: "admin" as const,
+          content: `has been appointed as a ${office}!`,
+        })),
+      );
     }
   }
 
