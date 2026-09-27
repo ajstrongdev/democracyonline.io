@@ -1,5 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { authMiddleware } from "@/middleware/auth";
+
+export const getCurrentBanStatus = createServerFn()
+  .middleware([authMiddleware])
+  .handler(({ context }) => ({ banned: context.banned === true }));
 
 export const getSessionUser = createServerFn().handler(async () => {
   const [{ getCookie }, { getAdminAuth }] = await Promise.all([
@@ -13,7 +18,7 @@ export const getSessionUser = createServerFn().handler(async () => {
   try {
     const decoded = await getAdminAuth().verifySessionCookie(
       sessionCookie,
-      true,
+      false,
     );
     return { email: decoded.email ?? null };
   } catch {

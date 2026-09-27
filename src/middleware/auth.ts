@@ -62,6 +62,7 @@ export interface AuthContext {
     uid: string;
     email?: string;
   } | null;
+  banned?: boolean;
 }
 
 export const authMiddleware = createMiddleware({ type: "function" })
@@ -91,10 +92,7 @@ export const authMiddleware = createMiddleware({ type: "function" })
       );
       if (sessionCookie) {
         try {
-          const decoded = await getAuth(getAdminApp()).verifySessionCookie(
-            sessionCookie,
-            true,
-          );
+          const decoded = await getAuth(getAdminApp()).verifySessionCookie(sessionCookie, false);
           console.log(
             "[authMiddleware.server] Session cookie verified, email:",
             decoded.email,
@@ -107,6 +105,7 @@ export const authMiddleware = createMiddleware({ type: "function" })
                 uid: decoded.uid,
                 email: decoded.email,
               } : null,
+              banned: !active,
             } as AuthContext,
           });
         } catch (error) {
@@ -127,7 +126,7 @@ export const authMiddleware = createMiddleware({ type: "function" })
       }
 
       const token = authHeader.slice(7);
-      const decoded = await getAuth(getAdminApp()).verifyIdToken(token, true);
+      const decoded = await getAuth(getAdminApp()).verifyIdToken(token, false);
       console.log(
         "[authMiddleware.server] Token verified, email:",
         decoded.email,
@@ -141,6 +140,7 @@ export const authMiddleware = createMiddleware({ type: "function" })
             uid: decoded.uid,
             email: decoded.email,
           } : null,
+          banned: !active,
         } as AuthContext,
       });
     } catch (error) {

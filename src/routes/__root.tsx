@@ -21,7 +21,7 @@ import { NotFound } from "@/components/not-found";
 import { WikiNavigation } from "@/components/wiki/wiki-header";
 import { getAuthRedirect } from "@/lib/auth-guard";
 import { auth } from "@/lib/firebase";
-import { getSessionUser } from "@/lib/server/session";
+import { getCurrentBanStatus, getSessionUser } from "@/lib/server/session";
 import { AppThemeProvider, useAppTheme } from "@/components/app-theme-provider";
 
 type AuthContext = {
@@ -36,6 +36,10 @@ interface MyRouterContext {
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   beforeLoad: async ({ location, context }) => {
+    const { banned } = await getCurrentBanStatus();
+    if (banned && location.pathname !== "/banned") {
+      throw redirect({ to: "/banned" });
+    }
     const authUser =
       context.auth?.user ??
       (typeof window !== "undefined" ? (auth.currentUser ?? null) : null);
