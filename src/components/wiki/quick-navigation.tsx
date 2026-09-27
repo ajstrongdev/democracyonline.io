@@ -104,6 +104,13 @@ const destinations = [
     group: "Help",
     keywords: "tutorial rules help",
   },
+  {
+    to: "https://discord.gg/kYdDXfJFdn",
+    label: "Oscana Discord",
+    description: "Join the Oscana game community on Discord",
+    group: "Community",
+    keywords: "discord chat community join server",
+  },
 ] as const;
 
 export function QuickNavigation() {
@@ -249,26 +256,17 @@ export function QuickNavigation() {
                     {item.group}
                   </p>
                 )}
-                <Link
+                {item.to.startsWith("https://") ? (
+                <a
                   id={`quick-nav-option-${index}`}
-                  ref={(node) => {
-                    optionRefs.current[index] = node;
-                  }}
                   role="option"
                   aria-selected={activeIndex === index}
-                  to={item.to}
-                  search={
-                    item.to === "/dashboard/social"
-                      ? { postId: undefined, commentId: undefined }
-                      : undefined
-                  }
+                  href={item.to}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  ref={(node) => { optionRefs.current[index] = node; }}
                   onMouseEnter={() => setActiveIndex(index)}
-                  onClick={(event) => {
-                    if ("command" in item && item.command) {
-                      event.preventDefault();
-                      void openComposer(item.command);
-                    } else close();
-                  }}
+                  onClick={() => close()}
                   className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm outline-none hover:bg-muted focus-visible:bg-muted aria-selected:bg-muted"
                 >
                   <span className="min-w-0 flex-1">
@@ -278,7 +276,23 @@ export function QuickNavigation() {
                     </span>
                   </span>
                   <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
+                </a>
+                ) : <Link
+                  id={`quick-nav-option-${index}`}
+                  ref={(node) => { optionRefs.current[index] = node; }}
+                  role="option"
+                  aria-selected={activeIndex === index}
+                  to={item.to as any}
+                  search={item.to === "/dashboard/social" ? ({ postId: undefined, commentId: undefined } as any) : undefined}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={(event) => {
+                    if ("command" in item && item.command) { event.preventDefault(); void openComposer(item.command); } else close();
+                  }}
+                  className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm outline-none hover:bg-muted focus-visible:bg-muted aria-selected:bg-muted"
+                >
+                  <span className="min-w-0 flex-1"><span className="block font-semibold">{item.label}</span><span className="block truncate text-xs text-muted-foreground">{item.description}</span></span>
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+                </Link>}
               </Fragment>
             ))}
             {!resultCount && (

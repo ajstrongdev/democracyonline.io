@@ -22,6 +22,7 @@ import { AppThemeProvider, useAppTheme } from "@/components/app-theme-provider";
 import { colorSchemeStyle } from "@/lib/color-schemes";
 import { getSelectedColorScheme } from "@/lib/server/color-schemes";
 import { PlayerPresenceHeartbeat } from "@/components/players/player-presence-heartbeat";
+import packageJson from "../../package.json";
 
 type AuthContext = {
   user: User | null;
@@ -115,6 +116,12 @@ function RootLayout() {
         <div className="flex flex-1 flex-col">
           <Outlet />
         </div>
+        <footer className="border-t bg-muted/30 px-4 py-4 text-center text-sm text-muted-foreground">
+          Running Polsimmer v{packageJson.version}{" "}
+          <a href="https://github.com/ajstrongdev/polsimmer" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">(source)</a>
+          {" "}·{" "}
+          <a href="https://discord.gg/XREYCNFAdC" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Join the Polsimmer Discord</a>
+        </footer>
         <ThemedToaster />
       </div>
     </AppThemeProvider>

@@ -111,7 +111,7 @@ function LoginPage() {
         </Card>
         <p className="text-center text-sm text-muted-foreground">
           Don't have an account? Ask a player for an invite link to sign up, or
-          ask in our{" "}
+          ask in the Oscana{" "}
           <a
             href="https://discord.gg/kYdDXfJFdn"
             target="_blank"

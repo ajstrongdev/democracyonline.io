@@ -32,6 +32,7 @@ const CreateCoalitionSchema = z.object({
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
   logo: z.string().max(255).nullable().optional(),
   bio: z.string().max(1000).optional(),
+  discord: z.string().url().refine((url) => url.startsWith("https://")).max(255).nullable().optional(),
 });
 
 async function resolveUser(email: string) {
@@ -290,6 +291,7 @@ export const createCoalition = createServerFn()
           color: data.color,
           logo: data.logo ?? null,
           bio: data.bio ?? null,
+          discord: data.discord ?? null,
         })
         .returning();
 

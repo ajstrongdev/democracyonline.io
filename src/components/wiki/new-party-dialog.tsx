@@ -32,6 +32,7 @@ export function NewPartyDialog({
   const [color, setColor] = useState("#475569");
   const [logo, setLogo] = useState("");
   const [leaning, setLeaning] = useState("Center");
+  const [discord, setDiscord] = useState("");
   const [platform, setPlatform] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -52,6 +53,7 @@ export function NewPartyDialog({
             color,
             logo: logo || null,
             leaning,
+            discord: discord.trim() || null,
           },
           platform: platform.trim(),
         },
@@ -156,6 +158,17 @@ export function NewPartyDialog({
                 <option key={icon.name}>{icon.name}</option>
               ))}
             </select>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="party-discord">Party Discord invite (optional)</Label>
+            <Input
+              id="party-discord"
+              type="url"
+              value={discord}
+              onChange={(event) => setDiscord(event.target.value)}
+              placeholder="https://discord.gg/…"
+            />
+            <p className="text-xs text-muted-foreground">This link will appear on the party wiki card.</p>
           </div>
           <div className="space-y-2 border-t pt-5 sm:col-span-2">
             <div>
