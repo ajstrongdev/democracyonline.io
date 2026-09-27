@@ -58,11 +58,45 @@ function PlayerArticle() {
     player,
     candidacies,
     offices,
+    roleChanges,
     partyHistory,
     authoredBills,
     billVotes,
   } = playerData;
-  const officeTerms = getOfficeTerms(offices, player.role);
+  const firstChange = [...roleChanges].sort(
+    (a, b) =>
+      new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime(),
+  )[0];
+  const officeTerms = getOfficeTerms(
+    [
+      ...offices,
+      ...(firstChange?.fromOffice &&
+      !offices.some(
+        (office) =>
+          new Date(office.concludedAt) < new Date(firstChange.occurredAt),
+      )
+        ? [
+            {
+              historyId: -firstChange.coupId,
+              election: "Coup",
+              cycle: 0,
+              concludedAt: player.createdAt ?? firstChange.occurredAt,
+              office: firstChange.fromOffice,
+              selection: "Serving",
+            },
+          ]
+        : []),
+      ...roleChanges.map((change) => ({
+        historyId: -change.coupId,
+        election: "Coup",
+        cycle: 0,
+        concludedAt: change.occurredAt,
+        office: change.toOffice,
+        selection: "Coup",
+      })),
+    ],
+    player.role,
+  );
   const partyTerms = getPartyTerms(
     [
       ...offices.map((office) => ({
@@ -224,8 +258,16 @@ function PlayerArticle() {
             {officeTerms.map((term) => (
               <Link
                 key={`${term.historyId}-${term.office}`}
-                to="/dashboard/elections/$electionId"
-                params={{ electionId: String(term.historyId) }}
+                to={
+                  term.historyId < 0
+                    ? "/dashboard/government"
+                    : "/dashboard/elections/$electionId"
+                }
+                params={
+                  term.historyId < 0
+                    ? undefined
+                    : { electionId: String(term.historyId) }
+                }
                 className="wiki-record-row flex items-center justify-between gap-3 hover:text-primary"
               >
                 <span>

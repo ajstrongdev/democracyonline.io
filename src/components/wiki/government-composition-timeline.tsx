@@ -16,7 +16,7 @@ type Snapshot = {
   electionId: number | null;
   label: string;
   type: string;
-  kind: "defection" | "election";
+  kind: "defection" | "election" | "coup";
   election: string | null;
   date: string;
   composition: Array<Composition>;
@@ -34,17 +34,19 @@ export function GovernmentCompositionTimeline({
   snapshots: Array<Snapshot>;
 }) {
   const [showDefections, setShowDefections] = useState(true);
+  const [showCoups, setShowCoups] = useState(true);
   const [showPresidential, setShowPresidential] = useState(true);
   const [showSenate, setShowSenate] = useState(true);
   const visibleSnapshots = useMemo(
     () =>
       snapshots.filter((snapshot) => {
         if (snapshot.kind === "defection") return showDefections;
+        if (snapshot.kind === "coup") return showCoups;
         if (snapshot.election === "President") return showPresidential;
         if (snapshot.election === "Senate") return showSenate;
         return true;
       }),
-    [snapshots, showDefections, showPresidential, showSenate],
+    [snapshots, showDefections, showCoups, showPresidential, showSenate],
   );
 
   return (
@@ -53,8 +55,8 @@ export function GovernmentCompositionTimeline({
         <div>
           <h2 className="wiki-section-title">Government record</h2>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Seat totals after each election or recorded membership change.
-            Changes are measured against the preceding government.
+            Seat totals after each election, coup, or recorded membership
+            change. Changes are measured against the preceding government.
           </p>
         </div>
         <span className="shrink-0 font-mono text-xs text-muted-foreground">
@@ -62,6 +64,14 @@ export function GovernmentCompositionTimeline({
         </span>
       </header>
       <div className="flex flex-wrap gap-x-5 gap-y-2 border-b px-4 py-3 text-sm sm:px-6">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showCoups}
+            onChange={(event) => setShowCoups(event.target.checked)}
+          />
+          Coups
+        </label>
         <label className="flex items-center gap-2">
           <input
             type="checkbox"

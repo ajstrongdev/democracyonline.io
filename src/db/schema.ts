@@ -653,6 +653,44 @@ export const electionOfficeholderHistory = pgTable(
   ],
 );
 
+// Admin-directed changes to the government, separate from certified elections.
+export const coupHistory = pgTable("coup_history", {
+  id: serial("id").primaryKey(),
+  occurredAt: timestamp("occurred_at").defaultNow().notNull(),
+});
+
+export const coupOfficeholderHistory = pgTable(
+  "coup_officeholder_history",
+  {
+    id: serial("id").primaryKey(),
+    coupId: integer("coup_id")
+      .notNull()
+      .references(() => coupHistory.id, { onDelete: "cascade" }),
+    userId: integer("user_id"),
+    username: varchar("username", { length: 255 }).notNull(),
+    partyId: integer("party_id"),
+    partyName: varchar("party_name", { length: 255 }),
+    partyColor: varchar("party_color", { length: 7 }),
+    office: varchar("office", { length: 50 }).notNull(),
+  },
+  (table) => [index("coup_officeholder_history_coup_idx").on(table.coupId)],
+);
+
+export const coupRoleChanges = pgTable(
+  "coup_role_changes",
+  {
+    id: serial("id").primaryKey(),
+    coupId: integer("coup_id")
+      .notNull()
+      .references(() => coupHistory.id, { onDelete: "cascade" }),
+    userId: integer("user_id"),
+    username: varchar("username", { length: 255 }).notNull(),
+    fromOffice: varchar("from_office", { length: 50 }),
+    toOffice: varchar("to_office", { length: 50 }).notNull(),
+  },
+  (table) => [index("coup_role_changes_user_idx").on(table.userId)],
+);
+
 export const archivedParties = pgTable("archived_parties", {
   partyId: integer("party_id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),

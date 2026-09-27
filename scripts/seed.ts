@@ -1,7 +1,6 @@
 import { loadEnvFile } from "node:process";
 import pg from "pg";
 import { avatarForUsername, renderAvatar } from "../src/lib/avatar";
-import { seedAjAvatar } from "./seed-aj-avatar";
 import {
   POLICY_DEFINITIONS,
   STAT_DEFINITIONS,
@@ -10,6 +9,7 @@ import {
   applyDiminishingEffect,
   calculateHeadlineIndices,
 } from "../src/lib/nation/simulation";
+import { seedAjAvatar } from "./seed-aj-avatar";
 
 loadEnvFile();
 
@@ -275,6 +275,7 @@ async function seed() {
         "wiki_article_revisions", "wiki_articles",
         "organization_lifecycle_events", "party_membership_events", "archived_parties",
         "election_night_updates", "election_candidate_history", "election_officeholder_history", "election_history",
+        "coup_role_changes", "coup_officeholder_history", "coup_history",
         "votes", "primary_votes", "primary_candidates", "candidates",
         "bill_votes_house", "bill_votes_senate", "bill_votes_presidential",
         "party_notifications", "merge_request_stances", "merge_request",

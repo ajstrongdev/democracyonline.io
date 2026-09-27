@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { RefreshCw, ShieldCheck, Ban } from "lucide-react";
+import { Ban, RefreshCw, ShieldCheck } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -22,7 +22,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { purgeUserFromDatabase, setPlayerBan } from "@/lib/server/admin";
+import {
+  changePlayerOffice,
+  purgeUserFromDatabase,
+  setPlayerBan,
+} from "@/lib/server/admin";
 import { setModerationRole } from "@/lib/server/moderation";
 
 interface DatabaseUser {
@@ -41,6 +45,8 @@ interface DBUserListProps {
   onRefresh: () => void | Promise<void>;
 }
 
+type Office = "Representative" | "Senator" | "President";
+
 export default function DBUserList({
   initialUsers,
   onRefresh,
@@ -51,14 +57,59 @@ export default function DBUserList({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<DatabaseUser | null>(null);
   const [reason, setReason] = useState("");
+  const [selectedRoles, setSelectedRoles] = useState<Record<number, Office>>(
+    {},
+  );
+  const [pendingOfficeChange, setPendingOfficeChange] = useState<{
+    user: DatabaseUser;
+    role: Office;
+  } | null>(null);
+
+  useEffect(() => {
+    setUsers(initialUsers);
+  }, [initialUsers]);
+
+  const saveOffice = async () => {
+    if (!pendingOfficeChange) return;
+    setLoading(true);
+    try {
+      const result = await changePlayerOffice({
+        data: {
+          userId: pendingOfficeChange.user.id,
+          role: pendingOfficeChange.role,
+        },
+      });
+      setUsers((current) =>
+        current.map((user) => {
+          const change = result.changes.find(
+            (entry) => entry.userId === user.id,
+          );
+          return change ? { ...user, role: change.toOffice } : user;
+        }),
+      );
+      setSelectedRoles({});
+      setPendingOfficeChange(null);
+      await onRefresh();
+      toast.success("Government roster saved as a coup; role changes recorded");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not change office",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePurgeUser = async () => {
     if (!userToDelete) return;
 
     try {
       setLoading(true);
-      if (reason.trim().length < 3) throw new Error("A deletion reason is required.");
-      await purgeUserFromDatabase({ data: { userId: userToDelete.id, reason } });
+      if (reason.trim().length < 3)
+        throw new Error("A deletion reason is required.");
+      await purgeUserFromDatabase({
+        data: { userId: userToDelete.id, reason },
+      });
       setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
       setDeleteDialogOpen(false);
       setUserToDelete(null);
@@ -72,19 +123,47 @@ export default function DBUserList({
     }
   };
 
-  const manageRoleOrBan = async (user: DatabaseUser, action: "ban" | "unban" | "promote" | "demote") => {
+  const manageRoleOrBan = async (
+    user: DatabaseUser,
+    action: "ban" | "unban" | "promote" | "demote",
+  ) => {
     const why = window.prompt(`Reason for ${action} of ${user.username}:`);
     if (!why || why.trim().length < 3) return;
     try {
       if (action === "ban" || action === "unban") {
-        await setPlayerBan({ data: { userId: user.id, banned: action === "ban", reason: why } });
-        setUsers((prev) => prev.map((item) => item.id === user.id ? { ...item, isActive: action !== "ban" } : item));
+        await setPlayerBan({
+          data: { userId: user.id, banned: action === "ban", reason: why },
+        });
+        setUsers((prev) =>
+          prev.map((item) =>
+            item.id === user.id
+              ? { ...item, isActive: action !== "ban" }
+              : item,
+          ),
+        );
       } else {
-        await setModerationRole({ data: { userId: user.id, role: action === "promote" ? "moderator" : "player", reason: why } });
-        setUsers((prev) => prev.map((item) => item.id === user.id ? { ...item, moderationRole: action === "promote" ? "moderator" : "player" } : item));
+        await setModerationRole({
+          data: {
+            userId: user.id,
+            role: action === "promote" ? "moderator" : "player",
+            reason: why,
+          },
+        });
+        setUsers((prev) =>
+          prev.map((item) =>
+            item.id === user.id
+              ? {
+                  ...item,
+                  moderationRole: action === "promote" ? "moderator" : "player",
+                }
+              : item,
+          ),
+        );
       }
       toast.success("Action completed and recorded");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Action failed"); }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Action failed");
+    }
   };
 
   const openDeleteDialog = (user: DatabaseUser) => {
@@ -115,7 +194,10 @@ export default function DBUserList({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Database Users</CardTitle>
-              <CardDescription>Search player profiles, manage moderator access, and review account status.</CardDescription>
+              <CardDescription>
+                Search player profiles, manage moderator access, and review
+                account status.
+              </CardDescription>
             </div>
             <Button
               variant="outline"
@@ -142,16 +224,34 @@ export default function DBUserList({
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {filteredUsers.map((user) => (
-              <Card key={user.id} className="overflow-hidden transition-shadow hover:shadow-md">
+              <Card
+                key={user.id}
+                className="overflow-hidden transition-shadow hover:shadow-md"
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                  <CardTitle>{user.username}</CardTitle>
-                  <CardDescription className="truncate">
-                    {user.email}
-                  </CardDescription>
+                      <CardTitle>{user.username}</CardTitle>
+                      <CardDescription className="truncate">
+                        {user.email}
+                      </CardDescription>
                     </div>
-                    <Badge variant={user.isActive === false ? "destructive" : user.moderationRole === "moderator" ? "default" : "secondary"} className="shrink-0">{user.isActive === false ? "Banned" : user.moderationRole === "moderator" ? "Moderator" : "Player"}</Badge>
+                    <Badge
+                      variant={
+                        user.isActive === false
+                          ? "destructive"
+                          : user.moderationRole === "moderator"
+                            ? "default"
+                            : "secondary"
+                      }
+                      className="shrink-0"
+                    >
+                      {user.isActive === false
+                        ? "Banned"
+                        : user.moderationRole === "moderator"
+                          ? "Moderator"
+                          : "Player"}
+                    </Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -163,7 +263,9 @@ export default function DBUserList({
                       <span className="font-semibold">Role:</span>{" "}
                       {user.role || "None"} · {user.moderationRole || "player"}
                     </div>
-                    {user.isActive === false && <div className="font-medium text-destructive">Banned</div>}
+                    {user.isActive === false && (
+                      <div className="font-medium text-destructive">Banned</div>
+                    )}
                     <div>
                       <span className="font-semibold">Party ID:</span>{" "}
                       {user.partyId || "None"}
@@ -177,9 +279,75 @@ export default function DBUserList({
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col items-stretch gap-2 pt-0">
+                  <div className="flex w-full gap-2">
+                    <select
+                      aria-label={`In-game role for ${user.username}`}
+                      className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1 text-sm"
+                      value={
+                        selectedRoles[user.id] ?? user.role ?? "Representative"
+                      }
+                      disabled={loading}
+                      onChange={(event) =>
+                        setSelectedRoles((current) => ({
+                          ...current,
+                          [user.id]: event.target.value as Office,
+                        }))
+                      }
+                    >
+                      <option value="Representative">Rep</option>
+                      <option value="Senator">Sen</option>
+                      <option value="President">Pres</option>
+                    </select>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={
+                        loading ||
+                        (selectedRoles[user.id] ??
+                          user.role ??
+                          "Representative") === user.role
+                      }
+                      onClick={() =>
+                        setPendingOfficeChange({
+                          user,
+                          role: selectedRoles[user.id] ?? "Representative",
+                        })
+                      }
+                    >
+                      Save role
+                    </Button>
+                  </div>
                   <div className="grid w-full grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm" onClick={() => manageRoleOrBan(user, user.isActive === false ? "unban" : "ban")}><Ban className="mr-1 size-4" />{user.isActive === false ? "Unban" : "Ban"}</Button>
-                    <Button variant="outline" size="sm" onClick={() => manageRoleOrBan(user, user.moderationRole === "moderator" ? "demote" : "promote")}><ShieldCheck className="mr-1 size-4" />{user.moderationRole === "moderator" ? "Remove mod" : "Make mod"}</Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        manageRoleOrBan(
+                          user,
+                          user.isActive === false ? "unban" : "ban",
+                        )
+                      }
+                    >
+                      <Ban className="mr-1 size-4" />
+                      {user.isActive === false ? "Unban" : "Ban"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        manageRoleOrBan(
+                          user,
+                          user.moderationRole === "moderator"
+                            ? "demote"
+                            : "promote",
+                        )
+                      }
+                    >
+                      <ShieldCheck className="mr-1 size-4" />
+                      {user.moderationRole === "moderator"
+                        ? "Remove mod"
+                        : "Make mod"}
+                    </Button>
                   </div>
                   <Button
                     variant="destructive"
@@ -204,6 +372,33 @@ export default function DBUserList({
         </CardContent>
       </Card>
 
+      <AlertDialog
+        open={pendingOfficeChange !== null}
+        onOpenChange={(open) => {
+          if (!open && !loading) setPendingOfficeChange(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Record a coup?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Change {pendingOfficeChange?.user.username} from{" "}
+              {pendingOfficeChange?.user.role ?? "None"} to{" "}
+              {pendingOfficeChange?.role}? This saves the full government roster
+              and records the role change as a coup in government history.
+              {pendingOfficeChange?.role === "President" &&
+                " The current president will become a Representative."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={loading} onClick={saveOffice}>
+              {loading ? "Saving…" : "Confirm coup"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -214,10 +409,23 @@ export default function DBUserList({
               bills, votes, and party membership. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-2"><label htmlFor="delete-reason" className="text-sm font-medium">Deletion reason (required)</label><Input id="delete-reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Explain why this account is being deleted" /></div>
+          <div className="space-y-2">
+            <label htmlFor="delete-reason" className="text-sm font-medium">
+              Deletion reason (required)
+            </label>
+            <Input
+              id="delete-reason"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Explain why this account is being deleted"
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={loading || reason.trim().length < 3} onClick={handlePurgeUser}>
+            <AlertDialogAction
+              disabled={loading || reason.trim().length < 3}
+              onClick={handlePurgeUser}
+            >
               Purge
             </AlertDialogAction>
           </AlertDialogFooter>

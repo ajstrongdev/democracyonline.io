@@ -84,6 +84,48 @@ describe("historical election calculations", () => {
     ]);
   });
 
+  it("includes a coup between elections in office terms", () => {
+    const terms = getOfficeTerms(
+      [
+        {
+          historyId: 1,
+          election: "Senate",
+          cycle: 1,
+          office: "Representative",
+          selection: "Serving",
+          concludedAt: "2026-01-01",
+        },
+        {
+          historyId: -3,
+          election: "Coup",
+          cycle: 0,
+          office: "President",
+          selection: "Coup",
+          concludedAt: "2026-02-01",
+        },
+        {
+          historyId: 2,
+          election: "Senate",
+          cycle: 2,
+          office: "President",
+          selection: "Serving",
+          concludedAt: "2026-03-01",
+        },
+      ],
+      "President",
+    );
+    expect(terms).toMatchObject([
+      {
+        historyId: -3,
+        office: "President",
+        selection: "Coup",
+        startAt: "2026-02-01",
+        endAt: null,
+      },
+      { historyId: 1, office: "Representative", endAt: "2026-02-01" },
+    ]);
+  });
+
   it("builds dated party and Independent affiliation terms", () => {
     const terms = getPartyTerms(
       [

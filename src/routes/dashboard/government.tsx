@@ -25,11 +25,24 @@ function GovernmentHistory() {
   const snapshots = history.map((snapshot) => ({
     id: snapshot.key,
     electionId: snapshot.electionHistoryId,
-    label: snapshot.event
-      ? `${snapshot.event.username}: ${snapshot.event.fromPartyName ?? "Independent"} to ${snapshot.event.toPartyName ?? "Independent"}`
-      : formatElectionTitle(snapshot.election, snapshot.cycle),
-    type: snapshot.event ? "Defection" : "Certified election",
-    kind: snapshot.event ? ("defection" as const) : ("election" as const),
+    label:
+      snapshot.kind === "coup"
+        ? (snapshot.changes ?? [])
+            .map(
+              (change) =>
+                `${change.username}: ${change.fromOffice ?? "None"} → ${change.toOffice}`,
+            )
+            .join("; ")
+        : snapshot.event
+          ? `${snapshot.event.username}: ${snapshot.event.fromPartyName ?? "Independent"} to ${snapshot.event.toPartyName ?? "Independent"}`
+          : formatElectionTitle(snapshot.election, snapshot.cycle),
+    type:
+      snapshot.kind === "coup"
+        ? "Coup"
+        : snapshot.event
+          ? "Defection"
+          : "Certified election",
+    kind: snapshot.kind,
     election: snapshot.election,
     date: formatWikiDate(snapshot.occurredAt),
     composition: snapshot.composition,
@@ -39,7 +52,7 @@ function GovernmentHistory() {
       <WikiHeader
         eyebrow="Government history"
         title="Composition of government"
-        description="A latest-first record of how party and independent representation changed through elections and defections."
+        description="A latest-first record of how party and independent representation changed through elections, defections, and coups."
       />
       <WikiArticleSection
         entityType="government"

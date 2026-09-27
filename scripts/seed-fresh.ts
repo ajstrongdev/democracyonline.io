@@ -1,13 +1,13 @@
 import { loadEnvFile } from "node:process";
 import pg from "pg";
 import { avatarForUsername, renderAvatar } from "../src/lib/avatar";
-import { seedAjAvatar } from "./seed-aj-avatar";
 import {
   POLICY_DEFINITIONS,
   STAT_DEFINITIONS,
   isBillMutablePolicy,
 } from "../src/lib/nation/catalog";
 import { calculateHeadlineIndices } from "../src/lib/nation/simulation";
+import { seedAjAvatar } from "./seed-aj-avatar";
 
 if (!process.env.DATABASE_URL) {
   loadEnvFile(process.env.COMPOSE_ENV_FILE ?? ".env");
@@ -70,6 +70,7 @@ try {
       "wiki_article_revisions", "wiki_articles",
       "organization_lifecycle_events", "party_membership_events", "archived_parties",
       "election_night_updates", "election_candidate_history", "election_officeholder_history", "election_history",
+      "coup_role_changes", "coup_officeholder_history", "coup_history",
       "votes", "primary_votes", "primary_candidates", "candidates",
       "bill_votes_house", "bill_votes_senate", "bill_votes_presidential",
       "party_notifications", "merge_request_stances", "merge_request",
@@ -280,6 +281,12 @@ try {
     policies: string;
     stats: string;
     users: string;
+    electionHistory: string;
+    officeholders: string;
+    coups: string;
+    coupOfficeholders: string;
+    roleChanges: string;
+    membershipEvents: string;
   }>(`select
     (select count(*) from users) as users,
     (select count(*) from bills) as bills,
@@ -288,7 +295,13 @@ try {
     (select count(*) from feed) as activity,
     (select count(*) from elections) as elections,
     (select count(*) from nation_stat_values) as stats,
-    (select count(*) from nation_policy_values) as policies`);
+    (select count(*) from nation_policy_values) as policies,
+    (select count(*) from election_history) as "electionHistory",
+    (select count(*) from election_officeholder_history) as officeholders,
+    (select count(*) from coup_history) as coups,
+    (select count(*) from coup_officeholder_history) as "coupOfficeholders",
+    (select count(*) from coup_role_changes) as "roleChanges",
+    (select count(*) from party_membership_events) as "membershipEvents"`);
   const counts = verification.rows[0];
   if (
     Number(counts.users) !== 2 ||
@@ -297,6 +310,12 @@ try {
     Number(counts.socialPosts) !== 0 ||
     Number(counts.activity) !== 0 ||
     Number(counts.elections) !== 2 ||
+    Number(counts.electionHistory) !== 1 ||
+    Number(counts.officeholders) !== 2 ||
+    Number(counts.coups) !== 0 ||
+    Number(counts.coupOfficeholders) !== 0 ||
+    Number(counts.roleChanges) !== 0 ||
+    Number(counts.membershipEvents) !== 0 ||
     Number(counts.stats) !== STAT_DEFINITIONS.length ||
     Number(counts.policies) !== POLICY_DEFINITIONS.length
   ) {

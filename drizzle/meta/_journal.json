@@ -379,6 +379,13 @@
       "when": 1790134273257,
       "tag": "0053_coalition_discord",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1790134273258,
+      "tag": "0054_coup_history",
+      "breakpoints": true
     }
   ]
 }

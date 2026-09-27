@@ -12,6 +12,9 @@ import {
   billVotesSenate,
   bills,
   candidates,
+  coupHistory,
+  coupOfficeholderHistory,
+  coupRoleChanges,
   electionCandidateHistory,
   electionHistory,
   electionOfficeholderHistory,
@@ -232,6 +235,7 @@ export const getWikiPlayer = createServerFn()
     const [
       candidacies,
       offices,
+      roleChanges,
       authoredBills,
       houseVotes,
       senateVotes,
@@ -278,6 +282,18 @@ export const getWikiPlayer = createServerFn()
         .where(eq(electionOfficeholderHistory.userId, data.id))
         .orderBy(desc(electionHistory.concludedAt)),
       db
+        .select({
+          id: coupRoleChanges.id,
+          coupId: coupHistory.id,
+          occurredAt: coupHistory.occurredAt,
+          fromOffice: coupRoleChanges.fromOffice,
+          toOffice: coupRoleChanges.toOffice,
+        })
+        .from(coupRoleChanges)
+        .innerJoin(coupHistory, eq(coupRoleChanges.coupId, coupHistory.id))
+        .where(eq(coupRoleChanges.userId, data.id))
+        .orderBy(desc(coupHistory.occurredAt)),
+      db
         .select({ id: bills.id, title: bills.title, status: bills.status })
         .from(bills)
         .where(eq(bills.creatorId, data.id))
@@ -296,6 +312,7 @@ export const getWikiPlayer = createServerFn()
       player,
       candidacies,
       offices,
+      roleChanges,
       partyHistory,
       authoredBills,
       billVotes: [...houseVotes, ...senateVotes, ...presidentialVotes].sort(
@@ -771,31 +788,38 @@ export const getWikiParty = createServerFn()
 
 export const getGovernmentCompositionHistory = createServerFn().handler(
   async () => {
-    const [rows, membershipEvents] = await Promise.all([
-      db
-        .select({
-          historyId: electionHistory.id,
-          election: electionHistory.election,
-          cycle: electionHistory.cycle,
-          concludedAt: electionHistory.concludedAt,
-          userId: electionOfficeholderHistory.userId,
-          username: electionOfficeholderHistory.username,
-          office: electionOfficeholderHistory.office,
-          partyId: electionOfficeholderHistory.partyId,
-          partyName: electionOfficeholderHistory.partyName,
-          partyColor: electionOfficeholderHistory.partyColor,
-        })
-        .from(electionOfficeholderHistory)
-        .innerJoin(
-          electionHistory,
-          eq(electionOfficeholderHistory.electionHistoryId, electionHistory.id),
-        )
-        .orderBy(electionHistory.concludedAt, electionHistory.id),
-      db
-        .select()
-        .from(partyMembershipEvents)
-        .orderBy(partyMembershipEvents.occurredAt, partyMembershipEvents.id),
-    ]);
+    const [rows, membershipEvents, coups, coupMembers, changes] =
+      await Promise.all([
+        db
+          .select({
+            historyId: electionHistory.id,
+            election: electionHistory.election,
+            cycle: electionHistory.cycle,
+            concludedAt: electionHistory.concludedAt,
+            userId: electionOfficeholderHistory.userId,
+            username: electionOfficeholderHistory.username,
+            office: electionOfficeholderHistory.office,
+            partyId: electionOfficeholderHistory.partyId,
+            partyName: electionOfficeholderHistory.partyName,
+            partyColor: electionOfficeholderHistory.partyColor,
+          })
+          .from(electionOfficeholderHistory)
+          .innerJoin(
+            electionHistory,
+            eq(
+              electionOfficeholderHistory.electionHistoryId,
+              electionHistory.id,
+            ),
+          )
+          .orderBy(electionHistory.concludedAt, electionHistory.id),
+        db
+          .select()
+          .from(partyMembershipEvents)
+          .orderBy(partyMembershipEvents.occurredAt, partyMembershipEvents.id),
+        db.select().from(coupHistory),
+        db.select().from(coupOfficeholderHistory),
+        db.select().from(coupRoleChanges),
+      ]);
 
     const snapshots = new Map<
       number,
@@ -826,9 +850,16 @@ export const getGovernmentCompositionHistory = createServerFn().handler(
       senate: number;
       president: number;
     };
-    const electionPoints = [...snapshots.values()].map((snapshot) => {
+    const compositionFor = (
+      members: Array<{
+        partyId: number | null;
+        partyName: string | null;
+        partyColor: string | null;
+        office: string;
+      }>,
+    ) => {
       const composition = new Map<string, Composition>();
-      for (const member of snapshot.members) {
+      for (const member of members) {
         const key = member.partyId ? `party-${member.partyId}` : "independent";
         const entry = composition.get(key) ?? {
           key,
@@ -843,6 +874,9 @@ export const getGovernmentCompositionHistory = createServerFn().handler(
         if (member.office === "President") entry.president += 1;
         composition.set(key, entry);
       }
+      return [...composition.values()];
+    };
+    const electionPoints = [...snapshots.values()].map((snapshot) => {
       return {
         kind: "election" as const,
         key: `election-${snapshot.id}`,
@@ -851,7 +885,8 @@ export const getGovernmentCompositionHistory = createServerFn().handler(
         election: snapshot.election,
         cycle: snapshot.cycle,
         event: null,
-        composition: [...composition.values()],
+        changes: null,
+        composition: compositionFor(snapshot.members),
       };
     });
 
@@ -865,7 +900,21 @@ export const getGovernmentCompositionHistory = createServerFn().handler(
         election: null,
         cycle: null,
         event,
+        changes: null,
         composition: [] as Array<Composition>,
+      })),
+      ...coups.map((coup) => ({
+        kind: "coup" as const,
+        key: `coup-${coup.id}`,
+        occurredAt: coup.occurredAt,
+        electionHistoryId: null,
+        election: null,
+        cycle: null,
+        event: null,
+        changes: changes.filter((change) => change.coupId === coup.id),
+        composition: compositionFor(
+          coupMembers.filter((member) => member.coupId === coup.id),
+        ),
       })),
     ].sort(
       (left, right) =>
@@ -876,7 +925,7 @@ export const getGovernmentCompositionHistory = createServerFn().handler(
     let composition: Array<Composition> = [];
     const history = [];
     for (const point of points) {
-      if (point.kind === "election") {
+      if (point.kind === "election" || point.kind === "coup") {
         composition = point.composition.map((party) => ({ ...party }));
       } else {
         if (!composition.length) continue;

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { z } from "zod";
 import { env } from "@/env";
 import { authMiddleware } from "@/middleware/auth";
 import { getAdminAuth } from "@/lib/firebase-admin";
@@ -13,6 +14,9 @@ import {
   chats,
   coalitionProposals,
   committeeAssessments,
+  coupHistory,
+  coupOfficeholderHistory,
+  coupRoleChanges,
   electionNightUpdates,
   elections,
   feed,
@@ -22,6 +26,7 @@ import {
   votes,
 } from "@/db/schema";
 import { generateElectionNightPlan } from "@/lib/elections/reveal";
+import { planCoup } from "@/lib/government-coup";
 import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
 import { resolveElectionTiming } from "@/lib/server/game-speed";
 import { archivePartyIfEmpty } from "@/lib/server/organization-lifecycle";
@@ -32,7 +37,9 @@ async function getAdminElectionTiming() {
 }
 
 export function isAdminEmail(email: string) {
-  return ["ajstrongdev@pm.me", "jenewland1999@gmail.com"].includes(email.toLowerCase());
+  return ["ajstrongdev@pm.me", "jenewland1999@gmail.com"].includes(
+    email.toLowerCase(),
+  );
 }
 
 export const checkIsAdmin = createServerFn()
@@ -403,37 +410,143 @@ export const listDatabaseUsers = createServerFn()
     return { users: allUsers };
   });
 
+export const changePlayerOffice = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      userId: z.number().int().positive(),
+      role: z.enum(["Representative", "Senator", "President"]),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user?.email || !isAdminEmail(context.user.email))
+      throw new Error("Unauthorized");
+
+    return db.transaction(async (tx) => {
+      // Serialize admin coups so each snapshot reflects the roster it saved.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(74619251)`);
+      const [target] = await tx
+        .select({ id: users.id, username: users.username, role: users.role })
+        .from(users)
+        .where(eq(users.id, data.userId))
+        .limit(1);
+      if (!target) throw new Error("Player not found");
+      const incumbents =
+        data.role === "President"
+          ? await tx
+              .select({
+                id: users.id,
+                username: users.username,
+                role: users.role,
+              })
+              .from(users)
+              .where(eq(users.role, "President"))
+          : [];
+      const changes = planCoup(target, data.role, incumbents);
+      const displacedIds = changes.slice(1).map((change) => change.userId);
+      if (displacedIds.length) {
+        await tx
+          .update(users)
+          .set({ role: "Representative" })
+          .where(inArray(users.id, displacedIds));
+      }
+      await tx
+        .update(users)
+        .set({ role: data.role })
+        .where(eq(users.id, target.id));
+
+      const [coup] = await tx
+        .insert(coupHistory)
+        .values({})
+        .returning({ id: coupHistory.id });
+      await tx
+        .insert(coupRoleChanges)
+        .values(changes.map((change) => ({ ...change, coupId: coup.id })));
+      const roster = await tx
+        .select({
+          userId: users.id,
+          username: users.username,
+          partyId: parties.id,
+          partyName: parties.name,
+          partyColor: parties.color,
+          office: users.role,
+        })
+        .from(users)
+        .leftJoin(parties, eq(users.partyId, parties.id))
+        .where(sql`${users.role} in ('Representative', 'Senator', 'President')`)
+        .orderBy(users.username);
+      if (roster.length)
+        await tx.insert(coupOfficeholderHistory).values(
+          roster.map((member) => ({
+            ...member,
+            coupId: coup.id,
+            office: member.office!,
+          })),
+        );
+      return { success: true, changes };
+    });
+  });
+
 export const listAdminAuditLog = createServerFn()
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const email = context.user?.email;
     if (!email || !isAdminEmail(email)) throw new Error("Unauthorized");
-    const entries = await db.select({ id: moderationAuditLog.id, action: moderationAuditLog.action,
-      reason: moderationAuditLog.reason,
-      createdAt: moderationAuditLog.createdAt, target: users.username,
-      actorId: moderationAuditLog.actorUserId, targetUserId: moderationAuditLog.targetUserId })
-      .from(moderationAuditLog).leftJoin(users, eq(users.id, moderationAuditLog.targetUserId))
-      .orderBy(sql`${moderationAuditLog.createdAt} DESC`).limit(250);
+    const entries = await db
+      .select({
+        id: moderationAuditLog.id,
+        action: moderationAuditLog.action,
+        reason: moderationAuditLog.reason,
+        createdAt: moderationAuditLog.createdAt,
+        target: users.username,
+        actorId: moderationAuditLog.actorUserId,
+        targetUserId: moderationAuditLog.targetUserId,
+      })
+      .from(moderationAuditLog)
+      .leftJoin(users, eq(users.id, moderationAuditLog.targetUserId))
+      .orderBy(sql`${moderationAuditLog.createdAt} DESC`)
+      .limit(250);
     return { entries };
   });
 
-export const setPlayerBan = createServerFn({ method: "POST" }).middleware([authMiddleware])
-  .inputValidator((data: { userId: number; banned: boolean; reason: string }) => data)
+export const setPlayerBan = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(
+    (data: { userId: number; banned: boolean; reason: string }) => data,
+  )
   .handler(async ({ context, data }) => {
     const email = context.user?.email;
     if (!email || !isAdminEmail(email)) throw new Error("Unauthorized");
-    if (data.reason.trim().length < 3 || data.reason.length > 1000) throw new Error("A reason of at least 3 characters is required");
-    const [actor] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-    if (!actor || actor.id === data.userId) throw new Error("Cannot ban this account");
-    const [target] = await db.select({ email: users.email }).from(users).where(eq(users.id, data.userId)).limit(1);
+    if (data.reason.trim().length < 3 || data.reason.length > 1000)
+      throw new Error("A reason of at least 3 characters is required");
+    const [actor] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    if (!actor || actor.id === data.userId)
+      throw new Error("Cannot ban this account");
+    const [target] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, data.userId))
+      .limit(1);
     if (!target) throw new Error("Player not found");
     const auth = getAdminAuth();
     const authUser = await auth.getUserByEmail(target.email);
     await auth.updateUser(authUser.uid, { disabled: data.banned });
     if (data.banned) await auth.revokeRefreshTokens(authUser.uid);
     await db.transaction(async (tx) => {
-      await tx.update(users).set({ isActive: !data.banned }).where(eq(users.id, data.userId));
-      await tx.insert(moderationAuditLog).values({ actorUserId: actor.id, targetUserId: data.userId, action: data.banned ? "ban_user" : "unban_user", reason: data.reason.trim() });
+      await tx
+        .update(users)
+        .set({ isActive: !data.banned })
+        .where(eq(users.id, data.userId));
+      await tx.insert(moderationAuditLog).values({
+        actorUserId: actor.id,
+        targetUserId: data.userId,
+        action: data.banned ? "ban_user" : "unban_user",
+        reason: data.reason.trim(),
+      });
     });
     return { success: true };
   });
@@ -465,10 +578,13 @@ export const purgeAllOtherAccounts = createServerFn({ method: "POST" })
       pageToken = page.pageToken;
     } while (pageToken);
     const firebaseTargets = firebaseUsers.filter(
-      (item) => !item.email || !protectedEmails.includes(item.email.toLowerCase()),
+      (item) =>
+        !item.email || !protectedEmails.includes(item.email.toLowerCase()),
     );
 
-    const dbUsers = await db.select({ id: users.id, email: users.email }).from(users);
+    const dbUsers = await db
+      .select({ id: users.id, email: users.email })
+      .from(users);
     const dbTargets = dbUsers.filter(
       (item) => !protectedEmails.includes(item.email.toLowerCase()),
     );
@@ -484,16 +600,32 @@ export const purgeAllOtherAccounts = createServerFn({ method: "POST" })
           .where(inArray(candidates.userId, ids));
         const candidateIds = candidateRows.map((item) => item.id);
         if (candidateIds.length) {
-          await tx.delete(votes).where(inArray(votes.candidateId, candidateIds));
-          await tx.delete(candidates).where(inArray(candidates.id, candidateIds));
+          await tx
+            .delete(votes)
+            .where(inArray(votes.candidateId, candidateIds));
+          await tx
+            .delete(candidates)
+            .where(inArray(candidates.id, candidateIds));
         }
         await tx.delete(votes).where(inArray(votes.userId, ids));
-        await tx.delete(coalitionProposals).where(inArray(coalitionProposals.proposerUserId, ids));
-        await tx.delete(committeeAssessments).where(inArray(committeeAssessments.senatorId, ids));
-        await tx.delete(moderationAuditLog).where(inArray(moderationAuditLog.actorUserId, ids));
-        await tx.delete(billVotesHouse).where(inArray(billVotesHouse.voterId, ids));
-        await tx.delete(billVotesSenate).where(inArray(billVotesSenate.voterId, ids));
-        await tx.delete(billVotesPresidential).where(inArray(billVotesPresidential.voterId, ids));
+        await tx
+          .delete(coalitionProposals)
+          .where(inArray(coalitionProposals.proposerUserId, ids));
+        await tx
+          .delete(committeeAssessments)
+          .where(inArray(committeeAssessments.senatorId, ids));
+        await tx
+          .delete(moderationAuditLog)
+          .where(inArray(moderationAuditLog.actorUserId, ids));
+        await tx
+          .delete(billVotesHouse)
+          .where(inArray(billVotesHouse.voterId, ids));
+        await tx
+          .delete(billVotesSenate)
+          .where(inArray(billVotesSenate.voterId, ids));
+        await tx
+          .delete(billVotesPresidential)
+          .where(inArray(billVotesPresidential.voterId, ids));
         await tx.delete(users).where(inArray(users.id, ids));
       });
     }
@@ -522,13 +654,24 @@ export const purgeUserFromDatabase = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator((data: { userId: number; reason: string }) => data)
   .handler(
-    async ({ context, data }: { context: any; data: { userId: number; reason: string } }) => {
+    async ({
+      context,
+      data,
+    }: {
+      context: any;
+      data: { userId: number; reason: string };
+    }) => {
       const email = context.user?.email;
       if (!email || !isAdminEmail(email)) {
         throw new Error("Unauthorized");
       }
-      if (data.reason.trim().length < 3 || data.reason.length > 1000) throw new Error("A reason of at least 3 characters is required");
-      const [actor] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+      if (data.reason.trim().length < 3 || data.reason.length > 1000)
+        throw new Error("A reason of at least 3 characters is required");
+      const [actor] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
       if (!actor) throw new Error("Admin player profile not found");
 
       const [submittedBallot] = await db
@@ -594,7 +737,12 @@ export const purgeUserFromDatabase = createServerFn({ method: "POST" })
         .limit(1);
 
       await db.transaction(async (tx) => {
-        await tx.insert(moderationAuditLog).values({ actorUserId: actor.id, targetUserId: data.userId, action: "delete_user", reason: data.reason.trim() });
+        await tx.insert(moderationAuditLog).values({
+          actorUserId: actor.id,
+          targetUserId: data.userId,
+          action: "delete_user",
+          reason: data.reason.trim(),
+        });
         if (userMembership?.partyId) {
           await tx
             .update(users)
