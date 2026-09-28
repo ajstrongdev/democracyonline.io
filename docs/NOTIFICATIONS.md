@@ -4,9 +4,10 @@ The dashboard's Z.com mention list and **Your next moves** are in-app
 notifications. Pending next moves cannot be hidden or dismissed; individual
 mentions retain their existing dismiss controls. Web Push is a separate, optional
 delivery channel for both. It is **off by default**, requires a
-browser click to request permission, and does not transmit mention text unless
-the player explicitly enables previews. Settings are under Account settings →
-Alerts. The preference centre cannot disable the in-app dashboard.
+browser click to request permission, and does not show mention text or pending
+action titles on the lock screen unless the player explicitly enables
+notification details. Settings are under Account settings → Alerts. The
+preference centre cannot disable the in-app dashboard.
 Quiet hours apply to Web Push only: messages during the chosen local
 time interval are skipped, not delayed. The in-app list remains available.
 
@@ -41,7 +42,7 @@ seconds for subscribed users: joining a party, primary and national election
 actions, bill votes, committee assessments and coalition votes. Receipts
 deduplicate each action/cycle; quiet hours skip Web Push without removing the
 action from the in-app dashboard. By default, push says only that a decision
-is waiting. A player must opt into lock-screen previews to show its title.
+is waiting. A player must opt into notification details to show its title.
 
 ## Safe VS Code local testing
 
@@ -63,7 +64,7 @@ fake subscription in its disposable database, then shuts down the stack.
 
 Web Push cannot be fully exercised against the Firebase Auth Emulator alone:
 the browser's push service is external. CI exercises the database transaction,
- outbox, scheduler authorization, in-app actions and browser navigation, with
+outbox, scheduler authorization, in-app actions and browser navigation, with
 Web Push **unconfigured** to prevent external delivery. Before enabling it in a
 deployment, test opt-in/receipt with a dedicated non-production Firebase
 project and a real browser, then confirm expired subscriptions and quiet hours.

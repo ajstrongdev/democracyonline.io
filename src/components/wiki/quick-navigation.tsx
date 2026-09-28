@@ -193,6 +193,7 @@ export function QuickNavigation() {
       <Button
         variant="ghost"
         size="sm"
+        className="h-11 min-w-11 px-0 sm:h-8 sm:min-w-0 sm:px-3"
         onClick={() => setOpen(true)}
         aria-label="Open command palette"
         title="Search destinations (Ctrl/Cmd+K)"

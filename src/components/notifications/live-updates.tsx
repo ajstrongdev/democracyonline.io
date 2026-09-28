@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 
 export const socialChangeEvent = "oscana:social-change";
@@ -7,16 +8,15 @@ export const socialChangeEvent = "oscana:social-change";
 export function LiveUpdates() {
   const { user, sessionReady } = useAuth();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   useEffect(() => {
     if (!user) return;
-    let connected = false;
-    const refresh = (social = true) => {
+    const refresh = (social = false) => {
       if (document.visibilityState !== "visible") return;
-      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      void router.invalidate();
+      void queryClient.invalidateQueries();
       if (social) {
-        void queryClient.invalidateQueries({ queryKey: ["social", "feed"] });
-        void queryClient.invalidateQueries({ queryKey: ["notifications", "social"] });
         window.dispatchEvent(new Event(socialChangeEvent));
       }
     };
@@ -26,26 +26,23 @@ export function LiveUpdates() {
     }
     const stream = new EventSource("/api/live");
     stream.addEventListener("change", (event) => {
-      if (event.data === "social" || event.data === "dashboard")
+      if (
+        event.data === "social" ||
+        event.data === "dashboard" ||
+        event.data === "game"
+      )
         refresh(event.data === "social");
     });
     stream.addEventListener("ready", () => {
-      connected = true;
       refresh();
-    });
-    stream.addEventListener("unavailable", () => {
-      connected = false;
     });
     stream.onopen = () => {
-      connected = true;
       refresh();
     };
-    stream.onerror = () => {
-      connected = false;
-    };
-    const fallback = window.setInterval(() => {
-      if (!connected) refresh();
-    }, 10_000);
+    // Poll active route loaders and queries even while SSE is connected. This
+    // covers legacy write paths without database change triggers and acts as a
+    // bounded recovery path if a notification is missed.
+    const fallback = window.setInterval(() => refresh(), 10_000);
     const onReturn = () => refresh();
     window.addEventListener("focus", onReturn);
     document.addEventListener("visibilitychange", onReturn);
@@ -57,7 +54,7 @@ export function LiveUpdates() {
       document.removeEventListener("visibilitychange", onReturn);
       window.removeEventListener("online", onReturn);
     };
-  }, [user?.uid, sessionReady, queryClient]);
+  }, [user?.uid, sessionReady, queryClient, router]);
 
   return null;
 }

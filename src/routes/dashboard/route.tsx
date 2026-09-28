@@ -27,9 +27,6 @@ function DashboardWorkspace() {
   const { data } = useSuspenseQuery({
     ...dashboardQuery(),
     initialData,
-    // Bounded fallback while live server invalidation is still being built.
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: false,
   });
   const navigate = useNavigate();
   const pathname = useRouterState({

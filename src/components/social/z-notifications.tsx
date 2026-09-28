@@ -28,9 +28,6 @@ export function ZNotifications({
   const notifications = useQuery({
     ...socialNotificationsQuery(),
     initialData: initialPage,
-    // Dismissals are private; until per-user push exists, check for changes.
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: false,
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

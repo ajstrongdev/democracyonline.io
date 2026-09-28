@@ -70,7 +70,7 @@ test("two players see a new post without a refresh", async ({
     await reader.getByRole("button", { name: "Account settings" }).click();
     await reader.getByRole("tab", { name: "Alerts" }).click();
     await expect(reader.getByText("Web Push has not been configured on this server.")).toBeVisible();
-    await reader.getByRole("checkbox", { name: "Show mention text on the lock screen" }).check();
+    await reader.getByRole("checkbox", { name: "Show notification details on the lock screen" }).check();
     await reader.getByRole("checkbox", { name: "Quiet hours for Web Push" }).check();
     await reader.getByLabel("Time zone (IANA)").fill("America/New_York");
     await reader.getByRole("button", { name: "Save preferences" }).click();
@@ -79,7 +79,7 @@ test("two players see a new post without a refresh", async ({
     await expect(reader.getByText("1 mention across 1 account")).toBeVisible();
     await reader.getByRole("button", { name: "Account settings" }).click();
     await reader.getByRole("tab", { name: "Alerts" }).click();
-    await expect(reader.getByRole("checkbox", { name: "Show mention text on the lock screen" })).toBeChecked();
+    await expect(reader.getByRole("checkbox", { name: "Show notification details on the lock screen" })).toBeChecked();
     await expect(reader.getByRole("checkbox", { name: "Quiet hours for Web Push" })).toBeChecked();
     await expect(reader.getByLabel("Time zone (IANA)")).toHaveValue("America/New_York");
     await reader.getByRole("dialog", { name: "Account settings" }).getByRole("button", { name: "Close" }).first().click();

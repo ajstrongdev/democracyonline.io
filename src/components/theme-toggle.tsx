@@ -228,7 +228,7 @@ export function ModeToggle() {
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0"
+            className="size-11 shrink-0 sm:size-9"
             aria-label="Choose theme"
             title="Choose theme"
           >

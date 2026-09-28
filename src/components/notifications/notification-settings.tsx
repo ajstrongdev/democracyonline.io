@@ -111,7 +111,7 @@ export function NotificationSettings() {
         {canUseWebPush() && Notification.permission === "denied" && <p className="text-xs text-muted-foreground">Notifications are blocked in browser settings. Change that permission before trying again.</p>}
       </div>
       <div className="flex items-center justify-between gap-3 rounded-xl border p-4">
-        <div><Label htmlFor="push-preview">Show mention text on the lock screen</Label><p className="text-xs text-muted-foreground">Off by default; push messages are generic unless you opt in.</p></div>
+        <div><Label htmlFor="push-preview">Show notification details on the lock screen</Label><p className="text-xs text-muted-foreground">Off by default. Opt in to show mention text or pending-action titles in push notifications.</p></div>
         <input id="push-preview" type="checkbox" className="size-5 accent-primary" checked={draft.pushPreview} onChange={(event) => update({ pushPreview: event.target.checked })} />
       </div>
       <div className="space-y-3 rounded-xl border p-4">

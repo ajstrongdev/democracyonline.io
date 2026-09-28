@@ -5,8 +5,8 @@ import { env } from "@/env";
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { userEmailEquals } from "@/lib/server/auth/user-email";
 
-export type PublicChange = "dashboard" | "social";
-type LiveSignal = PublicChange | "unavailable" | "ready";
+export type ChangeDomain = "dashboard" | "social" | "game";
+type LiveSignal = ChangeDomain | "unavailable" | "ready";
 
 const subscribers = new Set<(signal: LiveSignal) => void>();
 let listener: Client | null = null;
@@ -55,9 +55,13 @@ async function ensureListening() {
     });
     client.on("end", disconnected);
     client.on("notification", (message) => {
-      if (message.payload !== "social" && message.payload !== "dashboard")
+      if (
+        message.payload !== "social" &&
+        message.payload !== "dashboard" &&
+        message.payload !== "game"
+      )
         return;
-      broadcast(message.payload);
+      broadcast(message.payload as ChangeDomain);
     });
     try {
       await client.connect();
