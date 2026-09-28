@@ -1,8 +1,8 @@
 # Refactor status and safe test setup
 
-This is an in-progress refactor, **not** a production deployment checklist or a
-claim that live updates are complete. Do not deploy this branch without a full
-review of routes, auth, and the deployed database upgrade path.
+This status describes an in-progress refactor, not a production deployment
+checklist or a claim that live updates are complete. Production use requires a
+review of routes, authentication, and the deployed database upgrade path.
 
 ## Completed so far
 
@@ -11,20 +11,22 @@ review of routes, auth, and the deployed database upgrade path.
   and the dashboard workspace in `src/routes/`.
 - Moved social, admin, and dashboard-home page implementations out of route
   modules. The route files are still the owners of navigation and loaders.
-- Dashboard data is read through a Query key with loader-provided initial data
-  and a foreground 10-second refresh. Auth account switches clear the client
-  Query cache. Refreshed latest activity retains already loaded pages rather
-  than collapsing them. The social timeline's first page uses Query and retains its
-  existing manual pagination and a non-disruptive "new posts" affordance.
-  Z.com mentions also use a Query first page with a foreground 10-second
-  private-state fallback and manual "load more" pagination.
+- Dashboard data is read through a Query key with loader-provided initial data.
+  Auth account switches clear the client Query cache. Refreshed latest activity
+  retains already loaded pages rather than collapsing them. The social
+  timeline's first page uses Query and retains its existing manual pagination
+  and a non-disruptive "new posts" affordance. Z.com mentions also use a Query
+  first page and manual "load more" pagination.
 - Added `0055_public_change_notices` (new migration only): transaction-committed
   PostgreSQL notifications for selected public social/dashboard tables. The
   authenticated `/api/live` SSE stream broadcasts only public domain names;
   social feed Query keys and dashboard Query keys invalidate on these signals.
-  A disconnected-stream 10-second foreground fallback, reconnection refresh,
-  and five-minute stream reauthentication are in place. This covers only these
-  selected reads, not the complete freshness requirement.
+  A `game` signal now covers mutations on the game-facing tables listed in
+  migration `0059_game_change_notices.sql`; clients invalidate active route
+  loaders and queries for all three domains. A foreground 10-second fallback,
+  reconnection refresh, return-to-tab refresh, and five-minute stream
+  reauthentication are in place. This is bounded freshness, not an assertion
+  that every displayed datum updates instantly.
 - Added `0056_notification_delivery` (new migration only): notification
   preferences, per-browser Web Push subscriptions, and a durable post/comment
   outbox. The existing VPS scheduler drains it every ten seconds when Web Push
@@ -52,29 +54,45 @@ review of routes, auth, and the deployed database upgrade path.
   The existing local DB and the production Firebase project are not used.
 - Login cannot submit a password as a GET during the pre-hydration interval.
 - Added lint to CI after fixing the baseline lint errors (warnings remain).
+- Audited server-boundary modules and the production client output. The current
+  browser assets include PostgreSQL client code and the server environment
+  schema, including private-variable names. The inspected output showed schema
+  and code, not configured secret values. The shared database barrel's dynamic
+  imports and universal `src/env.ts` are implicated; browser-safe and server
+  configuration need separate entry points, and database/Firebase Admin
+  dependencies must remain behind Start server-function or server-only
+  boundaries.
 
 ## Important unresolved items
 
-- **Vite dev-server dashboard SSR remains broken.** A signed-in direct document
-  request to `/dashboard/social` received HTTP 500 in the isolated dev setup:
-  `getDashboardData` failed inside TanStack Start `createSsrRpc` / `getServerFnById`
-  before its handler. The same path now passes a signed-in direct-document
-  Playwright assertion against a local `NODE_ENV=production` build. Investigate
-  the dev-server resolver independently; do not treat a passing build as proof
-  that Vite dev SSR works.
+- The prior signed-in Vite dev-server HTTP 500 report was not reproduced in a
+  direct-request check: `/dashboard/social` returned HTTP 200 and rendered the
+  workspace. The `UserMenu` hydration mismatch was fixed in `ba56c0f`; a signed-in
+  direct request afterward emitted no hydration console error. Recheck on the
+  developer's current Vite process if the warning returns.
 - Query migration is **not** complete on other pages; social and mention
   pagination and many other screens still hold local read copies.
 - Web Push has not yet been tested with a real browser push service or enabled
-  in a deployment. Per-user in-app invalidation, full domain event coverage,
-  fallback on every page and broader lifecycle tests are still missing. The
-  product requirement that every changing screen becomes current within
-  5–10 seconds without a refresh is **not met**.
+  in a deployment. The live update mechanism now invalidates active route data
+  and queries after game/social/dashboard signals and uses a foreground
+  10-second fallback. Its table triggers are a reviewed selection, not proven
+  exhaustive coverage of every route dependency; in particular, the product
+  requirement that every changing screen becomes current within 5–10 seconds
+  without a refresh is not yet guaranteed.
 - No production/dev schema cleanup, migration-history rewrite, deployed
   migration, seed, or deployment has been performed. The new migrations were
   applied only to the disposable isolated E2E database. The existing production
   Firebase `.env` must never be used for browser mutation tests.
-- Server-domain lifecycle logic, auth/SSR synchronization, dead-code proofs,
-  broader game lifecycle tests, and full architecture documentation remain.
+- Server-only boundary remediation remains outstanding. TanStack Start's
+  production import-protection check rejects `.server.*` dependencies imported
+  by client-reachable server-function entry modules. A trial rename confirmed
+  that those entry modules need their server implementation dependencies moved
+  behind the transformed handler boundary before selective `.server.ts`
+  renames. PostgreSQL code in the client bundle is a release-blocking boundary
+  defect; remediation needs a focused change with a clean production build and
+  client-asset inspection.
+- Auth/SSR synchronization, dead-code proofs, broader game lifecycle tests, and
+  full architecture documentation remain.
 
 ## E2E safety
 
@@ -93,7 +111,7 @@ existing local database. The E2E command requires explicitly exported
 only after confirming the target is disposable. The guard cannot detect a
 loopback tunnel to a remote database; verify your own port mapping as well.
 
-For non-mutating checks, run `pnpm typecheck`, `pnpm test`, `pnpm lint .`, and
-`pnpm build` with dummy client Firebase values. Do not run `pnpm seed:fresh`,
-`pnpm db:migrate`, or authenticated browser tests against the repository's
-default `.env`.
+Non-mutating checks include `pnpm typecheck`, `pnpm test`, `pnpm lint .`, and
+`pnpm build` with dummy client Firebase values. Seeding, migrations, and
+authenticated browser tests require an explicitly isolated disposable stack;
+the repository's default `.env` is not an E2E target.
