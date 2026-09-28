@@ -10,8 +10,13 @@ import { canAccessModerationQueue } from "@/lib/server/moderation/moderation";
 
 export function UserMenu() {
   const { user, loading } = useAuth();
+  const [hydrated, setHydrated] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accessLevel, setAccessLevel] = useState<"admin" | "moderator" | null>(null);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -35,7 +40,7 @@ export function UserMenu() {
     }
   };
 
-  if (loading) {
+  if (!hydrated || loading) {
     return <div className="h-9 w-24 bg-muted animate-pulse rounded-md" />;
   }
 
