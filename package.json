@@ -14,7 +14,7 @@
     "deploy:check": "bash scripts/vps.sh check",
     "deploy:backup": "bash scripts/vps.sh backup",
     "update": "bash scripts/vps.sh update",
-    "seed:fresh": "node --env-file=.env --import tsx scripts/seed-fresh.ts",
+    "seed:fresh": "node --import tsx scripts/seed-fresh.ts",
     "test": "vitest run --exclude 'tests/e2e/**'",
     "test:e2e": "playwright test",
     "e2e:prepare": "node scripts/e2e/check-env.mjs && pnpm db:migrate && pnpm seed:fresh && node scripts/e2e/seed-auth.mjs && NODE_ENV=production pnpm build",
