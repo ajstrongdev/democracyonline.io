@@ -3,7 +3,7 @@ import { ArrowRight, Clock3, LockKeyhole, Radio, Trophy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { WikiHeader } from "@/components/wiki/wiki-header";
 import { WikiEmpty, WikiPage } from "@/components/wiki/wiki-layout";
-import { getWikiElections } from "@/lib/server/history";
+import { getWikiElections } from "@/lib/server/history/history";
 import { formatElectionTitle, formatWikiDate } from "@/lib/utils/history";
 
 export const Route = createFileRoute("/dashboard/elections/")({

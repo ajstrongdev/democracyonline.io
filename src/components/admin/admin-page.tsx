@@ -1,0 +1,643 @@
+import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Clock3, Database, FileText, Gamepad2, Gauge, ScrollText, ShieldCheck, Trash2, UsersRound } from "lucide-react";
+import { toast } from "sonner";
+import {
+  checkIsAdmin,
+  forceNextElectionStage,
+  listAdminAuditLog,
+  listDatabaseUsers,
+  listFirebaseUsers,
+  purgeAllOtherAccounts,
+  setElectionStageDeadline,
+} from "@/lib/server/admin/admin";
+import { getGameSpeedFn, setGameSpeedFn } from "@/lib/server/scheduler/game-speed";
+import { describeGameSpeed } from "@/lib/game-speed";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import UserList from "@/components/admin/user-list";
+import DBUserList from "@/components/admin/db-user-list";
+import GenericSkeleton from "@/components/generic-skeleton";
+import { useAuth } from "@/lib/auth-context";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+interface FirebaseUser {
+  uid: string;
+  email?: string;
+  displayName?: string;
+  photoURL?: string;
+  disabled: boolean;
+  emailVerified: boolean;
+  creationTime?: string;
+  lastSignInTime?: string;
+}
+
+interface DatabaseUser {
+  id: number;
+  email: string;
+  username: string;
+  role: string | null;
+  moderationRole: string;
+  isActive: boolean | null;
+  partyId: number | null;
+  createdAt: Date | null;
+}
+
+export function AdminContent() {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [firebaseUsers, setFirebaseUsers] = useState<Array<FirebaseUser>>([]);
+  const [dbUsers, setDbUsers] = useState<Array<DatabaseUser>>([]);
+  const [auditEntries, setAuditEntries] = useState<Array<{ id: number; action: string; reason: string; createdAt: Date; target: string | null; actorId: number; targetUserId: number | null }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [advanceLoading, setAdvanceLoading] = useState<{
+    game: boolean;
+    bills: boolean;
+    elections: boolean;
+  }>({ game: false, bills: false, elections: false });
+  const [gameAdvanceCount, setGameAdvanceCount] = useState(1);
+  const [billAdvanceCount, setBillAdvanceCount] = useState(1);
+  const [gameSpeed, setGameSpeed] = useState<{
+    mode: string;
+    multiplier: number;
+    pace: ReturnType<typeof describeGameSpeed>;
+    modes: Array<{
+      mode: string;
+      multiplier: number;
+      label: string;
+      blurb: string;
+    }>;
+  } | null>(null);
+  const [pendingSpeed, setPendingSpeed] = useState<string | null>(null);
+  const [speedSaving, setSpeedSaving] = useState(false);
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [purgeConfirmation, setPurgeConfirmation] = useState("");
+  const [purgeLoading, setPurgeLoading] = useState(false);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      navigate({ to: "/" });
+      return;
+    }
+
+    const loadData = async () => {
+      try {
+        console.log("[Admin] User email:", user?.email);
+        console.log("[Admin] Calling checkIsAdmin...");
+        const adminCheck = await checkIsAdmin();
+        console.log("[Admin] checkIsAdmin result:", adminCheck);
+        setIsAdmin(adminCheck);
+
+        if (!adminCheck) {
+          console.log("[Admin] Not admin, redirecting...");
+          navigate({ to: "/" });
+          return;
+        }
+
+        const [fbUsers, databaseUsers, speed, audit] = await Promise.all([
+          listFirebaseUsers(),
+          listDatabaseUsers(),
+          getGameSpeedFn(),
+          listAdminAuditLog(),
+        ]);
+
+        setFirebaseUsers(fbUsers.users);
+        setDbUsers(databaseUsers.users);
+        setGameSpeed(speed);
+        setAuditEntries(audit.entries);
+      } catch {
+        navigate({ to: "/" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [user, authLoading, navigate]);
+
+  if (authLoading || loading || !isAdmin) {
+    return <GenericSkeleton />;
+  }
+
+  const refreshFirebaseUsers = async () => {
+    const result = await listFirebaseUsers();
+    setFirebaseUsers(result.users);
+  };
+
+  const refreshDbUsers = async () => {
+    const result = await listDatabaseUsers();
+    setDbUsers(result.users);
+  };
+
+  const getManualAdvanceHeaders = async () => {
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const idToken = await user.getIdToken();
+    return {
+      authorization: `Bearer ${idToken}`,
+      "x-admin-cron-trigger": "1",
+    };
+  };
+
+  const runGameAdvance = async () => {
+    setAdvanceLoading({ ...advanceLoading, game: true });
+    try {
+      const headers = await getManualAdvanceHeaders();
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < gameAdvanceCount; i++) {
+        const response = await fetch("/api/game-advance", { headers });
+        const data = await response.json();
+        if (data.success) {
+          successCount++;
+        } else {
+          failCount++;
+          toast.error(
+            `Game advance ${i + 1} failed: ${data.error || "Unknown error"}`,
+          );
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(
+          `Game advance completed ${successCount} time(s) successfully`,
+        );
+      }
+    } catch (error) {
+      toast.error(`Error running game advance: ${error}`);
+    } finally {
+      setAdvanceLoading({ ...advanceLoading, game: false });
+    }
+  };
+
+  const runBillAdvance = async () => {
+    setAdvanceLoading({ ...advanceLoading, bills: true });
+    try {
+      const headers = await getManualAdvanceHeaders();
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < billAdvanceCount; i++) {
+        const response = await fetch("/api/bill-advance", { headers });
+        const data = await response.json();
+        if (data.success) {
+          successCount++;
+        } else {
+          failCount++;
+          toast.error(
+            `Bill advance ${i + 1} failed: ${data.error || "Unknown error"}`,
+          );
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(
+          `Bill advance completed ${successCount} time(s) successfully`,
+        );
+      }
+    } catch (error) {
+      toast.error(`Error running bill advance: ${error}`);
+    } finally {
+      setAdvanceLoading({ ...advanceLoading, bills: false });
+    }
+  };
+
+  const processElectionDeadlines = async () => {
+    setAdvanceLoading((current) => ({ ...current, elections: true }));
+    try {
+      const headers = await getManualAdvanceHeaders();
+      const response = await fetch("/api/election-advance", {
+        method: "POST",
+        headers,
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Election heartbeat failed");
+      }
+      toast.success("Due election deadlines processed");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Election heartbeat failed",
+      );
+    } finally {
+      setAdvanceLoading((current) => ({ ...current, elections: false }));
+    }
+  };
+
+  const applyGameSpeed = async () => {
+    if (!pendingSpeed) return;
+    setSpeedSaving(true);
+    try {
+      const result = await setGameSpeedFn({ data: { mode: pendingSpeed } });
+      setGameSpeed((current) =>
+        current
+          ? {
+              ...current,
+              mode: result.mode,
+              multiplier: result.multiplier,
+              pace: result.pace,
+            }
+          : current,
+      );
+      setPendingSpeed(null);
+      const r = result.rescaled;
+      toast.success(
+        `Game speed set to ${result.mode} (${result.multiplier}x). ` +
+          `Rescaled ${r.bills} bill, ${r.candidacy + r.voting + r.electionNight + r.concluded} election, ${r.reveals} reveal deadlines.`,
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not set game speed",
+      );
+    } finally {
+      setSpeedSaving(false);
+    }
+  };
+
+  const forceNextStage = async (election: "President" | "Senate") => {
+    setAdvanceLoading((current) => ({ ...current, elections: true }));
+    try {
+      await forceNextElectionStage({ data: { election } });
+      toast.success(`${election} election advanced to its next stage`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Advance failed");
+    } finally {
+      setAdvanceLoading((current) => ({ ...current, elections: false }));
+    }
+  };
+
+  const scheduleNextStage = async (election: "President" | "Senate") => {
+    setAdvanceLoading((current) => ({ ...current, elections: true }));
+    try {
+      await setElectionStageDeadline({ data: { election, seconds: 10 } });
+      toast.success(`${election} stage will end in 10 seconds`);
+      window.setTimeout(() => void processElectionDeadlines(), 10_500);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Override failed");
+    } finally {
+      setAdvanceLoading((current) => ({ ...current, elections: false }));
+    }
+  };
+
+  const purgeOtherAccounts = async () => {
+    setPurgeLoading(true);
+    try {
+      const result = await purgeAllOtherAccounts({
+        data: { confirm: purgeConfirmation },
+      });
+      toast.success(
+        `Deleted ${result.databaseDeleted} database users and ${result.firebaseDeleted} Firebase accounts.`,
+      );
+      setPurgeOpen(false);
+      setPurgeConfirmation("");
+      const [fbUsers, databaseUsers] = await Promise.all([
+        listFirebaseUsers(),
+        listDatabaseUsers(),
+      ]);
+      setFirebaseUsers(fbUsers.users);
+      setDbUsers(databaseUsers.users);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not delete accounts",
+      );
+    } finally {
+      setPurgeLoading(false);
+    }
+  };
+
+  return (
+    <div className="container mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-8 sm:py-10">
+      <header className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-6 shadow-sm sm:p-8">
+        <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
+          <div><p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Control room</p>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Admin dashboard</h1>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">Manage player access, moderation, and live game operations from one place.</p>
+          </div>
+          <Button variant="outline" className="w-fit gap-2" onClick={() => navigate({ to: "/moderation" })}><ShieldCheck className="size-4" /> Moderation queue</Button>
+        </div>
+        <div className="mt-7 grid grid-cols-3 gap-2 border-t pt-5 sm:max-w-lg sm:gap-6">
+          <div><p className="text-2xl font-bold tabular-nums">{firebaseUsers.length}</p><p className="text-xs text-muted-foreground">Auth accounts</p></div>
+          <div><p className="text-2xl font-bold tabular-nums">{dbUsers.length}</p><p className="text-xs text-muted-foreground">Player profiles</p></div>
+          <div><p className="text-2xl font-bold tabular-nums">{auditEntries.length}</p><p className="text-xs text-muted-foreground">Audit events</p></div>
+        </div>
+      </header>
+
+      <section className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+        <div className="mb-6 flex items-start gap-3"><div className="rounded-xl bg-primary/10 p-2.5 text-primary"><Gauge className="size-5" /></div><div><h2 className="text-xl font-semibold tracking-tight">Game operations</h2><p className="text-sm text-muted-foreground">Run scheduler tasks and adjust the pace of the simulation.</p></div></div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-3">
+            <Label>Election heartbeat</Label>
+            <p className="min-h-10 text-sm text-muted-foreground">
+              Process timestamp deadlines now. This does not skip time or force
+              a phase change.
+            </p>
+            <Button
+              variant="outline"
+              disabled={advanceLoading.elections}
+              className="w-full flex items-center gap-2"
+              onClick={processElectionDeadlines}
+            >
+              <Clock3 className="w-4 h-4" />
+              {advanceLoading.elections
+                ? "Processing..."
+                : "Process due stages"}
+            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                disabled={advanceLoading.elections}
+                onClick={() => scheduleNextStage("President")}
+              >
+                President in 10s
+              </Button>
+              <Button
+                variant="outline"
+                disabled={advanceLoading.elections}
+                onClick={() => scheduleNextStage("Senate")}
+              >
+                Senate in 10s
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={advanceLoading.elections}
+                onClick={() => forceNextStage("President")}
+              >
+                Next President stage
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={advanceLoading.elections}
+                onClick={() => forceNextStage("Senate")}
+              >
+                Next Senate stage
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label htmlFor="game-count">Game Advance</Label>
+            <Input
+              id="game-count"
+              type="number"
+              min={1}
+              max={100}
+              value={gameAdvanceCount}
+              onChange={(e) =>
+                setGameAdvanceCount(Math.max(1, parseInt(e.target.value) || 1))
+              }
+              className="w-full"
+            />
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={advanceLoading.game}
+                  className="w-full flex items-center gap-2"
+                >
+                  <Gamepad2 className="w-4 h-4" />
+                  {advanceLoading.game
+                    ? "Running..."
+                    : `Run ${gameAdvanceCount}x`}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Run Game Advance {gameAdvanceCount} time(s)?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This runs daily user activity and party maintenance{" "}
+                    {gameAdvanceCount} time(s). Election stages only change when
+                    their timestamp deadline is due. Continue?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={runGameAdvance}>
+                    Confirm
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+
+          <div className="space-y-3">
+            <Label htmlFor="bill-count">Bill Advance</Label>
+            <Input
+              id="bill-count"
+              type="number"
+              min={1}
+              max={100}
+              value={billAdvanceCount}
+              onChange={(e) =>
+                setBillAdvanceCount(Math.max(1, parseInt(e.target.value) || 1))
+              }
+              className="w-full"
+            />
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={advanceLoading.bills}
+                  className="w-full flex items-center gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  {advanceLoading.bills
+                    ? "Running..."
+                    : `Run ${billAdvanceCount}x`}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Run Bill Advance {billAdvanceCount} time(s)?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will advance bills through voting stages{" "}
+                    {billAdvanceCount} time(s). Are you sure you want to
+                    continue?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={runBillAdvance}>
+                    Confirm
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+
+        <div className="mt-7 border-t pt-6">
+          <div className="mb-1 flex items-center gap-2">
+            <Gauge className="h-4 w-4" />
+            <h3 className="text-lg font-semibold">Game speed</h3>
+          </div>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {gameSpeed ? (
+              <>
+                Running at <strong>{gameSpeed.mode}</strong> (
+                {gameSpeed.multiplier}x). Pres cycle {gameSpeed.pace.presCycle},
+                senate {gameSpeed.pace.senateCycle}, bill stages{" "}
+                {gameSpeed.pace.billStage}, game tick {gameSpeed.pace.gameTick}.
+                Switching rescales every live deadline proportionally.
+              </>
+            ) : (
+              "Loading current pace…"
+            )}
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {(gameSpeed?.modes ?? []).map((preset) => {
+              const pace = describeGameSpeed(preset.multiplier);
+              const active = gameSpeed?.mode === preset.mode;
+              return (
+                <Button
+                  key={preset.mode}
+                  variant={active ? "default" : "outline"}
+                  disabled={speedSaving || active}
+                  className="h-auto flex-col items-start gap-1 px-3 py-2.5 text-left"
+                  onClick={() => setPendingSpeed(preset.mode)}
+                >
+                  <span className="font-semibold">
+                    {preset.label} · {preset.multiplier}x
+                  </span>
+                  <span className="text-xs font-normal opacity-80">
+                    Pres {pace.presCycle} · Senate {pace.senateCycle} · Bills{" "}
+                    {pace.billStage}
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <AlertDialog
+        open={pendingSpeed !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingSpeed(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Switch game speed to {pendingSpeed}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Every live bill, election, and reveal deadline is rescaled
+              proportionally, so in-flight items keep their progress. Overdue
+              items advance on the next scheduler tick. The new pace sticks
+              until you change it again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={speedSaving} onClick={applyGameSpeed}>
+              {speedSaving ? "Switching…" : "Confirm"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <section className="rounded-2xl border border-destructive/30 bg-destructive/[0.035] p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-destructive">Delete all other accounts</h2>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+              Permanently removes database and Firebase accounts, except
+              ajstrongdev@pm.me and jenewland1999@gmail.com. Related records
+              linked by account IDs may also be removed. This cannot be undone.
+            </p>
+          </div>
+          <Button variant="destructive" onClick={() => setPurgeOpen(true)}>
+            <Trash2 className="mr-2 size-4" /> Delete other accounts
+          </Button>
+        </div>
+      </section>
+
+      <AlertDialog
+        open={purgeOpen}
+        onOpenChange={(open) => {
+          if (!purgeLoading) setPurgeOpen(open);
+          if (!open) setPurgeConfirmation("");
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete every other account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes all Firebase accounts and database user
+              profiles except ajstrongdev@pm.me and jenewland1999@gmail.com.
+              Votes and other records tied to removed accounts may be deleted.
+              There is no undo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="purge-confirmation">
+              Type DELETE ALL OTHER ACCOUNTS to continue
+            </Label>
+            <Input
+              id="purge-confirmation"
+              value={purgeConfirmation}
+              onChange={(event) => setPurgeConfirmation(event.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={purgeLoading}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={purgeLoading || purgeConfirmation !== "DELETE ALL OTHER ACCOUNTS"}
+              onClick={purgeOtherAccounts}
+            >
+              {purgeLoading ? "Deleting accounts..." : "Permanently delete"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Tabs defaultValue="dbusers" className="w-full">
+        <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl bg-muted/70 p-1 sm:max-w-2xl">
+          <TabsTrigger className="gap-2 rounded-lg py-2.5" value="users"><UsersRound className="hidden size-4 sm:block" />
+            Users ({firebaseUsers.length})
+          </TabsTrigger>
+          <TabsTrigger className="gap-2 rounded-lg py-2.5" value="dbusers"><Database className="hidden size-4 sm:block" /> Players ({dbUsers.length})</TabsTrigger>
+          <TabsTrigger className="gap-2 rounded-lg py-2.5" value="audit"><ScrollText className="hidden size-4 sm:block" /> Audit log ({auditEntries.length})</TabsTrigger>
+        </TabsList>
+        <TabsContent value="users" className="mt-6">
+          <UserList
+            initialUsers={firebaseUsers}
+            onRefresh={refreshFirebaseUsers}
+          />
+        </TabsContent>
+        <TabsContent value="dbusers" className="mt-6">
+          <DBUserList initialUsers={dbUsers} onRefresh={refreshDbUsers} />
+        </TabsContent>
+        <TabsContent value="audit" className="mt-6">
+          <div className="rounded-lg border bg-card"><div className="border-b p-4"><h2 className="font-semibold">Moderation audit log</h2><p className="text-sm text-muted-foreground">Recent account actions and their recorded reasons.</p></div>
+            <div className="divide-y">{auditEntries.map((entry) => <article key={entry.id} className="grid gap-1 p-4 sm:grid-cols-[1fr_auto]"><div><p className="font-medium">{entry.action.replaceAll("_", " ")} · {entry.target ?? `User #${entry.targetUserId ?? "deleted"}`}</p><p className="text-sm text-muted-foreground">{entry.reason}</p><p className="text-xs text-muted-foreground">Actor #{entry.actorId}</p></div><time className="text-xs text-muted-foreground">{new Date(entry.createdAt).toLocaleString()}</time></article>)}{auditEntries.length === 0 && <p className="p-6 text-sm text-muted-foreground">No audit entries yet.</p>}</div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

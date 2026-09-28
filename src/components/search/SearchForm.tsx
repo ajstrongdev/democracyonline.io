@@ -4,8 +4,8 @@ import { Search } from "lucide-react";
 import { SearchResults } from "./SearchResults";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { searchUsers } from "@/lib/server/users";
-import { getPartiesByIds } from "@/lib/server/party";
+import { searchUsers } from "@/lib/server/users/users";
+import { getPartiesByIds } from "@/lib/server/organizations/party";
 import { Spinner } from "@/components/ui/spinner";
 
 interface SearchFormProps {

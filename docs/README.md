@@ -1,5 +1,9 @@
 # Oscana - Technical Documentation
 
+> This document contains legacy v2.x details. See [refactor status and E2E
+> safety](./REFACTOR_STATUS.md) for current boundaries and outstanding work;
+> verify old file references against the source tree before using them.
+
 ## Project Overview
 
 Oscana is a full-stack web application that simulates a democratic government system. Users can form political parties, propose and vote on legislation, participate in elections, and engage in the democratic process through a modern, interactive platform.

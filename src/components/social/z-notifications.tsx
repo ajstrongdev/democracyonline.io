@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { ArrowRight, BellOff, X } from "lucide-react";
-import type { getZNotificationPage } from "@/lib/server/social-notifications";
+import type { getZNotificationPage } from "@/lib/server/notifications/social-notifications";
 import {
   dismissZNotifications,
   getZNotificationPage as fetchNotifications,
-} from "@/lib/server/social-notifications";
+} from "@/lib/server/notifications/social-notifications";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { SocialAccountAvatar } from "@/components/social/social-account-avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { socialNotificationsQuery } from "@/lib/notifications/queries";
 
 type NotificationPage = Awaited<ReturnType<typeof getZNotificationPage>>;
 
@@ -22,11 +24,30 @@ export function ZNotifications({
   initialPage: NotificationPage;
 }) {
   const [page, setPage] = useState(initialPage);
+  const queryClient = useQueryClient();
+  const notifications = useQuery({
+    ...socialNotificationsQuery(),
+    initialData: initialPage,
+    // Dismissals are private; until per-user push exists, check for changes.
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
 
-  useEffect(() => setPage(initialPage), [initialPage]);
+  useEffect(() => {
+    if (!notifications.data) return;
+    const latest = notifications.data;
+    setPage((current) => {
+      if (current.entries.length <= 5) return latest;
+      const ids = new Set(latest.entries.map((entry) => `${entry.accountKey}:${entry.sourceType}:${entry.sourceId}`));
+      const remaining = current.entries.filter((entry) => !ids.has(`${entry.accountKey}:${entry.sourceType}:${entry.sourceId}`));
+      // A background update should not collapse pages the reader has opened.
+      const entries = [...latest.entries, ...remaining].slice(0, latest.notifications);
+      return { ...latest, entries, hasMore: entries.length < latest.notifications };
+    });
+  }, [notifications.data]);
 
   const dismiss = async (entry?: NotificationPage["entries"][number]) => {
     if (busy) return;
@@ -46,6 +67,7 @@ export function ZNotifications({
       const updated = await fetchNotifications({
         data: { limit: 5, offset: 0 },
       });
+      queryClient.setQueryData(socialNotificationsQuery().queryKey, updated);
       setPage(updated);
       setConfirmAll(false);
     } catch {
@@ -170,6 +192,11 @@ export function ZNotifications({
       {error && (
         <p role="alert" className="text-xs text-destructive">
           {error}
+        </p>
+      )}
+      {notifications.isError && (
+        <p role="alert" className="text-xs text-destructive">
+          Could not refresh notifications. Showing the last available list.
         </p>
       )}
       {page.hasMore && (

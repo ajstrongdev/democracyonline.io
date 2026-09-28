@@ -21,8 +21,8 @@ import {
   deleteColorScheme,
   getColorSchemeCatalog,
   saveColorScheme,
-} from "@/lib/server/color-schemes";
-import { themes } from "@/lib/server/theme";
+} from "@/lib/server/settings/color-schemes";
+import { themes } from "@/lib/server/settings/theme";
 
 type Catalog = Awaited<ReturnType<typeof getColorSchemeCatalog>>;
 type SavedScheme =

@@ -6,18 +6,18 @@ import {
   billStatusLabel,
   getNextBillStage,
   invalidateAfterBillExpiry,
-} from "@/components/bill-stage-countdown";
+} from "@/components/bills/bill-stage-countdown";
 import { WikiHeader } from "@/components/wiki/wiki-header";
 import { WikiEmpty, WikiPage, WikiSearch } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getWikiBills } from "@/lib/server/history";
-import { getCurrentUserInfo } from "@/lib/server/users";
-import { houseBillsPageData } from "@/lib/server/house-bills";
-import { senateBillsPageData } from "@/lib/server/senate-bills";
-import { presidentialBillsPageData } from "@/lib/server/oval-office-bills";
-import { getMyBillVoteIds } from "@/lib/server/bill-vote-status";
+import { getWikiBills } from "@/lib/server/history/history";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
+import { houseBillsPageData } from "@/lib/server/bills/house-bills";
+import { senateBillsPageData } from "@/lib/server/bills/senate-bills";
+import { presidentialBillsPageData } from "@/lib/server/bills/oval-office-bills";
+import { getMyBillVoteIds } from "@/lib/server/bills/bill-vote-status";
 import {
   BillDeskDialog,
   NewBillDialog,

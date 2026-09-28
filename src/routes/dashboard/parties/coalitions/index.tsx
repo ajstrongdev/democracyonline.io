@@ -29,12 +29,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import GenericSkeleton from "@/components/generic-skeleton";
-import CoalitionLogo from "@/components/coalition-logo";
+import CoalitionLogo from "@/components/organizations/coalition-logo";
 import {
   getCoalitionManagementState,
   getCoalitions,
-} from "@/lib/server/coalitions";
-import { getCurrentUserInfo } from "@/lib/server/users";
+} from "@/lib/server/organizations/coalitions";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
 

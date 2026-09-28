@@ -14,7 +14,7 @@ import {
   getInvitationAncestry,
   getModerationQueue,
   moderatePlayer,
-} from "@/lib/server/moderation";
+} from "@/lib/server/moderation/moderation";
 
 type QueueData = Awaited<ReturnType<typeof getModerationQueue>>;
 type Ancestry = Awaited<ReturnType<typeof getInvitationAncestry>>["ancestry"];

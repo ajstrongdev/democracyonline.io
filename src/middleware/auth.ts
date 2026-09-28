@@ -6,7 +6,7 @@ import { auth } from "@/lib/firebase";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { getAdminApp } from "@/lib/firebase-admin";
-import { userEmailEquals } from "@/lib/server/user-email";
+import { userEmailEquals } from "@/lib/server/auth/user-email";
 import { env } from "@/env";
 
 const activityCookieName = "user_activity_updated";

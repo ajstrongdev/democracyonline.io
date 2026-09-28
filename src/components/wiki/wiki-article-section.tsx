@@ -3,14 +3,14 @@ import { BookOpen, Eye, History, Pencil, Save, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { MarkdownContent } from "./markdown-content";
-import type { WikiEntityType } from "@/lib/server/wiki-articles";
+import type { WikiEntityType } from "@/lib/server/wiki/wiki-articles";
 import { ReferenceInsert } from "@/components/reference-insert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
-import { saveWikiArticle } from "@/lib/server/wiki-articles";
+import { saveWikiArticle } from "@/lib/server/wiki/wiki-articles";
 import { formatWikiDate } from "@/lib/utils/history";
 
 type WikiArticleData = {

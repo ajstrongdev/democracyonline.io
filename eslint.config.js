@@ -11,6 +11,7 @@ export default [
       "eslint.config.js",
       "prettier.config.js",
       "src/components/ui/**",
+      "public/push-sw.js",
     ],
   },
   ...tanstackConfig,

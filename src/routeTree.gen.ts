@@ -43,6 +43,8 @@ import { Route as BillsOvalOfficeRouteImport } from './routes/bills/oval-office'
 import { Route as BillsHouseOfRepresentativesRouteImport } from './routes/bills/house-of-representatives'
 import { Route as BillsCreateRouteImport } from './routes/bills/create'
 import { Route as BillsIdRouteImport } from './routes/bills/$id'
+import { Route as ApiNotificationDeliveryRouteImport } from './routes/api/notification-delivery'
+import { Route as ApiLiveRouteImport } from './routes/api/live'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
 import { Route as ApiElectionAdvanceRouteImport } from './routes/api/election-advance'
@@ -246,6 +248,16 @@ const BillsIdRoute = BillsIdRouteImport.update({
   path: '/bills/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiNotificationDeliveryRoute = ApiNotificationDeliveryRouteImport.update({
+  id: '/api/notification-delivery',
+  path: '/api/notification-delivery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLiveRoute = ApiLiveRouteImport.update({
+  id: '/api/live',
+  path: '/api/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
@@ -429,6 +441,8 @@ export interface FileRoutesByFullPath {
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/live': typeof ApiLiveRoute
+  '/api/notification-delivery': typeof ApiNotificationDeliveryRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
   '/bills/house-of-representatives': typeof BillsHouseOfRepresentativesRoute
@@ -495,6 +509,8 @@ export interface FileRoutesByTo {
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/live': typeof ApiLiveRoute
+  '/api/notification-delivery': typeof ApiNotificationDeliveryRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
   '/bills/house-of-representatives': typeof BillsHouseOfRepresentativesRoute
@@ -563,6 +579,8 @@ export interface FileRoutesById {
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/live': typeof ApiLiveRoute
+  '/api/notification-delivery': typeof ApiNotificationDeliveryRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
   '/bills/house-of-representatives': typeof BillsHouseOfRepresentativesRoute
@@ -632,6 +650,8 @@ export interface FileRouteTypes {
     | '/api/election-advance'
     | '/api/game-advance'
     | '/api/health'
+    | '/api/live'
+    | '/api/notification-delivery'
     | '/bills/$id'
     | '/bills/create'
     | '/bills/house-of-representatives'
@@ -698,6 +718,8 @@ export interface FileRouteTypes {
     | '/api/election-advance'
     | '/api/game-advance'
     | '/api/health'
+    | '/api/live'
+    | '/api/notification-delivery'
     | '/bills/$id'
     | '/bills/create'
     | '/bills/house-of-representatives'
@@ -765,6 +787,8 @@ export interface FileRouteTypes {
     | '/api/election-advance'
     | '/api/game-advance'
     | '/api/health'
+    | '/api/live'
+    | '/api/notification-delivery'
     | '/bills/$id'
     | '/bills/create'
     | '/bills/house-of-representatives'
@@ -833,6 +857,8 @@ export interface RootRouteChildren {
   ApiElectionAdvanceRoute: typeof ApiElectionAdvanceRoute
   ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiLiveRoute: typeof ApiLiveRoute
+  ApiNotificationDeliveryRoute: typeof ApiNotificationDeliveryRoute
   BillsIdRoute: typeof BillsIdRoute
   BillsCreateRoute: typeof BillsCreateRoute
   BillsHouseOfRepresentativesRoute: typeof BillsHouseOfRepresentativesRoute
@@ -1095,6 +1121,20 @@ declare module '@tanstack/react-router' {
       path: '/bills/$id'
       fullPath: '/bills/$id'
       preLoaderRoute: typeof BillsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/notification-delivery': {
+      id: '/api/notification-delivery'
+      path: '/api/notification-delivery'
+      fullPath: '/api/notification-delivery'
+      preLoaderRoute: typeof ApiNotificationDeliveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/live': {
+      id: '/api/live'
+      path: '/api/live'
+      fullPath: '/api/live'
+      preLoaderRoute: typeof ApiLiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health': {
@@ -1401,6 +1441,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiElectionAdvanceRoute: ApiElectionAdvanceRoute,
   ApiGameAdvanceRoute: ApiGameAdvanceRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiLiveRoute: ApiLiveRoute,
+  ApiNotificationDeliveryRoute: ApiNotificationDeliveryRoute,
   BillsIdRoute: BillsIdRoute,
   BillsCreateRoute: BillsCreateRoute,
   BillsHouseOfRepresentativesRoute: BillsHouseOfRepresentativesRoute,

@@ -5,14 +5,17 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
-import { DashboardContent } from "./index";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { DashboardContent } from "@/components/dashboard/dashboard-home";
+import { NotificationInvite } from "@/components/notifications/notification-invite";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getDashboardData } from "@/lib/server/dashboard";
+import { getDashboardData } from "@/lib/server/dashboard/data";
+import { dashboardQuery } from "@/lib/dashboard/queries";
 
 export const Route = createFileRoute("/dashboard")({
   loader: () => getDashboardData(),
@@ -20,7 +23,14 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardWorkspace() {
-  const data = Route.useLoaderData();
+  const initialData = Route.useLoaderData();
+  const { data } = useSuspenseQuery({
+    ...dashboardQuery(),
+    initialData,
+    // Bounded fallback while live server invalidation is still being built.
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
+  });
   const navigate = useNavigate();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
@@ -41,6 +51,7 @@ function DashboardWorkspace() {
   return (
     <>
       <DashboardContent data={data} />
+      <NotificationInvite active={isHome} />
       <Dialog
         open={!isHome}
         onOpenChange={(open) => {

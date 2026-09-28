@@ -10,19 +10,20 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import { Toaster } from "sonner";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
+import packageJson from "../../package.json";
 import type { QueryClient } from "@tanstack/react-query";
 import type { User } from "firebase/auth";
-import { getThemeClasses, getThemeServerFn, themes } from "@/lib/server/theme";
+import { getThemeClasses, getThemeServerFn, themes } from "@/lib/server/settings/theme";
 import { NotFound } from "@/components/not-found";
 import { WikiNavigation } from "@/components/wiki/wiki-header";
 import { getAuthRedirect } from "@/lib/auth-guard";
 import { auth } from "@/lib/firebase";
-import { getCurrentBanStatus, getSessionUser } from "@/lib/server/session";
+import { getCurrentBanStatus, getSessionUser } from "@/lib/server/auth/session";
 import { AppThemeProvider, useAppTheme } from "@/components/app-theme-provider";
 import { colorSchemeStyle } from "@/lib/color-schemes";
-import { getSelectedColorScheme } from "@/lib/server/color-schemes";
+import { getSelectedColorScheme } from "@/lib/server/settings/color-schemes";
 import { PlayerPresenceHeartbeat } from "@/components/players/player-presence-heartbeat";
-import packageJson from "../../package.json";
+import { LiveUpdates } from "@/components/notifications/live-updates";
 
 type AuthContext = {
   user: User | null;
@@ -111,6 +112,7 @@ function RootLayout() {
   return (
     <AppThemeProvider initialTheme={theme} initialColorScheme={customScheme}>
       <PlayerPresenceHeartbeat />
+      <LiveUpdates />
       <div className="flex min-h-svh flex-col">
         <WikiNavigation />
         <div className="flex flex-1 flex-col">

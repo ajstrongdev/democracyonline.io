@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import type { CommentNode } from "@/lib/social-comment-tree";
 import { useAuth } from "@/lib/auth-context";
-import { addBillComment, saveBillWhip } from "@/lib/server/bill-comments";
+import { addBillComment, saveBillWhip } from "@/lib/server/bills/bill-comments";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";

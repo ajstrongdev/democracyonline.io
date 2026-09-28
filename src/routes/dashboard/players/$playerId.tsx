@@ -18,8 +18,8 @@ import {
   usePlayerPresenceData,
   usePresenceClock,
 } from "@/components/players/player-last-seen";
-import { getWikiPlayer } from "@/lib/server/history";
-import { getWikiArticle } from "@/lib/server/wiki-articles";
+import { getWikiPlayer } from "@/lib/server/history/history";
+import { getWikiArticle } from "@/lib/server/wiki/wiki-articles";
 import {
   formatElectionTitle,
   formatWikiDate,
@@ -29,7 +29,7 @@ import {
 } from "@/lib/utils/history";
 import { EntityReferenceText } from "@/components/entity-reference-text";
 import { SocialPlayerPosts } from "@/components/social/social-player-posts";
-import { getSocialProfile } from "@/lib/server/social";
+import { getSocialProfile } from "@/lib/server/social/social";
 
 export const Route = createFileRoute("/dashboard/players/$playerId")({
   loader: async ({ params }) => {

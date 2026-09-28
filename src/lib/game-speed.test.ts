@@ -9,7 +9,7 @@ import {
 import {
   billStatusLabel,
   getNextBillStage,
-} from "@/components/bill-stage-countdown";
+} from "@/components/bills/bill-stage-countdown";
 
 describe("game speed presets", () => {
   it("defines the seven promised modes", () => {

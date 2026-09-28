@@ -2,11 +2,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { Handshake } from "lucide-react";
-import { getCurrentUserInfo } from "@/lib/server/users";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
 import {
   createCoalition,
   getCoalitionManagementState,
-} from "@/lib/server/coalitions";
+} from "@/lib/server/organizations/coalitions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

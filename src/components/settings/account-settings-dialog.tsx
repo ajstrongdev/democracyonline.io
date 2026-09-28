@@ -7,6 +7,7 @@ import {
 } from "firebase/auth";
 import { toast } from "sonner";
 import { InvitationManager } from "@/components/settings/invitation-manager";
+import { NotificationSettings } from "@/components/notifications/notification-settings";
 import { AvatarEditor } from "@/components/players/avatar-editor";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { ReferenceInsert } from "@/components/reference-insert";
@@ -26,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { leanings } from "@/lib/constants";
 import { renderAvatar } from "@/lib/avatar";
 import { useAuth } from "@/lib/auth-context";
-import { getCurrentUserInfo, updateUserProfile } from "@/lib/server/users";
+import { getCurrentUserInfo, updateUserProfile } from "@/lib/server/users/users";
 
 type Player = NonNullable<Awaited<ReturnType<typeof getCurrentUserInfo>>>;
 
@@ -37,7 +38,7 @@ export function AccountSettingsDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialTab?: "profile" | "avatar" | "password" | "invites";
+  initialTab?: "profile" | "avatar" | "password" | "invites" | "notifications";
 }) {
   const { user: firebaseUser } = useAuth();
   const router = useRouter();
@@ -163,11 +164,12 @@ export function AccountSettingsDialog({
                 <p className="text-xs text-muted-foreground">{player.role ?? "Citizen"} · {player.pronouns || "Player"}</p>
               </div>
             </div>
-            <TabsList className="mx-5 mt-4 grid h-auto w-auto grid-cols-4 sm:mx-7">
+            <TabsList className="mx-5 mt-4 grid h-auto w-auto grid-cols-5 sm:mx-7">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="avatar">Avatar</TabsTrigger>
               <TabsTrigger value="password">Password</TabsTrigger>
               <TabsTrigger value="invites">Invites</TabsTrigger>
+              <TabsTrigger value="notifications" className="text-xs sm:text-sm">Alerts</TabsTrigger>
             </TabsList>
             <div className="min-h-0 overflow-y-auto px-5 pb-6 pt-4 sm:px-7">
               <TabsContent value="profile" className="mt-0">
@@ -227,6 +229,9 @@ export function AccountSettingsDialog({
               </TabsContent>
               <TabsContent value="invites" className="mt-0">
                 <InvitationManager />
+              </TabsContent>
+              <TabsContent value="notifications" className="mt-0">
+                <NotificationSettings />
               </TabsContent>
             </div>
           </Tabs>

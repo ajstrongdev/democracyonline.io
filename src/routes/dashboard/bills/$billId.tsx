@@ -7,7 +7,7 @@ import {
   billStatusLabel,
   getNextBillStage,
   invalidateAfterBillExpiry,
-} from "@/components/bill-stage-countdown";
+} from "@/components/bills/bill-stage-countdown";
 import { WikiArticleSection } from "@/components/wiki/wiki-article-section";
 import { PartyMark, WikiHeader } from "@/components/wiki/wiki-header";
 import {
@@ -19,16 +19,16 @@ import {
 } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getWikiBill } from "@/lib/server/history";
-import { getWikiArticle } from "@/lib/server/wiki-articles";
+import { getWikiBill } from "@/lib/server/history/history";
+import { getWikiArticle } from "@/lib/server/wiki/wiki-articles";
 import { formatWikiDate } from "@/lib/utils/history";
-import { getCommitteeData } from "@/lib/server/committee";
+import { getCommitteeData } from "@/lib/server/bills/committee";
 import { CommitteeOutcome } from "@/components/wiki/committee-outcome";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
 import { BillComments } from "@/components/bills/bill-comments";
-import { getBillComments, getBillWhips } from "@/lib/server/bill-comments";
-import { getCurrentUserInfo } from "@/lib/server/users";
-import { reviveDefeatedBill } from "@/lib/server/bills";
+import { getBillComments, getBillWhips } from "@/lib/server/bills/bill-comments";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
+import { reviveDefeatedBill } from "@/lib/server/bills/bills";
 import {
   Dialog,
   DialogContent,

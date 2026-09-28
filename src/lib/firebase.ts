@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import {
   
+  connectAuthEmulator,
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
@@ -24,6 +25,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+if (env.VITE_FIREBASE_AUTH_EMULATOR_URL) {
+  if (!env.VITE_FIREBASE_PROJECT_ID.startsWith("demo-")) {
+    throw new Error("Firebase Auth emulator requires an isolated demo- project");
+  }
+  connectAuthEmulator(auth, env.VITE_FIREBASE_AUTH_EMULATOR_URL, { disableWarnings: true });
+}
 
 export {
   auth,

@@ -17,7 +17,7 @@ export const env = createEnv({
           .filter(Boolean),
       ),
     DATABASE_URL: z.url(),
-    FIREBASE_CLIENT_EMAIL: z.email().endsWith("iam.gserviceaccount.com"),
+    FIREBASE_CLIENT_EMAIL: z.email().endsWith("iam.gserviceaccount.com").optional(),
     FIREBASE_PRIVATE_KEY: z
       .string()
       .transform((key) => key.replaceAll(/\\n/gm, "\n"))
@@ -28,8 +28,12 @@ export const env = createEnv({
       .refine((key) => key.endsWith("-----END PRIVATE KEY-----\n"), {
         message:
           "FIREBASE_PRIVATE_KEY must end with '-----END PRIVATE KEY-----'",
-      }),
+      }).optional(),
     FIREBASE_PROJECT_ID: z.string().min(1),
+    FIREBASE_AUTH_EMULATOR_HOST: z.string().optional(),
+    VAPID_PUBLIC_KEY: z.string().optional(),
+    VAPID_PRIVATE_KEY: z.string().optional(),
+    VAPID_SUBJECT: z.string().optional(),
     SITE_URL: z.url().default("http://localhost:3000"),
     CRON_SCHEDULER_TOKEN: z.string().optional().default(""),
     CRON_LOCAL_TOKEN: z.string().optional().default(""),
@@ -58,6 +62,7 @@ export const env = createEnv({
     VITE_FIREBASE_MESSAGING_SENDER_ID: z.string().min(1),
     VITE_FIREBASE_APP_ID: z.string().min(1),
     VITE_FIREBASE_MEASUREMENT_ID: z.string().optional(),
+    VITE_FIREBASE_AUTH_EMULATOR_URL: z.url().optional(),
   },
 
   /**
@@ -72,6 +77,10 @@ export const env = createEnv({
     FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
     FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY,
     FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+    FIREBASE_AUTH_EMULATOR_HOST: process.env.FIREBASE_AUTH_EMULATOR_HOST,
+    VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
+    VAPID_SUBJECT: process.env.VAPID_SUBJECT,
     SITE_URL: process.env.SITE_URL,
     CRON_SCHEDULER_TOKEN: process.env.CRON_SCHEDULER_TOKEN,
     CRON_LOCAL_TOKEN: process.env.CRON_LOCAL_TOKEN,
@@ -93,6 +102,7 @@ export const env = createEnv({
       .VITE_FIREBASE_MESSAGING_SENDER_ID,
     VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
     VITE_FIREBASE_MEASUREMENT_ID: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+    VITE_FIREBASE_AUTH_EMULATOR_URL: import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL,
   },
 
   /**

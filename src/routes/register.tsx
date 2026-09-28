@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { SignupForm } from "@/components/auth/signup-form";
-import { validateInvitation } from "@/lib/server/invitations";
+import { validateInvitation } from "@/lib/server/users/invitations";
 
 export const Route = createFileRoute("/register")({
   validateSearch: (search: Record<string, unknown>) => ({

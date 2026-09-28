@@ -18,6 +18,8 @@
 
 # testing
 /coverage
+/playwright-report/
+/test-results/
 
 # next.js
 /.next/
@@ -89,3 +91,4 @@ tmp/
 
 # Local script overrides
 src/scripts/sync-cloud-sql-prod-to-dev.sh
+.vscode/.local-vapid.json

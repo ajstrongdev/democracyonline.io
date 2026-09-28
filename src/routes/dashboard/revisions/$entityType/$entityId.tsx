@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   getWikiRevisions,
   wikiEntityTypeSchema,
-} from "@/lib/server/wiki-articles";
+} from "@/lib/server/wiki/wiki-articles";
 import { formatWikiDate } from "@/lib/utils/history";
 
 export const Route = createFileRoute("/dashboard/revisions/$entityType/$entityId")({

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { recordPlayerPresence } from "@/lib/server/player-presence";
+import { recordPlayerPresence } from "@/lib/server/users/player-presence";
 
 export function PlayerPresenceHeartbeat() {
   const { user } = useAuth();

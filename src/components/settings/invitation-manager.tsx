@@ -15,7 +15,7 @@ import {
   createInvitation,
   listMyInvitations,
   revokeInvitation,
-} from "@/lib/server/invitations";
+} from "@/lib/server/users/invitations";
 
 type Invitation = Awaited<ReturnType<typeof listMyInvitations>>[number];
 

@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { signOutAndRedirect } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
 import { AccountSettingsDialog } from "@/components/settings/account-settings-dialog";
-import { canAccessModerationQueue } from "@/lib/server/moderation";
+import { canAccessModerationQueue } from "@/lib/server/moderation/moderation";
 
 export function UserMenu() {
   const { user, loading } = useAuth();

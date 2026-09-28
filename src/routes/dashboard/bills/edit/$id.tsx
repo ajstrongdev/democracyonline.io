@@ -1,8 +1,8 @@
 import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
-import { getBillForEdit, updateBill } from "@/lib/server/bills";
-import { getCurrentUserInfo } from "@/lib/server/users";
+import { getBillForEdit, updateBill } from "@/lib/server/bills/bills";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

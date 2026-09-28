@@ -18,17 +18,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageDialog } from "@/components/message-dialog";
 import { PartyCompositionBar } from "@/components/wiki/party-composition-bar";
-import { createBill } from "@/lib/server/bills";
+import { createBill } from "@/lib/server/bills/bills";
 import { dashboardComposeEvent } from "@/lib/dashboard-commands";
-import { hasVotedOnHouseBill, voteOnHouseBill } from "@/lib/server/house-bills";
+import { hasVotedOnHouseBill, voteOnHouseBill } from "@/lib/server/bills/house-bills";
 import {
   hasVotedOnPresidentialBill,
   voteOnPresidentialBill,
-} from "@/lib/server/oval-office-bills";
+} from "@/lib/server/bills/oval-office-bills";
 import {
   hasVotedOnSenateBill,
   voteOnSenateBill,
-} from "@/lib/server/senate-bills";
+} from "@/lib/server/bills/senate-bills";
 import { ReferenceInsert } from "@/components/reference-insert";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 

@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import type { ThemeId } from "@/lib/server/theme";
+import type { ThemeId } from "@/lib/server/settings/theme";
 import { colorSchemeCssVariables, colorSchemeStyle } from "@/lib/color-schemes";
-import { selectColorScheme } from "@/lib/server/color-schemes";
-import { getThemeClasses, setThemeServerFn, themes } from "@/lib/server/theme";
+import { selectColorScheme } from "@/lib/server/settings/color-schemes";
+import { getThemeClasses, setThemeServerFn, themes } from "@/lib/server/settings/theme";
 
 export type ActiveColorScheme = {
   id: number;

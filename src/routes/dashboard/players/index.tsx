@@ -4,7 +4,7 @@ import { PartyMark, WikiHeader } from "@/components/wiki/wiki-header";
 import { WikiEmpty, WikiPage, WikiSearch } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { getWikiPlayers } from "@/lib/server/history";
+import { getWikiPlayers } from "@/lib/server/history/history";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import {
   PlayerLastSeen,

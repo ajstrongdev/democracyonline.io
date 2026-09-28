@@ -26,8 +26,8 @@ import {
   changePlayerOffice,
   purgeUserFromDatabase,
   setPlayerBan,
-} from "@/lib/server/admin";
-import { setModerationRole } from "@/lib/server/moderation";
+} from "@/lib/server/admin/admin";
+import { setModerationRole } from "@/lib/server/moderation/moderation";
 
 interface DatabaseUser {
   id: number;

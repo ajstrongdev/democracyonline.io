@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
+import { useEffect, useState } from "react";
 import { signIn } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,6 +11,8 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
 
   const form = useForm({
     defaultValues: {
@@ -41,6 +44,7 @@ function LoginPage() {
           </div>
 
           <form
+            method="post"
             onSubmit={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -101,7 +105,7 @@ function LoginPage() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !hydrated}
                 >
                   {isSubmitting ? "Signing in..." : "Sign In"}
                 </Button>

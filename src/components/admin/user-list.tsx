@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { deleteFirebaseUser, toggleUserDisabled } from "@/lib/server/admin";
+import { deleteFirebaseUser, toggleUserDisabled } from "@/lib/server/admin/admin";
 
 interface FirebaseUser {
   uid: string;
