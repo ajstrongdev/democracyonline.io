@@ -15,6 +15,7 @@ import { Route as SearchRouteImport } from './routes/search'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ModerationRouteImport } from './routes/moderation'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ChangelogRouteImport } from './routes/changelog'
 import { Route as BannedRouteImport } from './routes/banned'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
@@ -105,6 +106,11 @@ const ModerationRoute = ModerationRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChangelogRoute = ChangelogRouteImport.update({
+  id: '/changelog',
+  path: '/changelog',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BannedRoute = BannedRouteImport.update({
@@ -430,6 +436,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/admin': typeof AdminRoute
   '/banned': typeof BannedRoute
+  '/changelog': typeof ChangelogRoute
   '/login': typeof LoginRoute
   '/moderation': typeof ModerationRoute
   '/register': typeof RegisterRoute
@@ -498,6 +505,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/banned': typeof BannedRoute
+  '/changelog': typeof ChangelogRoute
   '/login': typeof LoginRoute
   '/moderation': typeof ModerationRoute
   '/register': typeof RegisterRoute
@@ -568,6 +576,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/admin': typeof AdminRoute
   '/banned': typeof BannedRoute
+  '/changelog': typeof ChangelogRoute
   '/login': typeof LoginRoute
   '/moderation': typeof ModerationRoute
   '/register': typeof RegisterRoute
@@ -639,6 +648,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/admin'
     | '/banned'
+    | '/changelog'
     | '/login'
     | '/moderation'
     | '/register'
@@ -707,6 +717,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/banned'
+    | '/changelog'
     | '/login'
     | '/moderation'
     | '/register'
@@ -776,6 +787,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/admin'
     | '/banned'
+    | '/changelog'
     | '/login'
     | '/moderation'
     | '/register'
@@ -846,6 +858,7 @@ export interface RootRouteChildren {
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
   AdminRoute: typeof AdminRoute
   BannedRoute: typeof BannedRoute
+  ChangelogRoute: typeof ChangelogRoute
   LoginRoute: typeof LoginRoute
   ModerationRoute: typeof ModerationRoute
   RegisterRoute: typeof RegisterRoute
@@ -925,6 +938,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/changelog': {
+      id: '/changelog'
+      path: '/changelog'
+      fullPath: '/changelog'
+      preLoaderRoute: typeof ChangelogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/banned': {
@@ -1430,6 +1450,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
   AdminRoute: AdminRoute,
   BannedRoute: BannedRoute,
+  ChangelogRoute: ChangelogRoute,
   LoginRoute: LoginRoute,
   ModerationRoute: ModerationRoute,
   RegisterRoute: RegisterRoute,

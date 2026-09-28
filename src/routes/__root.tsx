@@ -1,5 +1,6 @@
 import {
   HeadContent,
+  Link,
   Outlet,
   Scripts,
   createRootRouteWithContext,
@@ -121,6 +122,8 @@ function RootLayout() {
         <footer className="border-t bg-muted/30 px-4 py-4 text-center text-sm text-muted-foreground">
           Running Polsimmer v{packageJson.version}{" "}
           <a href="https://github.com/ajstrongdev/polsimmer" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">(source)</a>
+          {" "}·{" "}
+          <Link to="/changelog" className="font-medium text-primary hover:underline">Changelog</Link>
           {" "}·{" "}
           <a href="https://discord.gg/XREYCNFAdC" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Join the Polsimmer Discord</a>
         </footer>
