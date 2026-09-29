@@ -11,8 +11,8 @@ export const Route = createFileRoute("/changelog")({
 const releases = [
   {
     version: "0.1.2",
-    date: "September 28, 2026",
-    dateTime: "2026-09-28",
+    date: "September 29, 2026",
+    dateTime: "2026-09-29",
     headline: "The game feels closer.",
     summary: "More of the game at your fingertips, wherever you play.",
     highlights: [
@@ -25,6 +25,14 @@ const releases = [
         detail: "The dashboard, conversations, and key game information update live. If the connection drops, the game catches up when you return.",
       },
       {
+        title: "Follow the whole election-night count",
+        detail: "Live Wire updates now read like short reports drawn from the results so far. Alongside the leader, they follow challengers, changes in the wider field, and the fight for the last Senate seat as new returns arrive.",
+      },
+      {
+        title: "Vote where you read the bill",
+        detail: "Eligible officeholders can vote directly from a bill’s page and see when their vote has been recorded. The progress bar now ends with the presidential stage; the passed or defeated result appears separately once the count is complete.",
+      },
+      {
         title: "Find your way faster",
         detail: "A persistent desktop sidebar and a reach-friendly mobile bar make it easier to move between bills, elections, parties, Z.com, and the rest of the game. The mobile menu keeps the less-used destinations close by without getting in your way.",
       },
@@ -34,7 +42,7 @@ const releases = [
       },
       {
         title: "The little fixes matter",
-        detail: "Bill progress is easier to follow, Election Night layouts are clearer, and navigation, the footer, and signed-in account controls have had a tidy-up.",
+        detail: "Election Night layouts are clearer, and navigation, the footer, and signed-in account controls have had a tidy-up.",
       },
     ],
   },

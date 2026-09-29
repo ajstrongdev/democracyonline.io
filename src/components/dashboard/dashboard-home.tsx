@@ -11,6 +11,7 @@ import {
   Crown,
   Landmark,
   MailPlus,
+  Megaphone,
   MessageSquareText,
   Radio,
   Scale,
@@ -29,7 +30,7 @@ import {
 import { DashboardActionDeadline } from "@/components/dashboard/dashboard-action-deadline";
 import { DashboardPrimaryAction } from "@/components/dashboard/dashboard-primary-action";
 import { DashboardSocialPostDialog } from "@/components/dashboard/dashboard-social-post-dialog";
-import { NewBillDialog } from "@/components/wiki/bill-desk-dialogs";
+import { NewBillDialog } from "@/components/wiki/new-bill-dialog";
 import { ResultBar, WikiHeader } from "@/components/wiki/wiki-header";
 import {
   WikiEmpty,
@@ -80,6 +81,7 @@ export function DashboardContent({
     currentUser,
     pendingBillVotes,
     pendingCommitteeAssessments,
+    pendingBillGuidance,
     pendingCoalitionProposals,
     primaryActions,
     zMentionSummary,
@@ -94,6 +96,7 @@ export function DashboardContent({
   const actionCount =
     pendingBillVotes.length +
     pendingCommitteeAssessments.length +
+    pendingBillGuidance.length +
     pendingCoalitionProposals.length +
     Number(primaryActions.stand) +
     Number(primaryActions.withdraw) +
@@ -388,6 +391,32 @@ export function DashboardContent({
                     <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
                       Open assessment
                       <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </span>
+                  </Link>
+                ))}
+                {pendingBillGuidance.map((bill) => (
+                  <Link
+                    key={`guidance-${bill.id}`}
+                    to="/dashboard/bills/$billId"
+                    params={{ billId: String(bill.id) }}
+                    hash="party-guidance"
+                    className="group flex flex-col gap-3 px-3 py-4 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:px-4"
+                  >
+                    <div className="flex min-w-0 gap-3">
+                      <Megaphone className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                      <div className="min-w-0">
+                        <p className="font-semibold">Issue voting guidance for {bill.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Recommend a vote to your party during the {bill.stage === "Presidential" ? "presidential" : bill.stage} stage.
+                        </p>
+                        <DashboardActionDeadline
+                          deadline={bill.stageEndsAt}
+                          onExpire={() => void router.invalidate()}
+                        />
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                      Issue guidance <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </span>
                   </Link>
                 ))}

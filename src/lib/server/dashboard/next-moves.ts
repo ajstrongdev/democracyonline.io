@@ -5,6 +5,7 @@ import { primaryNextMoves } from "@/lib/dashboard/action-eligibility";
 import { canDeclareNationalCandidacy } from "@/lib/elections/dashboard-actions";
 import { userEmailEquals } from "@/lib/server/auth/user-email";
 import { officeVotingConfig } from "@/lib/server/dashboard/office-votes";
+import { getPendingBillGuidance } from "@/lib/server/bills/pending-guidance";
 
 export type NextMove = { key: string; title: string; url: string };
 
@@ -16,6 +17,7 @@ export async function getPendingNextMoves(email: string): Promise<Array<NextMove
     partyId: users.partyId,
     partyName: parties.name,
     partyLeaderId: parties.leaderId,
+    partyArchivedAt: parties.archivedAt,
     active: users.isActive,
   }).from(users).leftJoin(parties, eq(parties.id, users.partyId))
     .where(userEmailEquals(email)).limit(1);
@@ -71,7 +73,7 @@ export async function getPendingNextMoves(email: string): Promise<Array<NextMove
   const electionCandidacies = races.filter((race) => canDeclareNationalCandidacy(race, races, player));
   const electionVotes = races.filter((race) => race.status === "VOTING" && !race.player.hasVoted && race.candidateCount > 0);
   const config = officeVotingConfig[player.role as keyof typeof officeVotingConfig];
-  const [pendingBillVotes, pendingAssessments, pendingCoalitions] = await Promise.all([
+  const [pendingBillVotes, pendingAssessments, pendingGuidance, pendingCoalitions] = await Promise.all([
     config ? db.select({ id: bills.id, title: bills.title })
       .from(bills).where(and(
         eq(bills.status, "Voting"), eq(bills.stage, config.stage), gt(bills.stageEndsAt, new Date()),
@@ -82,6 +84,7 @@ export async function getPendingNextMoves(email: string): Promise<Array<NextMove
         eq(bills.status, "Committee"), gt(bills.stageEndsAt, new Date()),
         sql`not exists (select 1 from ${committeeAssessments} where ${committeeAssessments.billId} = ${bills.id} and ${committeeAssessments.senatorId} = ${player.id})`,
       )) : Promise.resolve([]),
+    getPendingBillGuidance(player),
     player.partyId && player.partyLeaderId === player.id ? db.select({
       id: coalitionProposals.id, coalitionId: coalitionProposals.coalitionId,
       proposalType: coalitionProposals.proposalType,
@@ -104,6 +107,7 @@ export async function getPendingNextMoves(email: string): Promise<Array<NextMove
     ...electionVotes.map((race) => ({ key: `election:${race.election}:${race.cycle}:vote`, title: `Vote in the ${race.election} election`, url: `/dashboard/elections/current-${race.election}` })),
     ...pendingBillVotes.map((bill) => ({ key: `bill:${bill.id}:${config.stage}:vote`, title: `Vote on ${bill.title}`, url: `/dashboard/bills/${bill.id}` })),
     ...pendingAssessments.map((bill) => ({ key: `bill:${bill.id}:assess`, title: `Assess ${bill.title}`, url: `/dashboard/bills/${bill.id}` })),
+    ...pendingGuidance.map((bill) => ({ key: `bill:${bill.id}:${bill.stage}:party:${player.partyId}:guidance`, title: `Issue voting guidance for ${bill.title}`, url: `/dashboard/bills/${bill.id}#party-guidance` })),
     ...pendingCoalitions.map((proposal) => ({ key: `coalition:${proposal.id}:vote`, title: `Vote on a coalition ${proposal.proposalType.replaceAll("_", " ")} proposal`, url: `/dashboard/parties/coalitions/${proposal.coalitionId}` })),
   ];
 }

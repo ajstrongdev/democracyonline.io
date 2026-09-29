@@ -21,6 +21,7 @@ import { getZNotificationPage } from "@/lib/server/notifications/social-notifica
 import { getPrimariesData } from "@/lib/server/organizations/primaries";
 import { primaryNextMoves } from "@/lib/dashboard/action-eligibility";
 import { officeVotingConfig } from "@/lib/server/dashboard/office-votes";
+import { getPendingBillGuidance } from "@/lib/server/bills/pending-guidance";
 
 export const getDashboardData = createServerFn()
   .middleware([authMiddleware])
@@ -79,6 +80,7 @@ export const getDashboardData = createServerFn()
         currentUser: null,
         pendingBillVotes: [],
         pendingCommitteeAssessments: [],
+        pendingBillGuidance: [],
         primaryActions: {
           stand: false,
           withdraw: false,
@@ -114,6 +116,7 @@ export const getDashboardData = createServerFn()
         partyName: parties.name,
         partyColor: parties.color,
         partyLeaderId: parties.leaderId,
+        partyArchivedAt: parties.archivedAt,
       })
       .from(users)
       .leftJoin(parties, eq(users.partyId, parties.id))
@@ -125,6 +128,7 @@ export const getDashboardData = createServerFn()
         currentUser: null,
         pendingBillVotes: [],
         pendingCommitteeAssessments: [],
+        pendingBillGuidance: [],
         primaryActions: {
           stand: false,
           withdraw: false,
@@ -160,6 +164,7 @@ export const getDashboardData = createServerFn()
     const [
       pendingBillVotes,
       pendingCommitteeAssessments,
+      pendingBillGuidance,
       pendingCoalitionProposals,
     ] = await Promise.all([
       config && currentUser.active
@@ -197,6 +202,7 @@ export const getDashboardData = createServerFn()
             )
             .orderBy(bills.createdAt)
         : Promise.resolve([]),
+      getPendingBillGuidance(currentUser),
       currentUser.active &&
       currentUser.partyId &&
       currentUser.partyLeaderId === currentUser.id
@@ -236,6 +242,7 @@ export const getDashboardData = createServerFn()
         stage: config?.stage ?? "House",
       })),
       pendingCommitteeAssessments,
+      pendingBillGuidance,
       pendingCoalitionProposals,
       primaryActions,
       zMentionSummary,

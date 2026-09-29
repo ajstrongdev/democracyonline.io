@@ -84,6 +84,8 @@ function BillArticle() {
     canWhip: false,
     isVoting: false,
   };
+  const guidancePending = partyGuidance.canWhip &&
+    !partyGuidance.whips.some((whip) => whip.partyId === partyGuidance.currentPartyId);
   const { bill, rollCalls } = billData;
   const votingRole = bill.stage === "House" ? "Representative" : bill.stage === "Senate" ? "Senator" : "President";
   const eligibleToVote = bill.status === "Voting" && currentUser?.isActive && currentUser.role === votingRole;
@@ -123,7 +125,7 @@ function BillArticle() {
         {partyGuidance.isLeader && (
           <Button asChild variant="outline" size="sm">
             <a href="#party-guidance">
-              <Megaphone className="size-4" /> Party voting guidance
+              <Megaphone className="size-4" /> {guidancePending ? "Issue voting guidance" : "Party voting guidance"}
             </a>
           </Button>
         )}
@@ -207,23 +209,25 @@ function BillArticle() {
         </div>
       </WikiSection>
       {eligibleToVote && (
-        <WikiSection
-          title="Your vote"
-          description={`This bill is currently before the ${bill.stage === "Presidential" ? "President" : bill.stage}.`}
-        >
-          {ownVote ? (
-            <p className="text-sm text-muted-foreground">
-              Your vote has been recorded: {bill.stage === "Presidential" ? (ownVote.voteYes ? "Signed" : "Vetoed") : (ownVote.voteYes ? "For" : "Against")}.
-            </p>
-          ) : (
-            <DashboardBillVoteAction
-              billId={bill.id}
-              title={bill.title}
-              stage={bill.stage}
-              userId={currentUser.id}
-            />
-          )}
-        </WikiSection>
+        <div id="your-vote" className="scroll-mt-6">
+          <WikiSection
+            title="Your vote"
+            description={`This bill is currently before the ${bill.stage === "Presidential" ? "President" : bill.stage}.`}
+          >
+            {ownVote ? (
+              <p className="text-sm text-muted-foreground">
+                Your vote has been recorded: {bill.stage === "Presidential" ? (ownVote.voteYes ? "Signed" : "Vetoed") : (ownVote.voteYes ? "For" : "Against")}.
+              </p>
+            ) : (
+              <DashboardBillVoteAction
+                billId={bill.id}
+                title={bill.title}
+                stage={bill.stage}
+                userId={currentUser.id}
+              />
+            )}
+          </WikiSection>
+        </div>
       )}
       {committee && <CommitteeOutcome billId={bill.id} data={committee} />}
       <BillComments
