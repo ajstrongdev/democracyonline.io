@@ -12,16 +12,25 @@ import {
 } from "@/components/ui/sheet";
 import { NavigationFooter, NavigationLinks } from "@/components/wiki/navigation-content";
 
-export function MobileNavigation() {
+export function MobileNavigation({ bottomBar = false }: { bottomBar?: boolean }) {
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-11 gap-2 px-2 sm:h-9 sm:px-3" aria-label="Open navigation" aria-expanded={open}>
+        <Button
+          variant={bottomBar ? "outline" : "ghost"}
+          size="sm"
+          className={bottomBar
+            ? "fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto size-14 rounded-2xl border bg-card shadow-lg lg:hidden"
+            : "h-11 gap-2 px-2 sm:h-9 sm:px-3"}
+          aria-label="Open navigation"
+          aria-expanded={open}
+          title="Open navigation"
+        >
           <Menu className="size-5" />
-          <span className="hidden md:inline">Menu</span>
+          {!bottomBar && <span className="hidden md:inline">Menu</span>}
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-[min(21rem,calc(100vw-2rem))] gap-0 overflow-hidden p-0 motion-reduce:animate-none">

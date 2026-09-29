@@ -5,6 +5,7 @@ import {
   Scripts,
   createRootRouteWithContext,
   redirect,
+  useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
@@ -18,6 +19,7 @@ import { getThemeClasses, getThemeServerFn, themes } from "@/lib/server/settings
 import { NotFound } from "@/components/not-found";
 import { WikiNavigation } from "@/components/wiki/wiki-header";
 import { DesktopNavigation } from "@/components/wiki/desktop-navigation";
+import { MobileNavigation } from "@/components/wiki/mobile-navigation";
 import { getAuthRedirect } from "@/lib/auth-guard";
 import { auth } from "@/lib/firebase";
 import { getCurrentBanStatus, getSessionUser } from "@/lib/server/auth/session";
@@ -110,6 +112,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootLayout() {
   const { theme, customScheme } = Route.useLoaderData();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const gameScreen = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
 
   return (
     <AppThemeProvider initialTheme={theme} initialColorScheme={customScheme}>
@@ -117,9 +121,10 @@ function RootLayout() {
       <LiveUpdates />
       <div className="flex min-h-svh min-w-0 flex-col">
         <WikiNavigation />
+        {gameScreen && <MobileNavigation bottomBar />}
         <div className="flex min-w-0 flex-1 items-stretch">
           <DesktopNavigation />
-          <div className="flex min-w-0 flex-1 flex-col">
+          <div className={`flex min-w-0 flex-1 flex-col ${gameScreen ? "pb-20 lg:pb-0" : ""}`}>
             <Outlet />
             <footer className="mt-auto border-t bg-muted/30 px-4 py-4 text-center text-sm text-muted-foreground">
               Running Polsimmer v{packageJson.version}{" "}
