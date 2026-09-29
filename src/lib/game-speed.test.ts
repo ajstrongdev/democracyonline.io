@@ -103,7 +103,7 @@ describe("bill display helpers", () => {
       "Presidential decision",
     );
     expect(getNextBillStage({ status: "Voting", stage: "Presidential" })).toBe(
-      "Final decision",
+      "Result announced",
     );
     expect(
       getNextBillStage({ status: "Passed", stage: "Presidential" }),

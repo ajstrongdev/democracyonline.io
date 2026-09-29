@@ -23,7 +23,7 @@ export function getNextBillStage(bill: BillStageRef): string | null {
   if (bill.status === "Voting") {
     if (bill.stage === "House") return "Senate voting";
     if (bill.stage === "Senate") return "Presidential decision";
-    if (bill.stage === "Presidential") return "Final decision";
+    if (bill.stage === "Presidential") return "Result announced";
   }
   return null;
 }

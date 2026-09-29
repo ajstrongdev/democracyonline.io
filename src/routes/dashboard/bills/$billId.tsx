@@ -27,6 +27,7 @@ import { CommitteeOutcome } from "@/components/wiki/committee-outcome";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
 import { BillComments } from "@/components/bills/bill-comments";
 import { BillProgress } from "@/components/bills/bill-progress";
+import { DashboardBillVoteAction } from "@/components/dashboard/dashboard-bill-vote-action";
 import { getBillComments, getBillWhips } from "@/lib/server/bills/bill-comments";
 import { getCurrentUserInfo } from "@/lib/server/users/users";
 import { reviveDefeatedBill } from "@/lib/server/bills/bills";
@@ -84,6 +85,10 @@ function BillArticle() {
     isVoting: false,
   };
   const { bill, rollCalls } = billData;
+  const votingRole = bill.stage === "House" ? "Representative" : bill.stage === "Senate" ? "Senator" : "President";
+  const eligibleToVote = bill.status === "Voting" && currentUser?.isActive && currentUser.role === votingRole;
+  const stageVotes = bill.stage === "House" ? rollCalls.house : bill.stage === "Senate" ? rollCalls.senate : rollCalls.president;
+  const ownVote = stageVotes.find((vote) => vote.userId === currentUser?.id);
   const router = useRouter();
   const [reviveOpen, setReviveOpen] = useState(false);
   const [reviving, setReviving] = useState(false);
@@ -201,6 +206,25 @@ function BillArticle() {
           <MarkdownContent content={bill.content} />
         </div>
       </WikiSection>
+      {eligibleToVote && (
+        <WikiSection
+          title="Your vote"
+          description={`This bill is currently before the ${bill.stage === "Presidential" ? "President" : bill.stage}.`}
+        >
+          {ownVote ? (
+            <p className="text-sm text-muted-foreground">
+              Your vote has been recorded: {bill.stage === "Presidential" ? (ownVote.voteYes ? "Signed" : "Vetoed") : (ownVote.voteYes ? "For" : "Against")}.
+            </p>
+          ) : (
+            <DashboardBillVoteAction
+              billId={bill.id}
+              title={bill.title}
+              stage={bill.stage}
+              userId={currentUser.id}
+            />
+          )}
+        </WikiSection>
+      )}
       {committee && <CommitteeOutcome billId={bill.id} data={committee} />}
       <BillComments
         billId={bill.id}
