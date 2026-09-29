@@ -33,7 +33,7 @@ Prepare deterministic President and Senate election-night simulations from
 Options:
   --duration <value>  Election-night duration: 90s, 5m, 2h, or 12h (default: 12h)
   --election <value>  President, Senate, or all (default: all)
-  --player <value>    Player whose ballot is guaranteed and printed (default: ajstrongdev)
+  --player <value>    Player whose ballot is guaranteed and printed (default: AJ)
   --help              Show this help without connecting to the database
 
 Examples:
@@ -62,7 +62,7 @@ function parseDuration(value: string) {
 function parseArgs(args: Array<string>) {
   let durationMs = DEFAULT_DURATION_MS;
   let election: ElectionType | "all" = "all";
-  let player = "ajstrongdev";
+  let player = "AJ";
   for (let index = 0; index < args.length; index++) {
     const argument = args[index];
     if (argument === "--") continue;

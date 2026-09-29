@@ -11,7 +11,7 @@ const config = defineConfig({
   // Bundling pg turns the absent pg-native peer into a startup-time 500.
   ssr: { external: ["pg"] },
   plugins: [
-    devtools(),
+    ...(process.env.OSCANA_E2E === "1" ? [] : [devtools()]),
     nitro({
       rollupConfig: {
         external: ["pg"],

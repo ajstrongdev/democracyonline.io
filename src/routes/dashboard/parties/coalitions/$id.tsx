@@ -22,14 +22,14 @@ import {
   getCoalitionDetails,
   requestJoinCoalition,
   reviveCoalition,
-} from "@/lib/server/coalitions";
+} from "@/lib/server/organizations/coalitions";
 import {
   castVote,
   createProposal,
   getCoalitionProposals,
   resolveProposal,
-} from "@/lib/server/coalition-proposals";
-import { getCurrentUserInfo } from "@/lib/server/users";
+} from "@/lib/server/organizations/coalition-proposals";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,8 +37,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageDialog } from "@/components/message-dialog";
 import ProtectedRoute from "@/components/auth/protected-route";
-import PartyLogo from "@/components/party-logo";
-import CoalitionLogo from "@/components/coalition-logo";
+import PartyLogo from "@/components/organizations/party-logo";
+import CoalitionLogo from "@/components/organizations/coalition-logo";
 import { useUserData } from "@/lib/hooks/use-user-data";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { formatPlayerLastSeen, isPlayerOnline } from "@/lib/player-presence";
-import { getPlayerPresence } from "@/lib/server/player-presence";
+import { getPlayerPresence } from "@/lib/server/users/player-presence";
 
 export type PlayerPresence = {
   lastSeenAt: Date | string | null;

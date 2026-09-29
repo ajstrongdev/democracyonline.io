@@ -30,7 +30,8 @@ import {
   toggleSocialCommentVote,
   toggleSocialRepost,
   toggleSocialVote,
-} from "@/lib/server/social";
+} from "@/lib/server/social/social";
+import { socialChangeEvent } from "@/components/notifications/live-updates";
 
 dayjs.extend(relativeTime);
 
@@ -135,6 +136,21 @@ function SocialPost({
   const [votingComments, setVotingComments] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const commentTree = buildCommentTree(comments);
+
+  useEffect(() => {
+    if (!commentsOpen) return;
+    let active = true;
+    const updateComments = () => {
+      void getSocialComments({ data: { postId: entry.postId } })
+        .then((rows) => { if (active) { setComments(rows); setCommentsLoaded(true); } })
+        .catch(() => { /* Retry on reconnect/focus without losing a draft. */ });
+    };
+    window.addEventListener(socialChangeEvent, updateComments);
+    return () => {
+      active = false;
+      window.removeEventListener(socialChangeEvent, updateComments);
+    };
+  }, [commentsOpen, entry.postId]);
 
   useEffect(() => {
     if (!highlightCommentId) return;

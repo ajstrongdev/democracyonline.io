@@ -33,14 +33,14 @@ let consecutiveFailures = 0;
 
 console.log(`[scheduler] starting target=${target} intervalMs=${intervalMs}`);
 
-async function call(path, method, logSuccess = true, skipLogIf = null) {
+async function call(path, method, logSuccess = true, skipLogIf = null, extraHeaders = {}) {
   const startedAt = Date.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
   try {
     const response = await fetch(`${target}${path}`, {
       method,
-      headers: { "x-internal-cron-token": token },
+      headers: { "x-internal-cron-token": token, ...extraHeaders },
       signal: controller.signal,
     });
     const body = await response.text();
@@ -98,5 +98,27 @@ async function tick() {
   setTimeout(tick, intervalMs);
 }
 
+// A separate short cadence keeps push latency low without advancing game clocks
+// more frequently. The database outbox survives process restarts.
+async function pushTick() {
+  try {
+    await call("/api/notification-delivery", "POST", true, (body) => body.includes('"claimed":0'));
+  } catch (error) {
+    console.error("[scheduler] notification delivery failed; pending jobs will retry", error?.message ?? error);
+  }
+  setTimeout(pushTick, 10_000);
+}
+
+async function nextMoveTick() {
+  try {
+    await call("/api/notification-delivery", "POST", true, (body) => body.includes('"handled":0'), { "x-notification-scan": "actions" });
+  } catch (error) {
+    console.error("[scheduler] next-move push scan failed; it will retry", error?.message ?? error);
+  }
+  setTimeout(nextMoveTick, 30_000);
+}
+
 // Small initial delay so `depends_on: app` doesn't hammer a cold Nitro boot.
 setTimeout(tick, 5_000);
+setTimeout(pushTick, 7_000);
+setTimeout(nextMoveTick, 9_000);

@@ -3,7 +3,7 @@ import { ArrowRight, CheckCircle2, Crown, Handshake, Vote } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getCurrentUserInfo } from "@/lib/server/users";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
 
 export const Route = createFileRoute("/")({
   loader: async () => {

@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { reportPlayer } from "@/lib/server/moderation";
+import { reportPlayer } from "@/lib/server/moderation/moderation";
 
 const categories = [
   ["harassment", "Harassment"],

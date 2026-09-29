@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { getCurrentUserInfo } from "@/lib/server/users";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
 
 // Hack: Fetch user data client-side since loader returns null on SSR when navigating directly. I am deeply ashamed about this.
 export function useUserData(

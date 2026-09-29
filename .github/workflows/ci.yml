@@ -20,6 +20,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm lint .
       - run: pnpm build
         env:
           VITE_FIREBASE_API_KEY: dummy-for-ci
@@ -28,3 +29,51 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: dummy-for-ci
           VITE_FIREBASE_MESSAGING_SENDER_ID: dummy-for-ci
           VITE_FIREBASE_APP_ID: dummy-for-ci
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: e2e
+          POSTGRES_PASSWORD: e2e
+          POSTGRES_DB: oscana_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U e2e -d oscana_e2e"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://e2e:e2e@127.0.0.1:5432/oscana_e2e
+      DEPLOYED_ENV: local
+      OSCANA_E2E: "1"
+      CRON_INTERNAL_TOKEN: isolated-e2e-only
+      NODE_ENV: development
+      FIREBASE_PROJECT_ID: demo-oscana
+      FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+      VITE_FIREBASE_AUTH_EMULATOR_URL: http://127.0.0.1:9099
+      VITE_FIREBASE_PROJECT_ID: demo-oscana
+      VITE_FIREBASE_API_KEY: local-only
+      VITE_FIREBASE_AUTH_DOMAIN: demo-oscana.firebaseapp.com
+      VITE_FIREBASE_STORAGE_BUCKET: demo-oscana.appspot.com
+      VITE_FIREBASE_MESSAGING_SENDER_ID: local-only
+      VITE_FIREBASE_APP_ID: local-only
+      SITE_URL: http://127.0.0.1:31017
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec firebase emulators:exec --only auth --project demo-oscana 'pnpm e2e:prepare && pnpm test:e2e'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results/

@@ -41,7 +41,7 @@
       "dependsOn": ["Start Tanstack Start (Unix/macOS)", "Start Database (Bash)"],
       "group": {
         "kind": "build",
-        "isDefault": true
+        "isDefault": false
       },
       "presentation": {
         "echo": true,
@@ -52,5 +52,20 @@
         "clear": false
       }
     },
+    {
+      "label": "Oscana: isolated app + scheduler + Web Push",
+      "type": "shell",
+      "command": "node",
+      "args": ["${workspaceFolder}/scripts/local/full-stack.mjs"],
+      "isBackground": true,
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      }
+    }
   ]
 }

@@ -15,6 +15,7 @@ import { Route as SearchRouteImport } from './routes/search'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ModerationRouteImport } from './routes/moderation'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ChangelogRouteImport } from './routes/changelog'
 import { Route as BannedRouteImport } from './routes/banned'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
@@ -43,6 +44,8 @@ import { Route as BillsOvalOfficeRouteImport } from './routes/bills/oval-office'
 import { Route as BillsHouseOfRepresentativesRouteImport } from './routes/bills/house-of-representatives'
 import { Route as BillsCreateRouteImport } from './routes/bills/create'
 import { Route as BillsIdRouteImport } from './routes/bills/$id'
+import { Route as ApiNotificationDeliveryRouteImport } from './routes/api/notification-delivery'
+import { Route as ApiLiveRouteImport } from './routes/api/live'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
 import { Route as ApiElectionAdvanceRouteImport } from './routes/api/election-advance'
@@ -103,6 +106,11 @@ const ModerationRoute = ModerationRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChangelogRoute = ChangelogRouteImport.update({
+  id: '/changelog',
+  path: '/changelog',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BannedRoute = BannedRouteImport.update({
@@ -244,6 +252,16 @@ const BillsCreateRoute = BillsCreateRouteImport.update({
 const BillsIdRoute = BillsIdRouteImport.update({
   id: '/bills/$id',
   path: '/bills/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiNotificationDeliveryRoute = ApiNotificationDeliveryRouteImport.update({
+  id: '/api/notification-delivery',
+  path: '/api/notification-delivery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLiveRoute = ApiLiveRouteImport.update({
+  id: '/api/live',
+  path: '/api/live',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
@@ -418,6 +436,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/admin': typeof AdminRoute
   '/banned': typeof BannedRoute
+  '/changelog': typeof ChangelogRoute
   '/login': typeof LoginRoute
   '/moderation': typeof ModerationRoute
   '/register': typeof RegisterRoute
@@ -429,6 +448,8 @@ export interface FileRoutesByFullPath {
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/live': typeof ApiLiveRoute
+  '/api/notification-delivery': typeof ApiNotificationDeliveryRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
   '/bills/house-of-representatives': typeof BillsHouseOfRepresentativesRoute
@@ -484,6 +505,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/banned': typeof BannedRoute
+  '/changelog': typeof ChangelogRoute
   '/login': typeof LoginRoute
   '/moderation': typeof ModerationRoute
   '/register': typeof RegisterRoute
@@ -495,6 +517,8 @@ export interface FileRoutesByTo {
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/live': typeof ApiLiveRoute
+  '/api/notification-delivery': typeof ApiNotificationDeliveryRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
   '/bills/house-of-representatives': typeof BillsHouseOfRepresentativesRoute
@@ -552,6 +576,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/admin': typeof AdminRoute
   '/banned': typeof BannedRoute
+  '/changelog': typeof ChangelogRoute
   '/login': typeof LoginRoute
   '/moderation': typeof ModerationRoute
   '/register': typeof RegisterRoute
@@ -563,6 +588,8 @@ export interface FileRoutesById {
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/live': typeof ApiLiveRoute
+  '/api/notification-delivery': typeof ApiNotificationDeliveryRoute
   '/bills/$id': typeof BillsIdRoute
   '/bills/create': typeof BillsCreateRoute
   '/bills/house-of-representatives': typeof BillsHouseOfRepresentativesRoute
@@ -621,6 +648,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/admin'
     | '/banned'
+    | '/changelog'
     | '/login'
     | '/moderation'
     | '/register'
@@ -632,6 +660,8 @@ export interface FileRouteTypes {
     | '/api/election-advance'
     | '/api/game-advance'
     | '/api/health'
+    | '/api/live'
+    | '/api/notification-delivery'
     | '/bills/$id'
     | '/bills/create'
     | '/bills/house-of-representatives'
@@ -687,6 +717,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/banned'
+    | '/changelog'
     | '/login'
     | '/moderation'
     | '/register'
@@ -698,6 +729,8 @@ export interface FileRouteTypes {
     | '/api/election-advance'
     | '/api/game-advance'
     | '/api/health'
+    | '/api/live'
+    | '/api/notification-delivery'
     | '/bills/$id'
     | '/bills/create'
     | '/bills/house-of-representatives'
@@ -754,6 +787,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/admin'
     | '/banned'
+    | '/changelog'
     | '/login'
     | '/moderation'
     | '/register'
@@ -765,6 +799,8 @@ export interface FileRouteTypes {
     | '/api/election-advance'
     | '/api/game-advance'
     | '/api/health'
+    | '/api/live'
+    | '/api/notification-delivery'
     | '/bills/$id'
     | '/bills/create'
     | '/bills/house-of-representatives'
@@ -822,6 +858,7 @@ export interface RootRouteChildren {
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
   AdminRoute: typeof AdminRoute
   BannedRoute: typeof BannedRoute
+  ChangelogRoute: typeof ChangelogRoute
   LoginRoute: typeof LoginRoute
   ModerationRoute: typeof ModerationRoute
   RegisterRoute: typeof RegisterRoute
@@ -833,6 +870,8 @@ export interface RootRouteChildren {
   ApiElectionAdvanceRoute: typeof ApiElectionAdvanceRoute
   ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiLiveRoute: typeof ApiLiveRoute
+  ApiNotificationDeliveryRoute: typeof ApiNotificationDeliveryRoute
   BillsIdRoute: typeof BillsIdRoute
   BillsCreateRoute: typeof BillsCreateRoute
   BillsHouseOfRepresentativesRoute: typeof BillsHouseOfRepresentativesRoute
@@ -899,6 +938,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/changelog': {
+      id: '/changelog'
+      path: '/changelog'
+      fullPath: '/changelog'
+      preLoaderRoute: typeof ChangelogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/banned': {
@@ -1095,6 +1141,20 @@ declare module '@tanstack/react-router' {
       path: '/bills/$id'
       fullPath: '/bills/$id'
       preLoaderRoute: typeof BillsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/notification-delivery': {
+      id: '/api/notification-delivery'
+      path: '/api/notification-delivery'
+      fullPath: '/api/notification-delivery'
+      preLoaderRoute: typeof ApiNotificationDeliveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/live': {
+      id: '/api/live'
+      path: '/api/live'
+      fullPath: '/api/live'
+      preLoaderRoute: typeof ApiLiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health': {
@@ -1390,6 +1450,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
   AdminRoute: AdminRoute,
   BannedRoute: BannedRoute,
+  ChangelogRoute: ChangelogRoute,
   LoginRoute: LoginRoute,
   ModerationRoute: ModerationRoute,
   RegisterRoute: RegisterRoute,
@@ -1401,6 +1462,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiElectionAdvanceRoute: ApiElectionAdvanceRoute,
   ApiGameAdvanceRoute: ApiGameAdvanceRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiLiveRoute: ApiLiveRoute,
+  ApiNotificationDeliveryRoute: ApiNotificationDeliveryRoute,
   BillsIdRoute: BillsIdRoute,
   BillsCreateRoute: BillsCreateRoute,
   BillsHouseOfRepresentativesRoute: BillsHouseOfRepresentativesRoute,

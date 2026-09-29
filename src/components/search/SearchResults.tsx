@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import PartyLogo from "@/components/party-logo";
+import PartyLogo from "@/components/organizations/party-logo";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 
 interface UserResult {

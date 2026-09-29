@@ -4,18 +4,18 @@ import { and, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { feed, parties, users } from "@/db/schema";
 import { env } from "@/env";
-import { authorizeCronRequest } from "@/lib/server/cron-auth";
-import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
+import { authorizeCronRequest } from "@/lib/server/scheduler/cron-auth";
+import { advanceElectionLifecycle } from "@/lib/server/elections/election-lifecycle";
 import {
   getGameAdvanceIntervalMs,
   getGameSpeed,
   getLastGameAdvanceAt,
   markGameAdvanceRun,
-} from "@/lib/server/game-speed";
+} from "@/lib/server/scheduler/game-speed";
 import { getAdminAuth } from "@/lib/firebase-admin";
-import { archiveEmptyParties } from "@/lib/server/organization-lifecycle";
+import { archiveEmptyParties } from "@/lib/server/organizations/organization-lifecycle";
 import { playerArchiveCutoff } from "@/lib/player-archive";
-import { reconcileAutomaticFlags } from "@/lib/server/moderation";
+import { reconcileAutomaticFlags } from "@/lib/server/moderation/moderation";
 
 const oAuth2Client = new OAuth2Client();
 

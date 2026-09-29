@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { SocialContent, loadSocialData, parseSocialSearch } from "@/routes/social";
+import { SocialContent } from "@/components/social/social-page";
+import { loadSocialData, parseSocialSearch } from "@/lib/social/queries";
 
 export const Route = createFileRoute("/dashboard/social")({
   validateSearch: parseSocialSearch,

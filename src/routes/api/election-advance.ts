@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { OAuth2Client } from "google-auth-library";
 import { env } from "@/env";
 import { getAdminAuth } from "@/lib/firebase-admin";
-import { authorizeCronRequest } from "@/lib/server/cron-auth";
-import { advanceElectionLifecycle } from "@/lib/server/election-lifecycle";
+import { authorizeCronRequest } from "@/lib/server/scheduler/cron-auth";
+import { advanceElectionLifecycle } from "@/lib/server/elections/election-lifecycle";
 
 const oAuth2Client = new OAuth2Client();
 

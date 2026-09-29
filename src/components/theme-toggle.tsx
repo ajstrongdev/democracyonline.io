@@ -21,8 +21,8 @@ import {
   deleteColorScheme,
   getColorSchemeCatalog,
   saveColorScheme,
-} from "@/lib/server/color-schemes";
-import { themes } from "@/lib/server/theme";
+} from "@/lib/server/settings/color-schemes";
+import { themes } from "@/lib/server/settings/theme";
 
 type Catalog = Awaited<ReturnType<typeof getColorSchemeCatalog>>;
 type SavedScheme =
@@ -228,7 +228,7 @@ export function ModeToggle() {
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0"
+            className="size-11 shrink-0 sm:size-9"
             aria-label="Choose theme"
             title="Choose theme"
           >

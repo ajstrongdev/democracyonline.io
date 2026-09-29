@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { getCurrentUserInfo } from "@/lib/server/users";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
 import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/profile/")({

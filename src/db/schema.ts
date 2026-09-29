@@ -1,5 +1,6 @@
 import {
   bigint,
+  bigserial,
   boolean,
   check,
   doublePrecision,
@@ -40,6 +41,44 @@ export const users = pgTable("users", {
     .notNull(),
   isAncestryRoot: boolean("is_ancestry_root").default(false).notNull(),
 });
+
+export const notificationPreferences = pgTable("notification_preferences", {
+  userId: integer("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  inAppMentions: boolean("in_app_mentions").notNull().default(true),
+  pushMentions: boolean("push_mentions").notNull().default(false),
+  pushNextMoves: boolean("push_next_moves").notNull().default(false),
+  pushPreview: boolean("push_preview").notNull().default(false),
+  quietStart: integer("quiet_start"),
+  quietEnd: integer("quiet_end"),
+  timeZone: text("time_zone").notNull().default("UTC"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const notificationPushSubscriptions = pgTable("notification_push_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index("notification_push_subscriptions_user_idx").on(table.userId)]);
+
+export const notificationOutbox = pgTable("notification_outbox", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  sourceType: text("source_type").notNull(),
+  sourceId: integer("source_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  availableAt: timestamp("available_at", { withTimezone: true }).notNull().defaultNow(),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  attempts: integer("attempts").notNull().default(0),
+});
+
+export const notificationNextMoveReceipts = pgTable("notification_next_move_receipts", {
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  actionKey: text("action_key").notNull(),
+  handledAt: timestamp("handled_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [primaryKey({ columns: [table.userId, table.actionKey] })]);
 
 export const colorSchemes = pgTable(
   "color_schemes",

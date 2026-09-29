@@ -17,8 +17,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { getWikiParties } from "@/lib/server/history";
-import { getCurrentUserInfo } from "@/lib/server/users";
+import { getWikiParties } from "@/lib/server/history/history";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
 import { NewPartyDialog } from "@/components/wiki/new-party-dialog";
 
 export const Route = createFileRoute("/dashboard/parties/")({

@@ -7,7 +7,7 @@ import {
   billStatusLabel,
   getNextBillStage,
   invalidateAfterBillExpiry,
-} from "@/components/bill-stage-countdown";
+} from "@/components/bills/bill-stage-countdown";
 import { WikiArticleSection } from "@/components/wiki/wiki-article-section";
 import { PartyMark, WikiHeader } from "@/components/wiki/wiki-header";
 import {
@@ -19,16 +19,18 @@ import {
 } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getWikiBill } from "@/lib/server/history";
-import { getWikiArticle } from "@/lib/server/wiki-articles";
+import { getWikiBill } from "@/lib/server/history/history";
+import { getWikiArticle } from "@/lib/server/wiki/wiki-articles";
 import { formatWikiDate } from "@/lib/utils/history";
-import { getCommitteeData } from "@/lib/server/committee";
+import { getCommitteeData } from "@/lib/server/bills/committee";
 import { CommitteeOutcome } from "@/components/wiki/committee-outcome";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
 import { BillComments } from "@/components/bills/bill-comments";
-import { getBillComments, getBillWhips } from "@/lib/server/bill-comments";
-import { getCurrentUserInfo } from "@/lib/server/users";
-import { reviveDefeatedBill } from "@/lib/server/bills";
+import { BillProgress } from "@/components/bills/bill-progress";
+import { DashboardBillVoteAction } from "@/components/dashboard/dashboard-bill-vote-action";
+import { getBillComments, getBillWhips } from "@/lib/server/bills/bill-comments";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
+import { reviveDefeatedBill } from "@/lib/server/bills/bills";
 import {
   Dialog,
   DialogContent,
@@ -82,7 +84,13 @@ function BillArticle() {
     canWhip: false,
     isVoting: false,
   };
+  const guidancePending = partyGuidance.canWhip &&
+    !partyGuidance.whips.some((whip) => whip.partyId === partyGuidance.currentPartyId);
   const { bill, rollCalls } = billData;
+  const votingRole = bill.stage === "House" ? "Representative" : bill.stage === "Senate" ? "Senator" : "President";
+  const eligibleToVote = bill.status === "Voting" && currentUser?.isActive && currentUser.role === votingRole;
+  const stageVotes = bill.stage === "House" ? rollCalls.house : bill.stage === "Senate" ? rollCalls.senate : rollCalls.president;
+  const ownVote = stageVotes.find((vote) => vote.userId === currentUser?.id);
   const router = useRouter();
   const [reviveOpen, setReviveOpen] = useState(false);
   const [reviving, setReviving] = useState(false);
@@ -108,6 +116,7 @@ function BillArticle() {
   return (
     <WikiPage width="article">
       <WikiHeader
+        artwork={bill.status === "Committee" ? "bills" : bill.stage === "House" ? "house" : bill.stage === "Senate" ? "senate" : "president"}
         eyebrow={`Bill #${bill.id} · ${billStatusLabel(bill.status)}${bill.status === "Committee" ? "" : ` · ${bill.stage} stage`}`}
         title={bill.title}
         description={`Proposed by ${bill.creator ?? "Unknown"}${bill.createdAt ? ` on ${formatWikiDate(bill.createdAt)}` : ""}.`}
@@ -116,7 +125,7 @@ function BillArticle() {
         {partyGuidance.isLeader && (
           <Button asChild variant="outline" size="sm">
             <a href="#party-guidance">
-              <Megaphone className="size-4" /> Party voting guidance
+              <Megaphone className="size-4" /> {guidancePending ? "Issue voting guidance" : "Party voting guidance"}
             </a>
           </Button>
         )}
@@ -149,6 +158,7 @@ function BillArticle() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <BillProgress status={bill.status} stage={bill.stage} />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <WikiArticleSection
           entityType="bill"
@@ -198,6 +208,27 @@ function BillArticle() {
           <MarkdownContent content={bill.content} />
         </div>
       </WikiSection>
+      {eligibleToVote && (
+        <div id="your-vote" className="scroll-mt-6">
+          <WikiSection
+            title="Your vote"
+            description={`This bill is currently before the ${bill.stage === "Presidential" ? "President" : bill.stage}.`}
+          >
+            {ownVote ? (
+              <p className="text-sm text-muted-foreground">
+                Your vote has been recorded: {bill.stage === "Presidential" ? (ownVote.voteYes ? "Signed" : "Vetoed") : (ownVote.voteYes ? "For" : "Against")}.
+              </p>
+            ) : (
+              <DashboardBillVoteAction
+                billId={bill.id}
+                title={bill.title}
+                stage={bill.stage}
+                userId={currentUser.id}
+              />
+            )}
+          </WikiSection>
+        </div>
+      )}
       {committee && <CommitteeOutcome billId={bill.id} data={committee} />}
       <BillComments
         billId={bill.id}

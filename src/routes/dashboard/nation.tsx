@@ -28,7 +28,7 @@ import {
   WikiSection,
 } from "@/components/wiki/wiki-layout";
 import { formatPolicyValue } from "@/lib/nation/catalog";
-import { getNationOverview } from "@/lib/server/nation";
+import { getNationOverview } from "@/lib/server/nation/nation";
 
 export const Route = createFileRoute("/dashboard/nation")({
   loader: () => getNationOverview(),

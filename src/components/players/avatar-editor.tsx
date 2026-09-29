@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { avatarChoices, avatarForUsername, avatarSchema, renderAvatar } from "@/lib/avatar";
-import { updatePlayerAvatar } from "@/lib/server/users";
+import { updatePlayerAvatar } from "@/lib/server/users/users";
 
 type Field = keyof AvatarConfig;
 type Category = "Style" | "Hair" | "Face" | "Outfit" | "Details" | "Background";

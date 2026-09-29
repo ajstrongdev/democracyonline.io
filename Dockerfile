@@ -29,6 +29,10 @@ COPY . .
 # also used for one-off migrations and seeds, which do not need a Vite build.
 FROM tooling AS builder
 
+# Vite/Nitro can exceed Node's default ~2 GiB heap during the server build.
+# Keep this scoped to the build so the runtime container retains its default.
+ARG BUILD_NODE_HEAP_MB=4096
+
 # Build arguments for client-side environment variables (VITE_* prefix)
 ARG VITE_APP_TITLE
 ARG VITE_FIREBASE_API_KEY
@@ -56,7 +60,7 @@ RUN --mount=type=secret,id=firebase_project_id \
     FIREBASE_PROJECT_ID=$(cat /run/secrets/firebase_project_id 2>/dev/null || echo "") \
     FIREBASE_CLIENT_EMAIL=$(cat /run/secrets/firebase_client_email 2>/dev/null || echo "") \
     FIREBASE_PRIVATE_KEY=$(cat /run/secrets/firebase_private_key 2>/dev/null || echo "") \
-    pnpm run build
+    NODE_OPTIONS="--max-old-space-size=${BUILD_NODE_HEAP_MB}" pnpm run build
 
 # =============================================================================
 # Stage 2: Production runtime

@@ -7,7 +7,7 @@ import {
   getPrimariesData,
   voteInPrimary,
   withdrawPrimaryCandidate,
-} from "@/lib/server/primaries";
+} from "@/lib/server/organizations/primaries";
 import {
   WikiPage,
   WikiSection,
@@ -16,7 +16,7 @@ import {
 } from "@/components/wiki/wiki-layout";
 import { WikiHeader } from "@/components/wiki/wiki-header";
 import { PlayerAvatar } from "@/components/players/player-avatar";
-import { DashboardElectionCountdown } from "@/components/dashboard-election-countdown";
+import { DashboardElectionCountdown } from "@/components/dashboard/dashboard-election-countdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MessageDialog } from "@/components/message-dialog";
-import PartyLogo from "@/components/party-logo";
+import PartyLogo from "@/components/organizations/party-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
 
 export const Route = createFileRoute("/dashboard/parties/primaries")({

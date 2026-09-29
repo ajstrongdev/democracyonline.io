@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, Clock3, LockKeyhole } from "lucide-react";
 import { WikiArticleSection } from "@/components/wiki/wiki-article-section";
-import { CandidatesChart } from "@/components/candidates-chart";
+import { CandidatesChart } from "@/components/elections/candidates-chart";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import {
   PartyMark,
@@ -16,8 +16,8 @@ import {
   WikiStatGrid,
 } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
-import { getWikiElection } from "@/lib/server/history";
-import { getWikiArticle } from "@/lib/server/wiki-articles";
+import { getWikiElection } from "@/lib/server/history/history";
+import { getWikiArticle } from "@/lib/server/wiki/wiki-articles";
 import {
   formatElectionTitle,
   formatWikiDate,
@@ -88,6 +88,7 @@ function ElectionArticle() {
   return (
     <WikiPage>
       <WikiHeader
+        artwork={election.election === "Senate" ? "senate" : undefined}
         eyebrow={
           electionData.current
             ? "Election in progress"

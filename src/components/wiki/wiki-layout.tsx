@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import type { MastheadArtwork } from "@/lib/masthead-artwork";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +16,7 @@ export function WikiPage({
   return (
     <main
       className={cn(
-        "wiki-page mx-auto w-full max-w-7xl space-y-6 px-3 py-5 sm:px-6 sm:py-8",
+        "wiki-page mx-auto w-full min-w-0 max-w-7xl space-y-4 px-3 py-4 sm:space-y-6 sm:px-6 sm:py-8",
         className,
       )}
     >
@@ -53,7 +54,7 @@ export function WikiSection({
             </p>
           )}
         </div>
-        {aside}
+        {aside && <div className="min-w-0 shrink-0">{aside}</div>}
       </header>
       <div className="wiki-section-content">{children}</div>
     </section>
@@ -134,10 +135,12 @@ export function WikiEmpty({ children }: { children: ReactNode }) {
 export function WikiInfobox({
   title,
   accent,
+  artwork,
   children,
 }: {
   title: string;
   accent?: string | null;
+  artwork?: MastheadArtwork;
   children: ReactNode;
 }) {
   return (
@@ -145,7 +148,7 @@ export function WikiInfobox({
       className="wiki-infobox"
       style={accent ? { borderTopColor: accent } : undefined}
     >
-      <h2 className="border-b bg-muted/40 px-4 py-3 text-center font-serif text-lg font-bold">
+      <h2 className={cn("border-b bg-muted/40 px-4 py-3 text-center font-serif text-lg font-bold", artwork && `wiki-infobox-artwork wiki-masthead--${artwork}`)}>
         {title}
       </h2>
       <dl>{children}</dl>
@@ -161,9 +164,9 @@ export function WikiInfoboxRow({
   children: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[6.5rem_1fr] gap-3 border-b px-4 py-2.5 text-sm last:border-b-0">
+    <div className="grid grid-cols-[minmax(0,5.5rem)_minmax(0,1fr)] gap-2 border-b px-3 py-2.5 text-sm last:border-b-0 sm:grid-cols-[6.5rem_1fr] sm:gap-3 sm:px-4">
       <dt className="font-semibold text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 text-right">{children}</dd>
+      <dd className="min-w-0 break-words text-right">{children}</dd>
     </div>
   );
 }

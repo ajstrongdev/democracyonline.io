@@ -1,12 +1,12 @@
 # Oscana - Technical Documentation
 
+> This document describes the legacy v2.x architecture. For the current
+> application and deployment, start with the repository [README](../README.md)
+> and [refactor status](./REFACTOR_STATUS.md).
+
 ## Project Overview
 
 Oscana is a full-stack web application that simulates a democratic government system. Users can form political parties, propose and vote on legislation, participate in elections, and engage in the democratic process through a modern, interactive platform.
-
-## Additional Documentation
-
-- [Finance Systems](./FINANCE_SYSTEMS.md) — economy architecture, formulas, and exploit/risk analysis
 
 ## Technology Stack
 
@@ -206,16 +206,12 @@ See [src/db/schema.ts](../src/db/schema.ts) for complete schema definitions.
 
 ### 1. Authentication
 
-[Detailed Documentation](features/authentication.md)
-
 - Firebase email/password authentication
 - Protected routes
 - User registration and login
 - Session management
 
 ### 2. Political Parties
-
-[Detailed Documentation](features/political-parties.md)
 
 - Create and manage political parties
 - Join parties and collaborate with members
@@ -224,16 +220,12 @@ See [src/db/schema.ts](../src/db/schema.ts) for complete schema definitions.
 
 ### 3. Legislative System
 
-[Detailed Documentation](features/legislative-system.md)
-
 - Propose bills
 - Three-stage voting (House, Senate, Presidential)
 - Track bill progress through legislative process
 - Vote counting and bill advancement
 
 ### 4. Elections System
-
-[Detailed Documentation](features/elections-system.md)
 
 - Declare candidacy for government positions
 - Ranked-choice voting
@@ -274,8 +266,6 @@ parties, bills, nation data, or other application state.
 
 ### 5. Theme System
 
-[Detailed Documentation](features/theme-system.md)
-
 - Dark/light mode support
 - System preference detection
 - Persistent user preferences
@@ -289,15 +279,9 @@ parties, bills, nation data, or other application state.
 # Install dependencies
 pnpm install
 
-# Set up environment variables
-cp .env.example .env.local
-# Fill in your Firebase credentials and database URL
-
-# Generate database schema
-pnpm db:generate
-
-# Push schema to database
-pnpm db:push
+# Configure `.env` as described in the repository README, then apply the
+# checked-in migrations.
+pnpm db:migrate
 ```
 
 ### Development Server

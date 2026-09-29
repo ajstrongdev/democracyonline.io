@@ -1,28 +1,33 @@
 import {
   HeadContent,
+  Link,
   Outlet,
   Scripts,
   createRootRouteWithContext,
   redirect,
+  useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { Toaster } from "sonner";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
+import packageJson from "../../package.json";
 import type { QueryClient } from "@tanstack/react-query";
 import type { User } from "firebase/auth";
-import { getThemeClasses, getThemeServerFn, themes } from "@/lib/server/theme";
+import { getThemeClasses, getThemeServerFn, themes } from "@/lib/server/settings/theme";
 import { NotFound } from "@/components/not-found";
 import { WikiNavigation } from "@/components/wiki/wiki-header";
+import { DesktopNavigation } from "@/components/wiki/desktop-navigation";
+import { MobileGameNavigation } from "@/components/wiki/mobile-navigation";
 import { getAuthRedirect } from "@/lib/auth-guard";
 import { auth } from "@/lib/firebase";
-import { getCurrentBanStatus, getSessionUser } from "@/lib/server/session";
+import { getCurrentBanStatus, getSessionUser } from "@/lib/server/auth/session";
 import { AppThemeProvider, useAppTheme } from "@/components/app-theme-provider";
 import { colorSchemeStyle } from "@/lib/color-schemes";
-import { getSelectedColorScheme } from "@/lib/server/color-schemes";
+import { getSelectedColorScheme } from "@/lib/server/settings/color-schemes";
 import { PlayerPresenceHeartbeat } from "@/components/players/player-presence-heartbeat";
-import packageJson from "../../package.json";
+import { LiveUpdates } from "@/components/notifications/live-updates";
 
 type AuthContext = {
   user: User | null;
@@ -107,21 +112,30 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootLayout() {
   const { theme, customScheme } = Route.useLoaderData();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const gameScreen = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
 
   return (
     <AppThemeProvider initialTheme={theme} initialColorScheme={customScheme}>
       <PlayerPresenceHeartbeat />
-      <div className="flex min-h-svh flex-col">
+      <LiveUpdates />
+      <div className="flex min-h-svh min-w-0 flex-col">
         <WikiNavigation />
-        <div className="flex flex-1 flex-col">
-          <Outlet />
+        {gameScreen && <MobileGameNavigation />}
+        <div className="flex min-w-0 flex-1 items-stretch">
+          <DesktopNavigation />
+          <div className={`flex min-w-0 flex-1 flex-col ${gameScreen ? "pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0" : ""}`}>
+            <Outlet />
+            <footer className="mt-auto border-t bg-muted/30 px-4 py-4 text-center text-sm text-muted-foreground">
+              Running Polsimmer v{packageJson.version}{" "}
+              <a href="https://github.com/ajstrongdev/polsimmer" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">(source)</a>
+              {" "}·{" "}
+              <Link to="/changelog" className="font-medium text-primary hover:underline">Changelog</Link>
+              {" "}·{" "}
+              <a href="https://discord.gg/XREYCNFAdC" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Join the Polsimmer Discord</a>
+            </footer>
+          </div>
         </div>
-        <footer className="border-t bg-muted/30 px-4 py-4 text-center text-sm text-muted-foreground">
-          Running Polsimmer v{packageJson.version}{" "}
-          <a href="https://github.com/ajstrongdev/polsimmer" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">(source)</a>
-          {" "}·{" "}
-          <a href="https://discord.gg/XREYCNFAdC" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Join the Polsimmer Discord</a>
-        </footer>
         <ThemedToaster />
       </div>
     </AppThemeProvider>

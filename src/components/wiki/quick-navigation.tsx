@@ -113,7 +113,7 @@ const destinations = [
   },
 ] as const;
 
-export function QuickNavigation() {
+export function QuickNavigation({ keyboardShortcut = true, iconOnly = false }: { keyboardShortcut?: boolean; iconOnly?: boolean } = {}) {
   const router = useRouter();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -137,6 +137,7 @@ export function QuickNavigation() {
   const resultCount = matches.length;
 
   useEffect(() => {
+    if (!keyboardShortcut) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -145,7 +146,7 @@ export function QuickNavigation() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [keyboardShortcut]);
 
   const close = () => {
     setOpen(false);
@@ -193,13 +194,14 @@ export function QuickNavigation() {
       <Button
         variant="ghost"
         size="sm"
+        className={iconOnly ? "size-11 px-0" : "h-11 min-w-11 px-0 sm:h-8 sm:min-w-0 sm:px-3"}
         onClick={() => setOpen(true)}
         aria-label="Open command palette"
         title="Search destinations (Ctrl/Cmd+K)"
       >
         <Search className="size-4" />{" "}
-        <span className="hidden sm:inline">Search</span>
-        <kbd className="ml-1 hidden rounded border px-1 text-[10px] text-muted-foreground lg:inline">
+        <span className={iconOnly ? "sr-only" : "hidden sm:inline"}>Search</span>
+        <kbd className={iconOnly ? "hidden" : "ml-1 hidden rounded border px-1 text-[10px] text-muted-foreground lg:inline"}>
           Ctrl/⌘ K
         </kbd>
       </Button>

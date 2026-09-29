@@ -267,6 +267,8 @@ async function seed() {
   await client.connect();
   await client.query("BEGIN");
   try {
+    // notification_outbox has no FK to social posts/comments, so CASCADE alone
+    // would leave old source IDs behind when the social sequences restart.
     await client.query(`
       TRUNCATE TABLE
         "nation_changes", "bill_locked_policy_effects", "bill_locked_stat_effects",
@@ -280,7 +282,7 @@ async function seed() {
         "bill_votes_house", "bill_votes_senate", "bill_votes_presidential",
         "party_notifications", "merge_request_stances", "merge_request",
         "join_requests", "coalition_members", "coalition_former_members", "coalitions",
-        "social_notification_dismissals", "social_comment_dislikes", "social_comment_likes", "social_comments", "social_likes", "social_dislikes", "social_reposts", "social_posts",
+        "notification_outbox", "social_notification_dismissals", "social_comment_dislikes", "social_comment_likes", "social_comments", "social_likes", "social_dislikes", "social_reposts", "social_posts",
         "moderation_audit_log", "moderation_flags", "player_reports", "player_invitations",
         "party_stances", "political_stances", "chats", "feed", "bills",
         "game_tracker", "game_settings", "elections", "users", "parties"

@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ModerationQueue } from "@/components/moderation/moderation-queue";
-import { getModerationAccess, getModerationQueue } from "@/lib/server/moderation";
+import { getModerationAccess, getModerationQueue } from "@/lib/server/moderation/moderation";
 
 export const Route = createFileRoute("/dashboard/moderation")({
   loader: async () => {

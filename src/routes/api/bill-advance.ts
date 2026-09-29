@@ -8,13 +8,13 @@ import {
   billVotesSenate,
   bills,
 } from "@/db/schema";
-import { archiveEmptyParties } from "@/lib/server/organization-lifecycle";
+import { archiveEmptyParties } from "@/lib/server/organizations/organization-lifecycle";
 import { env } from "@/env";
 import { getAdminAuth } from "@/lib/firebase-admin";
-import { authorizeCronRequest } from "@/lib/server/cron-auth";
-import { lockCommitteeOutcome } from "@/lib/server/committee";
-import { applyPassedBillEffects } from "@/lib/server/bill-effects";
-import { getBillStageDurationMs, getGameSpeed } from "@/lib/server/game-speed";
+import { authorizeCronRequest } from "@/lib/server/scheduler/cron-auth";
+import { lockCommitteeOutcome } from "@/lib/server/bills/committee";
+import { applyPassedBillEffects } from "@/lib/server/bills/bill-effects";
+import { getBillStageDurationMs, getGameSpeed } from "@/lib/server/scheduler/game-speed";
 
 const oAuth2Client = new OAuth2Client();
 

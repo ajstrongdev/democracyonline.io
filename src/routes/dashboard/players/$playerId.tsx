@@ -18,8 +18,8 @@ import {
   usePlayerPresenceData,
   usePresenceClock,
 } from "@/components/players/player-last-seen";
-import { getWikiPlayer } from "@/lib/server/history";
-import { getWikiArticle } from "@/lib/server/wiki-articles";
+import { getWikiPlayer } from "@/lib/server/history/history";
+import { getWikiArticle } from "@/lib/server/wiki/wiki-articles";
 import {
   formatElectionTitle,
   formatWikiDate,
@@ -29,7 +29,8 @@ import {
 } from "@/lib/utils/history";
 import { EntityReferenceText } from "@/components/entity-reference-text";
 import { SocialPlayerPosts } from "@/components/social/social-player-posts";
-import { getSocialProfile } from "@/lib/server/social";
+import { getSocialProfile } from "@/lib/server/social/social";
+import { featuredOffice, officeArtwork } from "@/lib/masthead-artwork";
 
 export const Route = createFileRoute("/dashboard/players/$playerId")({
   loader: async ({ params }) => {
@@ -123,7 +124,9 @@ function PlayerArticle() {
   return (
     <WikiPage width="article">
       <WikiHeader
-        eyebrow="Player article"
+        artwork={officeArtwork(player.role)}
+        office={featuredOffice(player.role)}
+        eyebrow={player.role === "President" ? "President · Player article" : player.role === "Senator" ? "Senator · Player article" : "Player article"}
         title={player.username}
         description={
           <>
@@ -175,7 +178,7 @@ function PlayerArticle() {
           entityId={String(player.id)}
           article={article}
         />
-        <WikiInfobox title={player.username} accent={player.partyColor}>
+        <WikiInfobox title={player.username} accent={player.partyColor} artwork={officeArtwork(player.role)}>
           <div className="flex justify-center border-b p-5">
             <PlayerAvatar
               username={player.username}

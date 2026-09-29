@@ -23,13 +23,12 @@ Each stage is intended to last 8 hours. A failed vote changes the bill to `Defea
 
 - [src/db/schema.ts](../src/db/schema.ts): bill columns and Drizzle schema
 - [src/routes/api/bill-advance.ts](../src/routes/api/bill-advance.ts): deadline reconciler and vote outcomes
-- [src/lib/server/bills.ts](../src/lib/server/bills.ts): new bill creation and initial 8-hour deadline
-- [src/lib/server/committee.ts](../src/lib/server/committee.ts): committee outcome locking
-- [src/lib/server/calendar.ts](../src/lib/server/calendar.ts): calendar selects the earliest persisted bill deadline
-- [src/components/calendar-view.tsx](../src/components/calendar-view.tsx): bill countdown display
+- [src/lib/server/bills/bills.ts](../src/lib/server/bills/bills.ts): bill creation and lifecycle operations
+- [src/lib/server/bills/committee.ts](../src/lib/server/bills/committee.ts): committee outcome locking
+- [src/routes/dashboard/bills/index.tsx](../src/routes/dashboard/bills/index.tsx): bill list and deadline display
 - [scripts/scheduler.mjs](../scripts/scheduler.mjs): VPS scheduler loop
-- [src/lib/server/cron-auth.ts](../src/lib/server/cron-auth.ts): sidecar (internal token) + GCP OIDC + admin-trigger + local auth
-- [src/routes/admin.tsx](../src/routes/admin.tsx): manual advance triggers (no SSH needed)
+- [src/lib/server/scheduler/cron-auth.ts](../src/lib/server/scheduler/cron-auth.ts): scheduler request authorization
+- [src/routes/dashboard/admin.tsx](../src/routes/dashboard/admin.tsx): administrative controls
 - [drizzle/0033_bill_stage_deadlines.sql](../drizzle/0033_bill_stage_deadlines.sql): schema migration and existing-row backfill
 
 ## Game speed modes (DB-owned)
@@ -137,7 +136,8 @@ set +a
 pnpm db:migrate
 ```
 
-Do not run `db:push` for this change. Do not create a second hand-written migration for the bill deadline columns. After changing the schema, use:
+Schema changes are managed through Drizzle migrations. Generate a migration
+after updating the schema:
 
 ```bash
 pnpm db:generate

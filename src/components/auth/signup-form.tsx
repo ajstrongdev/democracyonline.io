@@ -3,9 +3,9 @@ import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { deleteUser } from "firebase/auth";
 import { signUp } from "@/lib/auth-utils";
-import { createUser } from "@/lib/server/users";
-import { validateInvitation } from "@/lib/server/invitations";
-import { createSessionCookie } from "@/lib/server/session";
+import { createUser } from "@/lib/server/users/users";
+import { validateInvitation } from "@/lib/server/users/invitations";
+import { createSessionCookie } from "@/lib/server/auth/session";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -84,11 +84,11 @@ export function SignupForm({ inviteToken }: { inviteToken: string }) {
   });
 
   return (
-    <Card className="w-full max-w-md p-6 space-y-6">
+    <Card className="w-full max-w-md space-y-6 rounded-sm p-5 shadow-sm sm:p-7">
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-bold">Create Account</h1>
         <p className="text-muted-foreground">
-          Enter your information to create an account
+          Set up your player profile and sign-in details.
         </p>
       </div>
 
@@ -101,7 +101,7 @@ export function SignupForm({ inviteToken }: { inviteToken: string }) {
         className="space-y-4"
       >
         {form.state.errorMap.onSubmit && (
-          <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+          <div role="alert" className="rounded-sm border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {form.state.errorMap.onSubmit}
           </div>
         )}
@@ -126,7 +126,8 @@ export function SignupForm({ inviteToken }: { inviteToken: string }) {
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
                 required
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                autoComplete="username"
+                className="h-11 w-full rounded-md border bg-background px-3 text-base focus-visible:outline-2 focus-visible:outline-ring"
                 placeholder=""
               />
               {field.state.meta.errors && (
@@ -151,7 +152,7 @@ export function SignupForm({ inviteToken }: { inviteToken: string }) {
                 maxLength={1000}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring min-h-20"
+                className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-ring"
                 placeholder="Tell us about yourself..."
               />
             </div>
@@ -172,7 +173,7 @@ export function SignupForm({ inviteToken }: { inviteToken: string }) {
                 onBlur={field.handleBlur}
                 onChange={(event) => field.handleChange(event.target.value)}
                 maxLength={80}
-                className="w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-11 w-full rounded-md border bg-background px-3 text-base focus-visible:outline-2 focus-visible:outline-ring"
                 placeholder="they/she"
               />
               <p className="text-xs text-muted-foreground">Enter pronouns in your preferred order, for example they/she.</p>
@@ -181,9 +182,10 @@ export function SignupForm({ inviteToken }: { inviteToken: string }) {
         </form.Field>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Political Leaning</label>
+          <p id="political-leaning-label" className="text-sm font-medium">Political leaning</p>
           <div className="space-y-3 p-4 bg-muted/50 rounded-md">
             <Slider
+              aria-label="Political leaning"
               min={0}
               max={6}
               step={1}
@@ -206,11 +208,12 @@ export function SignupForm({ inviteToken }: { inviteToken: string }) {
                 id={field.name}
                 name={field.name}
                 type="email"
+                autoComplete="email"
                 value={field.state.value}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
                 required
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-11 w-full rounded-md border bg-background px-3 text-base focus-visible:outline-2 focus-visible:outline-ring"
                 placeholder="you@example.com"
               />
             </div>
@@ -235,11 +238,12 @@ export function SignupForm({ inviteToken }: { inviteToken: string }) {
                 id={field.name}
                 name={field.name}
                 type="password"
+                autoComplete="new-password"
                 value={field.state.value}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
                 required
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-11 w-full rounded-md border bg-background px-3 text-base focus-visible:outline-2 focus-visible:outline-ring"
                 placeholder="••••••••"
               />
               {field.state.meta.errors && (
@@ -270,11 +274,12 @@ export function SignupForm({ inviteToken }: { inviteToken: string }) {
                 id={field.name}
                 name={field.name}
                 type="password"
+                autoComplete="new-password"
                 value={field.state.value}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
                 required
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-11 w-full rounded-md border bg-background px-3 text-base focus-visible:outline-2 focus-visible:outline-ring"
                 placeholder="••••••••"
               />
               {field.state.meta.errors && (
@@ -292,7 +297,7 @@ export function SignupForm({ inviteToken }: { inviteToken: string }) {
           {([isSubmitting, canSubmit]) => (
             <Button
               type="submit"
-              className="w-full"
+              className="h-11 w-full"
               disabled={isSubmitting || !canSubmit}
             >
               {isSubmitting ? "Creating account..." : "Create Account"}

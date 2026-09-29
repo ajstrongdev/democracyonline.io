@@ -3,8 +3,8 @@ import { GovernmentCompositionTimeline } from "@/components/wiki/government-comp
 import { WikiArticleSection } from "@/components/wiki/wiki-article-section";
 import { WikiHeader } from "@/components/wiki/wiki-header";
 import { WikiPage } from "@/components/wiki/wiki-layout";
-import { getGovernmentCompositionHistory } from "@/lib/server/history";
-import { getWikiArticle } from "@/lib/server/wiki-articles";
+import { getGovernmentCompositionHistory } from "@/lib/server/history/history";
+import { getWikiArticle } from "@/lib/server/wiki/wiki-articles";
 import { formatElectionTitle, formatWikiDate } from "@/lib/utils/history";
 
 export const Route = createFileRoute("/dashboard/government")({
@@ -50,6 +50,7 @@ function GovernmentHistory() {
   return (
     <WikiPage>
       <WikiHeader
+        artwork="cabinet"
         eyebrow="Government history"
         title="Composition of government"
         description="A latest-first record of how party and independent representation changed through elections, defections, and coups."

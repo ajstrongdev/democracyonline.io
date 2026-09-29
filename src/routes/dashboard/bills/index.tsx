@@ -1,261 +1,314 @@
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useDeferredValue, useState } from "react";
-import { CheckCircle2, Clock3, XCircle } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Clock3,
+  Search,
+  XCircle,
+} from "lucide-react";
+import type { BillListStage } from "@/lib/bills/list-stage";
 import {
   BillStageCountdown,
-  billStatusLabel,
   getNextBillStage,
   invalidateAfterBillExpiry,
-} from "@/components/bill-stage-countdown";
+} from "@/components/bills/bill-stage-countdown";
 import { WikiHeader } from "@/components/wiki/wiki-header";
-import { WikiEmpty, WikiPage, WikiSearch } from "@/components/wiki/wiki-layout";
+import { WikiEmpty, WikiPage } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getWikiBills } from "@/lib/server/history";
-import { getCurrentUserInfo } from "@/lib/server/users";
-import { houseBillsPageData } from "@/lib/server/house-bills";
-import { senateBillsPageData } from "@/lib/server/senate-bills";
-import { presidentialBillsPageData } from "@/lib/server/oval-office-bills";
-import { getMyBillVoteIds } from "@/lib/server/bill-vote-status";
-import {
-  BillDeskDialog,
-  NewBillDialog,
-} from "@/components/wiki/bill-desk-dialogs";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { billListStage, billListStages } from "@/lib/bills/list-stage";
+import { getWikiBills } from "@/lib/server/history/history";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
+import { getMyBillVoteIds } from "@/lib/server/bills/bill-vote-status";
+import { NewBillDialog } from "@/components/wiki/new-bill-dialog";
 
 export const Route = createFileRoute("/dashboard/bills/")({
   validateSearch: (search: Record<string, unknown>) => {
     const result: {
-      desk?: "House" | "Senate" | "Presidential";
       create?: boolean;
+      stage?: BillListStage;
     } = {};
-    if (["House", "Senate", "Presidential"].includes(String(search.desk))) {
-      result.desk = String(search.desk) as "House" | "Senate" | "Presidential";
-    }
     if (search.create === true || search.create === "true") {
       result.create = true;
+    }
+    if (billListStages.includes(search.stage as BillListStage)) {
+      result.stage = search.stage as BillListStage;
+    } else if (
+      ["House", "Senate", "Presidential"].includes(String(search.desk))
+    ) {
+      result.stage =
+        search.desk === "Presidential"
+          ? "President"
+          : (search.desk as "House" | "Senate");
     }
     return result;
   },
   loader: async () => {
-    const [bills, currentUser, house, senate, presidential] = await Promise.all(
-      [
-        getWikiBills(),
-        getCurrentUserInfo(),
-        houseBillsPageData(),
-        senateBillsPageData(),
-        presidentialBillsPageData(),
-      ],
-    );
-    const votedBillIds = await getMyBillVoteIds();
+    const [bills, currentUser, votedBillIds] = await Promise.all([
+      getWikiBills(),
+      getCurrentUserInfo(),
+      getMyBillVoteIds(),
+    ]);
     return {
       bills,
       currentUser,
       votedBillIds,
-      desks: {
-        House: {
-          bills: house.bills.map((bill) => ({
-            ...bill,
-            votes: { yes: bill.votes.for, no: bill.votes.against },
-          })),
-          members: house.representatives,
-        },
-        Senate: {
-          bills: senate.bills.map((bill) => ({
-            ...bill,
-            votes: { yes: bill.votes.for, no: bill.votes.against },
-          })),
-          members: senate.senators,
-        },
-        Presidential: {
-          bills: presidential.bills.map((bill) => ({
-            ...bill,
-            votes: { yes: bill.votes.signed, no: bill.votes.vetoed },
-          })),
-          members: presidential.presidents,
-        },
-      },
     };
   },
   component: BillsIndex,
 });
 
 function BillsIndex() {
-  const { bills, currentUser, desks, votedBillIds } = Route.useLoaderData();
-  const { create, desk } = Route.useSearch();
+  const { bills, currentUser, votedBillIds } = Route.useLoaderData();
+  const { create, stage } = Route.useSearch();
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("All");
   const [mineOnly, setMineOnly] = useState(false);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
-  const filtered = bills.filter(
+  const matching = bills.filter(
     (bill) =>
-      (status === "All" || bill.status === status) &&
       (!mineOnly || bill.creatorId === currentUser?.id) &&
-      `${bill.title} ${bill.content} ${bill.creator ?? ""} ${bill.status}`
+      `${bill.title} ${bill.content} ${bill.creator ?? ""} ${bill.status} ${bill.stage} ${billListStage(bill)}`
         .toLowerCase()
         .includes(deferredQuery),
+  );
+  const selectedStage = stage ?? "All";
+  const filtered = matching.filter(
+    (bill) => selectedStage === "All" || billListStage(bill) === selectedStage,
   );
 
   return (
     <WikiPage>
       <WikiHeader
+        artwork="bills"
         eyebrow={`${bills.length} articles`}
         title="Bills"
-        description="Every proposal and its complete House, Senate, and presidential roll call."
-      />
-      <nav className="flex flex-wrap gap-2 border-y bg-card px-4 py-3">
+        description="Follow proposals through each stage, from committee review to the final outcome. Open any bill for its text, discussion, and full voting record."
+      >
         <NewBillDialog userId={currentUser?.id} autoOpen={create} />
-        <BillDeskDialog
-          data={desks}
-          user={currentUser}
-          initialChamber={desk}
-          autoOpen={Boolean(desk)}
-        />
-      </nav>
-      <WikiSearch
-        value={query}
-        onChange={setQuery}
-        placeholder="Search bills, authors, or statuses"
-        resultCount={filtered.length}
-      />
-      <div className="flex flex-wrap gap-2">
-        {[
-          { value: "All", label: "All" },
-          { value: "Committee", label: "Senate Committee" },
-          { value: "Voting", label: "Voting" },
-          { value: "Passed", label: "Passed" },
-          { value: "Defeated", label: "Defeated" },
-        ].map(({ value, label }) => (
-          <Button
-            key={value}
-            size="sm"
-            variant={status === value ? "default" : "outline"}
-            onClick={() => setStatus(value)}
-          >
-            {label}
-          </Button>
-        ))}
-        {currentUser && (
-          <Button
-            size="sm"
-            variant={mineOnly ? "default" : "outline"}
-            onClick={() => setMineOnly((value) => !value)}
-          >
-            My bills
-          </Button>
-        )}
-      </div>
-      <section className="grid gap-4 lg:grid-cols-2">
-        {filtered.map((bill) => {
-          return (
-            <Card
-              key={bill.id}
-              className="h-full rounded-sm shadow-none transition-colors hover:border-primary"
+      </WikiHeader>
+      <Tabs
+        value={selectedStage}
+        onValueChange={(value) => {
+          void router.navigate({
+            to: "/dashboard/bills",
+            search: (previous) => ({
+              ...previous,
+              stage: value === "All" ? undefined : (value as BillListStage),
+            }),
+          });
+        }}
+        className="min-w-0 gap-0"
+      >
+        <div className="flex min-w-0 flex-col gap-3 border-b bg-card px-3 py-3 sm:px-4 lg:flex-row lg:items-center">
+          <div className="flex min-w-0 items-center gap-3 lg:order-1 lg:flex-1">
+            <div className="min-w-0 flex-1 overflow-x-auto">
+              <TabsList
+                aria-label="Bill stages"
+                className="h-11 min-w-max gap-1 rounded-sm bg-transparent p-0"
+              >
+                {billListStages.map((value) => (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    className="h-10 min-w-11 flex-none rounded-sm px-3 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
+                  >
+                    {value}
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {value === "All"
+                        ? matching.length
+                        : matching.filter(
+                            (bill) => billListStage(bill) === value,
+                          ).length}
+                    </span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+            <span
+              className="shrink-0 font-mono text-xs text-muted-foreground"
+              aria-live="polite"
             >
-              <CardContent className="space-y-4 pt-5">
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="font-serif text-xl font-bold">
-                    Bill #{bill.id}: {bill.title}
-                  </h2>
-                  <Badge variant="outline">
-                    {billStatusLabel(bill.status)}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Proposed by {bill.creator ?? "Unknown"} ·{" "}
-                  {bill.status === "Committee"
-                    ? "Senate Committee"
-                    : `${bill.stage} stage`}
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  {bill.stageEndsAt ? (
-                    <>
-                      <Badge variant="outline" className="gap-1.5 px-3 py-1.5">
-                        <Clock3 className="h-3.5 w-3.5" />
-                        <BillStageCountdown
-                          target={bill.stageEndsAt}
-                          onExpire={() =>
-                            invalidateAfterBillExpiry(() => router.invalidate())
-                          }
-                        />
-                      </Badge>
-                      {getNextBillStage(bill) ? (
-                        <span className="text-xs text-muted-foreground">
-                          Next stage: {getNextBillStage(bill)}
+              {filtered.length} {filtered.length === 1 ? "result" : "results"}
+            </span>
+          </div>
+          <div className="flex min-w-0 items-center gap-2 lg:order-2 lg:w-auto">
+            <label className="relative min-w-0 flex-1 lg:w-56 lg:flex-none xl:w-64">
+              <span className="sr-only">Search bills</span>
+              <Search
+                className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search bills or authors"
+                className="h-10 rounded-sm bg-muted/50 pl-9 shadow-none"
+              />
+            </label>
+            {currentUser && (
+              <Button
+                size="sm"
+                variant={mineOnly ? "default" : "outline"}
+                aria-pressed={mineOnly}
+                onClick={() => setMineOnly((value) => !value)}
+              >
+                My bills
+              </Button>
+            )}
+          </div>
+        </div>
+        <TabsContent value={selectedStage} className="mt-0">
+          <section
+            aria-label={`${selectedStage} bills`}
+            className="divide-y border-x border-b bg-card"
+          >
+            {filtered.map((bill) => {
+              const listStage = billListStage(bill);
+              const votePending =
+                bill.status === "Voting" &&
+                currentUser?.isActive &&
+                currentUser?.role ===
+                  (bill.stage === "House"
+                    ? "Representative"
+                    : bill.stage === "Senate"
+                      ? "Senator"
+                      : "President") &&
+                !votedBillIds.includes(bill.id);
+              const voteRecorded =
+                bill.status === "Voting" && votedBillIds.includes(bill.id);
+              const voteTally =
+                bill.status === "Committee"
+                  ? null
+                  : bill.stage === "Presidential"
+                    ? {
+                        label: "President",
+                        yes: Number(bill.presidentYes),
+                        no: Number(bill.presidentNo),
+                      }
+                    : bill.stage === "Senate"
+                      ? {
+                          label: "Senate",
+                          yes: Number(bill.senateYes),
+                          no: Number(bill.senateNo),
+                        }
+                      : {
+                          label: "House",
+                          yes: Number(bill.houseYes),
+                          no: Number(bill.houseNo),
+                        };
+              return (
+                <article
+                  key={bill.id}
+                  className="border-l-2 border-l-transparent px-4 py-4 transition-colors hover:border-l-primary hover:bg-muted/30 sm:px-5"
+                >
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-5">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="rounded-sm">
+                          {listStage}
+                        </Badge>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          Bill #{bill.id}
                         </span>
-                      ) : null}
-                    </>
-                  ) : bill.status === "Passed" || bill.status === "Defeated" ? (
-                    <span className="text-xs text-muted-foreground">
-                      Lifecycle complete — no further deadlines
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      No active deadline
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-3 border-y py-3">
-                  <StageVotes
-                    label="House"
-                    yes={Number(bill.houseYes)}
-                    no={Number(bill.houseNo)}
-                  />
-                  {bill.stage !== "House" && (
-                    <StageVotes
-                      label="Senate"
-                      yes={Number(bill.senateYes)}
-                      no={Number(bill.senateNo)}
-                    />
-                  )}
-                  {bill.stage === "Presidential" && (
-                    <StageVotes
-                      label="President"
-                      yes={Number(bill.presidentYes)}
-                      no={Number(bill.presidentNo)}
-                    />
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button asChild variant="outline" size="sm">
-                    <Link
-                      to="/dashboard/bills/$billId"
-                      params={{ billId: String(bill.id) }}
-                    >
-                      View bill
-                    </Link>
-                  </Button>
-                   {bill.status === "Voting" && currentUser?.role === (
-                     bill.stage === "House" ? "Representative" : bill.stage === "Senate" ? "Senator" : "President"
-                   ) && !votedBillIds.includes(bill.id) && (
-                     <span className="inline-flex items-center text-xs font-semibold text-primary">Vote pending · use the chamber desk</span>
-                   )}
-                   {bill.status === "Voting" && votedBillIds.includes(bill.id) && (
-                     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><CheckCircle2 className="size-4" /> You voted</span>
-                   )}
-                  {currentUser?.id === bill.creatorId &&
-                    bill.status === "Committee" && (
-                      <Button asChild variant="ghost" size="sm">
+                        {listStage === "Defeated" && (
+                          <span className="text-xs text-muted-foreground">
+                            ·{" "}
+                            {bill.stage === "Presidential"
+                              ? "President"
+                              : bill.stage}{" "}
+                            decision
+                          </span>
+                        )}
+                      </div>
+                      <h2 className="break-words font-serif text-lg font-bold leading-snug sm:text-xl">
                         <Link
-                          to="/dashboard/bills/edit/$id"
-                          params={{ id: String(bill.id) }}
+                          to="/dashboard/bills/$billId"
+                          params={{ billId: String(bill.id) }}
+                          className="hover:text-primary hover:underline"
                         >
-                          Edit
+                          {bill.title}
+                        </Link>
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Proposed by {bill.creator ?? "Unknown"}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                        {bill.stageEndsAt ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Clock3 className="size-3.5" />
+                            <BillStageCountdown
+                              target={bill.stageEndsAt}
+                              onExpire={() =>
+                                invalidateAfterBillExpiry(() =>
+                                  router.invalidate(),
+                                )
+                              }
+                            />
+                            {getNextBillStage(bill) && (
+                              <span>· Next: {getNextBillStage(bill)}</span>
+                            )}
+                          </span>
+                        ) : null}
+                        {voteTally && <StageVotes {...voteTally} />}
+                        {votePending && (
+                          <span className="font-semibold text-primary">
+                            Your vote is pending
+                          </span>
+                        )}
+                        {voteRecorded && (
+                          <span className="inline-flex items-center gap-1">
+                            <CheckCircle2 className="size-3.5" /> You voted
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {currentUser?.id === bill.creatorId &&
+                        bill.status === "Committee" && (
+                          <Button asChild variant="ghost" size="sm">
+                            <Link
+                              to="/dashboard/bills/edit/$id"
+                              params={{ id: String(bill.id) }}
+                            >
+                              Edit
+                            </Link>
+                          </Button>
+                        )}
+                      <Button
+                        asChild
+                        variant={votePending ? "default" : "outline"}
+                        size="sm"
+                      >
+                        <Link
+                          to="/dashboard/bills/$billId"
+                          params={{ billId: String(bill.id) }}
+                          hash={votePending ? "your-vote" : undefined}
+                        >
+                          {votePending ? "Vote on bill" : "Read bill"}{" "}
+                          <ArrowRight className="size-3.5" />
                         </Link>
                       </Button>
-                    )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-        {!filtered.length && (
-          <div className="col-span-full">
-            <WikiEmpty>No bills match this search.</WikiEmpty>
-          </div>
-        )}
-      </section>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+            {!filtered.length && (
+              <WikiEmpty>
+                {deferredQuery || mineOnly
+                  ? "No bills match these filters. Try a different search or stage."
+                  : selectedStage === "All"
+                    ? "No bills have been proposed yet."
+                    : `No bills in ${selectedStage.toLowerCase()} right now.`}
+              </WikiEmpty>
+            )}
+          </section>
+        </TabsContent>
+      </Tabs>
     </WikiPage>
   );
 }
@@ -269,30 +322,15 @@ function StageVotes({
   yes: number;
   no: number;
 }) {
-  const total = yes + no;
   return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between gap-3 font-mono text-xs">
-        <strong className="text-foreground">{label}</strong>
-        <span className="inline-flex items-center gap-3">
-          <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
-            <CheckCircle2 className="h-3.5 w-3.5" /> {yes} for
-          </span>
-          <span className="inline-flex items-center gap-1 text-red-700 dark:text-red-400">
-            <XCircle className="h-3.5 w-3.5" /> {no} against
-          </span>
-        </span>
-      </div>
-      <div className="flex h-1.5 overflow-hidden bg-muted">
-        <div
-          className="bg-emerald-600"
-          style={{ width: `${(yes / (total || 1)) * 100}%` }}
-        />
-        <div
-          className="bg-red-600"
-          style={{ width: `${(no / (total || 1)) * 100}%` }}
-        />
-      </div>
-    </div>
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 font-mono">
+      <span className="font-semibold text-foreground">{label} vote</span>
+      <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+        <CheckCircle2 className="size-3.5" /> {yes} for
+      </span>
+      <span className="inline-flex items-center gap-1 text-red-700 dark:text-red-400">
+        <XCircle className="size-3.5" /> {no} against
+      </span>
+    </span>
   );
 }

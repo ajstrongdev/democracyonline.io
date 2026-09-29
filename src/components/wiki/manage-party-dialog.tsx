@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { leanings } from "@/lib/constants";
-import { updateParty } from "@/lib/server/party";
+import { updateParty } from "@/lib/server/organizations/party";
 import { icons } from "@/lib/utils/logo-helper";
 import { ReferenceInsert } from "@/components/reference-insert";
 

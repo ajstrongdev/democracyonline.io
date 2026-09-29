@@ -23,20 +23,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getWikiParty } from "@/lib/server/history";
-import { getWikiArticle } from "@/lib/server/wiki-articles";
-import { getCurrentUserInfo } from "@/lib/server/users";
+import { getWikiParty } from "@/lib/server/history/history";
+import { getWikiArticle } from "@/lib/server/wiki/wiki-articles";
+import { getCurrentUserInfo } from "@/lib/server/users/users";
 import {
   becomePartyLeader,
   getPartyRevivalState,
   joinParty,
   leaveParty,
   reviveParty,
-} from "@/lib/server/party";
-import { getPartyCoalition } from "@/lib/server/coalitions";
+} from "@/lib/server/organizations/party";
+import { getPartyCoalition } from "@/lib/server/organizations/coalitions";
 import { EntityReferenceText } from "@/components/entity-reference-text";
 import { SocialPartyPosts } from "@/components/social/social-party-posts";
-import { getSocialPartyPosts } from "@/lib/server/social";
+import { getSocialPartyPosts } from "@/lib/server/social/social";
 import {
   formatElectionTitle,
   formatWikiDate,

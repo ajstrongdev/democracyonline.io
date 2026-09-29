@@ -6,7 +6,8 @@ import {
   signOut,
   updateProfile,
 } from "./firebase";
-import { deleteSessionCookie } from "./server/session";
+import { deleteSessionCookie } from "@/lib/server/auth/session";
+import { disableBrowserPush } from "@/lib/notifications/browser-push";
 
 export interface SignUpData {
   email: string;
@@ -52,6 +53,10 @@ export async function signIn({ email, password }: SignInData) {
 
 export async function logOut() {
   try {
+    // A shared browser must stop receiving the previous player's push messages.
+    await disableBrowserPush(true).catch((error: unknown) => {
+      console.error("Could not remove push subscription during sign-out", error);
+    });
     await signOut(auth);
     return { error: null };
   } catch (error: any) {

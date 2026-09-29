@@ -3,6 +3,7 @@ import { RefreshCw, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { WikiHeader } from "@/components/wiki/wiki-header";
 import {
   Card,
   CardContent,
@@ -14,7 +15,7 @@ import {
   getInvitationAncestry,
   getModerationQueue,
   moderatePlayer,
-} from "@/lib/server/moderation";
+} from "@/lib/server/moderation/moderation";
 
 type QueueData = Awaited<ReturnType<typeof getModerationQueue>>;
 type Ancestry = Awaited<ReturnType<typeof getInvitationAncestry>>["ancestry"];
@@ -68,18 +69,18 @@ export function ModerationQueue({ initialQueue }: { initialQueue: QueueData }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Moderation Queue</h1>
-          <p className="text-muted-foreground">
-            Review player reports and explainable automatic flags.
-          </p>
-        </div>
-        <Button variant="outline" onClick={refresh} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
-      </div>
+      <WikiHeader
+        artwork="revisions"
+        eyebrow="Player safety"
+        title="Moderation Queue"
+        description="Review player reports and explainable automatic flags."
+        status={
+          <Button variant="outline" onClick={refresh} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader>

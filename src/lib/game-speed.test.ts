@@ -9,7 +9,7 @@ import {
 import {
   billStatusLabel,
   getNextBillStage,
-} from "@/components/bill-stage-countdown";
+} from "@/components/bills/bill-stage-countdown";
 
 describe("game speed presets", () => {
   it("defines the seven promised modes", () => {
@@ -103,7 +103,7 @@ describe("bill display helpers", () => {
       "Presidential decision",
     );
     expect(getNextBillStage({ status: "Voting", stage: "Presidential" })).toBe(
-      "Final decision",
+      "Result announced",
     );
     expect(
       getNextBillStage({ status: "Passed", stage: "Presidential" }),
