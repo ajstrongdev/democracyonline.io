@@ -1,10 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { BookOpen } from "lucide-react";
 import type { ReactNode } from "react";
+import type { FeaturedOffice, MastheadArtwork } from "@/lib/masthead-artwork";
 import { ModeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/auth/user-menu";
 import { QuickNavigation } from "@/components/wiki/quick-navigation";
 import { MobileNavigation } from "@/components/wiki/mobile-navigation";
+import { pageArtwork } from "@/lib/masthead-artwork";
 
 export function WikiNavigation() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -39,6 +41,8 @@ export function WikiHeader({
   status,
   children,
   leading,
+  artwork,
+  office,
 }: {
   eyebrow?: string;
   title: string;
@@ -46,9 +50,13 @@ export function WikiHeader({
   status?: ReactNode;
   children?: ReactNode;
   leading?: ReactNode;
+  artwork?: MastheadArtwork;
+  office?: FeaturedOffice;
 }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const image = artwork ?? pageArtwork(pathname);
   return (
-    <header className="wiki-masthead">
+    <header className={`wiki-masthead wiki-masthead--${image}${office ? ` wiki-masthead--${office.toLowerCase()}` : ""}`}>
       <div className="px-4 py-7 sm:px-8 sm:py-9">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-4">

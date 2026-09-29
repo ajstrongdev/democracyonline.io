@@ -325,7 +325,7 @@ export function AdminContent() {
 
   return (
     <div className="container mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-8 sm:py-10">
-      <header className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-6 shadow-sm sm:p-8">
+      <header className="wiki-masthead wiki-masthead--revisions relative overflow-hidden rounded-2xl p-6 sm:p-8">
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
           <div><p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Control room</p>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Admin dashboard</h1>

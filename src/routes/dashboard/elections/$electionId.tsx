@@ -88,6 +88,7 @@ function ElectionArticle() {
   return (
     <WikiPage>
       <WikiHeader
+        artwork={election.election === "Senate" ? "senate" : undefined}
         eyebrow={
           electionData.current
             ? "Election in progress"

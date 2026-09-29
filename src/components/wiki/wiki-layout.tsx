@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import type { MastheadArtwork } from "@/lib/masthead-artwork";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -134,10 +135,12 @@ export function WikiEmpty({ children }: { children: ReactNode }) {
 export function WikiInfobox({
   title,
   accent,
+  artwork,
   children,
 }: {
   title: string;
   accent?: string | null;
+  artwork?: MastheadArtwork;
   children: ReactNode;
 }) {
   return (
@@ -145,7 +148,7 @@ export function WikiInfobox({
       className="wiki-infobox"
       style={accent ? { borderTopColor: accent } : undefined}
     >
-      <h2 className="border-b bg-muted/40 px-4 py-3 text-center font-serif text-lg font-bold">
+      <h2 className={cn("border-b bg-muted/40 px-4 py-3 text-center font-serif text-lg font-bold", artwork && `wiki-infobox-artwork wiki-masthead--${artwork}`)}>
         {title}
       </h2>
       <dl>{children}</dl>

@@ -12,6 +12,7 @@ import ProtectedRoute from "@/components/auth/protected-route";
 import { PartyMark, WikiHeader } from "@/components/wiki/wiki-header";
 import { WikiPage } from "@/components/wiki/wiki-layout";
 import { PlayerAvatar } from "@/components/players/player-avatar";
+import { officeArtwork } from "@/lib/masthead-artwork";
 import { SocialAccountAvatar } from "@/components/social/social-account-avatar";
 import { ReferenceInsert } from "@/components/reference-insert";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
@@ -182,7 +183,7 @@ export function SocialContent({ data, search }: {
         <div className="mx-auto grid w-full max-w-7xl items-start gap-5 lg:grid-cols-[minmax(15rem,18rem)_minmax(0,1fr)] xl:grid-cols-[minmax(15rem,18rem)_minmax(0,1fr)_minmax(12rem,15rem)]">
           <aside className="hidden space-y-5 lg:order-1 lg:sticky lg:top-6 lg:block">
             <Card className="overflow-hidden rounded-2xl shadow-sm">
-              <div className="h-16 bg-linear-to-r from-primary/20 via-primary/10 to-muted" />
+              <div className={`wiki-masthead wiki-masthead--${officeArtwork(viewer?.role)} h-16 rounded-none border-0`} aria-hidden="true" />
               <CardContent className="-mt-9 space-y-3 p-5">
                 <PlayerAvatar
                   username={viewer?.username ?? "Z"}

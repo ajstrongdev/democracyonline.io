@@ -100,6 +100,7 @@ function BillsIndex() {
   return (
     <WikiPage>
       <WikiHeader
+        artwork="bills"
         eyebrow={`${bills.length} articles`}
         title="Bills"
         description="Every proposal and its complete House, Senate, and presidential roll call."

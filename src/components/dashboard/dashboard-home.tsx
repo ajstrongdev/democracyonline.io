@@ -47,6 +47,7 @@ import { getFeedDestination } from "@/lib/feed-destination";
 import { DashboardBillVoteAction } from "@/components/dashboard/dashboard-bill-vote-action";
 import { billStatusLabel } from "@/components/bills/bill-stage-countdown";
 import { electionNextMoves } from "@/lib/dashboard/action-eligibility";
+import { featuredOffice, officeArtwork } from "@/lib/masthead-artwork";
 
 dayjs.extend(relativeTime);
 
@@ -148,6 +149,9 @@ export function DashboardContent({
       )}
 
       <WikiHeader
+        artwork={officeArtwork(currentUser?.role)}
+        office={featuredOffice(currentUser?.role)}
+        eyebrow={currentUser?.role === "President" ? "Office of the President" : currentUser?.role === "Senator" ? "The Senate" : undefined}
         title={
           currentUser
             ? `Welcome back, ${formatGreetingRole(currentUser.role)} ${currentUser.username}`

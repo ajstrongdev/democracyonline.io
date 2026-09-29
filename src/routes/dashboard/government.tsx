@@ -50,6 +50,7 @@ function GovernmentHistory() {
   return (
     <WikiPage>
       <WikiHeader
+        artwork="cabinet"
         eyebrow="Government history"
         title="Composition of government"
         description="A latest-first record of how party and independent representation changed through elections, defections, and coups."

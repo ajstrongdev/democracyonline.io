@@ -109,6 +109,7 @@ function BillArticle() {
   return (
     <WikiPage width="article">
       <WikiHeader
+        artwork={bill.status === "Committee" ? "bills" : bill.stage === "House" ? "house" : bill.stage === "Senate" ? "senate" : "president"}
         eyebrow={`Bill #${bill.id} · ${billStatusLabel(bill.status)}${bill.status === "Committee" ? "" : ` · ${bill.stage} stage`}`}
         title={bill.title}
         description={`Proposed by ${bill.creator ?? "Unknown"}${bill.createdAt ? ` on ${formatWikiDate(bill.createdAt)}` : ""}.`}
