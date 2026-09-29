@@ -128,6 +128,7 @@ After confirming the new deployment works, disable the old systemd units and hos
 
 ## Troubleshooting
 
+- If `compose build app` fails with `Reached heap limit Allocation failed - JavaScript heap out of memory` after Vite transforms modules, the builder uses a 4096 MiB Node heap by default. Check VPS RAM/swap with `free -h` and available disk with `df -h`; the host needs additional memory for Docker, PostgreSQL, and build tooling. Set `BUILD_NODE_HEAP_MB` in the checkout's `.env` to override the build-only heap (for example, `3072` on a smaller VPS with swap), then retry the deploy. An OS-level OOM kill or Docker exit 137 means the host/container memory limit is insufficient; increasing the Node heap alone will not fix that. The Framer Motion `"use client"` directive message is a non-fatal bundler warning.
 - `bash scripts/vps.sh check` validates required config and Compose syntax without printing secrets.
 - `bash scripts/vps.sh status` shows all containers; `bash scripts/vps.sh logs` shows app, database, and scheduler output.
 - `docker compose --env-file .env logs election-scheduler` should show successful calls to game, election, and bill advancement endpoints.
