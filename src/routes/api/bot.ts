@@ -1,7 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { bills, candidates, elections, parties, users } from "@/db/schema";
+import {
+  bills,
+  candidates,
+  elections,
+  parties,
+  socialPosts,
+  users,
+} from "@/db/schema";
 import { groupBotBills, parseBotQuery } from "@/lib/bot-api";
 
 const publicHeaders = {
@@ -147,6 +154,26 @@ export const Route = createFileRoute("/api/bot")({
               query.stage || query.status ? rows : groupBotBills(rows),
               { headers: publicHeaders },
             );
+          }
+
+          if (query.endpoint === "posts") {
+            const rows = await db
+              .select({
+                id: socialPosts.id,
+                userId: socialPosts.userId,
+                username: socialPosts.username,
+                accountKey: socialPosts.accountKey,
+                accountPartyId: socialPosts.accountPartyId,
+                content: socialPosts.content,
+                createdAt: socialPosts.createdAt,
+              })
+              .from(socialPosts)
+              .orderBy(
+                sql`${socialPosts.createdAt} DESC, ${socialPosts.id} DESC`,
+              )
+              .limit(query.limit)
+              .offset(query.offset);
+            return Response.json(rows, { headers: publicHeaders });
           }
 
           if (query.endpoint === "candidates") {

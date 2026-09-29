@@ -8,12 +8,15 @@ curl -fsS 'https://oscana.nya.je/api/bot?endpoint=game-state'
 
 ## Query contract
 
-| `endpoint` (required) | Optional parameters | Response |
-| --- | --- | --- |
-| `users` | `id` **or** `limit` and `offset` | User object for `id`, otherwise an array of users |
-| `parties` | `id` **or** `limit` and `offset` | Party object with `members` for `id`, otherwise an array of parties |
-| `bills` | `stage`, `status`, `limit`, `offset` | Filtered array; **without** `stage` and `status`, an object grouped by stage |
-| `candidates` | `election`, `limit`, `offset` | Array of current-cycle candidates |
+| `endpoint` (required) | Optional parameters                  | Response                                                                     |
+| --------------------- | ------------------------------------ | ---------------------------------------------------------------------------- |
+| `users`               | `id` **or** `limit` and `offset`     | User object for `id`, otherwise an array of users                            |
+| `parties`             | `id` **or** `limit` and `offset`     | Party object with `members` for `id`, otherwise an array of parties          |
+| `bills`               | `stage`, `status`, `limit`, `offset` | Filtered array; **without** `stage` and `status`, an object grouped by stage |
+| `posts`               | `limit`, `offset`                    | Newest Z.com posts                                                           |
+| `candidates`          | `election`, `limit`, `offset`        | Array of current-cycle candidates                                            |
+
+**Posts** (`?endpoint=posts`): `id`, `userId`, `username`, `accountKey`, `accountPartyId`, `content`, `createdAt`. Posts are ordered newest first; `accountKey` is `null` for a player post and `party` or `potro` for posts made from those accounts. `userId` and `accountPartyId` can be `null` when the related account has been removed.
 | `game-state` | None | Array of current President/Senate election states, each with a `candidates` array |
 
 `id` must be an integer from 1 to 2,147,483,647. IDs cannot be combined with pagination. Lists default to `limit=50&offset=0`; `limit` must be 1–100 and `offset` 0–10,000. Follow pages by incrementing `offset` until the page has fewer than `limit` records. Users, parties, and bills sort by ascending ID; candidates sort by concluded points and then ID (see below). Updates to the database between requests can shift offset pages. The bills page applies **before** grouping, so a grouped page can have fewer than `limit` entries in each stage. The party-detail `members` array and `game-state` rosters are not paginated.
@@ -57,7 +60,16 @@ Example (sealed results during voting):
     "electionNightEndsAt": null,
     "concludedAt": null,
     "candidates": [
-      { "id": 15, "userId": 42, "username": "example", "election": "President", "points": null, "partyId": 5, "partyName": "Example Party", "partyColor": "#3B82F6" }
+      {
+        "id": 15,
+        "userId": 42,
+        "username": "example",
+        "election": "President",
+        "points": null,
+        "partyId": 5,
+        "partyName": "Example Party",
+        "partyColor": "#3B82F6"
+      }
     ]
   }
 ]

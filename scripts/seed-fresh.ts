@@ -190,6 +190,7 @@ try {
     ],
     [
       ["ajstrongdev@pm.me", "AJ", "Senator", true, 0, "admin", true],
+      ["georgiewdavy@outlook.com", "G", "Representative", true, 0, "admin", true],
       [
         "jenewland1999@gmail.com",
         "jenewland1999",
@@ -304,7 +305,7 @@ try {
     (select count(*) from party_membership_events) as "membershipEvents"`);
   const counts = verification.rows[0];
   if (
-    Number(counts.users) !== 2 ||
+    Number(counts.users) !== 3 ||
     Number(counts.bills) !== 0 ||
     Number(counts.parties) !== 0 ||
     Number(counts.socialPosts) !== 0 ||
