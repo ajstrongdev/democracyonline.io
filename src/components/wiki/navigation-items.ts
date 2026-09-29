@@ -32,6 +32,21 @@ export const navigationGroups = [
   { label: "Nation & reference", items: navigationItems.slice(7) },
 ] as const;
 
+export const mobilePrimaryItems = [
+  { ...navigationItems[0], shortLabel: "Home" },
+  { ...navigationItems[1], shortLabel: "Bills" },
+  { ...navigationItems[5], shortLabel: "Z.com" },
+] as const;
+
+export const mobileDrawerGroups = navigationGroups
+  .map((group) => ({
+    label: group.label,
+    items: group.items.filter((item) =>
+      !mobilePrimaryItems.some((primary) => primary.to === item.to),
+    ),
+  }))
+  .filter((group) => group.items.length > 0);
+
 export function isActiveDestination(pathname: string, to: string) {
   if (to === "/dashboard") return pathname === to || pathname === `${to}/`;
   return (pathname === to || pathname.startsWith(`${to}/`)) &&

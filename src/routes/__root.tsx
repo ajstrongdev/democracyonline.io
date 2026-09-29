@@ -19,7 +19,7 @@ import { getThemeClasses, getThemeServerFn, themes } from "@/lib/server/settings
 import { NotFound } from "@/components/not-found";
 import { WikiNavigation } from "@/components/wiki/wiki-header";
 import { DesktopNavigation } from "@/components/wiki/desktop-navigation";
-import { MobileNavigation } from "@/components/wiki/mobile-navigation";
+import { MobileGameNavigation } from "@/components/wiki/mobile-navigation";
 import { getAuthRedirect } from "@/lib/auth-guard";
 import { auth } from "@/lib/firebase";
 import { getCurrentBanStatus, getSessionUser } from "@/lib/server/auth/session";
@@ -121,10 +121,10 @@ function RootLayout() {
       <LiveUpdates />
       <div className="flex min-h-svh min-w-0 flex-col">
         <WikiNavigation />
-        {gameScreen && <MobileNavigation bottomBar />}
+        {gameScreen && <MobileGameNavigation />}
         <div className="flex min-w-0 flex-1 items-stretch">
           <DesktopNavigation />
-          <div className={`flex min-w-0 flex-1 flex-col ${gameScreen ? "pb-20 lg:pb-0" : ""}`}>
+          <div className={`flex min-w-0 flex-1 flex-col ${gameScreen ? "pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0" : ""}`}>
             <Outlet />
             <footer className="mt-auto border-t bg-muted/30 px-4 py-4 text-center text-sm text-muted-foreground">
               Running Polsimmer v{packageJson.version}{" "}

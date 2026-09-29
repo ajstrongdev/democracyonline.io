@@ -2,12 +2,12 @@ import { Link } from "@tanstack/react-router";
 import { ModeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/auth/user-menu";
 import { QuickNavigation } from "@/components/wiki/quick-navigation";
-import { isActiveDestination, navigationGroups } from "@/components/wiki/navigation-items";
+import { isActiveDestination, mobileDrawerGroups, navigationGroups } from "@/components/wiki/navigation-items";
 
-export function NavigationLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+export function NavigationLinks({ pathname, onNavigate, mobile = false }: { pathname: string; onNavigate?: () => void; mobile?: boolean }) {
   return (
     <nav aria-label="Main navigation" className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 pb-5 pt-3">
-      {navigationGroups.map((group) => (
+      {(mobile ? mobileDrawerGroups : navigationGroups).map((group) => (
         <div key={group.label}>
           <p className="wiki-kicker px-3 pb-1.5 pt-1">{group.label}</p>
           <div className="space-y-0.5">
