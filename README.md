@@ -22,6 +22,7 @@ The host needs Docker, Compose, Caddy, and Git. Node and PostgreSQL run only in 
 
 ## Documentation
 
+- [Android app: build and install on a phone](docs/ANDROID.md)
 - [Revival rewrite overview](docs/REVIVAL_OVERVIEW.md)
 - [VPS deployment](deploy.md)
 - [Firebase Authentication](docs/FIREBASE_AUTH.md)

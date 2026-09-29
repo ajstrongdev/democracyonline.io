@@ -1,0 +1,12 @@
+{
+  "name": "Oscana",
+  "short_name": "Oscana",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#202b47",
+  "icons": [
+    { "src": "/logo.png", "sizes": "500x500", "type": "image/png", "purpose": "any" }
+  ]
+}

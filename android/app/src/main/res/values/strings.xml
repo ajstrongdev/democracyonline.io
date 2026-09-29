@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Oscana</string>
+    <string name="server_prompt">Choose a server</string>
+    <string name="server_hint">https://example.com</string>
+    <string name="server_add">Add server</string>
+    <string name="server_open">Open</string>
+    <string name="server_remove">Remove</string>
+    <string name="server_invalid">Enter a secure HTTPS server URL (host only, no path or credentials).</string>
+    <string name="server_switch_hint">To switch servers, press Android Back until you return here, or tap the Oscana app icon again.</string>
+    <string name="server_unavailable">Could not load this server. Check your connection or the server URL.</string>
+    <string name="server_retry">Retry</string>
+    <string name="server_picker">Switch server</string>
+</resources>

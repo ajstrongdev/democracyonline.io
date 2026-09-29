@@ -92,3 +92,11 @@ tmp/
 # Local script overrides
 src/scripts/sync-cloud-sql-prod-to-dev.sh
 .vscode/.local-vapid.json
+
+# Android local outputs and credentials
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+*.jks
+*.keystore

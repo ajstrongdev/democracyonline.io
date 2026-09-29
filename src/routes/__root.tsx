@@ -99,6 +99,10 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         rel: "icon",
         href: "/favicon.ico",
       },
+      {
+        rel: "manifest",
+        href: "/manifest.webmanifest",
+      },
     ],
   }),
 

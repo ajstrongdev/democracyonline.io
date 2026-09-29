@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev --port 3001",
     "build": "vite build",
+    "android:build": "bash scripts/android-build.sh",
     "start": "node .output/server/index.mjs",
     "deploy": "bash scripts/vps.sh deploy",
     "deploy:down": "bash scripts/vps.sh stop",
