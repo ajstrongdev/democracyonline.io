@@ -34,13 +34,18 @@ test("mobile dashboard controls and workspace fit on narrow screens", async ({
       ),
     ).toBe(true);
 
+    // The TanStack Devtools launcher can overlay the bottom-right corner in
+    // this environment. Use the navigation's keyboard-accessible path.
+    await page.getByRole("button", { name: "Open navigation" }).press("Enter");
+    const navigation = page.getByRole("dialog", { name: "Oscana" });
+    await expect(navigation).toBeVisible();
     for (const name of [
       "Open command palette",
       "Choose theme",
       "Account settings",
       "Sign out",
     ]) {
-      const box = await page.getByRole("button", { name }).boundingBox();
+      const box = await navigation.getByRole("button", { name }).boundingBox();
       expect(box, `${name} should be visible at ${width}px`).not.toBeNull();
       expect(
         box!.width,
@@ -52,7 +57,7 @@ test("mobile dashboard controls and workspace fit on narrow screens", async ({
       ).toBeGreaterThanOrEqual(44);
     }
 
-    const privilegedLink = page.getByRole("link", {
+    const privilegedLink = navigation.getByRole("link", {
       name: /^(Admin tools|Moderation queue)$/,
     });
     if (await privilegedLink.count()) {
@@ -62,7 +67,9 @@ test("mobile dashboard controls and workspace fit on narrow screens", async ({
       expect(box!.height).toBeGreaterThanOrEqual(44);
     }
 
-    await page.getByRole("button", { name: "Open command palette" }).click();
+    await navigation
+      .getByRole("button", { name: "Open command palette" })
+      .click();
     const commandPalette = page.getByRole("dialog", {
       name: "Where do you want to go?",
     });
@@ -73,7 +80,7 @@ test("mobile dashboard controls and workspace fit on narrow screens", async ({
     expect(paletteBox!.x + paletteBox!.width).toBeLessThanOrEqual(width);
     await page.keyboard.press("Escape");
 
-    await page.getByRole("button", { name: "Account settings" }).click();
+    await navigation.getByRole("button", { name: "Account settings" }).click();
     const settingsDialog = page.getByRole("dialog", {
       name: "Account settings",
     });
@@ -87,12 +94,13 @@ test("mobile dashboard controls and workspace fit on narrow screens", async ({
     await page.keyboard.press("Escape");
 
     await page.goto("/dashboard/social");
-    const workspace = page.getByRole("dialog", { name: "Dashboard workspace" });
-    await expect(workspace).toBeVisible();
-    const workspaceBox = await workspace.boundingBox();
-    expect(workspaceBox).not.toBeNull();
-    expect(workspaceBox!.x).toBeGreaterThanOrEqual(0);
-    expect(workspaceBox!.x + workspaceBox!.width).toBeLessThanOrEqual(width);
+    await expect(
+      page.getByRole("heading", { name: "The town square" }),
+    ).toBeVisible();
+    const composerBox = await page.getByLabel("Write a post").boundingBox();
+    expect(composerBox).not.toBeNull();
+    expect(composerBox!.x).toBeGreaterThanOrEqual(0);
+    expect(composerBox!.x + composerBox!.width).toBeLessThanOrEqual(width);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,

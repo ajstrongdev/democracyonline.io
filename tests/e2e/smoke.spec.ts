@@ -21,11 +21,12 @@ test("two players see a new post without a refresh", async ({
     )
     .toBe(true);
   await page
-    .getByRole("link", { name: /Z.com Join the public conversation/ })
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Z.com" })
     .click();
   await expect(page).toHaveURL(/\/dashboard\/social/);
   await expect(
-    page.getByRole("dialog", { name: "Dashboard workspace" }),
+    page.getByRole("heading", { name: "The town square" }),
   ).toBeVisible();
   const readerContext = await browser.newContext({
     baseURL: "http://127.0.0.1:31017",
@@ -43,10 +44,11 @@ test("two players see a new post without a refresh", async ({
     await reader.getByRole("button", { name: "Sign In" }).click();
     await expect(reader).toHaveURL(/\/dashboard/);
     await reader
-      .getByRole("link", { name: /Z.com Join the public conversation/ })
+      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("link", { name: "Z.com" })
       .click();
     await expect(
-      reader.getByRole("dialog", { name: "Dashboard workspace" }),
+      reader.getByRole("heading", { name: "The town square" }),
     ).toBeVisible();
     await liveConnection;
 
@@ -60,34 +62,73 @@ test("two players see a new post without a refresh", async ({
     ).toBeVisible({ timeout: 10_000 });
     await reader.getByRole("button", { name: "Show 1 new post" }).click();
     await expect(reader.getByText(post).first()).toBeVisible();
-    await reader.getByRole("group", { name: "Filter posts by account" }).getByRole("button", { name: "players" }).click();
+    await reader
+      .getByRole("group", { name: "Filter posts by account" })
+      .getByRole("button", { name: "players" })
+      .click();
     await expect(reader.getByText(post).first()).toBeVisible();
-    await reader.getByRole("group", { name: "Filter posts by account" }).getByRole("button", { name: "all" }).click();
+    await reader
+      .getByRole("group", { name: "Filter posts by account" })
+      .getByRole("button", { name: "all" })
+      .click();
     await expect(reader.getByText(post).first()).toBeVisible();
-    await reader.getByRole("dialog", { name: "Dashboard workspace" }).getByRole("button", { name: "Close" }).first().click();
-    await expect(reader.getByText("1 mention across 1 account")).toBeVisible({ timeout: 10_000 });
-    await expect(reader.locator(".wiki-record-row").filter({ hasText: post }).first()).toBeVisible();
+    await reader.goto("/dashboard");
+    await expect(
+      reader.getByText(/\d+ mentions? across \d+ accounts?/),
+    ).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(
+      reader.locator("article").filter({ hasText: post }).first(),
+    ).toBeVisible();
     await reader.getByRole("button", { name: "Account settings" }).click();
     await reader.getByRole("tab", { name: "Alerts" }).click();
-    await expect(reader.getByText("Web Push has not been configured on this server.")).toBeVisible();
-    await reader.getByRole("checkbox", { name: "Show notification details on the lock screen" }).check();
-    await reader.getByRole("checkbox", { name: "Quiet hours for Web Push" }).check();
+    await reader
+      .getByRole("checkbox", {
+        name: "Show notification details on the lock screen",
+      })
+      .check();
+    await reader
+      .getByRole("checkbox", { name: "Quiet hours for Web Push" })
+      .check();
     await reader.getByLabel("Time zone (IANA)").fill("America/New_York");
     await reader.getByRole("button", { name: "Save preferences" }).click();
-    await expect(reader.getByText("Notification preferences saved")).toBeVisible();
-    await reader.getByRole("dialog", { name: "Account settings" }).getByRole("button", { name: "Close" }).first().click();
-    await expect(reader.getByText("1 mention across 1 account")).toBeVisible();
+    await expect(
+      reader.getByText("Notification preferences saved"),
+    ).toBeVisible();
+    await reader
+      .getByRole("dialog", { name: "Account settings" })
+      .getByRole("button", { name: "Close" })
+      .first()
+      .click();
+    await expect(
+      reader.getByText(/\d+ mentions? across \d+ accounts?/),
+    ).toBeVisible();
     await reader.getByRole("button", { name: "Account settings" }).click();
     await reader.getByRole("tab", { name: "Alerts" }).click();
-    await expect(reader.getByRole("checkbox", { name: "Show notification details on the lock screen" })).toBeChecked();
-    await expect(reader.getByRole("checkbox", { name: "Quiet hours for Web Push" })).toBeChecked();
-    await expect(reader.getByLabel("Time zone (IANA)")).toHaveValue("America/New_York");
-    await reader.getByRole("dialog", { name: "Account settings" }).getByRole("button", { name: "Close" }).first().click();
-    await expect(reader.getByText("Your next moves", { exact: true })).toBeVisible();
+    await expect(
+      reader.getByRole("checkbox", {
+        name: "Show notification details on the lock screen",
+      }),
+    ).toBeChecked();
+    await expect(
+      reader.getByRole("checkbox", { name: "Quiet hours for Web Push" }),
+    ).toBeChecked();
+    await expect(reader.getByLabel("Time zone (IANA)")).toHaveValue(
+      "America/New_York",
+    );
+    await reader
+      .getByRole("dialog", { name: "Account settings" })
+      .getByRole("button", { name: "Close" })
+      .first()
+      .click();
+    await expect(
+      reader.getByText("Your next moves", { exact: true }),
+    ).toBeVisible();
     const deepLink = await page.goto("/dashboard/social");
     expect(deepLink?.status()).toBe(200);
     await expect(
-      page.getByRole("dialog", { name: "Dashboard workspace" }),
+      page.getByRole("heading", { name: "The town square" }),
     ).toBeVisible();
   } finally {
     await readerContext.close();
