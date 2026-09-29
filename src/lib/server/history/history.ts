@@ -149,7 +149,7 @@ const voteCount = (
     | typeof billVotesPresidential,
   yes: boolean,
 ) =>
-  sql<number>`(select count(*)::int from ${table} where ${table.billId} = ${bills.id} and ${table.voteYes} = ${yes})`;
+  sql<number>`(select count(*)::int from ${table} where ${table.billId} = ${bills.id} and ${table.voteYes} = ${yes} and not (${bills.status} = 'Voting' and ${bills.stage} = ${table === billVotesHouse ? "House" : table === billVotesSenate ? "Senate" : "Presidential"}))`;
 
 export const getWikiHome = createServerFn().handler(async () => {
   const [
@@ -340,7 +340,12 @@ function getPlayerBillVotes(
     })
     .from(table)
     .innerJoin(bills, eq(table.billId, bills.id))
-    .where(eq(table.voterId, userId));
+    .where(
+      and(
+        eq(table.voterId, userId),
+        sql`not (${bills.status} = 'Voting' and ${bills.stage} = ${table === billVotesHouse ? "House" : table === billVotesSenate ? "Senate" : "Presidential"})`,
+      ),
+    );
 }
 
 export const getWikiBills = createServerFn().handler(() =>
@@ -354,6 +359,9 @@ export const getWikiBills = createServerFn().handler(() =>
       senateNo: voteCount(billVotesSenate, false),
       presidentYes: voteCount(billVotesPresidential, true),
       presidentNo: voteCount(billVotesPresidential, false),
+      houseTotal: sql<number>`(select count(*)::int from ${billVotesHouse} where ${billVotesHouse.billId} = ${bills.id})`,
+      senateTotal: sql<number>`(select count(*)::int from ${billVotesSenate} where ${billVotesSenate.billId} = ${bills.id})`,
+      presidentTotal: sql<number>`(select count(*)::int from ${billVotesPresidential} where ${billVotesPresidential.billId} = ${bills.id})`,
     })
     .from(bills)
     .leftJoin(users, eq(bills.creatorId, users.id))
@@ -376,7 +384,20 @@ export const getWikiBill = createServerFn()
       getBillRollCall(billVotesSenate, data.id),
       getBillRollCall(billVotesPresidential, data.id),
     ]);
-    return { bill, rollCalls: { house, senate, president } };
+    const open = bill.status === "Voting";
+    return {
+      bill,
+      rollCalls: {
+        house: open && bill.stage === "House" ? [] : house,
+        senate: open && bill.stage === "Senate" ? [] : senate,
+        president: open && bill.stage === "Presidential" ? [] : president,
+      },
+      voteCounts: {
+        house: house.length,
+        senate: senate.length,
+        president: president.length,
+      },
+    };
   });
 
 function getBillRollCall(
@@ -774,6 +795,8 @@ export const getWikiParty = createServerFn()
         logo: storedParty?.logo ?? archivedParty?.logo ?? null,
         discord: storedParty?.discord ?? null,
         leaderId,
+        chiefWhipId: storedParty?.chiefWhipId ?? null,
+        socialMediaOfficerId: storedParty?.socialMediaOfficerId ?? null,
         current: Boolean(storedParty && !storedParty.archivedAt),
         archivedAt:
           storedParty?.archivedAt ?? archivedParty?.archivedAt ?? null,

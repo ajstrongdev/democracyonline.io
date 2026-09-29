@@ -73,6 +73,7 @@ import { Route as DashboardBillsBillIdRouteImport } from './routes/dashboard/bil
 import { Route as BillsEditIdRouteImport } from './routes/bills/edit/$id'
 import { Route as DashboardPartiesCoalitionsIndexRouteImport } from './routes/dashboard/parties/coalitions/index'
 import { Route as DashboardRevisionsEntityTypeEntityIdRouteImport } from './routes/dashboard/revisions/$entityType/$entityId'
+import { Route as DashboardPartiesPressureGroupsGroupIdRouteImport } from './routes/dashboard/parties/pressure-groups/$groupId'
 import { Route as DashboardPartiesManageIdRouteImport } from './routes/dashboard/parties/manage/$id'
 import { Route as DashboardPartiesCoalitionsCreateRouteImport } from './routes/dashboard/parties/coalitions/create'
 import { Route as DashboardPartiesCoalitionsIdRouteImport } from './routes/dashboard/parties/coalitions/$id'
@@ -407,6 +408,12 @@ const DashboardRevisionsEntityTypeEntityIdRoute =
     path: '/revisions/$entityType/$entityId',
     getParentRoute: () => DashboardRouteRoute,
   } as any)
+const DashboardPartiesPressureGroupsGroupIdRoute =
+  DashboardPartiesPressureGroupsGroupIdRouteImport.update({
+    id: '/parties/pressure-groups/$groupId',
+    path: '/parties/pressure-groups/$groupId',
+    getParentRoute: () => DashboardRouteRoute,
+  } as any)
 const DashboardPartiesManageIdRoute =
   DashboardPartiesManageIdRouteImport.update({
     id: '/parties/manage/$id',
@@ -498,6 +505,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/parties/coalitions/$id': typeof DashboardPartiesCoalitionsIdRoute
   '/dashboard/parties/coalitions/create': typeof DashboardPartiesCoalitionsCreateRoute
   '/dashboard/parties/manage/$id': typeof DashboardPartiesManageIdRoute
+  '/dashboard/parties/pressure-groups/$groupId': typeof DashboardPartiesPressureGroupsGroupIdRoute
   '/dashboard/revisions/$entityType/$entityId': typeof DashboardRevisionsEntityTypeEntityIdRoute
   '/dashboard/parties/coalitions/': typeof DashboardPartiesCoalitionsIndexRoute
 }
@@ -567,6 +575,7 @@ export interface FileRoutesByTo {
   '/dashboard/parties/coalitions/$id': typeof DashboardPartiesCoalitionsIdRoute
   '/dashboard/parties/coalitions/create': typeof DashboardPartiesCoalitionsCreateRoute
   '/dashboard/parties/manage/$id': typeof DashboardPartiesManageIdRoute
+  '/dashboard/parties/pressure-groups/$groupId': typeof DashboardPartiesPressureGroupsGroupIdRoute
   '/dashboard/revisions/$entityType/$entityId': typeof DashboardRevisionsEntityTypeEntityIdRoute
   '/dashboard/parties/coalitions': typeof DashboardPartiesCoalitionsIndexRoute
 }
@@ -638,6 +647,7 @@ export interface FileRoutesById {
   '/dashboard/parties/coalitions/$id': typeof DashboardPartiesCoalitionsIdRoute
   '/dashboard/parties/coalitions/create': typeof DashboardPartiesCoalitionsCreateRoute
   '/dashboard/parties/manage/$id': typeof DashboardPartiesManageIdRoute
+  '/dashboard/parties/pressure-groups/$groupId': typeof DashboardPartiesPressureGroupsGroupIdRoute
   '/dashboard/revisions/$entityType/$entityId': typeof DashboardRevisionsEntityTypeEntityIdRoute
   '/dashboard/parties/coalitions/': typeof DashboardPartiesCoalitionsIndexRoute
 }
@@ -710,6 +720,7 @@ export interface FileRouteTypes {
     | '/dashboard/parties/coalitions/$id'
     | '/dashboard/parties/coalitions/create'
     | '/dashboard/parties/manage/$id'
+    | '/dashboard/parties/pressure-groups/$groupId'
     | '/dashboard/revisions/$entityType/$entityId'
     | '/dashboard/parties/coalitions/'
   fileRoutesByTo: FileRoutesByTo
@@ -779,6 +790,7 @@ export interface FileRouteTypes {
     | '/dashboard/parties/coalitions/$id'
     | '/dashboard/parties/coalitions/create'
     | '/dashboard/parties/manage/$id'
+    | '/dashboard/parties/pressure-groups/$groupId'
     | '/dashboard/revisions/$entityType/$entityId'
     | '/dashboard/parties/coalitions'
   id:
@@ -849,6 +861,7 @@ export interface FileRouteTypes {
     | '/dashboard/parties/coalitions/$id'
     | '/dashboard/parties/coalitions/create'
     | '/dashboard/parties/manage/$id'
+    | '/dashboard/parties/pressure-groups/$groupId'
     | '/dashboard/revisions/$entityType/$entityId'
     | '/dashboard/parties/coalitions/'
   fileRoutesById: FileRoutesById
@@ -1346,6 +1359,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRevisionsEntityTypeEntityIdRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/dashboard/parties/pressure-groups/$groupId': {
+      id: '/dashboard/parties/pressure-groups/$groupId'
+      path: '/parties/pressure-groups/$groupId'
+      fullPath: '/dashboard/parties/pressure-groups/$groupId'
+      preLoaderRoute: typeof DashboardPartiesPressureGroupsGroupIdRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/dashboard/parties/manage/$id': {
       id: '/dashboard/parties/manage/$id'
       path: '/parties/manage/$id'
@@ -1404,6 +1424,7 @@ interface DashboardRouteRouteChildren {
   DashboardPartiesCoalitionsIdRoute: typeof DashboardPartiesCoalitionsIdRoute
   DashboardPartiesCoalitionsCreateRoute: typeof DashboardPartiesCoalitionsCreateRoute
   DashboardPartiesManageIdRoute: typeof DashboardPartiesManageIdRoute
+  DashboardPartiesPressureGroupsGroupIdRoute: typeof DashboardPartiesPressureGroupsGroupIdRoute
   DashboardRevisionsEntityTypeEntityIdRoute: typeof DashboardRevisionsEntityTypeEntityIdRoute
   DashboardPartiesCoalitionsIndexRoute: typeof DashboardPartiesCoalitionsIndexRoute
 }
@@ -1436,6 +1457,8 @@ const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardPartiesCoalitionsIdRoute: DashboardPartiesCoalitionsIdRoute,
   DashboardPartiesCoalitionsCreateRoute: DashboardPartiesCoalitionsCreateRoute,
   DashboardPartiesManageIdRoute: DashboardPartiesManageIdRoute,
+  DashboardPartiesPressureGroupsGroupIdRoute:
+    DashboardPartiesPressureGroupsGroupIdRoute,
   DashboardRevisionsEntityTypeEntityIdRoute:
     DashboardRevisionsEntityTypeEntityIdRoute,
   DashboardPartiesCoalitionsIndexRoute: DashboardPartiesCoalitionsIndexRoute,

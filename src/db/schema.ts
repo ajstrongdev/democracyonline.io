@@ -13,6 +13,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
@@ -43,7 +44,9 @@ export const users = pgTable("users", {
 });
 
 export const notificationPreferences = pgTable("notification_preferences", {
-  userId: integer("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
   inAppMentions: boolean("in_app_mentions").notNull().default(true),
   pushMentions: boolean("push_mentions").notNull().default(false),
   pushNextMoves: boolean("push_next_moves").notNull().default(false),
@@ -51,34 +54,58 @@ export const notificationPreferences = pgTable("notification_preferences", {
   quietStart: integer("quiet_start"),
   quietEnd: integer("quiet_end"),
   timeZone: text("time_zone").notNull().default("UTC"),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
-export const notificationPushSubscriptions = pgTable("notification_push_subscriptions", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  endpoint: text("endpoint").notNull().unique(),
-  p256dh: text("p256dh").notNull(),
-  auth: text("auth").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [index("notification_push_subscriptions_user_idx").on(table.userId)]);
+export const notificationPushSubscriptions = pgTable(
+  "notification_push_subscriptions",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("notification_push_subscriptions_user_idx").on(table.userId),
+  ],
+);
 
 export const notificationOutbox = pgTable("notification_outbox", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   sourceType: text("source_type").notNull(),
   sourceId: integer("source_id").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  availableAt: timestamp("available_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  availableAt: timestamp("available_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   lockedUntil: timestamp("locked_until", { withTimezone: true }),
   processedAt: timestamp("processed_at", { withTimezone: true }),
   attempts: integer("attempts").notNull().default(0),
 });
 
-export const notificationNextMoveReceipts = pgTable("notification_next_move_receipts", {
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  actionKey: text("action_key").notNull(),
-  handledAt: timestamp("handled_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [primaryKey({ columns: [table.userId, table.actionKey] })]);
+export const notificationNextMoveReceipts = pgTable(
+  "notification_next_move_receipts",
+  {
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    actionKey: text("action_key").notNull(),
+    handledAt: timestamp("handled_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.actionKey] })],
+);
 
 export const colorSchemes = pgTable(
   "color_schemes",
@@ -115,6 +142,8 @@ export const colorSchemes = pgTable(
 export const parties = pgTable("parties", {
   id: serial("id").primaryKey(),
   leaderId: integer("leader_id"),
+  chiefWhipId: integer("chief_whip_id"),
+  socialMediaOfficerId: integer("social_media_officer_id"),
   name: varchar("name", { length: 255 }).notNull().unique(),
   color: varchar("color", { length: 7 }).notNull(),
   bio: text("bio"),
@@ -952,6 +981,7 @@ export const billPartyWhips = pgTable(
     }),
     position: varchar("position", { length: 10 }).notNull(),
     note: text("note"),
+    enforcedAt: timestamp("enforced_at", { withTimezone: true }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -963,6 +993,170 @@ export const billPartyWhips = pgTable(
     index("bill_party_whips_bill_idx").on(table.billId),
   ],
 );
+
+export const billVoteIndications = pgTable(
+  "bill_vote_indications",
+  {
+    billId: integer("bill_id")
+      .notNull()
+      .references(() => bills.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    stage: varchar("stage", { length: 20 }).notNull(),
+    voteYes: boolean("vote_yes").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.billId, table.userId, table.stage] }),
+  ],
+);
+
+export const partyFormationInvites = pgTable("party_formation_invites", {
+  id: serial("id").primaryKey(),
+  founderId: integer("founder_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  inviteeId: integer("invitee_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  office: varchar("office", { length: 30 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  details: jsonb("details").notNull(),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const pressureGroups = pgTable(
+  "pressure_groups",
+  {
+    id: serial("id").primaryKey(),
+    founderId: integer("founder_id")
+      .notNull()
+      .references(() => users.id),
+    name: varchar("name", { length: 255 }).notNull(),
+    details: jsonb("details")
+      .$type<{
+        party: {
+          name: string;
+          bio: string;
+          color: string;
+          logo?: string | null;
+          leaning: string;
+          discord?: string | null;
+        };
+        platform: string;
+      }>()
+      .notNull(),
+    formedPartyId: integer("formed_party_id").references(() => parties.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("pressure_groups_pending_name_idx")
+      .on(sql`lower(${table.name})`)
+      .where(sql`${table.formedPartyId} is null`),
+  ],
+);
+
+export const pressureGroupMembers = pgTable(
+  "pressure_group_members",
+  {
+    groupId: integer("group_id")
+      .notNull()
+      .references(() => pressureGroups.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" })
+      .unique("pressure_group_members_user_id_unique"),
+  },
+  (table) => [primaryKey({ columns: [table.groupId, table.userId] })],
+);
+
+export const partyJoinRequests = pgTable(
+  "party_join_requests",
+  {
+    id: serial("id").primaryKey(),
+    partyId: integer("party_id")
+      .notNull()
+      .references(() => parties.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: varchar("status", { length: 20 }).notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("party_join_requests_pending_idx")
+      .on(table.partyId, table.userId)
+      .where(sql`${table.status} = 'pending'`),
+  ],
+);
+
+export const partyLeadershipBids = pgTable(
+  "party_leadership_bids",
+  {
+    id: serial("id").primaryKey(),
+    partyId: integer("party_id")
+      .notNull()
+      .references(() => parties.id, { onDelete: "cascade" }),
+    candidateId: integer("candidate_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    threshold: integer("threshold").notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("party_leadership_bids_open_idx")
+      .on(table.partyId)
+      .where(sql`${table.status} = 'open'`),
+  ],
+);
+
+export const partyLeadershipSupport = pgTable(
+  "party_leadership_support",
+  {
+    bidId: integer("bid_id")
+      .notNull()
+      .references(() => partyLeadershipBids.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.bidId, table.userId] })],
+);
+
+export const partyLeadershipEligible = pgTable(
+  "party_leadership_eligible",
+  {
+    bidId: integer("bid_id")
+      .notNull()
+      .references(() => partyLeadershipBids.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.bidId, table.userId] })],
+);
+
+export const partyNewspaperArticles = pgTable("party_newspaper_articles", {
+  id: serial("id").primaryKey(),
+  partyId: integer("party_id")
+    .notNull()
+    .references(() => parties.id, { onDelete: "cascade" }),
+  authorId: integer("author_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
 
 export const socialPosts = pgTable(
   "social_posts",

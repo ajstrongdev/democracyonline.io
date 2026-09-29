@@ -62,6 +62,12 @@ export const getPresidentialBills = createServerFn().handler(async () => {
 export const getPresidentialBillVotes = createServerFn()
   .inputValidator((data: { billId: number }) => data)
   .handler(async ({ data }) => {
+    const [bill] = await db
+      .select({ status: bills.status, stage: bills.stage })
+      .from(bills)
+      .where(eq(bills.id, data.billId));
+    if (bill?.status === "Voting" && bill.stage === "Presidential")
+      return { signed: 0, vetoed: 0 };
     const votes = await db.execute(sql`
       SELECT
         COUNT(*) FILTER (WHERE vote_yes = TRUE) as signed_count,
@@ -184,17 +190,22 @@ export const voteOnPresidentialBill = createServerFn({ method: "POST" })
         )
         .limit(1);
       if (existingVote) {
-        throw new Error("You have already signed or vetoed this bill");
+        await tx
+          .update(billVotesPresidential)
+          .set({ voteYes: data.voteYes })
+          .where(eq(billVotesPresidential.id, existingVote.id));
+      } else {
+        await tx
+          .insert(billVotesPresidential)
+          .values({
+            billId: data.billId,
+            voterId: user.id,
+            voteYes: data.voteYes,
+          });
       }
-
-      await tx.insert(billVotesPresidential).values({
-        billId: data.billId,
-        voterId: user.id,
-        voteYes: data.voteYes,
-      });
       await tx.insert(feed).values({
         userId: user.id,
-        content: `${data.voteYes ? "Signed" : "Vetoed"} bill #${data.billId}: ${currentBill.title}.`,
+        content: `${existingVote ? "Updated a vote" : "Voted"} on bill #${data.billId} in the Presidential stage.`,
       });
     });
 

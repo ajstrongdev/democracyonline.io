@@ -1,7 +1,8 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useDeferredValue, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
 import { BarChart3 } from "lucide-react";
+import { toast } from "sonner";
 import type { ChartConfig } from "@/components/ui/chart";
 import { WikiHeader } from "@/components/wiki/wiki-header";
 import {
@@ -20,6 +21,16 @@ import {
 import { getWikiParties } from "@/lib/server/history/history";
 import { getCurrentUserInfo } from "@/lib/server/users/users";
 import { NewPartyDialog } from "@/components/wiki/new-party-dialog";
+import {
+  getMyPressureGroup,
+  listPressureGroups,
+} from "@/lib/server/organizations/pressure-groups";
+import {
+  cancelPartyFormation,
+  getMyPartyFormationProgress,
+  getPartyFormationInvites,
+  respondToPartyFormation,
+} from "@/lib/server/organizations/party";
 
 export const Route = createFileRoute("/dashboard/parties/")({
   validateSearch: (search: Record<string, unknown>) =>
@@ -27,17 +38,46 @@ export const Route = createFileRoute("/dashboard/parties/")({
       ? { create: true as const }
       : {},
   loader: async () => {
-    const [parties, currentUser] = await Promise.all([
+    const [
+      parties,
+      currentUser,
+      invites,
+      formationProgress,
+      pressureGroups,
+      myGroupId,
+    ] = await Promise.all([
       getWikiParties(),
       getCurrentUserInfo(),
+      getPartyFormationInvites(),
+      getMyPartyFormationProgress(),
+      listPressureGroups(),
+      getMyPressureGroup(),
     ]);
-    return { parties, currentUser };
+    return {
+      parties,
+      currentUser,
+      invites,
+      formationProgress,
+      pressureGroups,
+      myGroupId,
+    };
   },
   component: PartyIndex,
 });
 
 function PartyIndex() {
-  const { parties, currentUser } = Route.useLoaderData();
+  const {
+    parties,
+    currentUser,
+    invites,
+    formationProgress,
+    pressureGroups,
+    myGroupId,
+  } = Route.useLoaderData();
+  const activeFormationInvite = formationProgress.find(
+    (invite) => invite.status === "pending" || invite.status === "accepted",
+  );
+  const router = useRouter();
   const { create } = Route.useSearch();
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
@@ -56,7 +96,21 @@ function PartyIndex() {
         description="Current and historical parties, their electoral records, representation, membership, and community-written histories."
       />
       <nav className="flex flex-wrap gap-2 border-y bg-card px-4 py-3">
-        <NewPartyDialog user={currentUser} autoOpen={create} />
+        <NewPartyDialog
+          user={currentUser}
+          groupId={myGroupId}
+          autoOpen={create}
+        />
+        {myGroupId && (
+          <Button asChild size="sm" variant="outline">
+            <Link
+              to="/dashboard/parties/pressure-groups/$groupId"
+              params={{ groupId: String(myGroupId) }}
+            >
+              Your pressure group
+            </Link>
+          </Button>
+        )}
         <Button asChild size="sm" variant="outline">
           <Link to="/dashboard/parties/primaries">Presidential primaries</Link>
         </Button>
@@ -64,6 +118,131 @@ function PartyIndex() {
           <Link to="/dashboard/parties/coalitions">Coalitions</Link>
         </Button>
       </nav>
+      <WikiSection
+        title="Forming parties"
+        description="Pressure groups are public, but members remain Independent until three players join."
+      >
+        <div className="flex flex-wrap gap-2">
+          {pressureGroups.map((group) => (
+            <Link
+              key={group.id}
+              to="/dashboard/parties/pressure-groups/$groupId"
+              params={{ groupId: String(group.id) }}
+              className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-2 text-sm transition-colors hover:border-primary hover:text-primary"
+            >
+              <span className="font-medium">{group.name}</span>
+              <Badge variant="secondary">{group.count}/3</Badge>
+            </Link>
+          ))}
+          {!pressureGroups.length && (
+            <p className="text-sm text-muted-foreground">
+              No groups forming yet. Start one to bring players together.
+            </p>
+          )}
+        </div>
+      </WikiSection>
+      {formationProgress.length > 0 && (
+        <WikiSection
+          title="Your party formation"
+          description="Your new party will appear when both cofounders agree."
+        >
+          <ul className="space-y-2 text-sm">
+            {formationProgress.map((invite) => (
+              <li key={invite.id}>
+                {invite.name} · {invite.invitee} ({invite.office}):{" "}
+                <strong>{invite.status}</strong>
+              </li>
+            ))}
+          </ul>
+          {activeFormationInvite && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-3"
+              onClick={async () => {
+                if (
+                  !window.confirm(
+                    "Cancel this party formation and withdraw both invitations?",
+                  )
+                )
+                  return;
+                try {
+                  await cancelPartyFormation({
+                    data: { inviteId: activeFormationInvite.id },
+                  });
+                  await router.invalidate();
+                  toast.success("Invitations withdrawn");
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Could not cancel formation",
+                  );
+                }
+              }}
+            >
+              Withdraw invitations
+            </Button>
+          )}
+        </WikiSection>
+      )}
+      {invites.length > 0 && (
+        <WikiSection
+          title="Party formation invitations"
+          description="A party forms only when both invited cofounders accept. You must remain independent."
+        >
+          <div className="space-y-3">
+            {invites.map((invite) => (
+              <div
+                key={invite.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm"
+              >
+                <span>
+                  <strong>{invite.founder}</strong> invites you to found{" "}
+                  <strong>{invite.name}</strong> as {invite.office}.{" "}
+                  <strong>
+                    {invite.status !== "pending" ? `(${invite.status})` : ""}
+                  </strong>
+                </span>
+                {invite.status === "pending" && (
+                  <div className="flex gap-2">
+                    {([true, false] as const).map((accept) => (
+                      <Button
+                        key={String(accept)}
+                        size="sm"
+                        variant={accept ? "default" : "outline"}
+                        onClick={async () => {
+                          try {
+                            const result = await respondToPartyFormation({
+                              data: { inviteId: invite.id, accept },
+                            });
+                            await router.invalidate();
+                            toast.success(
+                              result.formed
+                                ? "Party formed"
+                                : accept
+                                  ? "Invitation accepted; awaiting the other cofounder"
+                                  : "Invitation declined",
+                            );
+                          } catch (error) {
+                            toast.error(
+                              error instanceof Error
+                                ? error.message
+                                : "Could not respond",
+                            );
+                          }
+                        }}
+                      >
+                        {accept ? "Accept" : "Decline"}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </WikiSection>
+      )}
       <WikiSearch
         value={query}
         onChange={setQuery}

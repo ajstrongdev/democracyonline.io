@@ -182,6 +182,8 @@ export async function archivePartyIfEmpty(
       archivedAt: new Date(),
       formerLeaderId: party.leaderId,
       leaderId: null,
+      chiefWhipId: null,
+      socialMediaOfficerId: null,
     })
     .where(and(eq(parties.id, partyId), isNull(parties.archivedAt)))
     .returning({ id: parties.id });

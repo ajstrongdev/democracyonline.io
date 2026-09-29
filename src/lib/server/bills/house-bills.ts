@@ -56,6 +56,12 @@ export const getHouseBills = createServerFn().handler(async () => {
 export const getHouseBillVotes = createServerFn()
   .inputValidator((data: { billId: number }) => data)
   .handler(async ({ data }) => {
+    const [bill] = await db
+      .select({ status: bills.status, stage: bills.stage })
+      .from(bills)
+      .where(eq(bills.id, data.billId));
+    if (bill?.status === "Voting" && bill.stage === "House")
+      return { for: 0, against: 0 };
     const votes = await db.execute(sql`
       SELECT
         COUNT(*) FILTER (WHERE vote_yes = TRUE) as yes_count,
@@ -181,16 +187,23 @@ export const voteOnHouseBill = createServerFn({ method: "POST" })
           ),
         )
         .limit(1);
-      if (existingVote) throw new Error("You have already voted on this bill");
-
-      await tx.insert(billVotesHouse).values({
-        billId: data.billId,
-        voterId: user.id,
-        voteYes: data.voteYes,
-      });
+      if (existingVote) {
+        await tx
+          .update(billVotesHouse)
+          .set({ voteYes: data.voteYes })
+          .where(eq(billVotesHouse.id, existingVote.id));
+      } else {
+        await tx
+          .insert(billVotesHouse)
+          .values({
+            billId: data.billId,
+            voterId: user.id,
+            voteYes: data.voteYes,
+          });
+      }
       await tx.insert(feed).values({
         userId: user.id,
-        content: `Voted ${data.voteYes ? "FOR" : "AGAINST"} bill #${data.billId} in the House of Representatives.`,
+        content: `${existingVote ? "Updated a vote" : "Voted"} on bill #${data.billId} in the House of Representatives.`,
       });
     });
 

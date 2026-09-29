@@ -253,7 +253,24 @@ function BillsIndex() {
                             )}
                           </span>
                         ) : null}
-                        {voteTally && <StageVotes {...voteTally} />}
+                        {voteTally &&
+                          (bill.status === "Voting" ? (
+                            <span>
+                              {bill.stage === "House"
+                                ? bill.houseTotal
+                                : bill.stage === "Senate"
+                                  ? bill.senateTotal
+                                  : bill.presidentTotal}{" "}
+                              {bill.stage === "House"
+                                ? "Representatives"
+                                : bill.stage === "Senate"
+                                  ? "Senators"
+                                  : "Presidents"}{" "}
+                              have voted · Results hidden until stage closes
+                            </span>
+                          ) : (
+                            <StageVotes {...voteTally} />
+                          ))}
                         {votePending && (
                           <span className="font-semibold text-primary">
                             Your vote is pending

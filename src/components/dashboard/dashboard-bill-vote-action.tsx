@@ -2,16 +2,32 @@ import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { voteOnHouseBill } from "@/lib/server/bills/house-bills";
 import { voteOnSenateBill } from "@/lib/server/bills/senate-bills";
 import { voteOnPresidentialBill } from "@/lib/server/bills/oval-office-bills";
 
-export function DashboardBillVoteAction({ billId, title, stage, userId }: {
+export function DashboardBillVoteAction({
+  billId,
+  title,
+  stage,
+  userId,
+  enforcedPosition,
+  currentVote,
+}: {
   billId: number;
   title: string;
   stage: string;
   userId: number;
+  enforcedPosition?: string | null;
+  currentVote?: boolean | null;
 }) {
   const router = useRouter();
   const [voteYes, setVoteYes] = useState<boolean | null>(null);
@@ -21,13 +37,20 @@ export function DashboardBillVoteAction({ billId, title, stage, userId }: {
     if (voteYes === null || busy) return;
     setBusy(true);
     try {
-      const vote = stage === "House" ? voteOnHouseBill : stage === "Senate" ? voteOnSenateBill : voteOnPresidentialBill;
+      const vote =
+        stage === "House"
+          ? voteOnHouseBill
+          : stage === "Senate"
+            ? voteOnSenateBill
+            : voteOnPresidentialBill;
       await vote({ data: { userId, billId, voteYes } });
       setVoteYes(null);
       await router.invalidate();
-      toast.success("Vote recorded");
+      toast.success(currentVote === null ? "Vote recorded" : "Vote changed");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not record vote");
+      toast.error(
+        error instanceof Error ? error.message : "Could not record vote",
+      );
     } finally {
       setBusy(false);
     }
@@ -36,18 +59,48 @@ export function DashboardBillVoteAction({ billId, title, stage, userId }: {
   return (
     <>
       <div className="flex shrink-0 gap-2">
-        <Button size="sm" onClick={() => setVoteYes(true)}>Vote for</Button>
-        <Button size="sm" variant="outline" onClick={() => setVoteYes(false)}>Vote against</Button>
+        <Button size="sm" onClick={() => setVoteYes(true)}>
+          {currentVote === true ? "Keep vote for" : "Vote for"}
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setVoteYes(false)}>
+          {currentVote === false ? "Keep vote against" : "Vote against"}
+        </Button>
       </div>
-      <Dialog open={voteYes !== null} onOpenChange={(open) => { if (!open && !busy) setVoteYes(null); }}>
+      {enforcedPosition && (
+        <p role="alert" className="text-sm font-semibold text-destructive">
+          Your party has enforced a {enforcedPosition.toLowerCase()} whip. Your
+          final vote against it when this stage ends will eject you from your
+          party. You may change your vote before then; abstention is permitted.
+        </p>
+      )}
+      <Dialog
+        open={voteYes !== null}
+        onOpenChange={(open) => {
+          if (!open && !busy) setVoteYes(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm your vote</DialogTitle>
-            <DialogDescription>Vote {voteYes ? "for" : "against"} “{title}”? This vote will be recorded.</DialogDescription>
+            <DialogDescription>
+              Vote {voteYes ? "for" : "against"} “{title}”? This vote will be
+              recorded and can be changed until this stage closes.{" "}
+              {enforcedPosition && voteYes !== (enforcedPosition === "For")
+                ? "WARNING: If this is your final vote when the stage closes, you will be ejected from your party."
+                : ""}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" disabled={busy} onClick={() => setVoteYes(null)}>Cancel</Button>
-            <Button disabled={busy} onClick={submit}>{busy ? "Recording…" : "Confirm vote"}</Button>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => setVoteYes(null)}
+            >
+              Cancel
+            </Button>
+            <Button disabled={busy} onClick={submit}>
+              {busy ? "Recording…" : "Confirm vote"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

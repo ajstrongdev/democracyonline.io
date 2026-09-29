@@ -13,16 +13,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createParty } from "@/lib/server/organizations/party";
+import { createPressureGroup } from "@/lib/server/organizations/pressure-groups";
 import { leanings } from "@/lib/constants";
 import { icons } from "@/lib/utils/logo-helper";
 import { ReferenceInsert } from "@/components/reference-insert";
 
 export function NewPartyDialog({
   user,
+  groupId,
   autoOpen = false,
 }: {
   user: { id: number; partyId: number | null } | null;
+  groupId: number | null;
   autoOpen?: boolean;
 }) {
   const router = useRouter();
@@ -40,12 +42,13 @@ export function NewPartyDialog({
   const submit = async () => {
     if (!user) return setError("Sign in to create a party.");
     if (user.partyId) return setError("Leave your current party first.");
+    if (groupId) return setError("Leave your current pressure group first.");
     if (!name.trim() || !bio.trim())
       return setError("A party name and biography are required.");
     setSubmitting(true);
     setError(null);
     try {
-      const party = await createParty({
+      await createPressureGroup({
         data: {
           party: {
             name: name.trim(),
@@ -59,10 +62,7 @@ export function NewPartyDialog({
         },
       });
       setOpen(false);
-      await router.navigate({
-        to: "/dashboard/parties/$partyId",
-        params: { partyId: String(party.id) },
-      });
+      await router.invalidate();
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Could not create party",
@@ -75,19 +75,20 @@ export function NewPartyDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" disabled={Boolean(user?.partyId)}>
-          Create party
+        <Button size="sm" disabled={Boolean(user?.partyId || groupId)}>
+          Start a pressure group
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[92svh] overflow-y-auto rounded-sm sm:max-w-3xl">
         <DialogHeader className="border-b pb-4">
           <p className="wiki-kicker">Political organization</p>
           <DialogTitle className="font-serif text-3xl">
-            Create a party
+            Start a pressure group
           </DialogTitle>
           <DialogDescription>
-            Establish the party identity, community details, and public
-            platform.
+            You remain Independent while your group gathers members. Your group
+            will appear on the parties page and become a party when two more
+            independent players join. It has no party privileges until then.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-5 py-2 sm:grid-cols-2">
@@ -160,7 +161,9 @@ export function NewPartyDialog({
             </select>
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="party-discord">Party Discord invite (optional)</Label>
+            <Label htmlFor="party-discord">
+              Party Discord invite (optional)
+            </Label>
             <Input
               id="party-discord"
               type="url"
@@ -168,7 +171,9 @@ export function NewPartyDialog({
               onChange={(event) => setDiscord(event.target.value)}
               placeholder="https://discord.gg/…"
             />
-            <p className="text-xs text-muted-foreground">This link will appear on the party wiki card.</p>
+            <p className="text-xs text-muted-foreground">
+              This link will appear on the party wiki card.
+            </p>
           </div>
           <div className="space-y-2 border-t pt-5 sm:col-span-2">
             <div>
@@ -208,7 +213,7 @@ Describe the party's principles and policies...`}
             Cancel
           </Button>
           <Button onClick={submit} disabled={submitting}>
-            {submitting ? "Creating..." : "Create party"}
+            {submitting ? "Creating..." : "Create pressure group"}
           </Button>
         </DialogFooter>
       </DialogContent>

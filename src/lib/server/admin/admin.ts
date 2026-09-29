@@ -754,6 +754,14 @@ export const purgeUserFromDatabase = createServerFn({ method: "POST" })
           .update(parties)
           .set({ leaderId: null })
           .where(eq(parties.leaderId, data.userId));
+        await tx
+          .update(parties)
+          .set({ chiefWhipId: null })
+          .where(eq(parties.chiefWhipId, data.userId));
+        await tx
+          .update(parties)
+          .set({ socialMediaOfficerId: null })
+          .where(eq(parties.socialMediaOfficerId, data.userId));
         await tx.delete(users).where(eq(users.id, data.userId));
       });
 

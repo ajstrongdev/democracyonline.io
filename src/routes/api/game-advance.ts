@@ -96,6 +96,24 @@ export const Route = createFileRoute("/api/game-advance")({
                     ),
                   ),
                 );
+              await tx
+                .update(parties)
+                .set({ chiefWhipId: null })
+                .where(
+                  inArray(
+                    parties.chiefWhipId,
+                    members.map((member) => member.id),
+                  ),
+                );
+              await tx
+                .update(parties)
+                .set({ socialMediaOfficerId: null })
+                .where(
+                  inArray(
+                    parties.socialMediaOfficerId,
+                    members.map((member) => member.id),
+                  ),
+                );
             }
 
             if (archived.length) {
