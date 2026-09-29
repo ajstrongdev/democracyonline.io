@@ -29,8 +29,12 @@ const releases = [
         detail: "Live Wire updates now read like short reports drawn from the results so far. Alongside the leader, they follow challengers, changes in the wider field, and the fight for the last Senate seat as new returns arrive.",
       },
       {
-        title: "Vote where you read the bill",
-        detail: "Eligible officeholders can vote directly from a bill’s page and see when their vote has been recorded. The progress bar now ends with the presidential stage; the passed or defeated result appears separately once the count is complete.",
+        title: "Find a bill, then cast your vote",
+        detail: "Bills are now listed by stage—Committee, House, Senate, President, Enacted, or Defeated—with search and a My bills filter close at hand, including on mobile. Eligible officeholders can vote on the bill’s own page and see when their decision has been recorded; there’s no separate chamber desk to open.",
+      },
+      {
+        title: "A nudge for party leaders",
+        detail: "If your party has not issued voting guidance on a bill, it appears in Your next moves during House, Senate, and presidential voting. Follow the reminder straight to the bill to make your recommendation.",
       },
       {
         title: "Find your way faster",
@@ -42,7 +46,7 @@ const releases = [
       },
       {
         title: "The little fixes matter",
-        detail: "Election Night layouts are clearer, and navigation, the footer, and signed-in account controls have had a tidy-up.",
+        detail: "The bill progress bar now separates the presidential stage from the final result. Election Night layouts, navigation, the footer, and signed-in account controls have also had a tidy-up.",
       },
     ],
   },
