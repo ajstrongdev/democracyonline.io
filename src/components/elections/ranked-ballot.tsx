@@ -135,14 +135,14 @@ export function RankedBallot({
   if (candidates.length === 0) return null;
 
   return (
-    <Card className="overflow-hidden rounded-2xl border-border bg-card shadow-md">
-      <CardHeader className="border-b bg-muted/25 px-5 py-5 sm:px-7 sm:py-6">
+    <Card className="min-w-0 overflow-hidden border-border bg-card shadow-sm">
+      <CardHeader className="border-b bg-muted/25 px-3 py-5 sm:px-7 sm:py-6">
         <div className="flex items-center gap-4">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+          <div className="hidden size-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm sm:flex">
             <Vote className="size-6" />
           </div>
           <div className="min-w-0 flex-1">
-            <CardTitle className="font-serif text-2xl sm:text-3xl">Rank your {election} candidates</CardTitle>
+            <CardTitle className="font-serif text-xl sm:text-3xl">Rank your {election} candidates</CardTitle>
             <CardDescription className="mt-1.5 max-w-2xl leading-relaxed">
               Put your first choice at the top. Use the arrows to arrange your ranking; every candidate stays on your ballot.
             </CardDescription>
@@ -153,7 +153,7 @@ export function RankedBallot({
         </div>
       </CardHeader>
       <CardContent className="space-y-0 p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3 sm:px-7">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-3 py-3 sm:px-7">
           <div>
             <span className="block text-xs font-bold uppercase tracking-[0.14em] text-foreground">Your preference order</span>
             <span className="mt-1 block text-xs text-muted-foreground">Move a candidate up or down to change your choice.</span>
@@ -162,7 +162,7 @@ export function RankedBallot({
             <ListRestart className="size-4" /> Reset A–Z
           </Button>
         </div>
-        <div className="relative space-y-3 bg-[linear-gradient(180deg,color-mix(in_oklch,var(--primary)_5%,transparent),transparent_20rem)] p-3 sm:space-y-4 sm:p-5 lg:p-7">
+        <div className="relative space-y-2 p-2 sm:space-y-4 sm:p-5 lg:p-7">
         {ranking.map((candidateId, index) => {
           const candidate = byId.get(candidateId);
           if (!candidate) return null;
@@ -186,8 +186,8 @@ export function RankedBallot({
                 dropCandidate(candidateId);
               }}
               className={cn(
-                "group relative grid grid-cols-[4rem_auto_minmax(0,1fr)_auto] items-center gap-2 overflow-hidden rounded-2xl border bg-background p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg sm:grid-cols-[4.75rem_auto_minmax(0,1fr)_auto] sm:gap-4 sm:p-4",
-                index === 0 && "border-primary/50 bg-[linear-gradient(110deg,color-mix(in_oklch,var(--primary)_9%,var(--background)),var(--background)_62%)] shadow-md ring-1 ring-primary/10 sm:p-5",
+                "group relative grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_2.75rem] items-center gap-2 border bg-background p-2 transition-colors duration-150 hover:border-primary/40 sm:grid-cols-[4.75rem_auto_minmax(0,1fr)_auto] sm:gap-4 sm:rounded-lg sm:p-4",
+                index === 0 && "border-primary/50 bg-primary/5 sm:p-5",
                 draggedCandidateId === candidateId && "opacity-40",
                 dropTargetId === candidateId &&
                   draggedCandidateId !== candidateId && "border-primary bg-primary/5 shadow-md",
@@ -195,17 +195,17 @@ export function RankedBallot({
               style={{ borderLeftWidth: "4px", borderLeftColor: candidate.partyColor ?? "var(--border)" }}
             >
               <div className="flex items-center gap-2 sm:gap-3">
-                <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl font-mono text-lg font-black sm:size-12", index === 0 ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" : "bg-muted text-foreground")}>
+                <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-md font-mono text-base font-bold sm:size-12 sm:text-lg", index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-foreground")}>
                   {String(index + 1).padStart(2, "0")}
                 </span>
-                <div className="flex flex-col items-center" aria-hidden="true">
+                <div className="hidden flex-col items-center sm:flex" aria-hidden="true">
                   <GripVertical className="size-4 cursor-grab text-muted-foreground group-active:cursor-grabbing" />
                 </div>
               </div>
-              <PlayerAvatar username={candidate.username} photoUrl={candidate.photoUrl} className="size-14 sm:size-[4.5rem]" />
+              <PlayerAvatar username={candidate.username} photoUrl={candidate.photoUrl} className="hidden size-14 sm:block sm:size-[4.5rem]" />
               <div className="min-w-0 py-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <p className="break-words font-serif text-lg font-bold leading-tight sm:text-xl">{candidate.username}</p>
+                  <p className="min-w-0 break-words font-serif text-base font-bold leading-tight sm:text-xl">{candidate.username}</p>
                   {index === 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.13em] text-primary-foreground">First choice</span>}
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -218,12 +218,12 @@ export function RankedBallot({
                   {index > 0 && <span className="text-[10px] text-muted-foreground">Preference {index + 1}</span>}
                 </div>
               </div>
-              <div className="flex shrink-0 flex-col gap-1 rounded-xl border bg-muted/25 p-1">
+              <div className="flex shrink-0 flex-col gap-1 sm:rounded-lg sm:border sm:bg-muted/25 sm:p-1">
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="size-8 rounded-lg bg-background sm:size-9"
+                  className="size-11 bg-background sm:size-9"
                   disabled={index === 0 || submitting}
                   onClick={() => move(index, -1)}
                   aria-label={`Move ${candidate.username} up`}
@@ -234,7 +234,7 @@ export function RankedBallot({
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="size-8 rounded-lg bg-background sm:size-9"
+                  className="size-11 bg-background sm:size-9"
                   disabled={index === ranking.length - 1 || submitting}
                   onClick={() => move(index, 1)}
                   aria-label={`Move ${candidate.username} down`}
@@ -246,7 +246,7 @@ export function RankedBallot({
           );
         })}
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4 sm:px-7">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-4 sm:px-7">
           <div className="flex min-w-0 items-start gap-3 text-xs text-muted-foreground">
             <div className="flex shrink-0 items-center gap-1" aria-hidden="true">
               <span className="size-2 rounded-full bg-primary" />

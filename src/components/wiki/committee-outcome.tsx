@@ -182,12 +182,13 @@ export function CommitteeOutcome({
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    <div className="grid gap-1 sm:grid-cols-5">
+                    <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-5">
                       {effectChoices.map(([value, label]) => (
                         <Button
                           key={value}
                           type="button"
                           size="sm"
+                          className="h-auto min-h-11 whitespace-normal px-2 py-2 text-center leading-tight"
                           variant={row.effect === value ? "default" : "outline"}
                           aria-pressed={row.effect === value}
                           disabled={

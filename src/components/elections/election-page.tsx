@@ -197,8 +197,8 @@ export function ElectionsPage({
     <ProtectedRoute>
       <main className="min-h-screen bg-[linear-gradient(180deg,color-mix(in_oklch,var(--muted)_48%,transparent),transparent_28rem)]">
         <header className="relative overflow-hidden bg-slate-950 text-white dark:bg-black">
-          <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(115deg,transparent_0%,transparent_48%,rgba(255,255,255,0.08)_48%,rgba(255,255,255,0.08)_49%,transparent_49%),radial-gradient(circle_at_15%_20%,rgba(34,197,94,0.3),transparent_30%),radial-gradient(circle_at_85%_80%,rgba(59,130,246,0.28),transparent_34%)]" />
-          <div className="container relative mx-auto max-w-7xl px-4 py-8 sm:py-12">
+           <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(115deg,transparent_0%,transparent_48%,rgba(255,255,255,0.08)_48%,rgba(255,255,255,0.08)_49%,transparent_49%)]" />
+           <div className="container relative mx-auto max-w-7xl px-3 py-6 sm:px-6 sm:py-12">
             <div className="mb-8 flex items-center justify-between border-b border-white/20 pb-3">
               <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-white/70">
                 <Newspaper className="h-4 w-4" />
@@ -207,7 +207,7 @@ export function ElectionsPage({
               {hasActiveRaces && (
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-red-300">
                   <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75 motion-reduce:animate-none" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
                   </span>
                   Live coverage
@@ -220,7 +220,7 @@ export function ElectionsPage({
                   <Sparkles className="h-4 w-4" />
                   Oscana decides
                 </div>
-                <h1 className="max-w-4xl font-serif text-5xl font-black leading-[0.92] tracking-tight sm:text-7xl">
+                 <h1 className="max-w-4xl break-words font-serif text-4xl font-black leading-tight tracking-tight sm:text-6xl lg:text-7xl">
                   {isMidterm
                     ? "Midterm Elections."
                     : hasActiveRaces
@@ -254,7 +254,7 @@ export function ElectionsPage({
               )}
             </div>
             <div className="mt-8 grid grid-cols-3 border-y border-white/15 text-center">
-              <div className="border-r border-white/15 px-3 py-4">
+               <div className="min-w-0 border-r border-white/15 px-1.5 py-4 sm:px-3">
                 <p className="font-mono text-2xl font-bold">
                   {activeRaces.length}
                 </p>
@@ -262,7 +262,7 @@ export function ElectionsPage({
                   Active races
                 </p>
               </div>
-              <div className="border-r border-white/15 px-3 py-4">
+               <div className="min-w-0 border-r border-white/15 px-1.5 py-4 sm:px-3">
                 <p className="font-mono text-2xl font-bold">
                   {totalCandidates}
                 </p>
@@ -270,7 +270,7 @@ export function ElectionsPage({
                   Candidates
                 </p>
               </div>
-              <div className="px-3 py-4">
+               <div className="min-w-0 px-1.5 py-4 sm:px-3">
                 <p className="font-mono text-2xl font-bold">{pendingBallots}</p>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-white/55">
                   Your ballots due
@@ -280,7 +280,7 @@ export function ElectionsPage({
           </div>
         </header>
 
-        <div className="container mx-auto max-w-7xl px-4 py-8 sm:py-12">
+         <div className="container mx-auto max-w-7xl px-3 py-6 sm:px-6 sm:py-12">
           {hasActiveRaces ? (
             <Tabs defaultValue={activeRaces[0].key} className="gap-6">
               <TabsList
@@ -295,7 +295,7 @@ export function ElectionsPage({
                     <TabsTrigger
                       key={race.key}
                       value={race.key}
-                      className="gap-2 py-3"
+                       className="gap-1 whitespace-normal px-1 py-3 text-xs sm:gap-2 sm:px-2 sm:text-sm"
                     >
                       <Icon className="h-4 w-4" /> {race.label}
                     </TabsTrigger>

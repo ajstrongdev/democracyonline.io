@@ -154,8 +154,8 @@ function BillsIndex() {
               className="h-full rounded-sm shadow-none transition-colors hover:border-primary"
             >
               <CardContent className="space-y-4 pt-5">
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="font-serif text-xl font-bold">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h2 className="min-w-0 break-words font-serif text-xl font-bold">
                     Bill #{bill.id}: {bill.title}
                   </h2>
                   <Badge variant="outline">
@@ -217,7 +217,7 @@ function BillsIndex() {
                     />
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button asChild variant="outline" size="sm">
                     <Link
                       to="/dashboard/bills/$billId"

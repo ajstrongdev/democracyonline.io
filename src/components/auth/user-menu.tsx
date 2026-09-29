@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AccountSettingsDialog } from "@/components/settings/account-settings-dialog";
 import { canAccessModerationQueue } from "@/lib/server/moderation/moderation";
 
-export function UserMenu() {
+export function UserMenu({ iconOnly = false }: { iconOnly?: boolean } = {}) {
   const { user, loading } = useAuth();
   const [hydrated, setHydrated] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -41,16 +41,16 @@ export function UserMenu() {
   };
 
   if (!hydrated || loading) {
-    return <div className="h-9 w-24 bg-muted animate-pulse rounded-md" />;
+     return <div className={`${iconOnly ? "size-11" : "h-9 w-24"} animate-pulse rounded-md bg-muted`} />;
   }
 
   if (!user) {
     return (
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/login" aria-label="Sign in">
-            <LogIn className="size-4" />
-            <span>Sign In</span>
+         <Button variant="ghost" size="sm" asChild className={iconOnly ? "size-11 px-0" : undefined}>
+           <Link to="/login" aria-label="Sign in" title={iconOnly ? "Sign in" : undefined}>
+             <LogIn className="size-4" />
+             {!iconOnly && <span>Sign In</span>}
           </Link>
         </Button>
       </div>
@@ -60,24 +60,25 @@ export function UserMenu() {
   return (
     <div className="flex items-center gap-1">
       {accessLevel === "admin" ? (
-        <Button variant="ghost" size="sm" asChild className="h-11 min-w-11 gap-2 px-2 sm:h-9 sm:min-w-0 sm:px-3">
-          <Link to="/dashboard/admin" aria-label="Admin tools" title="Admin tools"><ShieldCheck className="size-4" /><span className="hidden sm:inline">Admin</span></Link>
+         <Button variant="ghost" size="sm" asChild className={iconOnly ? "size-11 px-0" : "h-11 min-w-11 gap-2 px-2 sm:h-9 sm:min-w-0 sm:px-3"}>
+           <Link to="/dashboard/admin" aria-label="Admin tools" title="Admin tools"><ShieldCheck className="size-4" />{!iconOnly && <span className="hidden sm:inline">Admin</span>}</Link>
         </Button>
       ) : accessLevel === "moderator" ? (
-        <Button variant="ghost" size="sm" asChild className="h-11 min-w-11 gap-2 px-2 sm:h-9 sm:min-w-0 sm:px-3">
-          <Link to="/dashboard/moderation" aria-label="Moderation queue" title="Moderation queue"><ShieldCheck className="size-4" /><span className="hidden sm:inline">Moderation</span></Link>
+         <Button variant="ghost" size="sm" asChild className={iconOnly ? "size-11 px-0" : "h-11 min-w-11 gap-2 px-2 sm:h-9 sm:min-w-0 sm:px-3"}>
+           <Link to="/dashboard/moderation" aria-label="Moderation queue" title="Moderation queue"><ShieldCheck className="size-4" />{!iconOnly && <span className="hidden sm:inline">Moderation</span>}</Link>
         </Button>
       ) : null}
-      <Button variant="ghost" size="icon" className="size-11 sm:size-9" onClick={() => setSettingsOpen(true)} aria-label="Account settings">
+       <Button variant="ghost" size="icon" className={iconOnly ? "size-11" : "size-11 sm:size-9"} onClick={() => setSettingsOpen(true)} aria-label="Account settings" title={iconOnly ? "Account settings" : undefined}>
           <Settings className="size-4" />
       </Button>
       <AccountSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <Button
         variant="ghost"
         size="icon"
-        className="size-11 sm:size-9"
-        onClick={handleLogout}
-        aria-label="Sign out"
+         className={iconOnly ? "size-11" : "size-11 sm:size-9"}
+         onClick={handleLogout}
+         aria-label="Sign out"
+         title={iconOnly ? "Sign out" : undefined}
       >
         <LogOut className="size-4" />
       </Button>

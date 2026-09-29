@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { signIn } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -33,9 +34,9 @@ function LoginPage() {
   });
 
   return (
-    <div className="flex items-center justify-center h-full p-4">
+    <div className="flex flex-1 items-center justify-center p-4 py-8">
       <div className="w-full max-w-md space-y-4">
-        <Card className="w-full p-6 space-y-6">
+        <Card className="w-full space-y-6 rounded-sm p-5 shadow-sm sm:p-7">
           <div className="space-y-2 text-center">
             <h1 className="text-2xl font-bold">Sign In</h1>
             <p className="text-muted-foreground">
@@ -53,7 +54,7 @@ function LoginPage() {
             className="space-y-4"
           >
             {form.state.errorMap.onSubmit && (
-              <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+              <div role="alert" className="rounded-sm border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                 {form.state.errorMap.onSubmit}
               </div>
             )}
@@ -64,15 +65,16 @@ function LoginPage() {
                   <label htmlFor={field.name} className="text-sm font-medium">
                     Email
                   </label>
-                  <input
+                   <Input
                     id={field.name}
                     name={field.name}
-                    type="email"
+                     type="email"
+                     autoComplete="email"
                     value={field.state.value}
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
                     required
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                     className="h-11"
                     placeholder="you@example.com"
                   />
                 </div>
@@ -85,15 +87,16 @@ function LoginPage() {
                   <label htmlFor={field.name} className="text-sm font-medium">
                     Password
                   </label>
-                  <input
+                   <Input
                     id={field.name}
                     name={field.name}
-                    type="password"
+                     type="password"
+                     autoComplete="current-password"
                     value={field.state.value}
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
                     required
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                     className="h-11"
                     placeholder="••••••••"
                   />
                 </div>
@@ -104,7 +107,7 @@ function LoginPage() {
               {([isSubmitting]) => (
                 <Button
                   type="submit"
-                  className="w-full"
+                   className="h-11 w-full"
                   disabled={isSubmitting || !hydrated}
                 >
                   {isSubmitting ? "Signing in..." : "Sign In"}

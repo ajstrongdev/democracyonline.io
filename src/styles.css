@@ -48,6 +48,7 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
+    flex-wrap: wrap;
     border-bottom: 1px solid var(--border);
     padding: 1rem 1.25rem;
     background: color-mix(in oklab, var(--muted) 28%, transparent);
@@ -65,6 +66,7 @@
 
   .wiki-section-content {
     padding: 1.25rem;
+    min-width: 0;
   }
 
   .wiki-infobox {
@@ -97,6 +99,14 @@
 
   .wiki-record-row:last-child {
     border-bottom: 0;
+  }
+
+  @media (max-width: 639px) {
+    .wiki-section-header { padding: 0.875rem; }
+    .wiki-section-content { padding: 0.875rem; }
+    .wiki-section-title { font-size: 1.2rem; }
+    .wiki-page { overflow-wrap: anywhere; }
+    [data-slot="button"], [data-slot="tabs-trigger"] { min-height: 2.75rem; }
   }
 }
 
@@ -698,5 +708,17 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

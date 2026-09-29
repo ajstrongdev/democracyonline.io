@@ -72,7 +72,7 @@ export function WikiArticleSection({
   return (
     <section className="wiki-section overflow-hidden">
       <header className="wiki-section-header">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="wiki-section-title">
               <BookOpen className="h-5 w-5" />
@@ -84,7 +84,7 @@ export function WikiArticleSection({
                 : "This article has not yet been written."}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
               <Link
                 to="/dashboard/revisions/$entityType/$entityId"
@@ -124,6 +124,7 @@ export function WikiArticleSection({
                 </div>
                 <Textarea
                   id={editorId}
+                  aria-label={isPartyPlatform ? "Party platform source" : "Article source"}
                   value={content}
                   onChange={(event) => setContent(event.target.value)}
                   className="min-h-80 font-mono text-sm"
@@ -146,13 +147,18 @@ export function WikiArticleSection({
                 )}
               </TabsContent>
             </Tabs>
-            <Input
-              value={summary}
-              onChange={(event) => setSummary(event.target.value)}
-              maxLength={255}
-              placeholder="Briefly describe your changes"
-            />
-            <div className="flex justify-end gap-2">
+            <label className="block space-y-1.5 text-sm font-medium">
+              Edit summary
+              <Input
+                value={summary}
+                onChange={(event) => setSummary(event.target.value)}
+                maxLength={255}
+                placeholder="Briefly describe your changes"
+                aria-describedby={`${editorId}-summary-help`}
+              />
+              <span id={`${editorId}-summary-help`} className="block text-xs font-normal text-muted-foreground">At least 3 characters. This appears in the revision history.</span>
+            </label>
+            <div className="flex flex-wrap justify-end gap-2">
               <Button variant="outline" onClick={cancel} disabled={saving}>
                 <X className="h-4 w-4" /> Cancel
               </Button>

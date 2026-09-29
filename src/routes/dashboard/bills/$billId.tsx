@@ -26,6 +26,7 @@ import { getCommitteeData } from "@/lib/server/bills/committee";
 import { CommitteeOutcome } from "@/components/wiki/committee-outcome";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
 import { BillComments } from "@/components/bills/bill-comments";
+import { BillProgress } from "@/components/bills/bill-progress";
 import { getBillComments, getBillWhips } from "@/lib/server/bills/bill-comments";
 import { getCurrentUserInfo } from "@/lib/server/users/users";
 import { reviveDefeatedBill } from "@/lib/server/bills/bills";
@@ -149,6 +150,7 @@ function BillArticle() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <BillProgress status={bill.status} stage={bill.stage} />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <WikiArticleSection
           entityType="bill"

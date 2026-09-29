@@ -17,6 +17,7 @@ import type { User } from "firebase/auth";
 import { getThemeClasses, getThemeServerFn, themes } from "@/lib/server/settings/theme";
 import { NotFound } from "@/components/not-found";
 import { WikiNavigation } from "@/components/wiki/wiki-header";
+import { DesktopNavigation } from "@/components/wiki/desktop-navigation";
 import { getAuthRedirect } from "@/lib/auth-guard";
 import { auth } from "@/lib/firebase";
 import { getCurrentBanStatus, getSessionUser } from "@/lib/server/auth/session";
@@ -114,19 +115,22 @@ function RootLayout() {
     <AppThemeProvider initialTheme={theme} initialColorScheme={customScheme}>
       <PlayerPresenceHeartbeat />
       <LiveUpdates />
-      <div className="flex min-h-svh flex-col">
+      <div className="flex min-h-svh min-w-0 flex-col">
         <WikiNavigation />
-        <div className="flex flex-1 flex-col">
-          <Outlet />
+        <div className="flex min-w-0 flex-1 items-stretch">
+          <DesktopNavigation />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <Outlet />
+            <footer className="mt-auto border-t bg-muted/30 px-4 py-4 text-center text-sm text-muted-foreground">
+              Running Polsimmer v{packageJson.version}{" "}
+              <a href="https://github.com/ajstrongdev/polsimmer" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">(source)</a>
+              {" "}·{" "}
+              <Link to="/changelog" className="font-medium text-primary hover:underline">Changelog</Link>
+              {" "}·{" "}
+              <a href="https://discord.gg/XREYCNFAdC" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Join the Polsimmer Discord</a>
+            </footer>
+          </div>
         </div>
-        <footer className="border-t bg-muted/30 px-4 py-4 text-center text-sm text-muted-foreground">
-          Running Polsimmer v{packageJson.version}{" "}
-          <a href="https://github.com/ajstrongdev/polsimmer" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">(source)</a>
-          {" "}·{" "}
-          <Link to="/changelog" className="font-medium text-primary hover:underline">Changelog</Link>
-          {" "}·{" "}
-          <a href="https://discord.gg/XREYCNFAdC" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Join the Polsimmer Discord</a>
-        </footer>
         <ThemedToaster />
       </div>
     </AppThemeProvider>

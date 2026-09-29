@@ -9,10 +9,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Crown,
-  Flag,
-  History,
   Landmark,
-  LifeBuoy,
   MailPlus,
   MessageSquareText,
   Radio,
@@ -48,6 +45,7 @@ import { AccountSettingsDialog } from "@/components/settings/account-settings-di
 import { getFeedItems } from "@/lib/server/dashboard/feed";
 import { getFeedDestination } from "@/lib/feed-destination";
 import { DashboardBillVoteAction } from "@/components/dashboard/dashboard-bill-vote-action";
+import { billStatusLabel } from "@/components/bills/bill-stage-countdown";
 import { electionNextMoves } from "@/lib/dashboard/action-eligibility";
 
 dayjs.extend(relativeTime);
@@ -86,7 +84,6 @@ export function DashboardContent({
     zMentionSummary,
     activity,
     electionDashboard,
-    counts,
     recentBills,
     nation,
   } = data;
@@ -474,17 +471,16 @@ export function DashboardContent({
         </WikiSection>
       )}
 
-      <WikiSection
-        title="Explore Oscana"
+      {currentUser && <WikiSection
+        title="Take initiative"
         icon={Users}
-        description="Take action, discover the community, and explore the nation."
-        className="h-full"
+        description="Start something new, or invite another player into the game."
       >
         {currentUser?.active && (
           <section className="mb-5" aria-labelledby="take-initiative-heading">
             <h3
               id="take-initiative-heading"
-              className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground"
+              className="sr-only"
             >
               Take initiative
             </h3>
@@ -513,106 +509,8 @@ export function DashboardContent({
           </section>
         )}
 
-        <section aria-labelledby="explore-destinations-heading">
-          <h3
-            id="explore-destinations-heading"
-            className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground"
-          >
-            Explore
-          </h3>
-          <nav
-            aria-label="Explore Oscana"
-            className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
-          >
-            {[
-              {
-                to: "/dashboard/nation",
-                title: "Nation",
-                description:
-                  "Explore Oscana’s laws, economy, and national stats.",
-                icon: Flag,
-                featured: true,
-              },
-              {
-                to: "/dashboard/elections",
-                title: "Elections",
-                description:
-                  "Follow active races, candidates, and past results.",
-                icon: Landmark,
-              },
-              {
-                to: "/dashboard/bills",
-                title: "Bills",
-                description:
-                  "Read legislation and see what each chamber is debating.",
-                icon: ScrollText,
-              },
-              {
-                to: "/dashboard/parties",
-                title: "Parties",
-                description: "Find a political home or build a coalition.",
-                icon: Vote,
-                count: counts.parties,
-              },
-              {
-                to: "/dashboard/social",
-                title: "Z.com",
-                description: "Join the public conversation across Oscana.",
-                icon: MessageSquareText,
-              },
-              {
-                to: "/dashboard/players",
-                title: "Players",
-                description: "Meet the people shaping the nation.",
-                icon: Users,
-                count: counts.players,
-              },
-              {
-                to: "/dashboard/government",
-                title: "Government history",
-                description:
-                  "Browse past officeholders and government composition.",
-                icon: History,
-              },
-              {
-                to: "/dashboard/guide",
-                title: "Player guide",
-                description: "Learn how the game works and how to take part.",
-                icon: LifeBuoy,
-              },
-            ].map(({ to, title, description, icon: Icon, count }) => (
-              <Link
-                key={to}
-                to={to}
-                search={
-                  to === "/dashboard/social"
-                    ? { postId: undefined, commentId: undefined }
-                    : undefined
-                }
-                className="group flex min-h-[4.75rem] min-w-0 items-center gap-2.5 rounded-lg border bg-card px-3 py-2.5 transition-all hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm"
-              >
-                <span className="rounded-md bg-primary/5 p-1.5 text-primary transition-colors group-hover:bg-primary/10">
-                  <Icon className="size-3.5 shrink-0" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="font-semibold">{title}</span>
-                    {count !== undefined && (
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {count}
-                      </span>
-                    )}
-                  </span>
-                  <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
-                    {description}
-                  </span>
-                </span>
-                <ArrowRight className="mt-0.5 size-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
-              </Link>
-            ))}
-          </nav>
           {currentUser && (
-            <div className="mt-3 flex justify-end">
+            <div className="mt-3 flex flex-wrap justify-end gap-1">
               <Button
                 asChild
                 type="button"
@@ -646,8 +544,7 @@ export function DashboardContent({
               initialTab="invites"
             />
           )}
-        </section>
-      </WikiSection>
+      </WikiSection>}
 
       <div
         className={
@@ -677,13 +574,13 @@ export function DashboardContent({
                   key={bill.id}
                   to="/dashboard/bills/$billId"
                   params={{ billId: String(bill.id) }}
-                  className="flex min-w-0 items-center justify-between gap-3 px-4 py-2 text-sm hover:bg-muted/30"
+                  className="flex min-w-0 flex-col items-start gap-1 px-4 py-3 text-sm hover:bg-muted/30 focus-visible:outline-2 focus-visible:outline-ring sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                 >
-                  <span className="min-w-0 truncate">
+                  <span className="min-w-0 break-words font-medium">
                     #{bill.id} {bill.title}
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {bill.status} · {bill.stage}
+                    {billStatusLabel(bill.status)} · {bill.stage === "Committee" ? "Senate Committee" : bill.stage}
                   </span>
                 </Link>
               ))}

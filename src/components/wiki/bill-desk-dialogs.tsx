@@ -115,8 +115,8 @@ export function NewBillDialog({
       <DialogTrigger asChild>
         {trigger ?? <Button size="sm">Draft a bill</Button>}
       </DialogTrigger>
-      <DialogContent className="max-h-[90svh] overflow-y-auto rounded-sm sm:max-w-2xl">
-        <DialogHeader className="border-b pb-4">
+      <DialogContent className="flex h-dvh max-h-dvh flex-col gap-0 overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[90dvh] sm:max-w-2xl sm:rounded-sm">
+        <DialogHeader className="shrink-0 border-b px-4 pb-4 pt-3 text-left sm:px-6 sm:pt-6">
           <p className="wiki-kicker">Legislative submission</p>
           <DialogTitle className="font-serif text-3xl">
             Draft a new bill
@@ -125,11 +125,12 @@ export function NewBillDialog({
             New proposals enter the Senate Committee before House consideration.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-5 py-2">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6">
           <div className="space-y-2">
             <Label htmlFor="new-bill-title">Title</Label>
             <Input
               id="new-bill-title"
+              className="h-11"
               value={title}
               maxLength={255}
               onChange={(event) => setTitle(event.target.value)}
@@ -147,15 +148,16 @@ export function NewBillDialog({
             </div>
             <Textarea
               id="new-bill-content"
+              className="min-h-56"
               value={content}
               onChange={(event) => setContent(event.target.value)}
               rows={10}
               placeholder="Set out the proposal in detail..."
             />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0 gap-2 border-t bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
@@ -255,8 +257,8 @@ export function BillDeskDialog({
             <ScrollText className="h-4 w-4" /> Chamber desks
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-h-[92svh] overflow-y-auto rounded-sm p-0 sm:max-w-5xl">
-          <DialogHeader className="border-b px-5 pb-5 pt-6 sm:px-7">
+        <DialogContent className="flex h-dvh max-h-dvh flex-col gap-0 overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[92dvh] sm:max-w-5xl sm:rounded-sm">
+          <DialogHeader className="shrink-0 border-b px-4 pb-4 pt-3 text-left sm:px-7 sm:pt-6">
             <p className="wiki-kicker">Live legislative business</p>
             <DialogTitle className="font-serif text-3xl">
               Chamber desks
@@ -266,12 +268,12 @@ export function BillDeskDialog({
               serving roster.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex overflow-x-auto border-b px-3 sm:px-5">
+          <div className="grid shrink-0 grid-cols-3 border-b px-2 sm:flex sm:px-5">
             {(["House", "Senate", "Presidential"] as const).map((value) => (
               <button
                 key={value}
                 onClick={() => setChamber(value)}
-                className={`shrink-0 border-b-2 px-4 py-3 text-sm font-semibold ${
+                className={`min-h-11 border-b-2 px-1 py-2 text-xs font-semibold transition-colors sm:px-4 sm:py-3 sm:text-sm ${
                   chamber === value
                     ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground"
@@ -281,7 +283,7 @@ export function BillDeskDialog({
               </button>
             ))}
           </div>
-          <div className="space-y-7 px-5 py-5 sm:px-7">
+          <div className="min-h-0 flex-1 space-y-7 overflow-y-auto overscroll-contain px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-7">
             <section>
               <div className="mb-3 flex items-baseline justify-between border-b pb-2">
                 <h3 className="font-serif text-2xl font-bold">Current bills</h3>
@@ -320,7 +322,7 @@ export function BillDeskDialog({
                       Review the locked Senate Committee outcome before voting
                     </Link>
                     {eligible && !voted[bill.id] && (
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           disabled={submitting === bill.id}
@@ -370,7 +372,7 @@ export function BillDeskDialog({
                 </p>
               )}
               {error && (
-                <p className="mt-3 text-sm text-destructive">{error}</p>
+                  <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>
               )}
             </section>
             {chamber !== "Presidential" && (

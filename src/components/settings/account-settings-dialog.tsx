@@ -146,7 +146,7 @@ export function AccountSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 data-[state=open]:animate-none data-[state=closed]:animate-none sm:rounded-2xl">
+      <DialogContent className="flex h-dvh max-h-dvh w-full max-w-2xl flex-col gap-0 overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[90dvh] sm:w-[calc(100%-1.5rem)] sm:rounded-lg">
         <DialogHeader className="shrink-0 border-b bg-muted/30 px-5 py-5 text-left sm:px-7">
           <DialogTitle className="font-serif text-2xl">Account settings</DialogTitle>
           <DialogDescription>Manage your player profile and account.</DialogDescription>
@@ -164,7 +164,7 @@ export function AccountSettingsDialog({
                 <p className="text-xs text-muted-foreground">{player.role ?? "Citizen"} · {player.pronouns || "Player"}</p>
               </div>
             </div>
-            <TabsList className="mx-5 mt-4 grid h-auto w-auto grid-cols-5 sm:mx-7">
+            <TabsList className="mx-4 mt-3 grid h-auto w-auto grid-cols-3 gap-1 sm:mx-7 sm:mt-4 sm:grid-cols-5">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="avatar">Avatar</TabsTrigger>
               <TabsTrigger value="password">Password</TabsTrigger>
@@ -197,7 +197,7 @@ export function AccountSettingsDialog({
                     </div>
                     <Slider min={0} max={6} step={1} value={[leaning]} onValueChange={([value]) => setLeaning(value)} aria-label="Political leaning" />
                   </div>
-                  <Button type="submit" disabled={saving || !username.trim() || !bio.trim()}>{saving ? "Saving…" : "Save profile"}</Button>
+                  <Button type="submit" className="w-full sm:w-auto" disabled={saving || !username.trim() || !bio.trim()}>{saving ? "Saving…" : "Save profile"}</Button>
                 </form>
               </TabsContent>
               <TabsContent value="avatar" className="mt-0">
