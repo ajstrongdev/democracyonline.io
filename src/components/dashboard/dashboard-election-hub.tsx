@@ -22,6 +22,7 @@ import {
   revokeCandidate,
 } from "@/lib/server/elections/elections";
 import { canDeclareNationalCandidacy } from "@/lib/elections/dashboard-actions";
+import { writeElectionCoverage } from "@/lib/elections/coverage-copy";
 import { DashboardElectionCountdown } from "@/components/dashboard/dashboard-election-countdown";
 import { RankedBallot } from "@/components/elections/ranked-ballot";
 import { PlayerAvatar } from "@/components/players/player-avatar";
@@ -649,6 +650,12 @@ function ElectionNightCard({
   const seats = race.seats ?? 1;
   const leaders = standings.slice(0, seats);
   const seatSummary = partySeatSummary(standings, seats);
+  const articles = writeElectionCoverage(
+    race.coverage.updates,
+    race.candidates.map((candidate) => ({ id: candidate.id, name: candidate.username })),
+    seats,
+    race.coverage.totalPoints,
+  );
 
   return (
     <article className="min-w-0 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-lg">
@@ -859,19 +866,25 @@ function ElectionNightCard({
             <h4 className="font-serif text-lg font-bold">Live wire</h4>
           </div>
           <div className="space-y-0">
-            {[...race.coverage.updates].reverse().map((update) => (
-              <div
+            {[...race.coverage.updates].reverse().map((update, reverseIndex) => {
+              const article = articles[articles.length - 1 - reverseIndex];
+              return <article
                 key={update.id}
-                className="border-t py-3 first:border-t-0 first:pt-0"
+                className="border-t py-5 first:border-t-0 first:pt-0"
               >
                 <time className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                   {formatFeedTime(update.revealAt)}
                 </time>
-                <p className="mt-1 text-sm font-semibold leading-5">
-                  {update.headline}
-                </p>
-              </div>
-            ))}
+                <h5 className="mt-1 font-serif text-base font-bold leading-6">
+                  {article.headline}
+                </h5>
+                {article.paragraphs.map((paragraph, paragraphIndex) => (
+                  <p key={paragraphIndex} className="mt-2 text-sm leading-6 text-foreground/80">
+                    {paragraph}
+                  </p>
+                ))}
+              </article>;
+            })}
             {!race.coverage.updates.length && (
               <p className="text-sm text-muted-foreground">
                 The first report has not arrived yet.
