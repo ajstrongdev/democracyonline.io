@@ -1,6 +1,10 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { db } from "@/db";
 import {
+  lockPresidentialPrimary,
+  syncPartyPrimaryMembership,
+} from "@/lib/server/organizations/primary-membership";
+import {
   coalitionFormerMembers,
   coalitionMembers,
   coalitions,
@@ -94,6 +98,7 @@ export async function removePartyFromCoalitions(
   partyId: number,
   actorUserId: number | null = null,
 ) {
+  await lockPresidentialPrimary(tx);
   const memberships = await tx
     .select({
       coalitionId: coalitionMembers.coalitionId,
@@ -110,6 +115,7 @@ export async function removePartyFromCoalitions(
     await tx
       .delete(coalitionMembers)
       .where(eq(coalitionMembers.partyId, partyId));
+    await syncPartyPrimaryMembership(tx, partyId, null);
   }
   for (const membership of memberships) {
     await archiveCoalitionIfEmpty(tx, membership.coalitionId, actorUserId);
@@ -122,6 +128,7 @@ export async function leaveCoalitionMembership(
   partyId: number,
   actorUserId: number,
 ) {
+  await lockPresidentialPrimary(tx);
   const [membership] = await tx
     .select({
       coalitionId: coalitionMembers.coalitionId,
@@ -147,6 +154,7 @@ export async function leaveCoalitionMembership(
         eq(coalitionMembers.partyId, partyId),
       ),
     );
+  await syncPartyPrimaryMembership(tx, partyId, null);
   await archiveCoalitionIfEmpty(tx, coalitionId, actorUserId);
   return true;
 }

@@ -49,6 +49,7 @@ import { Route as ApiLiveRouteImport } from './routes/api/live'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
 import { Route as ApiElectionAdvanceRouteImport } from './routes/api/election-advance'
+import { Route as ApiCoalitionAdvanceRouteImport } from './routes/api/coalition-advance'
 import { Route as ApiBotRouteImport } from './routes/api/bot'
 import { Route as ApiBillAdvanceRouteImport } from './routes/api/bill-advance'
 import { Route as PartiesCoalitionsIndexRouteImport } from './routes/parties/coalitions/index'
@@ -280,6 +281,11 @@ const ApiElectionAdvanceRoute = ApiElectionAdvanceRouteImport.update({
   path: '/api/election-advance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCoalitionAdvanceRoute = ApiCoalitionAdvanceRouteImport.update({
+  id: '/api/coalition-advance',
+  path: '/api/coalition-advance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBotRoute = ApiBotRouteImport.update({
   id: '/api/bot',
   path: '/api/bot',
@@ -452,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/social': typeof SocialRoute
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
+  '/api/coalition-advance': typeof ApiCoalitionAdvanceRoute
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/api/health': typeof ApiHealthRoute
@@ -522,6 +529,7 @@ export interface FileRoutesByTo {
   '/social': typeof SocialRoute
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
+  '/api/coalition-advance': typeof ApiCoalitionAdvanceRoute
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/api/health': typeof ApiHealthRoute
@@ -594,6 +602,7 @@ export interface FileRoutesById {
   '/social': typeof SocialRoute
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
+  '/api/coalition-advance': typeof ApiCoalitionAdvanceRoute
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/api/health': typeof ApiHealthRoute
@@ -667,6 +676,7 @@ export interface FileRouteTypes {
     | '/social'
     | '/api/bill-advance'
     | '/api/bot'
+    | '/api/coalition-advance'
     | '/api/election-advance'
     | '/api/game-advance'
     | '/api/health'
@@ -737,6 +747,7 @@ export interface FileRouteTypes {
     | '/social'
     | '/api/bill-advance'
     | '/api/bot'
+    | '/api/coalition-advance'
     | '/api/election-advance'
     | '/api/game-advance'
     | '/api/health'
@@ -808,6 +819,7 @@ export interface FileRouteTypes {
     | '/social'
     | '/api/bill-advance'
     | '/api/bot'
+    | '/api/coalition-advance'
     | '/api/election-advance'
     | '/api/game-advance'
     | '/api/health'
@@ -880,6 +892,7 @@ export interface RootRouteChildren {
   SocialRoute: typeof SocialRoute
   ApiBillAdvanceRoute: typeof ApiBillAdvanceRoute
   ApiBotRoute: typeof ApiBotRoute
+  ApiCoalitionAdvanceRoute: typeof ApiCoalitionAdvanceRoute
   ApiElectionAdvanceRoute: typeof ApiElectionAdvanceRoute
   ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute
   ApiHealthRoute: typeof ApiHealthRoute
@@ -1191,6 +1204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiElectionAdvanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/coalition-advance': {
+      id: '/api/coalition-advance'
+      path: '/api/coalition-advance'
+      fullPath: '/api/coalition-advance'
+      preLoaderRoute: typeof ApiCoalitionAdvanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/bot': {
       id: '/api/bot'
       path: '/api/bot'
@@ -1482,6 +1502,7 @@ const rootRouteChildren: RootRouteChildren = {
   SocialRoute: SocialRoute,
   ApiBillAdvanceRoute: ApiBillAdvanceRoute,
   ApiBotRoute: ApiBotRoute,
+  ApiCoalitionAdvanceRoute: ApiCoalitionAdvanceRoute,
   ApiElectionAdvanceRoute: ApiElectionAdvanceRoute,
   ApiGameAdvanceRoute: ApiGameAdvanceRoute,
   ApiHealthRoute: ApiHealthRoute,

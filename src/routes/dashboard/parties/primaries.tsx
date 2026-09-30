@@ -248,9 +248,11 @@ function PrimariesPage() {
                 {isCoalitionPrimary
                   ? "Since your party is in a coalition, all coalition members vote together. "
                   : "All party members can vote for one candidate. "}
-                When the primaries end and voting begins, the winner of each
-                primary is automatically registered as the presidential
-                candidate.
+                Votes can be changed until the primary ends. Parties joining a
+                coalition merge their primaries; when a party leaves, ballots
+                across the split are cleared so members can vote again. When the
+                primaries end and voting begins, the winner of each primary is
+                automatically registered as the presidential candidate.
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -274,7 +276,7 @@ function PrimariesPage() {
               isCandidate
                 ? "You are running"
                 : hasVoted
-                  ? "Your vote has been cast"
+                  ? "You can change your vote until the primary ends"
                   : "You can still vote"
             }
           />
@@ -399,27 +401,31 @@ function PrimariesPage() {
                       </div>
                     </div>
 
-                    {isSelf && isCandidatePhase ? (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => setShowWithdrawDialog(true)}
-                        disabled={isSubmitting}
-                      >
-                        Withdraw
-                      </Button>
-                    ) : !hasVoted && isCandidatePhase ? (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setSelectedCandidateId(candidate.id);
-                          setShowVoteDialog(true);
-                        }}
-                      >
-                        <Vote className="mr-1 h-4 w-4" />
-                        Vote
-                      </Button>
-                    ) : null}
+                    <div className="flex flex-wrap gap-2">
+                      {isCandidatePhase && !isVotedFor && (
+                        <Button
+                          size="sm"
+                          disabled={isSubmitting}
+                          onClick={() => {
+                            setSelectedCandidateId(candidate.id);
+                            setShowVoteDialog(true);
+                          }}
+                        >
+                          <Vote className="mr-1 h-4 w-4" />
+                          {hasVoted ? "Change vote" : "Vote"}
+                        </Button>
+                      )}
+                      {isSelf && isCandidatePhase && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => setShowWithdrawDialog(true)}
+                          disabled={isSubmitting}
+                        >
+                          Withdraw
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -517,9 +523,9 @@ function PrimariesPage() {
         <MessageDialog
           open={showVoteDialog}
           onOpenChange={setShowVoteDialog}
-          title="Cast Your Vote"
-          description={`Are you sure you want to vote for ${candidates.find((c) => c.id === selectedCandidateId)?.username ?? "this candidate"}? You cannot change your vote once cast.`}
-          confirmText="Vote"
+          title={hasVoted ? "Change Your Vote" : "Cast Your Vote"}
+          description={`Vote for ${candidates.find((c) => c.id === selectedCandidateId)?.username ?? "this candidate"}? You can change your vote until the primary ends.`}
+          confirmText={hasVoted ? "Change vote" : "Vote"}
           onConfirm={handleVote}
         />
       </WikiPage>
