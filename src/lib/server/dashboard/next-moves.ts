@@ -215,7 +215,9 @@ export async function getPendingNextMoves(
       ),
     );
   const pendingRequests =
-    player.partyId && player.partyLeaderId === player.id
+    player.partyId &&
+    player.partyLeaderId === player.id &&
+    !player.partyArchivedAt
       ? await db
           .select({ id: partyJoinRequests.id })
           .from(partyJoinRequests)
@@ -274,7 +276,7 @@ export async function getPendingNextMoves(
     ...pendingRequests.map((request) => ({
       key: `party:request:${request.id}`,
       title: "Review a party membership request",
-      url: `/dashboard/parties/${player.partyId}`,
+      url: `/dashboard/parties/${player.partyId}#membership-requests`,
     })),
     ...enforcedBills.map((bill) => ({
       key: `bill:${bill.id}:enforced-whip`,

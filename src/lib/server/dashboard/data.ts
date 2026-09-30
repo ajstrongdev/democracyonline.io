@@ -10,6 +10,7 @@ import {
   electionCandidateHistory,
   nations,
   parties,
+  partyJoinRequests,
   users,
 } from "@/db/schema";
 import { authMiddleware } from "@/middleware/auth";
@@ -82,6 +83,7 @@ export const getDashboardData = createServerFn()
         pendingBillVotes: [],
         pendingCommitteeAssessments: [],
         pendingBillGuidance: [],
+        pendingPartyJoinRequests: [],
         partyFormationInvites: [],
         primaryActions: {
           stand: false,
@@ -133,6 +135,7 @@ export const getDashboardData = createServerFn()
         pendingBillVotes: [],
         pendingCommitteeAssessments: [],
         pendingBillGuidance: [],
+        pendingPartyJoinRequests: [],
         partyFormationInvites: [],
         primaryActions: {
           stand: false,
@@ -179,6 +182,7 @@ export const getDashboardData = createServerFn()
       pendingBillVotes,
       pendingCommitteeAssessments,
       pendingBillGuidance,
+      pendingPartyJoinRequests,
       pendingCoalitionProposals,
     ] = await Promise.all([
       config && currentUser.active
@@ -222,6 +226,21 @@ export const getDashboardData = createServerFn()
       getPendingBillGuidance(currentUser),
       currentUser.active &&
       currentUser.partyId &&
+      currentUser.partyLeaderId === currentUser.id &&
+      !currentUser.partyArchivedAt
+        ? db
+            .select({ id: partyJoinRequests.id })
+            .from(partyJoinRequests)
+            .where(
+              and(
+                eq(partyJoinRequests.partyId, currentUser.partyId),
+                eq(partyJoinRequests.status, "pending"),
+              ),
+            )
+            .orderBy(partyJoinRequests.id)
+        : Promise.resolve([]),
+      currentUser.active &&
+      currentUser.partyId &&
       currentUser.partyLeaderId === currentUser.id
         ? db
             .select({
@@ -260,6 +279,7 @@ export const getDashboardData = createServerFn()
       })),
       pendingCommitteeAssessments,
       pendingBillGuidance,
+      pendingPartyJoinRequests,
       partyFormationInvites,
       pendingCoalitionProposals,
       primaryActions,

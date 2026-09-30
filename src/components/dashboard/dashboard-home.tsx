@@ -82,6 +82,7 @@ export function DashboardContent({
     pendingBillVotes,
     pendingCommitteeAssessments,
     pendingBillGuidance,
+    pendingPartyJoinRequests,
     partyFormationInvites,
     pendingCoalitionProposals,
     primaryActions,
@@ -98,6 +99,7 @@ export function DashboardContent({
     pendingBillVotes.length +
     pendingCommitteeAssessments.length +
     pendingBillGuidance.length +
+    pendingPartyJoinRequests.length +
     partyFormationInvites.length +
     pendingCoalitionProposals.length +
     Number(primaryActions.stand) +
@@ -267,6 +269,23 @@ export function DashboardContent({
                       <Link to="/dashboard/parties">Respond to invitation</Link>
                     </Button>
                   </div>
+                ))}
+                {pendingPartyJoinRequests.map((request) => (
+                  <Link
+                    key={`party-request-${request.id}`}
+                    to="/dashboard/parties/$partyId"
+                    params={{ partyId: String(currentUser.partyId) }}
+                    hash="membership-requests"
+                    className="group flex items-center justify-between gap-3 px-4 py-4 hover:bg-muted/30"
+                  >
+                    <span className="flex items-center gap-2 font-semibold">
+                      <Users className="size-4 text-primary" /> Review a party
+                      membership request
+                    </span>
+                    <span className="text-sm font-semibold text-primary">
+                      Review request →
+                    </span>
+                  </Link>
                 ))}
                 {primaryActions.stand && (
                   <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
