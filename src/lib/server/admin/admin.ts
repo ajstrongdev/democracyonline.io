@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { env } from "@/env";
 import { authMiddleware } from "@/middleware/auth";
@@ -31,6 +31,7 @@ import { advanceElectionLifecycle } from "@/lib/server/elections/election-lifecy
 import { resolveElectionTiming } from "@/lib/server/scheduler/game-speed";
 import { archivePartyIfEmpty } from "@/lib/server/organizations/organization-lifecycle";
 import { publicFirebaseUser } from "@/lib/firebase-user-public";
+import { normalizeEmail, userEmailEquals } from "@/lib/server/auth/user-email";
 
 async function getAdminElectionTiming() {
   return resolveElectionTiming();
@@ -57,6 +58,51 @@ export const checkIsAdmin = createServerFn()
 export function getAdminEmails(): Array<string> {
   return env.ADMIN_EMAILS;
 }
+
+export const createDatabasePlayer = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      email: z.email().max(255),
+      username: z.string().trim().min(1).max(255),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user?.email || !isAdminEmail(context.user.email))
+      throw new Error("Unauthorized");
+    const email = normalizeEmail(data.email);
+    const [actor] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(userEmailEquals(context.user.email))
+      .limit(1);
+    if (!actor) throw new Error("Admin player profile not found");
+    return db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(or(userEmailEquals(email), eq(users.username, data.username)))
+        .limit(1);
+      if (existing)
+        throw new Error("Email or username already exists in this database");
+      const [player] = await tx
+        .insert(users)
+        .values({
+          email,
+          username: data.username,
+          role: "Representative",
+        })
+        .returning({ id: users.id, username: users.username });
+      await tx.insert(moderationAuditLog).values({
+        actorUserId: actor.id,
+        targetUserId: player.id,
+        action: "create_db_user",
+        reason:
+          "Admin created a database-only player profile (no Firebase account)",
+      });
+      return player;
+    });
+  });
 
 export const forceNextElectionStage = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

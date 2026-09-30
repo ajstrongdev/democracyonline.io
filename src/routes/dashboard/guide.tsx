@@ -227,8 +227,7 @@ function PlayerGuide() {
               before a chamber closes; a final vote against an enforced party
               line ejects you at stage close. Voting choices remain hidden until
               each stage concludes. The Social Media Officer manages the party's
-              Z.com account and edits and publishes member-submitted newspaper
-              articles. A member can launch one leadership bid at a time; if
+              Z.com account. A member can launch one leadership bid at a time; if
               current members equal to at least half the party membership at
               launch support it, the challenger immediately becomes leader.
             </p>

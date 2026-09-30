@@ -1142,22 +1142,6 @@ export const partyLeadershipEligible = pgTable(
   (table) => [primaryKey({ columns: [table.bidId, table.userId] })],
 );
 
-export const partyNewspaperArticles = pgTable("party_newspaper_articles", {
-  id: serial("id").primaryKey(),
-  partyId: integer("party_id")
-    .notNull()
-    .references(() => parties.id, { onDelete: "cascade" }),
-  authorId: integer("author_id").references(() => users.id, {
-    onDelete: "set null",
-  }),
-  title: varchar("title", { length: 200 }).notNull(),
-  content: text("content").notNull(),
-  publishedAt: timestamp("published_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
-
 export const socialPosts = pgTable(
   "social_posts",
   {

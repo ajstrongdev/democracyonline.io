@@ -46,8 +46,6 @@ import { getPartyCoalition } from "@/lib/server/organizations/coalitions";
 import { EntityReferenceText } from "@/components/entity-reference-text";
 import { SocialPartyPosts } from "@/components/social/social-party-posts";
 import { getSocialPartyPosts } from "@/lib/server/social/social";
-import { getPartyNewspaper } from "@/lib/server/organizations/newspaper";
-import { PartyNewspaper } from "@/components/wiki/party-newspaper";
 import {
   formatElectionTitle,
   formatWikiDate,
@@ -66,7 +64,6 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
       coalition,
       revival,
       socialPosts,
-      newspaper,
       governance,
     ] = await Promise.all([
       getWikiParty({ data: { id } }),
@@ -77,7 +74,6 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
       getPartyCoalition({ data: { partyId: id } }),
       getPartyRevivalState({ data: { partyId: id } }),
       getSocialPartyPosts({ data: { partyId: id } }),
-      getPartyNewspaper({ data: { partyId: id } }),
       getPartyGovernance({ data: { partyId: id } }),
     ]);
     if (!party) throw new Response("Party not found", { status: 404 });
@@ -88,7 +84,6 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
       coalition,
       revival,
       socialPosts,
-      newspaper,
       governance,
     };
   },
@@ -109,7 +104,6 @@ function PartyArticle() {
     revival,
     leader,
     socialPosts,
-    newspaper,
     governance,
   } = Route.useLoaderData();
   return (
@@ -244,7 +238,6 @@ function PartyArticle() {
         />
       )}
       <SocialPartyPosts posts={socialPosts} />
-      <PartyNewspaper partyId={party.id} {...newspaper} />
       <section className="grid gap-6 lg:grid-cols-2">
         <Card className="rounded-sm shadow-none">
           <CardHeader>
@@ -681,59 +674,89 @@ function PartyGovernance({
       )}
       {currentUser.partyId === partyId && leaderId !== null && (
         <WikiSection
-          title="Leadership challenge"
-          description="A member can launch an alternate leadership bid. Support from at least half of the membership at launch transfers leadership to the challenger."
+          title={
+            governance.bid ? "Leadership contested" : "Leadership challenge"
+          }
+          description={
+            governance.bid
+              ? "A challenge to the party leader is underway."
+              : "A member can challenge the leader with the support of half the party."
+          }
+          className={
+            governance.bid
+              ? "col-span-full border-l-4 border-l-destructive"
+              : "col-span-full"
+          }
         >
           {governance.bid ? (
-            <div className="space-y-3 rounded-md border p-4">
-              <p>
-                <strong>{governance.bid.candidate}</strong> is challenging the
-                leader. {governance.bid.supportCount} /{" "}
-                {governance.bid.threshold} current members support the bid.
-              </p>
-              {!governance.bid.hasSupported && governance.bid.canSupport && (
-                <Button
-                  disabled={busy}
-                  onClick={() =>
-                    act(
-                      () =>
-                        supportLeadershipBid({
-                          data: { bidId: governance.bid!.id },
-                        }),
-                      "Support recorded",
-                    )
-                  }
-                >
-                  Support this bid
-                </Button>
-              )}
-              {governance.bid.hasSupported && (
-                <p className="text-sm text-muted-foreground">
-                  You support this bid.
+            <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+              <div className="min-w-0">
+                <h3 className="font-serif text-2xl font-semibold tracking-tight">
+                  {governance.bid.candidate} has challenged the party leader
+                </h3>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                  If enough members back the challenge,{" "}
+                  {governance.bid.candidate} becomes leader immediately. The
+                  current leader stays in the party as a regular member.
                 </p>
-              )}
-              {!governance.bid.canSupport && (
-                <p className="text-sm text-muted-foreground">
-                  Only members present when this bid launched can support it.
-                </p>
-              )}
-              {currentUser.id === governance.bid.candidateId && (
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() =>
-                    act(
-                      () =>
-                        withdrawLeadershipBid({
-                          data: { bidId: governance.bid!.id },
-                        }),
-                      "Leadership bid withdrawn",
-                    )
-                  }
-                >
-                  Withdraw bid
-                </Button>
-              )}
+                <div className="mt-5 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t pt-4">
+                  <span className="font-serif text-3xl font-semibold tabular-nums">
+                    {governance.bid.supportCount}{" "}
+                    <span className="text-lg font-normal text-muted-foreground">
+                      / {governance.bid.threshold}
+                    </span>
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    members supporting the challenge · threshold set when it
+                    began
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 md:max-w-56 md:justify-end">
+                {!governance.bid.hasSupported && governance.bid.canSupport && (
+                  <Button
+                    disabled={busy}
+                    onClick={() =>
+                      act(
+                        () =>
+                          supportLeadershipBid({
+                            data: { bidId: governance.bid!.id },
+                          }),
+                        "Support recorded",
+                      )
+                    }
+                  >
+                    Support the challenge
+                  </Button>
+                )}
+                {governance.bid.hasSupported && (
+                  <p className="text-sm font-medium">
+                    You support this challenge.
+                  </p>
+                )}
+                {!governance.bid.canSupport && (
+                  <p className="text-sm text-muted-foreground">
+                    Only members present when the bid launched can support it.
+                  </p>
+                )}
+                {currentUser.id === governance.bid.candidateId && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      act(
+                        () =>
+                          withdrawLeadershipBid({
+                            data: { bidId: governance.bid!.id },
+                          }),
+                        "Leadership bid withdrawn",
+                      )
+                    }
+                  >
+                    Withdraw bid
+                  </Button>
+                )}
+              </div>
             </div>
           ) : currentUser.id !== leaderId ? (
             <Button

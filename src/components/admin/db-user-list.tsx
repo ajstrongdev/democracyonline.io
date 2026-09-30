@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Ban, RefreshCw, ShieldCheck } from "lucide-react";
+import type { FormEvent } from "react";
 import {
   Card,
   CardContent,
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   changePlayerOffice,
+  createDatabasePlayer,
   purgeUserFromDatabase,
   setPlayerBan,
 } from "@/lib/server/admin/admin";
@@ -64,6 +66,9 @@ export default function DBUserList({
     user: DatabaseUser;
     role: Office;
   } | null>(null);
+  const [newEmail, setNewEmail] = useState("");
+  const [newUsername, setNewUsername] = useState("");
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     setUsers(initialUsers);
@@ -177,6 +182,31 @@ export default function DBUserList({
     setLoading(false);
   };
 
+  const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCreating(true);
+    try {
+      const player = await createDatabasePlayer({
+        data: {
+          email: newEmail,
+          username: newUsername,
+        },
+      });
+      await onRefresh();
+      setNewEmail("");
+      setNewUsername("");
+      toast.success(`Database player ${player.username} created`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not create database player",
+      );
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const filteredUsers = users.filter((user) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -189,6 +219,48 @@ export default function DBUserList({
 
   return (
     <>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Create database player</CardTitle>
+          <CardDescription>
+            Creates a player profile in this database only. No Firebase user,
+            login, or invitation is created. To sign in later, the player needs
+            a Firebase account with the same email.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={handleCreate}
+            className="flex flex-wrap items-end gap-3"
+          >
+            <label className="grid min-w-48 flex-1 gap-1 text-sm font-medium">
+              Email
+              <Input
+                type="email"
+                autoComplete="off"
+                required
+                maxLength={255}
+                value={newEmail}
+                onChange={(event) => setNewEmail(event.target.value)}
+                disabled={creating}
+              />
+            </label>
+            <label className="grid min-w-40 flex-1 gap-1 text-sm font-medium">
+              Username
+              <Input
+                required
+                maxLength={255}
+                value={newUsername}
+                onChange={(event) => setNewUsername(event.target.value)}
+                disabled={creating}
+              />
+            </label>
+            <Button type="submit" disabled={creating}>
+              {creating ? "Creating…" : "Create DB player"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
