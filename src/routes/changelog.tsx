@@ -33,6 +33,11 @@ const releases = [
           "Government history can now group seats by coalition, while Parties remains the default view. Parties outside a coalition and independents stay visible separately.",
       },
       {
+        title: "Make your words stand out",
+        detail:
+          "Formatting buttons and a preview make it easier to write posts, comments, bills, biographies, and wiki articles.",
+      },
+      {
         title: "Make room for smaller groups",
         detail:
           "Parties need at least three members to remain parties; smaller organizations become pressure groups, with a route back to party status when they grow.",
@@ -43,7 +48,7 @@ const releases = [
           "Bills now move through a queue with 12-hour stages at regular game speed. Their progress is easier to follow, and admins have additional controls for bill stages.",
       },
       {
-        title: "Post through the bot API",
+        title: "For the developers...",
         detail:
           "Bots can now publish posts to Z.com through the API, alongside the existing integration tools.",
       },

@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { WikiEmpty, WikiSection } from "@/components/wiki/wiki-layout";
 import { PlayerAvatar } from "@/components/players/player-avatar";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
 import { billCommentPostContent } from "@/lib/bill-comment-post";
 import { buildCommentTree } from "@/lib/social-comment-tree";
@@ -204,7 +204,7 @@ export function BillComments({
                 <label htmlFor="guidance-note" className="text-sm font-medium">
                   Reason (optional)
                 </label>
-                <ReferenceInsert
+                <MarkdownToolbar
                   textareaId="guidance-note"
                   value={whipNote}
                   onChange={setWhipNote}
@@ -306,7 +306,7 @@ export function BillComments({
               <label htmlFor="bill-comment" className="text-sm font-medium">
                 Add a comment
               </label>
-              <ReferenceInsert
+              <MarkdownToolbar
                 textareaId="bill-comment"
                 value={content}
                 onChange={setContent}
@@ -467,7 +467,7 @@ function BillCommentThread({
               >
                 Reply to {comment.username}
               </label>
-              <ReferenceInsert
+              <MarkdownToolbar
                 textareaId={`bill-reply-${comment.id}`}
                 value={reply}
                 onChange={setReply}

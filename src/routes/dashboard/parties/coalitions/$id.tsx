@@ -59,7 +59,7 @@ import {
   WikiStatGrid,
 } from "@/components/wiki/wiki-layout";
 import { EntityReferenceText } from "@/components/entity-reference-text";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 import { formatWikiDate } from "@/lib/utils/history";
 
 export const Route = createFileRoute("/dashboard/parties/coalitions/$id")({
@@ -374,7 +374,7 @@ function CoalitionPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <Label htmlFor="edit-bio">Description</Label>
-                  <ReferenceInsert
+                  <MarkdownToolbar
                     textareaId="edit-bio"
                     value={editBio}
                     onChange={setEditBio}

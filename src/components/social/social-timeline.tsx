@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PartyMark } from "@/components/wiki/wiki-header";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { SocialAccountAvatar } from "@/components/social/social-account-avatar";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
 import {
   buildCommentTree,
@@ -493,7 +493,7 @@ function SocialPost({
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">Markdown and references supported</span>
-                <ReferenceInsert textareaId={`social-comment-${entry.postId}`} value={comment} onChange={setComment} />
+                <MarkdownToolbar textareaId={`social-comment-${entry.postId}`} value={comment} onChange={setComment} />
               </div>
               <Textarea
                 id={`social-comment-${entry.postId}`}
@@ -697,7 +697,7 @@ function CommentThread({
                 className="mt-3 space-y-2 rounded-xl border bg-background p-3"
               >
                 <div className="flex justify-end">
-                  <ReferenceInsert textareaId={`social-reply-${comment.id}`} value={replyText} onChange={setReplyText} />
+                  <MarkdownToolbar textareaId={`social-reply-${comment.id}`} value={replyText} onChange={setReplyText} />
                 </div>
                 <Textarea
                   id={`social-reply-${comment.id}`}

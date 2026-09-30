@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { createPressureGroup } from "@/lib/server/organizations/pressure-groups";
 import { leanings } from "@/lib/constants";
 import { icons } from "@/lib/utils/logo-helper";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 
 export function NewPartyDialog({
   user,
@@ -103,7 +103,7 @@ export function NewPartyDialog({
           <div className="space-y-2 sm:col-span-2">
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor="party-bio">Biography</Label>
-              <ReferenceInsert
+              <MarkdownToolbar
                 textareaId="party-bio"
                 value={bio}
                 onChange={setBio}
@@ -187,7 +187,7 @@ export function NewPartyDialog({
               <Label htmlFor="new-party-platform" className="sr-only">
                 Platform Markdown
               </Label>
-              <ReferenceInsert
+              <MarkdownToolbar
                 textareaId="new-party-platform"
                 value={platform}
                 onChange={setPlatform}
