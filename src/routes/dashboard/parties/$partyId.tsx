@@ -619,6 +619,7 @@ function PartyGovernance({
         <WikiSection
           title="Membership requests"
           description="Only the Party Leader can accept or decline applicants."
+          className="col-span-full"
         >
           <div className="space-y-3">
             {governance.requests.map((request) => (
