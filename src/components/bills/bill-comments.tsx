@@ -2,11 +2,7 @@ import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import type { CommentNode } from "@/lib/social-comment-tree";
 import { useAuth } from "@/lib/auth-context";
-import {
-  addBillComment,
-  enforceBillWhip,
-  saveBillWhip,
-} from "@/lib/server/bills/bill-comments";
+import { addBillComment, saveBillWhip } from "@/lib/server/bills/bill-comments";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,7 +44,6 @@ export function BillComments({
   currentPartyId,
   isChiefWhip,
   canWhip,
-  isVoting,
 }: {
   billId: number;
   comments: Array<BillComment>;
@@ -56,7 +51,6 @@ export function BillComments({
   currentPartyId: number | null;
   isChiefWhip: boolean;
   canWhip: boolean;
-  isVoting: boolean;
 }) {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -70,7 +64,7 @@ export function BillComments({
   const [whipNote, setWhipNote] = useState(currentWhip?.note ?? "");
   const [whipError, setWhipError] = useState<string | null>(null);
   const [savingWhip, setSavingWhip] = useState(false);
-  const [enforcing, setEnforcing] = useState(false);
+  const [enforce, setEnforce] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -92,9 +86,19 @@ export function BillComments({
   const submitWhip = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setWhipError(null);
+    if (
+      enforce &&
+      !currentWhip?.enforcedAt &&
+      !window.confirm(
+        "Enforce this whip for the entire bill? Members whose final vote opposes the party line when a voting stage closes will be ejected. Abstaining is allowed. This cannot be undone.",
+      )
+    )
+      return;
     setSavingWhip(true);
     try {
-      await saveBillWhip({ data: { billId, position, note: whipNote } });
+      await saveBillWhip({
+        data: { billId, position, note: whipNote, enforce },
+      });
       await router.invalidate();
     } catch (cause) {
       setWhipError(
@@ -112,7 +116,7 @@ export function BillComments({
       <div id="party-guidance" className="scroll-mt-6">
         <WikiSection
           title="Party voting guidance"
-          description="The Chief Whip can recommend a vote while voting is open. They can enforce one bill every 24 hours; members whose final vote at stage close opposes an enforced whip are ejected. Abstention is allowed."
+          description="The Chief Whip can recommend a vote from the committee queue onward. They can enforce one bill every 24 hours; members whose final vote at a voting stage close opposes an enforced whip are ejected. Abstention is allowed."
         >
           {whips.length ? (
             <div className="space-y-3">
@@ -200,6 +204,25 @@ export function BillComments({
                   ejected.
                 </p>
               )}
+              {!currentWhip?.enforcedAt && (
+                <label className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-background p-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1 size-4 accent-destructive"
+                    checked={enforce}
+                    onChange={(event) => setEnforce(event.target.checked)}
+                    disabled={savingWhip}
+                  />
+                  <span>
+                    <strong>Enforce the party whip on this bill</strong>
+                    <br />
+                    One bill per 24 hours. Members whose final vote opposes this
+                    guidance when a voting stage closes will be ejected. They
+                    can change their vote before the stage closes or abstain.
+                    Enforcement lasts through later stages and cannot be undone.
+                  </span>
+                </label>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <label htmlFor="guidance-note" className="text-sm font-medium">
                   Reason (optional)
@@ -239,54 +262,12 @@ export function BillComments({
                   {whipError}
                 </p>
               )}
-              {currentWhip && !currentWhip.enforcedAt && (
-                <div className="rounded-lg border border-destructive p-3 space-y-2">
-                  <p className="font-semibold text-destructive">
-                    Enforce this whip
-                  </p>
-                  <p className="text-sm">
-                    You may enforce one bill per 24 hours. Any party member who
-                    has a final vote against this position when a stage closes
-                    is ejected. Existing voters can change their vote before the
-                    stage closes; abstaining has no penalty. The whip stays
-                    binding for this bill through later stages.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    disabled={enforcing}
-                    onClick={async () => {
-                      if (
-                        !window.confirm(
-                          "Enforce this whip for the entire bill? Members whose final vote opposes the party line when a stage closes will be ejected. Abstaining is allowed. This cannot be undone.",
-                        )
-                      )
-                        return;
-                      setEnforcing(true);
-                      try {
-                        await enforceBillWhip({ data: { billId } });
-                        await router.invalidate();
-                      } catch (cause) {
-                        setWhipError(
-                          cause instanceof Error
-                            ? cause.message
-                            : "Unable to enforce whip",
-                        );
-                      } finally {
-                        setEnforcing(false);
-                      }
-                    }}
-                  >
-                    {enforcing ? "Enforcing…" : "Enforce whip on this bill"}
-                  </Button>
-                </div>
-              )}
             </form>
           )}
-          {isChiefWhip && !isVoting && (
+          {isChiefWhip && !canWhip && (
             <p className="mt-4 text-sm text-muted-foreground">
-              You can issue or update guidance when this bill enters the Voting
-              stage.
+              You can issue or update guidance when this bill reaches the
+              committee queue.
             </p>
           )}
         </WikiSection>

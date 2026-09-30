@@ -13,6 +13,7 @@ import { db } from "@/db";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
 import { userEmailEquals } from "@/lib/server/auth/user-email";
 import { publishBillComment } from "@/lib/server/bills/publish-bill-comment";
+import { canGuideBill } from "@/lib/bills/pending-guidance";
 
 export const searchDiscussionBills = createServerFn()
   .inputValidator(z.object({ query: z.string().trim().max(100) }))
@@ -150,7 +151,11 @@ export const getBillWhips = createServerFn()
       .orderBy(asc(parties.name));
 
     const [bill] = await db
-      .select({ status: bills.status, stageEndsAt: bills.stageEndsAt })
+      .select({
+        status: bills.status,
+        stage: bills.stage,
+        stageEndsAt: bills.stageEndsAt,
+      })
       .from(bills)
       .where(eq(bills.id, data.billId))
       .limit(1);
@@ -164,13 +169,7 @@ export const getBillWhips = createServerFn()
       whips,
       currentPartyId: currentUser?.partyId ?? null,
       isChiefWhip,
-      canWhip:
-        isChiefWhip &&
-        bill?.status === "Voting" &&
-        Boolean(bill.stageEndsAt && bill.stageEndsAt > new Date()),
-      isVoting:
-        bill?.status === "Voting" &&
-        Boolean(bill.stageEndsAt && bill.stageEndsAt > new Date()),
+      canWhip: isChiefWhip && Boolean(bill && canGuideBill(bill)),
     };
   });
 
@@ -181,6 +180,7 @@ export const saveBillWhip = createServerFn({ method: "POST" })
       billId: z.number().int().positive(),
       position: z.enum(["For", "Against"]),
       note: z.string().trim().max(1_000).optional(),
+      enforce: z.boolean().default(false),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -216,19 +216,16 @@ export const saveBillWhip = createServerFn({ method: "POST" })
           id: bills.id,
           title: bills.title,
           status: bills.status,
+          stage: bills.stage,
           stageEndsAt: bills.stageEndsAt,
         })
         .from(bills)
         .where(eq(bills.id, data.billId))
         .limit(1);
       if (!bill) throw new Error("Bill not found");
-      if (
-        bill.status !== "Voting" ||
-        !bill.stageEndsAt ||
-        bill.stageEndsAt <= new Date()
-      )
+      if (!canGuideBill(bill))
         throw new Error(
-          "Voting guidance can only be set while a bill is in voting",
+          "Voting guidance can only be set while a bill is queued for committee, in committee, or in voting",
         );
       const [existing] = await tx
         .select({
@@ -246,6 +243,29 @@ export const saveBillWhip = createServerFn({ method: "POST" })
       if (existing?.enforcedAt && existing.position !== data.position)
         throw new Error("An enforced whip cannot change direction");
 
+      const enforcedAt =
+        existing?.enforcedAt ?? (data.enforce ? new Date() : null);
+      if (data.enforce && !existing?.enforcedAt) {
+        const [recent] = await tx
+          .select({ id: billPartyWhips.id })
+          .from(billPartyWhips)
+          .where(
+            and(
+              eq(billPartyWhips.partyId, leader.partyId),
+              isNotNull(billPartyWhips.enforcedAt),
+              gt(
+                billPartyWhips.enforcedAt,
+                new Date(Date.now() - 24 * 60 * 60 * 1000),
+              ),
+            ),
+          )
+          .limit(1);
+        if (recent)
+          throw new Error(
+            "Your party can enforce only one bill every 24 hours",
+          );
+      }
+
       await tx
         .insert(billPartyWhips)
         .values({
@@ -254,6 +274,7 @@ export const saveBillWhip = createServerFn({ method: "POST" })
           leaderUserId: leader.id,
           position: data.position,
           note: data.note || null,
+          enforcedAt,
         })
         .onConflictDoUpdate({
           target: [billPartyWhips.billId, billPartyWhips.partyId],
@@ -261,101 +282,14 @@ export const saveBillWhip = createServerFn({ method: "POST" })
             leaderUserId: leader.id,
             position: data.position,
             note: data.note || null,
+            enforcedAt,
             updatedAt: sql`now()`,
           },
         });
       await tx.insert(feed).values({
         userId: leader.id,
-        content: `issued ${data.position.toLowerCase()} voting guidance for ${leader.partyName} on bill #${bill.id}: ${bill.title}`,
+        content: `${existing ? "updated" : "issued"} ${data.position.toLowerCase()} voting guidance for ${leader.partyName} on bill #${bill.id}: ${bill.title}${data.enforce && !existing?.enforcedAt ? ". Enforced the party whip: members voting against it must change their vote by the end of each voting stage or be ejected from the party; abstention is allowed." : existing?.enforcedAt ? ". The party whip remains enforced: final contrary votes at stage close lead to ejection." : "."}`,
       });
       return { success: true };
-    });
-  });
-
-export const enforceBillWhip = createServerFn({ method: "POST" })
-  .middleware([requireAuthMiddleware])
-  .inputValidator(z.object({ billId: z.number().int().positive() }))
-  .handler(async ({ data, context }) => {
-    if (!context.user?.email) throw new Error("Authentication required");
-    return db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(24092026)`);
-      const [actor] = await tx
-        .select({
-          id: users.id,
-          partyId: users.partyId,
-          active: users.isActive,
-        })
-        .from(users)
-        .where(userEmailEquals(context.user!.email!))
-        .limit(1);
-      if (!actor?.active || !actor.partyId)
-        throw new Error("Only an active Chief Whip can enforce a vote");
-      // Serialize all enforcement decisions for a party across bills.
-      const [party] = await tx
-        .select({ id: parties.id })
-        .from(parties)
-        .where(
-          and(
-            eq(parties.id, actor.partyId),
-            eq(parties.chiefWhipId, actor.id),
-            sql`${parties.archivedAt} IS NULL`,
-          ),
-        )
-        .for("update");
-      if (!party)
-        throw new Error("Only the party Chief Whip can enforce a vote");
-      const [bill] = await tx
-        .select({ id: bills.id, stage: bills.stage, title: bills.title })
-        .from(bills)
-        .where(
-          and(
-            eq(bills.id, data.billId),
-            eq(bills.status, "Voting"),
-            gt(bills.stageEndsAt, new Date()),
-          ),
-        )
-        .limit(1);
-      if (!bill) throw new Error("This bill is not open for voting");
-      const [guidance] = await tx
-        .select({
-          id: billPartyWhips.id,
-          enforcedAt: billPartyWhips.enforcedAt,
-        })
-        .from(billPartyWhips)
-        .where(
-          and(
-            eq(billPartyWhips.billId, bill.id),
-            eq(billPartyWhips.partyId, party.id),
-          ),
-        )
-        .limit(1);
-      if (!guidance) throw new Error("Issue voting guidance first");
-      if (guidance.enforcedAt)
-        throw new Error("This bill is already under an enforced whip");
-      const [recent] = await tx
-        .select({ id: billPartyWhips.id })
-        .from(billPartyWhips)
-        .where(
-          and(
-            eq(billPartyWhips.partyId, party.id),
-            isNotNull(billPartyWhips.enforcedAt),
-            gt(
-              billPartyWhips.enforcedAt,
-              new Date(Date.now() - 24 * 60 * 60 * 1000),
-            ),
-          ),
-        )
-        .limit(1);
-      if (recent)
-        throw new Error("Your party can enforce only one bill every 24 hours");
-      await tx
-        .update(billPartyWhips)
-        .set({ enforcedAt: new Date() })
-        .where(eq(billPartyWhips.id, guidance.id));
-      await tx.insert(feed).values({
-        userId: actor.id,
-        content: `enforced the party whip on bill #${bill.id}: ${bill.title}`,
-      });
-      return true;
     });
   });

@@ -259,24 +259,6 @@ export async function getPendingNextMoves(
             ),
           )
       : [];
-  const enforceOptions =
-    player.partyId &&
-    player.partyChiefWhipId === player.id &&
-    player.partyArchivedAt === null
-      ? await db
-          .select({ id: bills.id, title: bills.title })
-          .from(billPartyWhips)
-          .innerJoin(bills, eq(bills.id, billPartyWhips.billId))
-          .where(
-            and(
-              eq(billPartyWhips.partyId, player.partyId),
-              sql`${billPartyWhips.enforcedAt} is null`,
-              eq(bills.status, "Voting"),
-              gt(bills.stageEndsAt, new Date()),
-              sql`not exists (select 1 from ${billPartyWhips} as recent where recent.party_id = ${player.partyId} and recent.enforced_at > now() - interval '24 hours')`,
-            ),
-          )
-      : [];
   return [
     ...(player.partyId &&
     player.partySocialMediaOfficerId === player.id &&
@@ -298,7 +280,7 @@ export async function getPendingNextMoves(
       key: `bill:${bill.id}:enforced-whip`,
       title:
         bill.voteYes !== null && bill.voteYes !== (bill.position === "For")
-          ? `URGENT: Change your vote on ${bill.title} or be ejected when this stage closes`
+          ? `URGENT: Your vote on ${bill.title} is against your party's enforced whip. Change it by the end of this stage or you will be ejected from the party`
           : `ENFORCED WHIP: ${bill.title} — a final vote against your party will eject you`,
       url: `/dashboard/bills/${bill.id}#your-vote`,
     })),
@@ -366,11 +348,6 @@ export async function getPendingNextMoves(
     ...pendingGuidance.map((bill) => ({
       key: `bill:${bill.id}:${bill.stage}:party:${player.partyId}:guidance`,
       title: `Issue voting guidance for ${bill.title}`,
-      url: `/dashboard/bills/${bill.id}#party-guidance`,
-    })),
-    ...enforceOptions.map((bill) => ({
-      key: `bill:${bill.id}:enforce-whip`,
-      title: `Optional: enforce your party whip on ${bill.title}`,
       url: `/dashboard/bills/${bill.id}#party-guidance`,
     })),
     ...pendingCoalitions.map((proposal) => ({
