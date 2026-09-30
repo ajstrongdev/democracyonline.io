@@ -31,6 +31,10 @@ import {
   getCoalitionProposals,
 } from "@/lib/server/organizations/coalition-proposals";
 import { coalitionVoteEndsAt } from "@/lib/organizations/governance";
+import {
+  COALITION_MIN_PARTIES,
+  coalitionDesignation,
+} from "@/lib/organizations/coalition-status";
 import { DashboardElectionCountdown } from "@/components/dashboard/dashboard-election-countdown";
 import { getCurrentUserInfo } from "@/lib/server/users/users";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -153,7 +157,7 @@ function CoalitionPage() {
           },
         },
       });
-      toast.success("Coalition edit proposed for a member-party vote");
+      toast.success("Alliance edit proposed for a member-party vote");
       setEditing(false);
       navigate({
         to: "/dashboard/parties/coalitions/$id",
@@ -181,7 +185,7 @@ function CoalitionPage() {
   const handleLeave = async () => {
     try {
       await leaveCoalition({ data: { coalitionId: coalition.id } });
-      toast.success("Your party has left the coalition");
+      toast.success("Your party has left the alliance");
       setShowLeaveDialog(false);
       await router.invalidate();
     } catch (e: any) {
@@ -241,6 +245,7 @@ function CoalitionPage() {
     (sum, p) => sum + Number(p.memberCount || 0),
     0,
   );
+  const designation = coalitionDesignation(memberParties.length);
 
   return (
     <ProtectedRoute>
@@ -248,8 +253,8 @@ function CoalitionPage() {
         <WikiHeader
           eyebrow={
             coalition.archivedAt
-              ? "Archived political coalition"
-              : "Political coalition"
+              ? "Archived political alliance"
+              : `Political ${designation.toLowerCase()}`
           }
           title={coalition.name}
           description={
@@ -260,7 +265,7 @@ function CoalitionPage() {
           status={
             <div className="flex items-center gap-3">
               <Badge variant={coalition.archivedAt ? "secondary" : "default"}>
-                {coalition.archivedAt ? "Archived" : "Active"}
+                {coalition.archivedAt ? "Archived" : designation}
               </Badge>
               <CoalitionLogo
                 coalition_id={coalition.id}
@@ -272,6 +277,13 @@ function CoalitionPage() {
             </div>
           }
         />
+        {!coalition.archivedAt && designation === "Electoral Pact" && (
+          <p className="text-sm text-muted-foreground">
+            Electoral pacts become coalitions when {COALITION_MIN_PARTIES}{" "}
+            parties join.
+            {` ${COALITION_MIN_PARTIES - memberParties.length} more ${COALITION_MIN_PARTIES - memberParties.length === 1 ? "party" : "parties"} needed.`}
+          </p>
+        )}
         {coalition.discord && (
           <p className="-mt-4 text-right text-sm">
             <a
@@ -286,7 +298,7 @@ function CoalitionPage() {
         )}
         <nav className="flex flex-wrap gap-2 border-y bg-card px-4 py-3">
           <Button asChild variant="outline" size="sm">
-            <Link to="/dashboard/parties/coalitions">Coalition archive</Link>
+            <Link to="/dashboard/parties/coalitions">Alliance directory</Link>
           </Button>
           {!coalition.archivedAt && isMemberPartyLeader && (
             <Button
@@ -295,7 +307,7 @@ function CoalitionPage() {
               onClick={() => setEditing(!editing)}
             >
               <Pencil className="mr-2 h-4 w-4" />
-              {editing ? "Cancel edit" : "Edit coalition"}
+              {editing ? "Cancel edit" : "Edit alliance"}
             </Button>
           )}
           {!coalition.archivedAt && isMemberPartyLeader && (
@@ -305,7 +317,7 @@ function CoalitionPage() {
               onClick={() => setShowLeaveDialog(true)}
             >
               <DoorOpen className="mr-2 h-4 w-4" />
-              Leave coalition
+              Leave alliance
             </Button>
           )}
           {!coalition.archivedAt && canJoin && (
@@ -331,7 +343,7 @@ function CoalitionPage() {
           <Card className="rounded-sm shadow-none">
             <CardHeader>
               <CardTitle className="font-serif text-2xl">
-                Edit coalition
+                Edit alliance
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">

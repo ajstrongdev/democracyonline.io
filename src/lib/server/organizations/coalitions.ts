@@ -75,7 +75,12 @@ export const getPartyCoalition = createServerFn()
       .from(coalitions)
       .where(and(eq(coalitions.id, coalitionId), isNull(coalitions.archivedAt)))
       .limit(1);
-    return coalition ?? null;
+    if (!coalition) return null;
+    const [membership] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(coalitionMembers)
+      .where(eq(coalitionMembers.coalitionId, coalitionId));
+    return { ...coalition, memberCount: membership.count };
   });
 
 export const getCoalitionManagementState = createServerFn()

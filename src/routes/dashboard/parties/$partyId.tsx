@@ -43,6 +43,7 @@ import {
   withdrawLeadershipBid,
 } from "@/lib/server/organizations/party-governance";
 import { getPartyCoalition } from "@/lib/server/organizations/coalitions";
+import { coalitionDesignation } from "@/lib/organizations/coalition-status";
 import { EntityReferenceText } from "@/components/entity-reference-text";
 import { SocialPartyPosts } from "@/components/social/social-party-posts";
 import { getSocialPartyPosts } from "@/lib/server/social/social";
@@ -177,7 +178,7 @@ function PartyArticle() {
             )}
           </WikiInfoboxRow>
           {party.current && coalition && (
-            <WikiInfoboxRow label="Coalition">
+            <WikiInfoboxRow label={coalitionDesignation(coalition.memberCount)}>
               <Link
                 to="/dashboard/parties/coalitions/$id"
                 params={{ id: String(coalition.id) }}

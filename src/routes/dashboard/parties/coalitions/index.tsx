@@ -37,6 +37,7 @@ import {
 import { getCurrentUserInfo } from "@/lib/server/users/users";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { useUserData } from "@/lib/hooks/use-user-data";
+import { coalitionDesignation } from "@/lib/organizations/coalition-status";
 
 export const Route = createFileRoute("/dashboard/parties/coalitions/")({
   loader: async () => {
@@ -67,6 +68,14 @@ function CoalitionsContent() {
   );
   const archivedCoalitions = coalitions.filter(
     (coalition) => coalition.archivedAt,
+  );
+  const establishedCoalitions = activeCoalitions.filter(
+    (coalition) =>
+      coalitionDesignation(Number(coalition.memberCount)) === "Coalition",
+  );
+  const electoralPacts = activeCoalitions.filter(
+    (coalition) =>
+      coalitionDesignation(Number(coalition.memberCount)) === "Electoral Pact",
   );
   const userData = useUserData(userInfo);
   const canCreate =
@@ -117,14 +126,14 @@ function CoalitionsContent() {
       <WikiPage>
         <WikiHeader
           eyebrow={`${coalitions.length} organizations`}
-          title="Political coalitions"
-          description="Alliances of political parties, their membership, and their place in the Oscana political record."
+          title="Political alliances"
+          description="Electoral pacts become coalitions when at least three parties join."
           status={
             canCreate ? (
               <Button asChild size="sm">
                 <Link to="/dashboard/parties/coalitions/create">
                   <Users className="h-4 w-4" />
-                  Create coalition
+                  Create electoral pact
                 </Link>
               </Button>
             ) : undefined
@@ -134,8 +143,8 @@ function CoalitionsContent() {
         <WikiStatGrid>
           <WikiStat
             label="Coalitions"
-            value={activeCoalitions.length}
-            detail="Active organizations"
+            value={establishedCoalitions.length}
+            detail={`${electoralPacts.length} electoral pacts forming`}
           />
           <WikiStat
             label="Member parties"
@@ -144,8 +153,8 @@ function CoalitionsContent() {
           />
           <WikiStat
             label="Largest coalition"
-            value={activeCoalitions[0]?.name || "Not recorded"}
-            detail={`${activeCoalitions[0]?.memberCount || 0} parties`}
+            value={establishedCoalitions[0]?.name || "Not recorded"}
+            detail={`${establishedCoalitions[0]?.memberCount || 0} parties`}
           />
         </WikiStatGrid>
 
@@ -263,12 +272,12 @@ function CoalitionsContent() {
 
         <WikiSection
           title="Coalition directory"
-          description="Coalitions ranked by number of member parties."
+          description="Alliances of at least three parties, ranked by membership."
           icon={Handshake}
         >
-          {activeCoalitions.length > 0 ? (
+          {establishedCoalitions.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
-              {activeCoalitions.map((coalition) => (
+              {establishedCoalitions.map((coalition) => (
                 <Link
                   key={coalition.id}
                   to="/dashboard/parties/coalitions/$id"
@@ -317,6 +326,43 @@ function CoalitionsContent() {
             </div>
           ) : (
             <WikiEmpty>No coalitions have been formed yet.</WikiEmpty>
+          )}
+        </WikiSection>
+        <WikiSection
+          title="Electoral pacts"
+          description="Alliances of one or two parties. A third party makes the pact a coalition."
+          icon={Handshake}
+        >
+          {electoralPacts.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {electoralPacts.map((pact) => (
+                <Link
+                  key={pact.id}
+                  to="/dashboard/parties/coalitions/$id"
+                  params={{ id: pact.id.toString() }}
+                  className="group flex min-w-0 items-center gap-4 rounded-sm border border-l-4 bg-card p-4 hover:border-primary"
+                  style={{ borderLeftColor: pact.color }}
+                >
+                  <CoalitionLogo
+                    coalition_id={pact.id}
+                    size={48}
+                    color={pact.color}
+                    logo={pact.logo}
+                    name={pact.name}
+                  />
+                  <div className="min-w-0">
+                    <h3 className="truncate font-serif text-xl font-bold group-hover:text-primary">
+                      {pact.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {pact.memberCount} of 3 parties
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <WikiEmpty>No electoral pacts are forming.</WikiEmpty>
           )}
         </WikiSection>
         <WikiSection
