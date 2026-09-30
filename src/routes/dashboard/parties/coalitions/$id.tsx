@@ -61,6 +61,8 @@ import {
 import { EntityReferenceText } from "@/components/entity-reference-text";
 import { MarkdownToolbar } from "@/components/markdown-toolbar";
 import { formatWikiDate } from "@/lib/utils/history";
+import { getPrimaryRaces } from "@/lib/server/organizations/primaries";
+import { PrimaryRaces } from "@/components/organizations/primary-races";
 
 export const Route = createFileRoute("/dashboard/parties/coalitions/$id")({
   loader: async ({ params }) => {
@@ -69,13 +71,14 @@ export const Route = createFileRoute("/dashboard/parties/coalitions/$id")({
       throw redirect({ to: "/dashboard/parties" });
     }
 
-    const [userInfo, details, proposals] = await Promise.all([
+    const [userInfo, details, proposals, primaryRaces] = await Promise.all([
       getCurrentUserInfo(),
       getCoalitionDetails({ data: { coalitionId } }),
       getCoalitionProposals({ data: { coalitionId } }),
+      getPrimaryRaces(),
     ]);
 
-    return { ...details, userInfo, proposals };
+    return { ...details, userInfo, proposals, primaryRaces };
   },
   gcTime: 0,
   component: CoalitionPage,
@@ -93,6 +96,7 @@ function CoalitionPage() {
     userInfo: loaderUserInfo,
     canRevive,
     proposals,
+    primaryRaces,
   } = Route.useLoaderData();
   const userInfo = useUserData(loaderUserInfo);
   const navigate = useNavigate();
@@ -486,6 +490,8 @@ function CoalitionPage() {
             />
           )}
         </WikiStatGrid>
+        {!coalition.archivedAt && <PrimaryRaces compact title="Coalition primary"
+          races={primaryRaces.filter((race) => race.kind === "coalition" && race.id === coalition.id)} />}
 
         {/* New join requests are proposals immediately; only older requests need proposing. */}
         <Tabs

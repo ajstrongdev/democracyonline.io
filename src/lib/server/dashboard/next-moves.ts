@@ -99,6 +99,7 @@ export async function getPendingNextMoves(
     (race) => race.election === "President",
   );
   let primary: Parameters<typeof primaryNextMoves>[0] = null;
+  let isCoalitionPrimary = false;
   if (player.partyId) {
     const [coalition] = await db
       .select({ coalitionId: coalitionMembers.coalitionId })
@@ -113,6 +114,7 @@ export async function getPendingNextMoves(
             .where(eq(coalitionMembers.coalitionId, coalition.coalitionId))
         ).map((member) => member.partyId)
       : [player.partyId];
+    isCoalitionPrimary = Boolean(coalition);
     const [primaryCandidatesInGroup, [ballot]] = await Promise.all([
       db
         .select({ userId: primaryCandidates.userId })
@@ -286,7 +288,7 @@ export async function getPendingNextMoves(
       ? [
           {
             key: `primary:${primaryCycle}:vote`,
-            title: "Vote in your presidential primary",
+            title: `Vote in your ${isCoalitionPrimary ? "coalition" : "party"} presidential primary`,
             url: "/dashboard/parties/primaries",
           },
         ]

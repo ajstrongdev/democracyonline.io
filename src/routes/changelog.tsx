@@ -13,39 +13,44 @@ const releases = [
     version: "0.2.1",
     date: "October 1, 2026",
     dateTime: "2026-10-01",
-    headline: "A livelier Z.com, and clearer next moves.",
+    headline: "See every primary. Follow more of the conversation.",
     summary:
-      "Follow the conversation more closely, share your take, and keep party decisions in sight.",
+      "Track nominations across parties and coalitions, join the conversation on Z.com, and keep party decisions moving.",
     highlights: [
+      {
+        title: "Follow every primary race",
+        detail:
+          "For the first time, you can follow live candidates and vote totals in every party and coalition primary—not just the race for your own party or coalition. Browse other parties’ and coalitions’ races with the arrows or swipe on mobile, and vote in your own race right from the dashboard. Primaries also appear on their party and coalition pages. If you are eligible and have not voted, Your next moves reminds you while voting is open; optional browser notifications can remind you too.",
+      },
       {
         title: "Make Z.com your own",
         detail:
-          "Follow players from their posts or profiles and switch to Following to see their posts and reposts. The main feed now focuses on original posts, with active discussions easier to discover.",
+          "Follow players from their posts or profiles, then use Following to see their posts and reposts. The main feed highlights original posts, and active discussions are easier to find.",
       },
       {
         title: "Add your voice to a post",
         detail:
-          "Quote a post with your own commentary or copy a direct link to share it. Conversations are easier to read, and opening a linked comment takes you into its thread.",
+          "Add your own commentary when quoting a post, or copy its link to share it. Conversations are easier to follow, and links to comments open the full thread.",
       },
       {
         title: "Know when someone replies",
         detail:
-          "Comments on your Z.com posts now appear alongside mentions in your dashboard alerts, with optional browser notifications and links back to the conversation.",
+          "Comments on your Z.com posts now appear alongside mentions in dashboard alerts. Optional browser notifications can let you know when someone replies and take you back to the conversation.",
       },
       {
         title: "Keep membership moving",
         detail:
-          "Party leaders can follow pending membership requests and older coalition join requests from the dashboard. Coalition requests that still need a proposal now link straight to the relevant alliance controls.",
+          "Party leaders can see membership requests and coalition join requests on the dashboard. Requests that still need a proposal link directly to the right coalition controls.",
       },
       {
         title: "Fill the leadership team",
         detail:
-          "When an eligible member can fill a vacant Chief Whip or Social Media Officer role, party leaders see a reminder that leads to the appointment controls.",
+          "Party leaders get a dashboard reminder when an eligible member can be appointed Chief Whip or Social Media Officer, with a link to the appointment controls.",
       },
       {
         title: "Vote while the vote is open",
         detail:
-          "Coalition proposal reminders link to the vote and disappear when your party has voted or the voting window has closed. These party-leader reminders also use the optional Web Push setting for Your next moves.",
+          "Party leaders can open an active coalition proposal vote directly from the dashboard. The reminder clears once their party votes or the voting period ends; optional browser notifications are also available.",
       },
     ],
   },
@@ -55,42 +60,42 @@ const releases = [
     dateTime: "2026-09-30",
     headline: "More ways to organize and govern.",
     summary:
-      "Parties, coalitions, and legislation get new tools and a clearer place in the record.",
+      "New ways to organize parties, work with allies, and follow legislation.",
     highlights: [
       {
         title: "Lead your party",
         detail:
-          "Parties now have a working leadership structure, with roles for leaders, chief whips, and social media officers. Party leadership can coordinate voting guidance and representation.",
+          "Parties now have leaders, chief whips, and social media officers. They can coordinate party guidance on bills and manage their party’s representation.",
       },
       {
         title: "Build alliances during elections",
         detail:
-          "Party leaders can form electoral pacts even while an election is underway. When three parties join, a pact becomes a coalition. Coalition members can coordinate their nominations and governance.",
+          "Party leaders can form electoral pacts during an election. A pact becomes a coalition when three parties join, allowing its members to coordinate nominations and coalition decisions.",
       },
       {
         title: "See government by coalition",
         detail:
-          "Government history can now group seats by coalition, while Parties remains the default view. Parties outside a coalition and independents stay visible separately.",
+          "Government history can group seats by coalition. The Parties view remains the default, with unaffiliated parties and independents listed separately.",
       },
       {
         title: "Make your words stand out",
         detail:
-          "Formatting buttons and a preview make it easier to write posts, comments, bills, biographies, and wiki articles.",
+          "Formatting controls and a preview help you write posts, comments, bills, biographies, and wiki articles.",
       },
       {
         title: "Make room for smaller groups",
         detail:
-          "Parties need at least three members to remain parties; smaller organizations become pressure groups, with a route back to party status when they grow.",
+          "A party needs at least three members to keep its status. Smaller groups become pressure groups and can regain party status as they grow.",
       },
       {
         title: "Keep bills moving",
         detail:
-          "Bills now move through a queue with 12-hour stages at regular game speed. Their progress is easier to follow, and admins have additional controls for bill stages.",
+          "Bills move through a queue, with each stage lasting 12 hours at regular game speed. Progress is easier to follow, and admins have more control over bill stages.",
       },
       {
         title: "For the developers...",
         detail:
-          "Bots can now publish posts to Z.com through the API, alongside the existing integration tools.",
+          "Bots can now publish Z.com posts through the API, alongside the existing integration tools.",
       },
     ],
   },
@@ -98,48 +103,49 @@ const releases = [
     version: "0.1.2",
     date: "September 29, 2026",
     dateTime: "2026-09-29",
-    headline: "The game feels closer.",
-    summary: "More of the game at your fingertips, wherever you play.",
+    headline: "A smoother game on every screen.",
+    summary:
+      "Live updates, clearer election tools, and a more comfortable mobile experience.",
     highlights: [
       {
         title: "Stay in the loop",
         detail:
-          "Optional browser notifications can let you know about Z.com mentions and decisions waiting for you. Set quiet hours, choose your browsers, or stick with in-game alerts. The choice is yours.",
+          "Optional browser notifications alert you to Z.com mentions and decisions waiting for you. Set quiet hours, choose which browsers receive them, or keep using in-game alerts.",
       },
       {
         title: "See the game move",
         detail:
-          "The dashboard, conversations, and key game information update live. If the connection drops, the game catches up when you return.",
+          "The dashboard, conversations, and key game information update live. If you lose connection, the game catches up when you reconnect.",
       },
       {
         title: "Follow the whole election-night count",
         detail:
-          "Live Wire updates now read like short reports drawn from the results so far. Alongside the leader, they follow challengers, changes in the wider field, and the fight for the last Senate seat as new returns arrive.",
+          "Live Wire posts short reports as election results come in. They track the leader, close challengers, shifts across the field, and the contest for the final Senate seat.",
       },
       {
         title: "Find a bill, then cast your vote",
         detail:
-          "Bills are now listed by stage (Committee, House, Senate, President, Enacted, or Defeated), with search and a My bills filter close at hand, including on mobile. Eligible officeholders can vote on the bill’s own page and see when their decision has been recorded; there’s no separate chamber desk to open.",
+          "Browse bills by stage, search the list, or filter to your own bills—even on mobile. Eligible officeholders can vote on a bill’s page and see when their vote is recorded.",
       },
       {
         title: "A nudge for party leaders",
         detail:
-          "If your party has not issued voting guidance on a bill, it appears in Your next moves during House, Senate, and presidential voting. Follow the reminder straight to the bill to make your recommendation.",
+          "When your party has not yet issued guidance on a bill, a reminder appears in Your next moves during House, Senate, and presidential voting. Open the bill from the reminder to recommend a position.",
       },
       {
         title: "Find your way faster",
         detail:
-          "A persistent desktop sidebar and a reach-friendly mobile bar make it easier to move between bills, elections, parties, Z.com, and the rest of the game. The mobile menu keeps the less-used destinations close by without getting in your way.",
+          "Use the desktop sidebar or mobile navigation bar to move between bills, elections, parties, and Z.com. The mobile menu keeps less-used pages within reach.",
       },
       {
         title: "Make it yours",
         detail:
-          "New imagery gives each corner of the game its own character, while your dashboard and profile reflect the office you currently hold. Bills, ballots, forms, and dialogs have also had a small-screen polish pass.",
+          "Updated artwork gives each area of the game its own look, and your dashboard and profile reflect your current office. Bills, ballots, forms, and dialogs also work better on small screens.",
       },
       {
         title: "The little fixes matter",
         detail:
-          "The bill progress bar now separates the presidential stage from the final result. Election Night layouts, navigation, the footer, and signed-in account controls have also had a tidy-up.",
+          "The bill progress bar now distinguishes the presidential stage from the final result. We also refined Election Night layouts, navigation, the footer, and account controls.",
       },
     ],
   },
@@ -193,33 +199,36 @@ function ChangelogPage() {
       >
         <div className="rounded-lg border bg-card/90 p-4 backdrop-blur-sm sm:p-5">
           <p className="font-serif text-base font-bold sm:text-lg">
-            How “0ver” works
+            How version numbers work
           </p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            The major number stays at 0 because Polsimmer is never finished. The
-            other numbers tell you what kind of update you’re getting.
+            Polsimmer is still in its early releases, so its major version
+            remains 0. The numbers after it show whether a release adds features
+            or focuses on smaller improvements.
           </p>
           <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
             <div className="rounded-md bg-muted/50 px-3 py-2">
-              <dt className="font-semibold">0 · Major</dt>
-              <dd className="text-muted-foreground">This will never change.</dd>
+              <dt className="font-semibold">0 · Early release</dt>
+              <dd className="text-muted-foreground">
+                The platform is still evolving.
+              </dd>
             </div>
             <div className="rounded-md bg-muted/50 px-3 py-2">
-              <dt className="font-semibold">.1 · Minor</dt>
+              <dt className="font-semibold">.1 · Feature release</dt>
               <dd className="text-muted-foreground">
                 New or changed core gameplay.
               </dd>
             </div>
             <div className="rounded-md bg-muted/50 px-3 py-2">
-              <dt className="font-semibold">.2 · Patch</dt>
+              <dt className="font-semibold">.2 · Smaller update</dt>
               <dd className="text-muted-foreground">
                 Visual refinements, tweaks, and bug fixes.
               </dd>
             </div>
           </dl>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Our release model favors smaller gamedrops over huge releases:
-            little and often, with fresh content arriving regularly.
+            We prefer regular, focused updates over infrequent, oversized
+            releases.
           </p>
         </div>
       </WikiHeader>
