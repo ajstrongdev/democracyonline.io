@@ -3,6 +3,7 @@ import { and, asc, desc, eq, getTableColumns, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { getOfficeholderSelection } from "@/lib/utils/history";
+import { coalitionCompositionFor } from "@/lib/utils/coalition-composition";
 import { getElectionCoverage } from "@/lib/server/elections/election-coverage";
 import { ensureElectionSchedule } from "@/lib/server/elections/election-schedule";
 import {
@@ -12,6 +13,9 @@ import {
   billVotesSenate,
   bills,
   candidates,
+  coalitionFormerMembers,
+  coalitionMembers,
+  coalitions,
   coupHistory,
   coupOfficeholderHistory,
   coupRoleChanges,
@@ -811,38 +815,70 @@ export const getWikiParty = createServerFn()
 
 export const getGovernmentCompositionHistory = createServerFn().handler(
   async () => {
-    const [rows, membershipEvents, coups, coupMembers, changes] =
-      await Promise.all([
-        db
-          .select({
-            historyId: electionHistory.id,
-            election: electionHistory.election,
-            cycle: electionHistory.cycle,
-            concludedAt: electionHistory.concludedAt,
-            userId: electionOfficeholderHistory.userId,
-            username: electionOfficeholderHistory.username,
-            office: electionOfficeholderHistory.office,
-            partyId: electionOfficeholderHistory.partyId,
-            partyName: electionOfficeholderHistory.partyName,
-            partyColor: electionOfficeholderHistory.partyColor,
-          })
-          .from(electionOfficeholderHistory)
-          .innerJoin(
-            electionHistory,
-            eq(
-              electionOfficeholderHistory.electionHistoryId,
-              electionHistory.id,
-            ),
-          )
-          .orderBy(electionHistory.concludedAt, electionHistory.id),
-        db
-          .select()
-          .from(partyMembershipEvents)
-          .orderBy(partyMembershipEvents.occurredAt, partyMembershipEvents.id),
-        db.select().from(coupHistory),
-        db.select().from(coupOfficeholderHistory),
-        db.select().from(coupRoleChanges),
-      ]);
+    const [
+      rows,
+      membershipEvents,
+      coups,
+      coupMembers,
+      changes,
+      currentCoalitions,
+      formerCoalitions,
+    ] = await Promise.all([
+      db
+        .select({
+          historyId: electionHistory.id,
+          election: electionHistory.election,
+          cycle: electionHistory.cycle,
+          concludedAt: electionHistory.concludedAt,
+          userId: electionOfficeholderHistory.userId,
+          username: electionOfficeholderHistory.username,
+          office: electionOfficeholderHistory.office,
+          partyId: electionOfficeholderHistory.partyId,
+          partyName: electionOfficeholderHistory.partyName,
+          partyColor: electionOfficeholderHistory.partyColor,
+        })
+        .from(electionOfficeholderHistory)
+        .innerJoin(
+          electionHistory,
+          eq(electionOfficeholderHistory.electionHistoryId, electionHistory.id),
+        )
+        .orderBy(electionHistory.concludedAt, electionHistory.id),
+      db
+        .select()
+        .from(partyMembershipEvents)
+        .orderBy(partyMembershipEvents.occurredAt, partyMembershipEvents.id),
+      db.select().from(coupHistory),
+      db.select().from(coupOfficeholderHistory),
+      db.select().from(coupRoleChanges),
+      db
+        .select({
+          partyId: coalitionMembers.partyId,
+          coalitionId: coalitions.id,
+          name: coalitions.name,
+          color: coalitions.color,
+          joinedAt: coalitionMembers.joinDate,
+        })
+        .from(coalitionMembers)
+        .innerJoin(coalitions, eq(coalitions.id, coalitionMembers.coalitionId)),
+      db
+        .select({
+          partyId: coalitionFormerMembers.partyId,
+          coalitionId: coalitions.id,
+          name: coalitions.name,
+          color: coalitions.color,
+          joinedAt: coalitionFormerMembers.firstJoinedAt,
+          leftAt: coalitionFormerMembers.lastLeftAt,
+        })
+        .from(coalitionFormerMembers)
+        .innerJoin(
+          coalitions,
+          eq(coalitions.id, coalitionFormerMembers.coalitionId),
+        ),
+    ]);
+    const coalitionMemberships = [
+      ...currentCoalitions.map((member) => ({ ...member, leftAt: null })),
+      ...formerCoalitions,
+    ];
 
     const snapshots = new Map<
       number,
@@ -985,6 +1021,11 @@ export const getGovernmentCompositionHistory = createServerFn().handler(
       history.push({
         ...point,
         composition: composition.map((party) => ({ ...party })),
+        coalitionComposition: coalitionCompositionFor(
+          composition,
+          point.occurredAt,
+          coalitionMemberships,
+        ),
       });
     }
     return history.reverse();

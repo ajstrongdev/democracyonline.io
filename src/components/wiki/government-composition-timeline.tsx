@@ -20,6 +20,7 @@ type Snapshot = {
   election: string | null;
   date: string;
   composition: Array<Composition>;
+  coalitionComposition: Array<Composition>;
 };
 
 const chambers = [
@@ -34,6 +35,7 @@ export function GovernmentCompositionTimeline({
   snapshots: Array<Snapshot>;
 }) {
   const [showDefections, setShowDefections] = useState(true);
+  const [view, setView] = useState<"parties" | "coalitions">("parties");
   const [showCoups, setShowCoups] = useState(true);
   const [showPresidential, setShowPresidential] = useState(true);
   const [showSenate, setShowSenate] = useState(true);
@@ -63,6 +65,26 @@ export function GovernmentCompositionTimeline({
           Latest first
         </span>
       </header>
+      <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3 text-sm sm:px-6">
+        <span className="font-medium">Show seats by</span>
+        <div
+          className="inline-flex rounded-md border p-0.5"
+          role="group"
+          aria-label="Show seats by"
+        >
+          {(["parties", "coalitions"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={view === option}
+              onClick={() => setView(option)}
+              className={`rounded px-3 py-1 font-medium capitalize ${view === option ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="flex flex-wrap gap-x-5 gap-y-2 border-b px-4 py-3 text-sm sm:px-6">
         <label className="flex items-center gap-2">
           <input
@@ -135,8 +157,16 @@ export function GovernmentCompositionTimeline({
                       key={chamber.key}
                       title={chamber.title}
                       office={chamber.key}
-                      composition={snapshot.composition}
-                      previous={visibleSnapshots[index + 1]?.composition}
+                      composition={
+                        view === "parties"
+                          ? snapshot.composition
+                          : snapshot.coalitionComposition
+                      }
+                      previous={
+                        view === "parties"
+                          ? visibleSnapshots[index + 1]?.composition
+                          : visibleSnapshots[index + 1]?.coalitionComposition
+                      }
                     />
                   ))}
                 </div>
