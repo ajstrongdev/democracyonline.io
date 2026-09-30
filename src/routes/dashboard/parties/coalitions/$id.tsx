@@ -4,6 +4,7 @@ import {
   createFileRoute,
   redirect,
   useNavigate,
+  useRouter,
 } from "@tanstack/react-router";
 import {
   Check,
@@ -20,6 +21,7 @@ import {
 import { toast } from "sonner";
 import {
   getCoalitionDetails,
+  leaveCoalition,
   requestJoinCoalition,
   reviveCoalition,
 } from "@/lib/server/organizations/coalitions";
@@ -27,8 +29,9 @@ import {
   castVote,
   createProposal,
   getCoalitionProposals,
-  resolveProposal,
 } from "@/lib/server/organizations/coalition-proposals";
+import { coalitionVoteEndsAt } from "@/lib/organizations/governance";
+import { DashboardElectionCountdown } from "@/components/dashboard/dashboard-election-countdown";
 import { getCurrentUserInfo } from "@/lib/server/users/users";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -88,6 +91,7 @@ function CoalitionPage() {
   } = Route.useLoaderData();
   const userInfo = useUserData(loaderUserInfo);
   const navigate = useNavigate();
+  const router = useRouter();
 
   // Re-derive membership status client-side for robustness
   const callerPartyId = userInfo?.partyId ?? loaderCallerPartyId;
@@ -176,20 +180,10 @@ function CoalitionPage() {
 
   const handleLeave = async () => {
     try {
-      if (!callerPartyId) throw new Error("You must lead a member party");
-      await createProposal({
-        data: {
-          coalitionId: coalition.id,
-          proposalType: "leave",
-          targetId: callerPartyId,
-        },
-      });
-      toast.success("Departure proposed for a member-party vote");
+      await leaveCoalition({ data: { coalitionId: coalition.id } });
+      toast.success("Your party has left the coalition");
       setShowLeaveDialog(false);
-      navigate({
-        to: "/dashboard/parties/coalitions/$id",
-        params: { id: coalition.id.toString() },
-      });
+      await router.invalidate();
     } catch (e: any) {
       toast.error(e instanceof Error ? e.message : "Could not leave coalition");
     }
@@ -243,23 +237,6 @@ function CoalitionPage() {
     }
   };
 
-  const handleResolve = async (proposalId: number) => {
-    try {
-      const result = await resolveProposal({ data: { proposalId } });
-      toast.success(
-        result.approved ? "Proposal approved" : "Proposal rejected",
-      );
-      navigate({
-        to: "/dashboard/parties/coalitions/$id",
-        params: { id: coalition.id.toString() },
-      });
-    } catch (e: any) {
-      toast.error(
-        e instanceof Error ? e.message : "Could not resolve proposal",
-      );
-    }
-  };
-
   const totalCoalitionMembers = memberParties.reduce(
     (sum, p) => sum + Number(p.memberCount || 0),
     0,
@@ -296,7 +273,16 @@ function CoalitionPage() {
           }
         />
         {coalition.discord && (
-          <p className="-mt-4 text-right text-sm"><a href={coalition.discord} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Join the {coalition.name} Discord</a></p>
+          <p className="-mt-4 text-right text-sm">
+            <a
+              href={coalition.discord}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              Join the {coalition.name} Discord
+            </a>
+          </p>
         )}
         <nav className="flex flex-wrap gap-2 border-y bg-card px-4 py-3">
           <Button asChild variant="outline" size="sm">
@@ -391,7 +377,13 @@ function CoalitionPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-discord">Coalition Discord invite</Label>
-                <Input id="edit-discord" type="url" value={editDiscord} onChange={(e) => setEditDiscord(e.target.value)} placeholder="https://discord.gg/…" />
+                <Input
+                  id="edit-discord"
+                  type="url"
+                  value={editDiscord}
+                  onChange={(e) => setEditDiscord(e.target.value)}
+                  placeholder="https://discord.gg/…"
+                />
               </div>
               <div className="space-y-4">
                 <Label className="text-sm font-medium">Logo</Label>
@@ -640,7 +632,7 @@ function CoalitionPage() {
             <WikiSection
               title="Coalition proposals"
               icon={FileText}
-              description="Decisions requiring majority approval by member-party leaders."
+              description="Votes close after 24 hours or when every member-party leader has voted. A majority passes; otherwise the proposal is rejected."
             >
               <div>
                 <div className="space-y-3 md:space-y-4">
@@ -704,6 +696,17 @@ function CoalitionPage() {
                                     ).toLocaleDateString()
                                   : ""}
                               </span>
+                              {proposal.status === "open" && (
+                                <span className="text-muted-foreground text-xs">
+                                  Voting closes in{" "}
+                                  <DashboardElectionCountdown
+                                    target={coalitionVoteEndsAt(
+                                      proposal.createdAt,
+                                    )}
+                                    onExpire={() => router.invalidate()}
+                                  />
+                                </span>
+                              )}
                             </div>
                           </div>
                           {canVote && (
@@ -724,15 +727,6 @@ function CoalitionPage() {
                                 <ThumbsDown className="mr-1 h-4 w-4" />
                                 Against
                               </Button>
-                              {isMemberPartyLeader && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleResolve(proposal.id)}
-                                >
-                                  Resolve
-                                </Button>
-                              )}
                             </div>
                           )}
                         </div>
@@ -748,8 +742,8 @@ function CoalitionPage() {
           open={showLeaveDialog}
           onOpenChange={setShowLeaveDialog}
           title="Leave Coalition"
-          description="Propose your party's departure for a member-party vote. The party remains in the coalition until the proposal is approved."
-          confirmText="Propose departure"
+          description="Your party will leave immediately. Cross-party primary votes will be cleared so members can vote again."
+          confirmText="Leave coalition"
           variant="destructive"
           onConfirm={handleLeave}
         />

@@ -210,8 +210,6 @@ export const declarePrimaryCandidate = createServerFn({ method: "POST" })
       throw new Error("Senators cannot run for President");
     }
 
-    const coalitionId = await getPartyCoalitionId(partyId);
-
     return db.transaction(async (tx) => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(${user.id})`);
       await tx.execute(
@@ -260,12 +258,18 @@ export const declarePrimaryCandidate = createServerFn({ method: "POST" })
           .where(eq(electionCandidates.id, generalCandidacy.id));
       }
 
+      const [membership] = await tx
+        .select({ coalitionId: coalitionMembers.coalitionId })
+        .from(coalitionMembers)
+        .where(eq(coalitionMembers.partyId, partyId))
+        .limit(1);
+
       const [newCandidate] = await tx
         .insert(primaryCandidates)
         .values({
           userId: user.id,
           partyId,
-          coalitionId,
+          coalitionId: membership?.coalitionId ?? null,
         })
         .returning();
       await tx.insert(feed).values({
@@ -383,8 +387,6 @@ export const voteInPrimary = createServerFn({ method: "POST" })
     if (!user) throw new Error("User not found");
     const partyId = user.partyId;
     if (!partyId) throw new Error("You must be in a party to vote");
-    const voterCoalitionId = await getPartyCoalitionId(partyId);
-
     await db.transaction(async (tx) => {
       await tx.execute(
         sql`SELECT ${elections.election} FROM ${elections} WHERE ${elections.election} = 'President' FOR UPDATE`,
@@ -409,12 +411,17 @@ export const voteInPrimary = createServerFn({ method: "POST" })
       }
 
       const [existingVote] = await tx
-        .select({ id: primaryVotes.id })
+        .select({ id: primaryVotes.id, candidateId: primaryVotes.candidateId })
         .from(primaryVotes)
         .where(eq(primaryVotes.userId, user.id))
         .limit(1);
-      if (existingVote)
-        throw new Error("You have already voted in this primary");
+
+      const [membership] = await tx
+        .select({ coalitionId: coalitionMembers.coalitionId })
+        .from(coalitionMembers)
+        .where(eq(coalitionMembers.partyId, partyId))
+        .limit(1);
+      const voterCoalitionId = membership?.coalitionId ?? null;
 
       const [candidate] = await tx
         .select({
@@ -430,17 +437,30 @@ export const voteInPrimary = createServerFn({ method: "POST" })
       if (
         candidate.coalitionId
           ? voterCoalitionId !== candidate.coalitionId
-          : partyId !== candidate.partyId
+          : partyId !== candidate.partyId || voterCoalitionId !== null
       ) {
         throw new Error(
           "You can only vote in your own party or coalition primary",
         );
       }
 
-      await tx.insert(primaryVotes).values({
-        userId: user.id,
-        candidateId: data.candidateId,
-      });
+      if (existingVote?.candidateId === data.candidateId) return;
+
+      if (existingVote) {
+        await tx
+          .update(primaryVotes)
+          .set({ candidateId: data.candidateId })
+          .where(eq(primaryVotes.id, existingVote.id));
+        await tx
+          .update(primaryCandidates)
+          .set({ votes: sql`${primaryCandidates.votes} - 1` })
+          .where(eq(primaryCandidates.id, existingVote.candidateId));
+      } else {
+        await tx.insert(primaryVotes).values({
+          userId: user.id,
+          candidateId: data.candidateId,
+        });
+      }
 
       await tx
         .update(primaryCandidates)

@@ -1,19 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { leaveCoalitionMembership } from "@/lib/server/organizations/organization-lifecycle";
+import { advanceCoalitionVotes } from "@/lib/server/organizations/coalition-vote-lifecycle";
+import { coalitionVoteEndsAt } from "@/lib/organizations/governance";
 import {
   coalitionMembers,
   coalitionProposals,
   coalitionVotes,
-  coalitions,
   feed,
   joinRequests,
   parties,
   users,
 } from "@/db/schema";
 import { db } from "@/db";
-import { decideCoalitionVote } from "@/lib/organizations/governance";
 import { requireAuthMiddleware } from "@/middleware";
 
 async function resolveUser(email: string) {
@@ -48,14 +47,6 @@ async function isPartyInCoalition(partyId: number, coalitionId: number) {
   return !!row;
 }
 
-async function isElectionOrPrimaryActive(): Promise<boolean> {
-  const result = await db.execute(sql`
-    SELECT 1 FROM elections
-    WHERE status IN ('CANDIDACY', 'VOTING', 'ELECTION_NIGHT') LIMIT 1
-  `);
-  return result.rows.length > 0;
-}
-
 type ProposalRow = {
   id: number;
   coalitionId: number;
@@ -79,12 +70,18 @@ const coalitionEditSchema = z.object({
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
   bio: z.string().max(1000),
   logo: z.string().max(255).nullable(),
-  discord: z.string().url().refine((url) => url.startsWith("https://")).max(255).nullable(),
+  discord: z
+    .string()
+    .url()
+    .refine((url) => url.startsWith("https://"))
+    .max(255)
+    .nullable(),
 });
 
 export const getCoalitionProposals = createServerFn()
   .inputValidator(z.object({ coalitionId: z.number().int().positive() }))
   .handler(async ({ data }): Promise<Array<ProposalRow>> => {
+    await advanceCoalitionVotes();
     const rows = await db
       .select({
         id: coalitionProposals.id,
@@ -141,7 +138,7 @@ export const createProposal = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       coalitionId: z.number().int().positive(),
-      proposalType: z.enum(["join_request", "edit", "leave"]),
+      proposalType: z.enum(["join_request", "edit"]),
       targetId: z.number().int().positive().optional(),
       payload: z
         .record(
@@ -162,15 +159,6 @@ export const createProposal = createServerFn({ method: "POST" })
       throw new Error("Your party is not in this coalition");
     }
 
-    if (await isElectionOrPrimaryActive()) {
-      throw new Error(
-        "Coalition changes are frozen during active primaries or elections",
-      );
-    }
-
-    if (data.proposalType === "leave" && data.targetId !== user.partyId) {
-      throw new Error("You can only propose your own party's departure");
-    }
     if (data.proposalType === "join_request" && !data.targetId) {
       throw new Error("Select a party requesting to join");
     }
@@ -237,6 +225,9 @@ export const castVote = createServerFn({ method: "POST" })
         .for("update");
       if (!proposal || proposal.status !== "open")
         throw new Error("This proposal is no longer open");
+      if (coalitionVoteEndsAt(proposal.createdAt) <= new Date()) {
+        throw new Error("Voting on this proposal has closed");
+      }
       const [leader] = await tx
         .select({ leaderId: parties.leaderId, partyId: users.partyId })
         .from(users)
@@ -287,182 +278,7 @@ export const castVote = createServerFn({ method: "POST" })
       });
     });
 
+    await advanceCoalitionVotes(new Date(), data.proposalId);
+
     return { success: true };
-  });
-
-export const resolveProposal = createServerFn({ method: "POST" })
-  .middleware([requireAuthMiddleware])
-  .inputValidator(z.object({ proposalId: z.number().int().positive() }))
-  .handler(async ({ data, context }) => {
-    if (!context.user?.email) throw new Error("Authentication required");
-    const user = await resolveUser(context.user.email);
-    if (!user?.partyId)
-      throw new Error("Only member party leaders can resolve proposals");
-    const partyId = user.partyId;
-    return db.transaction(async (tx) => {
-      const [proposal] = await tx
-        .select()
-        .from(coalitionProposals)
-        .where(eq(coalitionProposals.id, data.proposalId))
-        .for("update");
-      if (!proposal) throw new Error("Proposal not found");
-      if (proposal.status !== "open") throw new Error("Already resolved");
-
-      const [leader] = await tx
-        .select({ leaderId: parties.leaderId, partyId: users.partyId })
-        .from(users)
-        .innerJoin(parties, eq(parties.id, users.partyId))
-        .where(eq(users.id, user.id))
-        .limit(1);
-      const [membership] = await tx
-        .select({ partyId: coalitionMembers.partyId })
-        .from(coalitionMembers)
-        .where(
-          and(
-            eq(coalitionMembers.coalitionId, proposal.coalitionId),
-            eq(coalitionMembers.partyId, partyId),
-          ),
-        )
-        .limit(1);
-      if (
-        leader?.leaderId !== user.id ||
-        leader.partyId !== partyId ||
-        !membership
-      )
-        throw new Error(
-          "Only current member party leaders can resolve proposals",
-        );
-      if (await isElectionOrPrimaryActive())
-        throw new Error("Coalition changes are frozen during active elections");
-
-      const [memberCount] = await tx
-        .select({ count: sql<number>`count(*)::int` })
-        .from(coalitionMembers)
-        .where(eq(coalitionMembers.coalitionId, proposal.coalitionId));
-      const totalMembers = memberCount?.count ?? 0;
-      const [tally] = await tx
-        .select({
-          yes: sql<number>`count(distinct ${coalitionVotes.voterPartyId}) filter (where ${coalitionVotes.vote} = true)::int`,
-          no: sql<number>`count(distinct ${coalitionVotes.voterPartyId}) filter (where ${coalitionVotes.vote} = false)::int`,
-        })
-        .from(coalitionVotes)
-        .innerJoin(
-          coalitionMembers,
-          and(
-            eq(coalitionMembers.partyId, coalitionVotes.voterPartyId),
-            eq(coalitionMembers.coalitionId, proposal.coalitionId),
-          ),
-        )
-        .where(eq(coalitionVotes.proposalId, proposal.id));
-      const yes = tally?.yes ?? 0;
-      const no = tally?.no ?? 0;
-      const decision = decideCoalitionVote(totalMembers, yes, no);
-      if (decision === "pending")
-        throw new Error("The coalition vote is still in progress");
-      const approved = decision === "approved";
-
-      await tx
-        .update(coalitionProposals)
-        .set({
-          status: approved ? "approved" : "rejected",
-          resolvedAt: new Date(),
-        })
-        .where(eq(coalitionProposals.id, proposal.id));
-
-      if (
-        approved &&
-        proposal.proposalType === "join_request" &&
-        proposal.targetId
-      ) {
-        const [request] = await tx
-          .select()
-          .from(joinRequests)
-          .where(
-            and(
-              eq(joinRequests.partyId, proposal.targetId),
-              eq(joinRequests.coalitionId, proposal.coalitionId),
-              eq(joinRequests.status, "Pending"),
-            ),
-          )
-          .limit(1);
-        if (!request) throw new Error("The join request is no longer pending");
-        await tx.execute(
-          sql`select pg_advisory_xact_lock(${proposal.targetId})`,
-        );
-        const [alreadyIn] = await tx
-          .select({ coalitionId: coalitionMembers.coalitionId })
-          .from(coalitionMembers)
-          .where(eq(coalitionMembers.partyId, proposal.targetId))
-          .limit(1);
-        if (alreadyIn)
-          throw new Error("The requested party already joined a coalition");
-        await tx.insert(coalitionMembers).values({
-          coalitionId: proposal.coalitionId,
-          partyId: proposal.targetId,
-        });
-        await tx
-          .update(joinRequests)
-          .set({ status: "Accepted" })
-          .where(eq(joinRequests.id, request.id));
-        await tx
-          .update(joinRequests)
-          .set({ status: "Declined" })
-          .where(
-            and(
-              eq(joinRequests.partyId, proposal.targetId),
-              eq(joinRequests.status, "Pending"),
-              sql`${joinRequests.id} != ${request.id}`,
-            ),
-          );
-      }
-
-      if (approved && proposal.proposalType === "leave" && proposal.targetId) {
-        await leaveCoalitionMembership(
-          tx,
-          proposal.coalitionId,
-          proposal.targetId,
-          proposal.proposerUserId,
-        );
-      }
-
-      if (approved && proposal.proposalType === "edit") {
-        const p = coalitionEditSchema.parse(proposal.payload);
-        await tx
-          .update(coalitions)
-          .set({
-            name: p.name,
-            color: p.color,
-            bio: p.bio,
-            logo: p.logo,
-            discord: p.discord,
-          })
-          .where(eq(coalitions.id, proposal.coalitionId));
-      }
-
-      if (
-        !approved &&
-        proposal.proposalType === "join_request" &&
-        proposal.targetId
-      ) {
-        await tx
-          .update(joinRequests)
-          .set({ status: "Declined" })
-          .where(
-            and(
-              eq(joinRequests.partyId, proposal.targetId),
-              eq(joinRequests.coalitionId, proposal.coalitionId),
-              eq(joinRequests.status, "Pending"),
-            ),
-          );
-      }
-
-      await tx.insert(feed).values({
-        userId: user.id,
-        content: approved
-          ? `resolved coalition #${proposal.coalitionId} proposal #${proposal.id}: approved`
-          : `resolved coalition #${proposal.coalitionId} proposal #${proposal.id}: rejected`,
-      });
-
-      return { approved };
-    });
   });
