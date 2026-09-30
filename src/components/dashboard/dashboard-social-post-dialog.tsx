@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -227,7 +227,7 @@ export function DashboardSocialPostDialog({
                 <X className="size-4" />
               </Button>
             )}
-            <ReferenceInsert
+            <MarkdownToolbar
               textareaId="dashboard-social-post"
               value={content}
               onChange={setContent}

@@ -20,7 +20,7 @@ import {
   WikiPage,
   WikiSection,
 } from "@/components/wiki/wiki-layout";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 
 export const Route = createFileRoute("/dashboard/parties/coalitions/create")({
   loader: async () => {
@@ -252,7 +252,7 @@ function CreateCoalitionPage() {
                     >
                       Description
                     </Label>
-                    <ReferenceInsert
+                    <MarkdownToolbar
                       textareaId={field.name}
                       value={field.state.value}
                       onChange={field.handleChange}

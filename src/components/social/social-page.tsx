@@ -22,7 +22,7 @@ import { WikiPage } from "@/components/wiki/wiki-layout";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { officeArtwork } from "@/lib/masthead-artwork";
 import { SocialAccountAvatar } from "@/components/social/social-account-avatar";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
 import { createSocialPost, getSocialFeed } from "@/lib/server/social/social";
 import { searchDiscussionBills } from "@/lib/server/bills/bill-comments";
@@ -359,7 +359,7 @@ export function SocialContent({
                         <X className="size-4" />
                       </Button>
                     )}
-                    <ReferenceInsert
+                    <MarkdownToolbar
                       textareaId="social-post"
                       value={content}
                       onChange={setContent}

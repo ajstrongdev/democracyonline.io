@@ -44,7 +44,11 @@ export function BillVoteIndication({
       <p className="text-sm">
         Indicate your vote before this bill enters the {stage} stage. You can
         change it until then; if you still hold this office when the stage
-        opens, it will be recorded automatically.
+        opens, it will be recorded automatically. Your vote will remain secret
+        until the end of{" "}
+        {stage === "Presidential"
+          ? "the presidential voting period."
+          : "the voting period in your chamber."}
       </p>
       {voteYes !== null && (
         <p className="font-semibold">

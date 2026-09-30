@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 import { createBill } from "@/lib/server/bills/bills";
 import { dashboardComposeEvent } from "@/lib/dashboard-commands";
 
@@ -108,7 +108,7 @@ export function NewBillDialog({
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor="new-bill-content">Official text</Label>
-              <ReferenceInsert
+              <MarkdownToolbar
                 textareaId="new-bill-content"
                 value={content}
                 onChange={setContent}

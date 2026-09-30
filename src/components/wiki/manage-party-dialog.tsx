@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { leanings } from "@/lib/constants";
 import { updateParty } from "@/lib/server/organizations/party";
 import { icons } from "@/lib/utils/logo-helper";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 
 type ManagedParty = {
   id: number;
@@ -100,7 +100,7 @@ export function ManagePartyDialog({ party }: { party: ManagedParty }) {
           <div className="space-y-2 sm:col-span-2">
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor="manage-party-bio">Biography</Label>
-              <ReferenceInsert
+              <MarkdownToolbar
                 textareaId="manage-party-bio"
                 value={bio}
                 onChange={setBio}
