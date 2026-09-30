@@ -16,6 +16,7 @@ import { describeGameSpeed } from "@/lib/game-speed";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserList from "@/components/admin/user-list";
 import DBUserList from "@/components/admin/db-user-list";
+import { BillStageControl } from "@/components/admin/bill-stage-control";
 import GenericSkeleton from "@/components/generic-skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -529,6 +530,7 @@ export function AdminContent() {
             })}
           </div>
         </div>
+        <BillStageControl />
       </section>
 
       <AlertDialog

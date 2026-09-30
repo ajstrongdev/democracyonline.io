@@ -278,7 +278,12 @@ export const getUserVotingHistory = createServerFn()
       })
       .from(billVotesHouse)
       .innerJoin(bills, eq(billVotesHouse.billId, bills.id))
-      .where(eq(billVotesHouse.voterId, data.userId));
+      .where(
+        and(
+          eq(billVotesHouse.voterId, data.userId),
+          sql`not (${bills.status} = 'Voting' and ${bills.stage} = 'House')`,
+        ),
+      );
 
     // Get senate votes
     const senateVotes = await db
@@ -292,7 +297,12 @@ export const getUserVotingHistory = createServerFn()
       })
       .from(billVotesSenate)
       .innerJoin(bills, eq(billVotesSenate.billId, bills.id))
-      .where(eq(billVotesSenate.voterId, data.userId));
+      .where(
+        and(
+          eq(billVotesSenate.voterId, data.userId),
+          sql`not (${bills.status} = 'Voting' and ${bills.stage} = 'Senate')`,
+        ),
+      );
 
     // Get presidential votes
     const presidentialVotes = await db
@@ -306,7 +316,12 @@ export const getUserVotingHistory = createServerFn()
       })
       .from(billVotesPresidential)
       .innerJoin(bills, eq(billVotesPresidential.billId, bills.id))
-      .where(eq(billVotesPresidential.voterId, data.userId));
+      .where(
+        and(
+          eq(billVotesPresidential.voterId, data.userId),
+          sql`not (${bills.status} = 'Voting' and ${bills.stage} = 'Presidential')`,
+        ),
+      );
 
     // Combine all votes and sort by ID
     const allVotes = [...houseVotes, ...senateVotes, ...presidentialVotes].sort(

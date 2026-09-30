@@ -82,6 +82,7 @@ export function DashboardContent({
     pendingBillVotes,
     pendingCommitteeAssessments,
     pendingBillGuidance,
+    partyFormationInvites,
     pendingCoalitionProposals,
     primaryActions,
     zMentionSummary,
@@ -97,6 +98,7 @@ export function DashboardContent({
     pendingBillVotes.length +
     pendingCommitteeAssessments.length +
     pendingBillGuidance.length +
+    partyFormationInvites.length +
     pendingCoalitionProposals.length +
     Number(primaryActions.stand) +
     Number(primaryActions.withdraw) +
@@ -117,7 +119,10 @@ export function DashboardContent({
     const latest = activity.slice(0, 6);
     const visible = new Set(latest.map((item) => item.id));
     // Refresh changed records without collapsing pages the reader already opened.
-    setActivityItems((current) => [...latest, ...current.filter((item) => !visible.has(item.id))]);
+    setActivityItems((current) => [
+      ...latest,
+      ...current.filter((item) => !visible.has(item.id)),
+    ]);
   }, [activity]);
 
   const loadMoreActivity = async () => {
@@ -130,7 +135,10 @@ export function DashboardContent({
       });
       setActivityItems((current) => {
         const visible = new Set(current.map((item) => item.id));
-        return [...current, ...next.slice(0, 6).filter((item) => !visible.has(item.id))];
+        return [
+          ...current,
+          ...next.slice(0, 6).filter((item) => !visible.has(item.id)),
+        ];
       });
       setHasMoreActivity(next.length > 6);
     } catch {
@@ -154,7 +162,13 @@ export function DashboardContent({
       <WikiHeader
         artwork={officeArtwork(currentUser?.role)}
         office={featuredOffice(currentUser?.role)}
-        eyebrow={currentUser?.role === "President" ? "Office of the President" : currentUser?.role === "Senator" ? "The Senate" : undefined}
+        eyebrow={
+          currentUser?.role === "President"
+            ? "Office of the President"
+            : currentUser?.role === "Senator"
+              ? "The Senate"
+              : undefined
+        }
         title={
           currentUser
             ? `Welcome back, ${formatGreetingRole(currentUser.role)} ${currentUser.username}`
@@ -240,6 +254,20 @@ export function DashboardContent({
                     </Button>
                   </div>
                 )}
+                {partyFormationInvites.map((invite) => (
+                  <div
+                    key={`formation-${invite.id}`}
+                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-4"
+                  >
+                    <span className="font-semibold">
+                      {invite.founder} invited you to found {invite.name} as{" "}
+                      {invite.office}
+                    </span>
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/dashboard/parties">Respond to invitation</Link>
+                    </Button>
+                  </div>
+                ))}
                 {primaryActions.stand && (
                   <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
                     <span className="space-y-1">
@@ -364,6 +392,7 @@ export function DashboardContent({
                       title={bill.title}
                       stage={bill.stage}
                       userId={currentUser.id}
+                      enforcedPosition={bill.enforcedPosition}
                     />
                   </div>
                 ))}
@@ -405,9 +434,15 @@ export function DashboardContent({
                     <div className="flex min-w-0 gap-3">
                       <Megaphone className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                       <div className="min-w-0">
-                        <p className="font-semibold">Issue voting guidance for {bill.title}</p>
+                        <p className="font-semibold">
+                          Issue voting guidance for {bill.title}
+                        </p>
                         <p className="text-sm text-muted-foreground">
-                          Recommend a vote to your party during the {bill.stage === "Presidential" ? "presidential" : bill.stage} stage.
+                          Recommend a vote to your party during the{" "}
+                          {bill.stage === "Presidential"
+                            ? "presidential"
+                            : bill.stage}{" "}
+                          stage.
                         </p>
                         <DashboardActionDeadline
                           deadline={bill.stageEndsAt}
@@ -416,7 +451,8 @@ export function DashboardContent({
                       </div>
                     </div>
                     <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
-                      Issue guidance <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      Issue guidance{" "}
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </span>
                   </Link>
                 ))}
@@ -504,43 +540,43 @@ export function DashboardContent({
         </WikiSection>
       )}
 
-      {currentUser && <WikiSection
-        title="Take initiative"
-        icon={Users}
-        description="Start something new, or invite another player into the game."
-      >
-        {currentUser?.active && (
-          <section className="mb-5" aria-labelledby="take-initiative-heading">
-            <h3
-              id="take-initiative-heading"
-              className="sr-only"
-            >
-              Take initiative
-            </h3>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <NewBillDialog
-                userId={currentUser.id}
-                dashboardCommand
-                trigger={
-                  <button
-                    type="button"
-                    className="group flex min-h-[4.5rem] min-w-0 items-center gap-3 rounded-lg border bg-card px-3 py-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/30 sm:px-4"
-                  >
-                    <ScrollText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold">Draft a bill</span>
-                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                        Submit a proposal to the Senate Committee.
+      {currentUser && (
+        <WikiSection
+          title="Take initiative"
+          icon={Users}
+          description="Start something new, or invite another player into the game."
+        >
+          {currentUser?.active && (
+            <section className="mb-5" aria-labelledby="take-initiative-heading">
+              <h3 id="take-initiative-heading" className="sr-only">
+                Take initiative
+              </h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <NewBillDialog
+                  userId={currentUser.id}
+                  dashboardCommand
+                  trigger={
+                    <button
+                      type="button"
+                      className="group flex min-h-[4.5rem] min-w-0 items-center gap-3 rounded-lg border bg-card px-3 py-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/30 sm:px-4"
+                    >
+                      <ScrollText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold">
+                          Draft a bill
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                          Submit a proposal to the Senate Committee.
+                        </span>
                       </span>
-                    </span>
-                    <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
-                  </button>
-                }
-              />
-              <DashboardSocialPostDialog user={currentUser} />
-            </div>
-          </section>
-        )}
+                      <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 group-hover:text-primary" />
+                    </button>
+                  }
+                />
+                <DashboardSocialPostDialog user={currentUser} />
+              </div>
+            </section>
+          )}
 
           {currentUser && (
             <div className="mt-3 flex flex-wrap justify-end gap-1">
@@ -577,7 +613,8 @@ export function DashboardContent({
               initialTab="invites"
             />
           )}
-      </WikiSection>}
+        </WikiSection>
+      )}
 
       <div
         className={
@@ -613,7 +650,10 @@ export function DashboardContent({
                     #{bill.id} {bill.title}
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {billStatusLabel(bill.status)} · {bill.stage === "Committee" ? "Senate Committee" : bill.stage}
+                    {billStatusLabel(bill.status)} ·{" "}
+                    {bill.stage === "Committee"
+                      ? "Senate Committee"
+                      : bill.stage}
                   </span>
                 </Link>
               ))}

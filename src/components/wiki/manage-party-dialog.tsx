@@ -72,8 +72,8 @@ export function ManagePartyDialog({ party }: { party: ManagedParty }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="link" className="h-auto p-0">
-          Manage <Pencil className="h-3.5 w-3.5" />
+        <Button variant="outline" size="sm" className="gap-2">
+          <Pencil className="size-3.5" /> Edit party details
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[92svh] overflow-y-auto rounded-sm sm:max-w-2xl">
@@ -155,7 +155,9 @@ export function ManagePartyDialog({ party }: { party: ManagedParty }) {
               onChange={(event) => setDiscord(event.target.value)}
               placeholder="https://discord.gg/…"
             />
-            <p className="text-xs text-muted-foreground">Shown as a join link on the party wiki card.</p>
+            <p className="text-xs text-muted-foreground">
+              Shown as a join link on the party wiki card.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="manage-party-logo">Logo</Label>

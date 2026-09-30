@@ -16,7 +16,10 @@ import {
   UpdateBillsSchema,
 } from "@/lib/schemas/bills-schema";
 import { requireAuthMiddleware } from "@/middleware/auth";
-import { getBillStageDurationMs, getGameSpeed } from "@/lib/server/scheduler/game-speed";
+import {
+  getBillStageDurationMs,
+  getGameSpeed,
+} from "@/lib/server/scheduler/game-speed";
 import { userEmailEquals } from "@/lib/server/auth/user-email";
 
 // Types
@@ -150,6 +153,12 @@ export const getBillVotes = createServerFn()
     }),
   )
   .handler(async ({ data }) => {
+    const [bill] = await db
+      .select({ status: bills.status, stage: bills.stage })
+      .from(bills)
+      .where(eq(bills.id, data.id));
+    if (bill?.status === "Voting" && bill.stage.toLowerCase() === data.stage)
+      return { count: { yes: 0, no: 0 } };
     const table =
       data.stage === "house"
         ? billVotesHouse
@@ -174,6 +183,12 @@ export const getBillVotes = createServerFn()
 export const getBillVoters = createServerFn()
   .inputValidator((data: { id: number; stage: BillStages }) => data)
   .handler(async ({ data }) => {
+    const [bill] = await db
+      .select({ status: bills.status, stage: bills.stage })
+      .from(bills)
+      .where(eq(bills.id, data.id));
+    if (bill?.status === "Voting" && bill.stage.toLowerCase() === data.stage)
+      return [];
     const table =
       data.stage === "house"
         ? billVotesHouse

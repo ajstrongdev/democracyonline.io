@@ -22,6 +22,7 @@ import { getPrimariesData } from "@/lib/server/organizations/primaries";
 import { primaryNextMoves } from "@/lib/dashboard/action-eligibility";
 import { officeVotingConfig } from "@/lib/server/dashboard/office-votes";
 import { getPendingBillGuidance } from "@/lib/server/bills/pending-guidance";
+import { getPartyFormationInvites } from "@/lib/server/organizations/party";
 
 export const getDashboardData = createServerFn()
   .middleware([authMiddleware])
@@ -81,6 +82,7 @@ export const getDashboardData = createServerFn()
         pendingBillVotes: [],
         pendingCommitteeAssessments: [],
         pendingBillGuidance: [],
+        partyFormationInvites: [],
         primaryActions: {
           stand: false,
           withdraw: false,
@@ -116,6 +118,8 @@ export const getDashboardData = createServerFn()
         partyName: parties.name,
         partyColor: parties.color,
         partyLeaderId: parties.leaderId,
+        partyChiefWhipId: parties.chiefWhipId,
+        partySocialMediaOfficerId: parties.socialMediaOfficerId,
         partyArchivedAt: parties.archivedAt,
       })
       .from(users)
@@ -129,6 +133,7 @@ export const getDashboardData = createServerFn()
         pendingBillVotes: [],
         pendingCommitteeAssessments: [],
         pendingBillGuidance: [],
+        partyFormationInvites: [],
         primaryActions: {
           stand: false,
           withdraw: false,
@@ -152,13 +157,22 @@ export const getDashboardData = createServerFn()
       };
     }
 
-    const [zMentionSummary, primary] = await Promise.all([
-      getZNotificationPage({ data: { limit: 5, offset: 0 } }),
-      currentUser.partyId && currentUser.active
-        ? getPrimariesData()
-        : Promise.resolve(null),
-    ]);
-    const primaryActions = primaryNextMoves(primary, currentUser, electionDashboard);
+    const [zMentionSummary, primary, partyFormationInvites] = await Promise.all(
+      [
+        getZNotificationPage({ data: { limit: 5, offset: 0 } }),
+        currentUser.partyId && currentUser.active
+          ? getPrimariesData()
+          : Promise.resolve(null),
+        getPartyFormationInvites().then((rows) =>
+          rows.filter((row) => row.status === "pending"),
+        ),
+      ],
+    );
+    const primaryActions = primaryNextMoves(
+      primary,
+      currentUser,
+      electionDashboard,
+    );
     const config =
       officeVotingConfig[currentUser.role as keyof typeof officeVotingConfig];
     const [
@@ -173,6 +187,9 @@ export const getDashboardData = createServerFn()
               id: bills.id,
               title: bills.title,
               stageEndsAt: bills.stageEndsAt,
+              enforcedPosition: sql<
+                string | null
+              >`(select position from bill_party_whips where bill_id = ${bills.id} and party_id = ${currentUser.partyId} and enforced_at is not null limit 1)`,
             })
             .from(bills)
             .where(
@@ -243,6 +260,7 @@ export const getDashboardData = createServerFn()
       })),
       pendingCommitteeAssessments,
       pendingBillGuidance,
+      partyFormationInvites,
       pendingCoalitionProposals,
       primaryActions,
       zMentionSummary,

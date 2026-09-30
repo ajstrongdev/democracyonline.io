@@ -141,6 +141,13 @@ function PlayerGuide() {
               bill page shows its text, current status, discussion, party
               guidance, and recorded votes.
             </p>
+            <p className="text-muted-foreground">
+              If you hold the office for a future chamber, you can indicate your
+              vote on the bill page before it reaches that chamber. You can
+              change the indication until it opens. Your vote is then cast
+              automatically if you still hold the office. Check for an enforced
+              party whip first: an opposing vote will eject you from your party.
+            </p>
             <GuideLink to="/dashboard/bills" icon={ScrollText}>
               Browse bills and open the bill desk
             </GuideLink>
@@ -200,9 +207,31 @@ function PlayerGuide() {
           <div className="space-y-4 text-sm leading-6">
             <p>
               Explore a party's platform, membership, and history before
-              deciding whether it is a fit. Party leaders can set non-binding
-              voting guidance on bills during the voting stage and post from the
-              party's Z.com account. Members still cast their own votes.
+              deciding whether it is a fit. To form a new party, start a
+              pressure group. It appears as a small listing on the parties page,
+              where other independent players can open its page and join. All
+              members remain Independent until a third player joins; then it
+              becomes a party automatically. Pressure groups do not have party
+              social media or officer powers. The founder becomes Party Leader
+              and can appoint officers after formation. If a party falls below
+              three members, it becomes a pressure group again on the next
+              scheduled check; its remaining members become Independents until a
+              third player joins. A party with no members is archived instead.
+            </p>
+            <p>
+              Joining an existing party requires a request approved by its
+              leader. Approval transfers you from any current party or pressure
+              group. The Party Leader can approve or decline requests, expel
+              members, and appoint or dismiss a Chief Whip and Social Media
+              Officer, but cannot use either officer's powers. The Chief Whip
+              issues non-binding voting guidance and may enforce a binding whip
+              on one bill per 24 hours. You may abstain or change your vote
+              before a chamber closes; a final vote against an enforced party
+              line ejects you at stage close. Voting choices remain hidden until
+              each stage concludes. The Social Media Officer manages the party's
+              Z.com account. A member can launch one leadership bid at a time;
+              if current members equal to at least half the party membership at
+              launch support it, the challenger immediately becomes leader.
             </p>
             <p>
               Parties can also work together in coalitions. If you lead a party,

@@ -421,6 +421,41 @@
       "when": 1790611200000,
       "tag": "0059_game_change_notices",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1790611200001,
+      "tag": "0060_party_leadership",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1790611200002,
+      "tag": "0061_pressure_groups",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1790611200003,
+      "tag": "0062_party_governance",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790611200004,
+      "tag": "0063_remove_party_newspaper",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790611200005,
+      "tag": "0064_pressure_group_party_return",
+      "breakpoints": true
     }
   ]
 }

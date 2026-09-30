@@ -2,7 +2,11 @@ import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import type { CommentNode } from "@/lib/social-comment-tree";
 import { useAuth } from "@/lib/auth-context";
-import { addBillComment, saveBillWhip } from "@/lib/server/bills/bill-comments";
+import {
+  addBillComment,
+  enforceBillWhip,
+  saveBillWhip,
+} from "@/lib/server/bills/bill-comments";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +38,7 @@ type PartyWhip = {
   position: string;
   note: string | null;
   updatedAt: Date;
+  enforcedAt: Date | null;
 };
 
 export function BillComments({
@@ -41,7 +46,7 @@ export function BillComments({
   comments,
   whips,
   currentPartyId,
-  isLeader,
+  isChiefWhip,
   canWhip,
   isVoting,
 }: {
@@ -49,7 +54,7 @@ export function BillComments({
   comments: Array<BillComment>;
   whips: Array<PartyWhip>;
   currentPartyId: number | null;
-  isLeader: boolean;
+  isChiefWhip: boolean;
   canWhip: boolean;
   isVoting: boolean;
 }) {
@@ -65,6 +70,7 @@ export function BillComments({
   const [whipNote, setWhipNote] = useState(currentWhip?.note ?? "");
   const [whipError, setWhipError] = useState<string | null>(null);
   const [savingWhip, setSavingWhip] = useState(false);
+  const [enforcing, setEnforcing] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -106,7 +112,7 @@ export function BillComments({
       <div id="party-guidance" className="scroll-mt-6">
         <WikiSection
           title="Party voting guidance"
-          description="Party leaders can recommend a vote while this bill is in voting. Guidance is non-binding."
+          description="The Chief Whip can recommend a vote while voting is open. They can enforce one bill every 24 hours; members whose final vote at stage close opposes an enforced whip are ejected. Abstention is allowed."
         >
           {whips.length ? (
             <div className="space-y-3">
@@ -132,6 +138,12 @@ export function BillComments({
                     <span className="text-xs text-muted-foreground">
                       Guidance from {whip.leaderUsername ?? "party leadership"}
                     </span>
+                    {whip.enforcedAt && (
+                      <Badge variant="destructive">
+                        ENFORCED — a final vote against this position at stage
+                        close ejects party members
+                      </Badge>
+                    )}
                   </div>
                   {whip.note && (
                     <div className="mt-2">
@@ -178,6 +190,16 @@ export function BillComments({
                   ))}
                 </div>
               </fieldset>
+              {currentWhip?.enforcedAt && (
+                <p
+                  role="alert"
+                  className="text-sm font-semibold text-destructive"
+                >
+                  Enforced whip: its direction cannot be changed. Members who
+                  have a final contrary vote when a stage closes will be
+                  ejected.
+                </p>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <label htmlFor="guidance-note" className="text-sm font-medium">
                   Reason (optional)
@@ -217,9 +239,51 @@ export function BillComments({
                   {whipError}
                 </p>
               )}
+              {currentWhip && !currentWhip.enforcedAt && (
+                <div className="rounded-lg border border-destructive p-3 space-y-2">
+                  <p className="font-semibold text-destructive">
+                    Enforce this whip
+                  </p>
+                  <p className="text-sm">
+                    You may enforce one bill per 24 hours. Any party member who
+                    has a final vote against this position when a stage closes
+                    is ejected. Existing voters can change their vote before the
+                    stage closes; abstaining has no penalty. The whip stays
+                    binding for this bill through later stages.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={enforcing}
+                    onClick={async () => {
+                      if (
+                        !window.confirm(
+                          "Enforce this whip for the entire bill? Members whose final vote opposes the party line when a stage closes will be ejected. Abstaining is allowed. This cannot be undone.",
+                        )
+                      )
+                        return;
+                      setEnforcing(true);
+                      try {
+                        await enforceBillWhip({ data: { billId } });
+                        await router.invalidate();
+                      } catch (cause) {
+                        setWhipError(
+                          cause instanceof Error
+                            ? cause.message
+                            : "Unable to enforce whip",
+                        );
+                      } finally {
+                        setEnforcing(false);
+                      }
+                    }}
+                  >
+                    {enforcing ? "Enforcing…" : "Enforce whip on this bill"}
+                  </Button>
+                </div>
+              )}
             </form>
           )}
-          {isLeader && !isVoting && (
+          {isChiefWhip && !isVoting && (
             <p className="mt-4 text-sm text-muted-foreground">
               You can issue or update guidance when this bill enters the Voting
               stage.
@@ -354,7 +418,11 @@ function BillCommentThread({
   return (
     <div
       className={
-        depth === 0 ? "border-t pt-4" : depth <= 3 ? "ml-3 border-l-2 pl-3 sm:ml-5 sm:pl-5" : "border-l-2 pl-2"
+        depth === 0
+          ? "border-t pt-4"
+          : depth <= 3
+            ? "ml-3 border-l-2 pl-3 sm:ml-5 sm:pl-5"
+            : "border-l-2 pl-2"
       }
     >
       <article id={`bill-comment-${comment.id}`} className="scroll-mt-6">

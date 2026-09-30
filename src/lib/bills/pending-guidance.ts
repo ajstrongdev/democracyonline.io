@@ -5,6 +5,7 @@ export type PartyLeader = {
   id: number;
   partyId: number | null;
   partyLeaderId: number | null;
+  partyChiefWhipId: number | null;
   partyArchivedAt: Date | null;
   active: boolean | null;
 };
@@ -13,7 +14,7 @@ export function canIssuePartyGuidance(player: PartyLeader) {
   return Boolean(
     player.active &&
     player.partyId &&
-    player.partyLeaderId === player.id &&
+    player.partyChiefWhipId === player.id &&
     player.partyArchivedAt === null,
   );
 }

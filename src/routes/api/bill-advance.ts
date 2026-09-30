@@ -7,14 +7,20 @@ import {
   billVotesPresidential,
   billVotesSenate,
   bills,
+  feed,
 } from "@/db/schema";
+import { applyPartyWhipToVote } from "@/lib/server/bills/party-whip-vote";
 import { archiveEmptyParties } from "@/lib/server/organizations/organization-lifecycle";
 import { env } from "@/env";
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { authorizeCronRequest } from "@/lib/server/scheduler/cron-auth";
 import { lockCommitteeOutcome } from "@/lib/server/bills/committee";
 import { applyPassedBillEffects } from "@/lib/server/bills/bill-effects";
-import { getBillStageDurationMs, getGameSpeed } from "@/lib/server/scheduler/game-speed";
+import { recordIndicatedVotes } from "@/lib/server/bills/vote-indications";
+import {
+  getBillStageDurationMs,
+  getGameSpeed,
+} from "@/lib/server/scheduler/game-speed";
 
 const oAuth2Client = new OAuth2Client();
 
@@ -76,6 +82,27 @@ export const Route = createFileRoute("/api/bill-advance")({
               };
             };
 
+            const settleWhips = async (
+              table:
+                | typeof billVotesHouse
+                | typeof billVotesSenate
+                | typeof billVotesPresidential,
+              billId: number,
+            ) => {
+              const votes = await tx
+                .select({ userId: table.voterId, voteYes: table.voteYes })
+                .from(table)
+                .where(eq(table.billId, billId));
+              for (const vote of votes)
+                if (vote.userId !== null)
+                  await applyPartyWhipToVote(
+                    tx,
+                    billId,
+                    vote.userId,
+                    vote.voteYes,
+                  );
+            };
+
             const presidential = await tx
               .select()
               .from(bills)
@@ -88,6 +115,7 @@ export const Route = createFileRoute("/api/bill-advance")({
               );
             for (const bill of presidential) {
               const result = await getResult(billVotesPresidential, bill.id);
+              await settleWhips(billVotesPresidential, bill.id);
               const status = result.yes > result.no ? "Passed" : "Defeated";
               await tx
                 .update(bills)
@@ -95,6 +123,11 @@ export const Route = createFileRoute("/api/bill-advance")({
                 .where(and(eq(bills.id, bill.id), eq(bills.status, "Voting")));
               if (status === "Passed")
                 await applyPassedBillEffects(tx, bill.id);
+              await tx
+                .insert(feed)
+                .values({
+                  content: `Bill #${bill.id}: ${bill.title} ${status === "Passed" ? "was signed into law" : "was defeated at the Presidential stage"}. Presidential vote: ${result.yes} for, ${result.no} against.`,
+                });
             }
 
             const senate = await tx
@@ -109,6 +142,7 @@ export const Route = createFileRoute("/api/bill-advance")({
               );
             for (const bill of senate) {
               const result = await getResult(billVotesSenate, bill.id);
+              await settleWhips(billVotesSenate, bill.id);
               await tx
                 .update(bills)
                 .set(
@@ -126,6 +160,13 @@ export const Route = createFileRoute("/api/bill-advance")({
                       },
                 )
                 .where(and(eq(bills.id, bill.id), eq(bills.status, "Voting")));
+              if (result.yes > result.no)
+                await recordIndicatedVotes(tx, bill.id, "Presidential");
+              await tx
+                .insert(feed)
+                .values({
+                  content: `Bill #${bill.id}: ${bill.title} ${result.yes > result.no ? "cleared the Senate and is now before the President" : "was defeated in the Senate"}. Senate vote: ${result.yes} for, ${result.no} against.`,
+                });
             }
 
             const house = await tx
@@ -140,6 +181,7 @@ export const Route = createFileRoute("/api/bill-advance")({
               );
             for (const bill of house) {
               const result = await getResult(billVotesHouse, bill.id);
+              await settleWhips(billVotesHouse, bill.id);
               await tx
                 .update(bills)
                 .set(
@@ -157,6 +199,13 @@ export const Route = createFileRoute("/api/bill-advance")({
                       },
                 )
                 .where(and(eq(bills.id, bill.id), eq(bills.status, "Voting")));
+              if (result.yes > result.no)
+                await recordIndicatedVotes(tx, bill.id, "Senate");
+              await tx
+                .insert(feed)
+                .values({
+                  content: `Bill #${bill.id}: ${bill.title} ${result.yes > result.no ? "cleared the House and is now in the Senate" : "was defeated in the House"}. House vote: ${result.yes} for, ${result.no} against.`,
+                });
             }
 
             const committeeBills = await tx
@@ -173,6 +222,12 @@ export const Route = createFileRoute("/api/bill-advance")({
               // lockCommitteeOutcome transitions Committee -> Voting and
               // starts the fresh 8h House voting window.
               await lockCommitteeOutcome(tx, bill.id, now, stageDurationMs);
+              const [opened] = await tx
+                .select({ status: bills.status })
+                .from(bills)
+                .where(eq(bills.id, bill.id));
+              if (opened?.status === "Voting")
+                await recordIndicatedVotes(tx, bill.id, "House");
             }
           });
 
