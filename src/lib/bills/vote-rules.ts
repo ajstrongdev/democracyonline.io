@@ -5,8 +5,12 @@ export function canIndicateVote(
   currentStage: string,
   targetStage: VotingStage,
 ) {
-  if (status === "Committee") return true;
-  if (status !== "Voting") return false;
+  if (
+    status === "Committee" ||
+    (status === "Queued" && currentStage === "Committee")
+  )
+    return true;
+  if (status !== "Voting" && status !== "Queued") return false;
   const stages: Array<VotingStage> = ["House", "Senate", "Presidential"];
   return (
     stages.indexOf(targetStage) > stages.indexOf(currentStage as VotingStage)

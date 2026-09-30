@@ -37,6 +37,7 @@ import {
 } from "@/lib/server/bills/bill-comments";
 import { getCurrentUserInfo } from "@/lib/server/users/users";
 import { reviveDefeatedBill } from "@/lib/server/bills/bills";
+import { canIndicateVote } from "@/lib/bills/vote-rules";
 import {
   Dialog,
   DialogContent,
@@ -137,19 +138,18 @@ function BillArticle() {
     (whip) => whip.partyId === partyGuidance.currentPartyId,
   );
   const enforcedPosition = myWhip?.enforcedAt ? myWhip.position : null;
-  const futureStage =
-    currentUser?.role === "Representative" && bill.status === "Committee"
+  const indicationStage =
+    currentUser?.role === "Representative"
       ? "House"
-      : currentUser?.role === "Senator" &&
-          (bill.status === "Committee" ||
-            (bill.status === "Voting" && bill.stage === "House"))
+      : currentUser?.role === "Senator"
         ? "Senate"
-        : currentUser?.role === "President" &&
-            (bill.status === "Committee" ||
-              (bill.status === "Voting" &&
-                (bill.stage === "House" || bill.stage === "Senate")))
+        : currentUser?.role === "President"
           ? "Presidential"
           : null;
+  const futureStage =
+    indicationStage && canIndicateVote(bill.status, bill.stage, indicationStage)
+      ? indicationStage
+      : null;
   const router = useRouter();
   const [reviveOpen, setReviveOpen] = useState(false);
   const [reviving, setReviving] = useState(false);
@@ -176,7 +176,7 @@ function BillArticle() {
     <WikiPage width="article">
       <WikiHeader
         artwork={
-          bill.status === "Committee"
+          bill.status === "Committee" || bill.stage === "Committee"
             ? "bills"
             : bill.stage === "House"
               ? "house"
@@ -257,7 +257,9 @@ function BillArticle() {
             {billStatusLabel(bill.status)}
           </WikiInfoboxRow>
           <WikiInfoboxRow label="Stage">
-            {bill.status === "Committee" ? "Senate Committee" : bill.stage}
+            {bill.stage === "Committee" || bill.status === "Committee"
+              ? "Senate Committee"
+              : bill.stage}
           </WikiInfoboxRow>
           <WikiInfoboxRow label="Stage ends">
             {bill.stageEndsAt ? (
@@ -270,6 +272,8 @@ function BillArticle() {
                   }
                 />
               </Badge>
+            ) : bill.status === "Queued" ? (
+              "Waiting for an open slot"
             ) : (
               "No active deadline"
             )}

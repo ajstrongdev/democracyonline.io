@@ -1,0 +1,34 @@
+[debug] [2026-09-30T11:53:06.990Z] ----------------------------------------------------------------------
+[debug] [2026-09-30T11:53:06.991Z] Command:       /home/aj/.nvm/versions/node/v26.10.0/bin/node /home/aj/Projects/democracyonline.io/node_modules/.pnpm/firebase-tools@15.31.0_@types+node@22.19.1/node_modules/firebase-tools/lib/bin/firebase.js emulators:start --only auth --project demo-oscana
+[debug] [2026-09-30T11:53:06.991Z] CLI Version:   15.31.0
+[debug] [2026-09-30T11:53:06.991Z] Platform:      linux
+[debug] [2026-09-30T11:53:06.991Z] Node Version:  v26.10.0
+[debug] [2026-09-30T11:53:06.991Z] Detected Agent: unknown
+[debug] [2026-09-30T11:53:06.991Z] Time:          Wed Sep 30 2026 12:53:06 GMT+0100 (British Summer Time)
+[debug] [2026-09-30T11:53:06.991Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-09-30T11:53:06.998Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[info] i  emulators: Starting emulators: auth {"metadata":{"emulator":{"name":"hub"},"message":"Starting emulators: auth"}}
+[info] i  emulators: Detected demo project ID "demo-oscana", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail. {"metadata":{"emulator":{"name":"hub"},"message":"Detected demo project ID \"demo-oscana\", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail."}}
+[debug] [2026-09-30T11:53:07.558Z] [logging] Logging Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-09-30T11:53:07.558Z] assigned listening specs for emulators {"user":{"auth":[{"address":"127.0.0.1","family":"IPv4","port":9099}],"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}]},"metadata":{"message":"assigned listening specs for emulators"}}
+[debug] [2026-09-30T11:53:07.560Z] Write emulator hub locator at /tmp/hub-demo-oscana.json
+[warn] ⚠  emulators: The Emulator UI is not starting because none of the running emulators have a UI component. {"metadata":{"emulator":{"name":"hub"},"message":"The Emulator UI is not starting because none of the running emulators have a UI component."}}
+[debug] [2026-09-30T11:53:10.162Z] Could not find VSCode notification endpoint: TypeError: fetch failed. If you are not running the Firebase SQL Connect VSCode extension, this is expected and not an issue.
+[info] 
+┌─────────────────────────────────────────────────────────────┐
+│ ✔  All emulators ready! It is now safe to connect your app. │
+└─────────────────────────────────────────────────────────────┘
+
+┌────────────────┬────────────────┐
+│ Emulator       │ Host:Port      │
+├────────────────┼────────────────┤
+│ Authentication │ 127.0.0.1:9099 │
+└────────────────┴────────────────┘
+  Emulator Hub host: 127.0.0.1 port: 4400
+  Other reserved ports: 4500
+
+Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
+ 
+[debug] [2026-09-30T11:53:10.444Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2026-09-30T11:53:10.444Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}

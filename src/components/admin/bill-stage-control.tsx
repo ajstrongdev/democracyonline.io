@@ -95,7 +95,7 @@ export function BillStageControl() {
   const currentStage =
     selected?.status === "Committee"
       ? "Committee"
-      : selected?.status === "Voting"
+      : selected?.status === "Voting" || selected?.status === "Queued"
         ? selected.stage
         : null;
 
@@ -145,7 +145,9 @@ export function BillStageControl() {
             {results.map((bill) => (
               <option key={bill.id} value={bill.id}>
                 #{bill.id} · {bill.title} ({bill.status}
-                {bill.status === "Committee" || bill.status === "Voting"
+                {bill.status === "Committee" ||
+                bill.status === "Voting" ||
+                bill.status === "Queued"
                   ? ` / ${bill.stage}`
                   : ""}
                 )
@@ -180,7 +182,9 @@ export function BillStageControl() {
       {selected && (
         <p className="mt-3 text-sm text-muted-foreground">
           Currently: {selected.status}
-          {selected.status === "Committee" || selected.status === "Voting"
+          {selected.status === "Committee" ||
+          selected.status === "Voting" ||
+          selected.status === "Queued"
             ? ` / ${selected.stage}`
             : ""}
           {selected.nationEffectsAppliedAt

@@ -5,6 +5,9 @@ describe("advance vote indications", () => {
   it("allows future chambers but never the open or completed stage", () => {
     expect(canIndicateVote("Committee", "House", "House")).toBe(true);
     expect(canIndicateVote("Committee", "House", "Presidential")).toBe(true);
+    expect(canIndicateVote("Queued", "Committee", "House")).toBe(true);
+    expect(canIndicateVote("Queued", "Senate", "Senate")).toBe(false);
+    expect(canIndicateVote("Queued", "Senate", "Presidential")).toBe(true);
     expect(canIndicateVote("Voting", "House", "Senate")).toBe(true);
     expect(canIndicateVote("Voting", "Senate", "Senate")).toBe(false);
     expect(canIndicateVote("Voting", "Presidential", "House")).toBe(false);

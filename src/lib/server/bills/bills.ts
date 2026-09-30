@@ -21,6 +21,10 @@ import {
   getGameSpeed,
 } from "@/lib/server/scheduler/game-speed";
 import { userEmailEquals } from "@/lib/server/auth/user-email";
+import {
+  fillBillStageQueues,
+  lockBillStages,
+} from "@/lib/server/bills/stage-queue";
 
 // Types
 type BillStages = "house" | "senate" | "presidential";
@@ -287,16 +291,21 @@ export const reviveDefeatedBill = createServerFn({ method: "POST" })
       (await getGameSpeed()).multiplier,
     );
     return db.transaction(async (tx) => {
+      await lockBillStages(tx);
+      const now = new Date();
       const [revived] = await tx
         .insert(bills)
         .values({
           title: source.title,
           content: source.content,
           creatorId: actor.id,
-          stageStartedAt: new Date(),
-          stageEndsAt: new Date(Date.now() + stageDurationMs),
+          status: "Queued",
+          stage: "Committee",
+          stageStartedAt: now,
+          stageEndsAt: null,
         })
         .returning({ id: bills.id });
+      await fillBillStageQueues(tx, now, stageDurationMs);
       await tx.insert(feed).values({
         userId: actor.id,
         content: `Resubmitted defeated Bill #${data.billId} as Bill #${revived.id}: ${source.title}`,
@@ -321,16 +330,21 @@ export const createBill = createServerFn()
       (await getGameSpeed()).multiplier,
     );
     return db.transaction(async (tx) => {
+      await lockBillStages(tx);
+      const now = new Date();
       const result = await tx
         .insert(bills)
         .values({
           title: data.title,
           content: data.content,
           creatorId: data.creatorId,
-          stageStartedAt: new Date(),
-          stageEndsAt: new Date(Date.now() + stageDurationMs),
+          status: "Queued",
+          stage: "Committee",
+          stageStartedAt: now,
+          stageEndsAt: null,
         })
         .returning({ id: bills.id });
+      await fillBillStageQueues(tx, now, stageDurationMs);
       await tx.insert(feed).values({
         userId: data.creatorId,
         content: `Created a new bill: "Bill #${result[0].id}: ${data.title}"`,

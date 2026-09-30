@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { desc, eq, ilike, or, sql } from "drizzle-orm";
+import { desc, eq, ilike, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
@@ -17,6 +17,10 @@ import { userEmailEquals } from "@/lib/server/auth/user-email";
 import { isAdminEmail } from "@/lib/server/admin/admin";
 import { lockCommitteeOutcome } from "@/lib/server/bills/committee";
 import { recordIndicatedVotes } from "@/lib/server/bills/vote-indications";
+import {
+  fillBillStageQueues,
+  lockBillStages,
+} from "@/lib/server/bills/stage-queue";
 import { authMiddleware } from "@/middleware/auth";
 
 export const searchAdminBills = createServerFn()
@@ -66,7 +70,7 @@ export const setAdminBillStage = createServerFn({ method: "POST" })
     );
     return db.transaction(async (tx) => {
       // Matches the scheduler and vote writers: do not race a stage close.
-      await tx.execute(sql`select pg_advisory_xact_lock(24092026)`);
+      await lockBillStages(tx);
       const [actor] = await tx
         .select({ id: users.id })
         .from(users)
@@ -84,9 +88,12 @@ export const setAdminBillStage = createServerFn({ method: "POST" })
         .where(eq(bills.id, data.billId))
         .for("update");
       if (!bill) throw new Error("Bill not found");
-      const status = data.stage === "Committee" ? "Committee" : "Voting";
-      const stage = data.stage === "Committee" ? "House" : data.stage;
-      if (bill.status === status && bill.stage === stage)
+      const stage = data.stage;
+      if (
+        (bill.status === "Committee" && stage === "Committee") ||
+        (bill.status === "Voting" && bill.stage === stage) ||
+        (bill.status === "Queued" && bill.stage === stage)
+      )
         throw new Error("Bill is already at that stage");
       const now = new Date();
       if (data.stage === "Committee") {
@@ -104,27 +111,37 @@ export const setAdminBillStage = createServerFn({ method: "POST" })
       await tx
         .update(bills)
         .set({
-          status,
+          status: "Queued",
           stage,
           stageStartedAt: now,
-          stageEndsAt: new Date(now.getTime() + stageDurationMs),
+          stageEndsAt: null,
           ...(data.stage === "Committee"
             ? { committeeClosedAt: null, committeeParticipantCount: null }
             : {}),
         })
         .where(eq(bills.id, bill.id));
-      if (data.stage !== "Committee")
-        await recordIndicatedVotes(tx, bill.id, data.stage);
+      const admitted = await fillBillStageQueues(tx, now, stageDurationMs);
+      for (const opened of admitted)
+        if (opened.stage !== "Committee")
+          await recordIndicatedVotes(tx, opened.id, opened.stage);
       await tx.insert(moderationAuditLog).values({
         actorUserId: actor.id,
         action: "admin_bill_stage",
-        reason: `Bill #${bill.id} ${bill.status}/${bill.stage} → ${status}/${stage}; recorded votes retained; enacted effects ${bill.nationEffectsAppliedAt ? "retained" : "not applied"}`,
+        reason: `Bill #${bill.id} ${bill.status}/${bill.stage} → Queued/${stage}; recorded votes retained; enacted effects ${bill.nationEffectsAppliedAt ? "retained" : "not applied"}`,
       });
       return {
         id: bill.id,
         title: bill.title,
-        stage,
-        status,
+        stage:
+          stage === "Committee" &&
+          admitted.some((opened) => opened.id === bill.id)
+            ? "House"
+            : stage,
+        status: admitted.some((opened) => opened.id === bill.id)
+          ? stage === "Committee"
+            ? "Committee"
+            : "Voting"
+          : "Queued",
         nationEffectsAppliedAt: bill.nationEffectsAppliedAt,
       };
     });

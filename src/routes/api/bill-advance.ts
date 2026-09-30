@@ -18,15 +18,15 @@ import { lockCommitteeOutcome } from "@/lib/server/bills/committee";
 import { applyPassedBillEffects } from "@/lib/server/bills/bill-effects";
 import { recordIndicatedVotes } from "@/lib/server/bills/vote-indications";
 import {
+  fillBillStageQueues,
+  lockBillStages,
+} from "@/lib/server/bills/stage-queue";
+import {
   getBillStageDurationMs,
   getGameSpeed,
 } from "@/lib/server/scheduler/game-speed";
 
 const oAuth2Client = new OAuth2Client();
-
-function nextStageDeadline(now: Date, stageDurationMs: number) {
-  return new Date(now.getTime() + stageDurationMs);
-}
 
 export const Route = createFileRoute("/api/bill-advance")({
   server: {
@@ -58,7 +58,7 @@ export const Route = createFileRoute("/api/bill-advance")({
             (await getGameSpeed()).multiplier,
           );
           await db.transaction(async (tx) => {
-            await tx.execute(sql`select pg_advisory_xact_lock(24092026)`);
+            await lockBillStages(tx);
             const now = new Date();
 
             const getResult = async (
@@ -123,11 +123,9 @@ export const Route = createFileRoute("/api/bill-advance")({
                 .where(and(eq(bills.id, bill.id), eq(bills.status, "Voting")));
               if (status === "Passed")
                 await applyPassedBillEffects(tx, bill.id);
-              await tx
-                .insert(feed)
-                .values({
-                  content: `Bill #${bill.id}: ${bill.title} ${status === "Passed" ? "was signed into law" : "was defeated at the Presidential stage"}. Presidential vote: ${result.yes} for, ${result.no} against.`,
-                });
+              await tx.insert(feed).values({
+                content: `Bill #${bill.id}: ${bill.title} ${status === "Passed" ? "was signed into law" : "was defeated at the Presidential stage"}. Presidential vote: ${result.yes} for, ${result.no} against.`,
+              });
             }
 
             const senate = await tx
@@ -149,9 +147,9 @@ export const Route = createFileRoute("/api/bill-advance")({
                   result.yes > result.no
                     ? {
                         stage: "Presidential",
-                        status: "Voting",
+                        status: "Queued",
                         stageStartedAt: now,
-                        stageEndsAt: nextStageDeadline(now, stageDurationMs),
+                        stageEndsAt: null,
                       }
                     : {
                         status: "Defeated",
@@ -160,13 +158,9 @@ export const Route = createFileRoute("/api/bill-advance")({
                       },
                 )
                 .where(and(eq(bills.id, bill.id), eq(bills.status, "Voting")));
-              if (result.yes > result.no)
-                await recordIndicatedVotes(tx, bill.id, "Presidential");
-              await tx
-                .insert(feed)
-                .values({
-                  content: `Bill #${bill.id}: ${bill.title} ${result.yes > result.no ? "cleared the Senate and is now before the President" : "was defeated in the Senate"}. Senate vote: ${result.yes} for, ${result.no} against.`,
-                });
+              await tx.insert(feed).values({
+                content: `Bill #${bill.id}: ${bill.title} ${result.yes > result.no ? "cleared the Senate and is queued for the President" : "was defeated in the Senate"}. Senate vote: ${result.yes} for, ${result.no} against.`,
+              });
             }
 
             const house = await tx
@@ -188,9 +182,9 @@ export const Route = createFileRoute("/api/bill-advance")({
                   result.yes > result.no
                     ? {
                         stage: "Senate",
-                        status: "Voting",
+                        status: "Queued",
                         stageStartedAt: now,
-                        stageEndsAt: nextStageDeadline(now, stageDurationMs),
+                        stageEndsAt: null,
                       }
                     : {
                         status: "Defeated",
@@ -199,13 +193,9 @@ export const Route = createFileRoute("/api/bill-advance")({
                       },
                 )
                 .where(and(eq(bills.id, bill.id), eq(bills.status, "Voting")));
-              if (result.yes > result.no)
-                await recordIndicatedVotes(tx, bill.id, "Senate");
-              await tx
-                .insert(feed)
-                .values({
-                  content: `Bill #${bill.id}: ${bill.title} ${result.yes > result.no ? "cleared the House and is now in the Senate" : "was defeated in the House"}. House vote: ${result.yes} for, ${result.no} against.`,
-                });
+              await tx.insert(feed).values({
+                content: `Bill #${bill.id}: ${bill.title} ${result.yes > result.no ? "cleared the House and is queued for the Senate" : "was defeated in the House"}. House vote: ${result.yes} for, ${result.no} against.`,
+              });
             }
 
             const committeeBills = await tx
@@ -220,15 +210,26 @@ export const Route = createFileRoute("/api/bill-advance")({
               );
             for (const bill of committeeBills) {
               // lockCommitteeOutcome transitions Committee -> Voting and
-              // starts the fresh 8h House voting window.
+              // queues the bill for a fresh House voting window.
               await lockCommitteeOutcome(tx, bill.id, now, stageDurationMs);
-              const [opened] = await tx
-                .select({ status: bills.status })
-                .from(bills)
+              await tx
+                .update(bills)
+                .set({
+                  status: "Queued",
+                  stageStartedAt: now,
+                  stageEndsAt: null,
+                })
                 .where(eq(bills.id, bill.id));
-              if (opened?.status === "Voting")
-                await recordIndicatedVotes(tx, bill.id, "House");
             }
+            const admitted = await fillBillStageQueues(
+              tx,
+              now,
+              stageDurationMs,
+            );
+            // Indications only become votes once the bill is admitted to a chamber.
+            for (const bill of admitted)
+              if (bill.stage !== "Committee")
+                await recordIndicatedVotes(tx, bill.id, bill.stage);
           });
 
           try {

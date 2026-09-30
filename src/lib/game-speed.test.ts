@@ -46,7 +46,7 @@ describe("game speed presets", () => {
 describe("describeGameSpeed", () => {
   it("reports the regular pace", () => {
     const pace = describeGameSpeed(1);
-    expect(pace.billStage).toBe("8h");
+    expect(pace.billStage).toBe("12h");
     expect(pace.gameTick).toBe("1d");
     expect(pace.electionNight).toBe("12h");
     expect(pace.presCycle).toBe("≈28d 12h");
@@ -55,28 +55,28 @@ describe("describeGameSpeed", () => {
 
   it("halves full cycles at fast (14/7)", () => {
     const pace = describeGameSpeed(2);
-    expect(pace.billStage).toBe("4h");
+    expect(pace.billStage).toBe("6h");
     expect(pace.presCycle).toBe("≈14d 6h");
     expect(pace.senateCycle).toBe("≈7d 6h");
   });
 
   it("runs bill stages in minutes at super-fast and dev", () => {
-    expect(describeGameSpeed(72).billStage).toBe("6m 40s");
-    expect(describeGameSpeed(720).billStage).toBe("40s");
+    expect(describeGameSpeed(72).billStage).toBe("10m");
+    expect(describeGameSpeed(720).billStage).toBe("1m");
     expect(describeGameSpeed(720).gameTick).toBe("2m");
   });
 
   it("treats non-positive multipliers as regular", () => {
-    expect(describeGameSpeed(0).billStage).toBe("8h");
+    expect(describeGameSpeed(0).billStage).toBe("12h");
   });
 });
 
 describe("scaled durations", () => {
   it("scales bill stages with a 1s floor", () => {
-    expect(getBillStageDurationMs(1)).toBe(8 * 60 * 60 * 1000);
-    expect(getBillStageDurationMs(720)).toBe(40_000);
+    expect(getBillStageDurationMs(1)).toBe(12 * 60 * 60 * 1000);
+    expect(getBillStageDurationMs(720)).toBe(60_000);
     expect(getBillStageDurationMs(100_000)).toBe(1_000);
-    expect(getBillStageDurationMs(0)).toBe(8 * 60 * 60 * 1000);
+    expect(getBillStageDurationMs(0)).toBe(12 * 60 * 60 * 1000);
   });
 
   it("scales game ticks with a 60s floor", () => {

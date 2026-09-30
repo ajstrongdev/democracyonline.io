@@ -18,6 +18,9 @@ describe("bill list stages", () => {
     expect(billListStage({ status: "Committee", stage: "House" })).toBe(
       "Committee",
     );
+    expect(billListStage({ status: "Queued", stage: "Committee" })).toBe(
+      "Committee",
+    );
     expect(billListStage({ status: "Voting", stage: "House" })).toBe("House");
   });
 

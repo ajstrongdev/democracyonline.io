@@ -181,7 +181,7 @@ function BillsIndex() {
               const voteRecorded =
                 bill.status === "Voting" && votedBillIds.includes(bill.id);
               const voteTally =
-                bill.status === "Committee"
+                bill.status === "Committee" || bill.stage === "Committee"
                   ? null
                   : bill.stage === "Presidential"
                     ? {
@@ -252,6 +252,8 @@ function BillsIndex() {
                               <span>· Next: {getNextBillStage(bill)}</span>
                             )}
                           </span>
+                        ) : bill.status === "Queued" ? (
+                          <span>Waiting for a {listStage} slot</span>
                         ) : null}
                         {voteTally &&
                           (bill.status === "Voting" ? (
