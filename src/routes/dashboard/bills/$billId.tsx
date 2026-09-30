@@ -78,7 +78,6 @@ export const Route = createFileRoute("/dashboard/bills/$billId")({
           currentPartyId: null,
           isChiefWhip: false,
           canWhip: false,
-          isVoting: false,
         };
       }),
       getCurrentUserInfo(),
@@ -116,7 +115,6 @@ function BillArticle() {
     currentPartyId: null,
     isChiefWhip: false,
     canWhip: false,
-    isVoting: false,
   };
   const guidancePending =
     partyGuidance.canWhip &&
@@ -353,7 +351,6 @@ function BillArticle() {
         currentPartyId={partyGuidance.currentPartyId}
         isChiefWhip={partyGuidance.isChiefWhip}
         canWhip={partyGuidance.canWhip}
-        isVoting={partyGuidance.isVoting}
       />
       <section className="grid gap-4 lg:grid-cols-3">
         <RollCall
