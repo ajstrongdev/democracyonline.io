@@ -5,13 +5,10 @@ import {
   bills,
   candidates,
   coalitionMembers,
-  coalitionProposals,
-  coalitionVotes,
   committeeAssessments,
   elections,
   parties,
   partyFormationInvites,
-  partyJoinRequests,
   primaryCandidates,
   primaryVotes,
   users,
@@ -22,6 +19,7 @@ import { canDeclareNationalCandidacy } from "@/lib/elections/dashboard-actions";
 import { userEmailEquals } from "@/lib/server/auth/user-email";
 import { officeVotingConfig } from "@/lib/server/dashboard/office-votes";
 import { getPendingBillGuidance } from "@/lib/server/bills/pending-guidance";
+import { getPartyLeaderActions } from "@/lib/server/dashboard/party-leader-actions";
 
 export type NextMove = { key: string; title: string; url: string };
 
@@ -148,61 +146,36 @@ export async function getPendingNextMoves(
   );
   const config =
     officeVotingConfig[player.role as keyof typeof officeVotingConfig];
-  const [
-    pendingBillVotes,
-    pendingAssessments,
-    pendingGuidance,
-    pendingCoalitions,
-  ] = await Promise.all([
-    config
-      ? db
-          .select({ id: bills.id, title: bills.title })
-          .from(bills)
-          .where(
-            and(
-              eq(bills.status, "Voting"),
-              eq(bills.stage, config.stage),
-              gt(bills.stageEndsAt, new Date()),
-              sql`not exists (select 1 from ${config.votes} where ${config.votes.billId} = ${bills.id} and ${config.votes.voterId} = ${player.id})`,
-            ),
-          )
-      : Promise.resolve([]),
-    player.role === "Senator"
-      ? db
-          .select({ id: bills.id, title: bills.title })
-          .from(bills)
-          .where(
-            and(
-              eq(bills.status, "Committee"),
-              gt(bills.stageEndsAt, new Date()),
-              sql`not exists (select 1 from ${committeeAssessments} where ${committeeAssessments.billId} = ${bills.id} and ${committeeAssessments.senatorId} = ${player.id})`,
-            ),
-          )
-      : Promise.resolve([]),
-    getPendingBillGuidance(player),
-    player.partyId && player.partyLeaderId === player.id
-      ? db
-          .select({
-            id: coalitionProposals.id,
-            coalitionId: coalitionProposals.coalitionId,
-            proposalType: coalitionProposals.proposalType,
-          })
-          .from(coalitionProposals)
-          .innerJoin(
-            coalitionMembers,
-            and(
-              eq(coalitionMembers.coalitionId, coalitionProposals.coalitionId),
-              eq(coalitionMembers.partyId, player.partyId),
-            ),
-          )
-          .where(
-            and(
-              eq(coalitionProposals.status, "open"),
-              sql`not exists (select 1 from ${coalitionVotes} where ${coalitionVotes.proposalId} = ${coalitionProposals.id} and ${coalitionVotes.voterPartyId} = ${player.partyId})`,
-            ),
-          )
-      : Promise.resolve([]),
-  ]);
+  const [pendingBillVotes, pendingAssessments, pendingGuidance, leaderActions] =
+    await Promise.all([
+      config
+        ? db
+            .select({ id: bills.id, title: bills.title })
+            .from(bills)
+            .where(
+              and(
+                eq(bills.status, "Voting"),
+                eq(bills.stage, config.stage),
+                gt(bills.stageEndsAt, new Date()),
+                sql`not exists (select 1 from ${config.votes} where ${config.votes.billId} = ${bills.id} and ${config.votes.voterId} = ${player.id})`,
+              ),
+            )
+        : Promise.resolve([]),
+      player.role === "Senator"
+        ? db
+            .select({ id: bills.id, title: bills.title })
+            .from(bills)
+            .where(
+              and(
+                eq(bills.status, "Committee"),
+                gt(bills.stageEndsAt, new Date()),
+                sql`not exists (select 1 from ${committeeAssessments} where ${committeeAssessments.billId} = ${bills.id} and ${committeeAssessments.senatorId} = ${player.id})`,
+              ),
+            )
+        : Promise.resolve([]),
+      getPendingBillGuidance(player),
+      getPartyLeaderActions(player),
+    ]);
 
   const primaryCycle = presidential?.cycle ?? 0;
   const formationInvites = await db
@@ -214,20 +187,6 @@ export async function getPendingNextMoves(
         eq(partyFormationInvites.status, "pending"),
       ),
     );
-  const pendingRequests =
-    player.partyId &&
-    player.partyLeaderId === player.id &&
-    !player.partyArchivedAt
-      ? await db
-          .select({ id: partyJoinRequests.id })
-          .from(partyJoinRequests)
-          .where(
-            and(
-              eq(partyJoinRequests.partyId, player.partyId),
-              eq(partyJoinRequests.status, "pending"),
-            ),
-          )
-      : [];
   const enforcedBills =
     player.partyId && config
       ? await db
@@ -273,10 +232,15 @@ export async function getPendingNextMoves(
           },
         ]
       : []),
-    ...pendingRequests.map((request) => ({
+    ...leaderActions.membershipRequests.map((request) => ({
       key: `party:request:${request.id}`,
       title: "Review a party membership request",
       url: `/dashboard/parties/${player.partyId}#membership-requests`,
+    })),
+    ...leaderActions.vacantOffices.map((role) => ({
+      key: `party:${player.partyId}:appoint:${role.office}`,
+      title: `Appoint a ${role.title} for ${player.partyName}`,
+      url: `/dashboard/parties/${player.partyId}#party-leadership`,
     })),
     ...enforcedBills.map((bill) => ({
       key: `bill:${bill.id}:enforced-whip`,
@@ -352,10 +316,15 @@ export async function getPendingNextMoves(
       title: `Issue voting guidance for ${bill.title}`,
       url: `/dashboard/bills/${bill.id}#party-guidance`,
     })),
-    ...pendingCoalitions.map((proposal) => ({
+    ...leaderActions.coalitionJoinRequests.map((request) => ({
+      key: `coalition:request:${request.id}:propose`,
+      title: `Propose accepting ${request.partyName} into your coalition`,
+      url: `/dashboard/parties/coalitions/${request.coalitionId}#requests`,
+    })),
+    ...leaderActions.coalitionVotes.map((proposal) => ({
       key: `coalition:${proposal.id}:vote`,
       title: `Vote on a coalition ${proposal.proposalType.replaceAll("_", " ")} proposal`,
-      url: `/dashboard/parties/coalitions/${proposal.coalitionId}`,
+      url: `/dashboard/parties/coalitions/${proposal.coalitionId}#proposals`,
     })),
   ];
 }

@@ -10,6 +10,46 @@ export const Route = createFileRoute("/changelog")({
 
 const releases = [
   {
+    version: "0.2.1",
+    date: "October 1, 2026",
+    dateTime: "2026-10-01",
+    headline: "A livelier Z.com, and clearer next moves.",
+    summary:
+      "Follow the conversation more closely, share your take, and keep party decisions in sight.",
+    highlights: [
+      {
+        title: "Make Z.com your own",
+        detail:
+          "Follow players from their posts or profiles and switch to Following to see their posts and reposts. The main feed now focuses on original posts, with active discussions easier to discover.",
+      },
+      {
+        title: "Add your voice to a post",
+        detail:
+          "Quote a post with your own commentary or copy a direct link to share it. Conversations are easier to read, and opening a linked comment takes you into its thread.",
+      },
+      {
+        title: "Know when someone replies",
+        detail:
+          "Comments on your Z.com posts now appear alongside mentions in your dashboard alerts, with optional browser notifications and links back to the conversation.",
+      },
+      {
+        title: "Keep membership moving",
+        detail:
+          "Party leaders can follow pending membership requests and older coalition join requests from the dashboard. Coalition requests that still need a proposal now link straight to the relevant alliance controls.",
+      },
+      {
+        title: "Fill the leadership team",
+        detail:
+          "When an eligible member can fill a vacant Chief Whip or Social Media Officer role, party leaders see a reminder that leads to the appointment controls.",
+      },
+      {
+        title: "Vote while the vote is open",
+        detail:
+          "Coalition proposal reminders link to the vote and disappear when your party has voted or the voting window has closed. These party-leader reminders also use the optional Web Push setting for Your next moves.",
+      },
+    ],
+  },
+  {
     version: "0.2.0",
     date: "September 30, 2026",
     dateTime: "2026-09-30",

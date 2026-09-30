@@ -4,16 +4,18 @@ export function mentionPushPayload({
   postId,
   content,
   preview,
+  kind = "mention",
 }: {
   sourceType: "post" | "comment";
   sourceId: number;
   postId: number;
   content: string;
   preview: boolean;
+  kind?: "mention" | "comment";
 }) {
   return JSON.stringify({
-    title: "Oscana mention",
-    body: preview ? content.slice(0, 100) : "You have a new mention on Z.com.",
+    title: kind === "comment" ? "Z.com comment" : "Oscana mention",
+    body: preview ? content.slice(0, 100) : kind === "comment" ? "Someone commented on your Z.com post." : "You have a new mention on Z.com.",
     url: `/dashboard/social?postId=${postId}${sourceType === "comment" ? `&commentId=${sourceId}` : ""}`,
     tag: `mention:${sourceType}:${sourceId}`,
   });

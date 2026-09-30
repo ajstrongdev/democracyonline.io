@@ -83,6 +83,8 @@ export function DashboardContent({
     pendingCommitteeAssessments,
     pendingBillGuidance,
     pendingPartyJoinRequests,
+    pendingCoalitionJoinRequests,
+    vacantPartyOffices,
     partyFormationInvites,
     pendingCoalitionProposals,
     primaryActions,
@@ -100,6 +102,8 @@ export function DashboardContent({
     pendingCommitteeAssessments.length +
     pendingBillGuidance.length +
     pendingPartyJoinRequests.length +
+    pendingCoalitionJoinRequests.length +
+    vacantPartyOffices.length +
     partyFormationInvites.length +
     pendingCoalitionProposals.length +
     Number(primaryActions.stand) +
@@ -285,6 +289,18 @@ export function DashboardContent({
                     <span className="text-sm font-semibold text-primary">
                       Review request →
                     </span>
+                  </Link>
+                ))}
+                {vacantPartyOffices.map((role) => (
+                  <Link
+                    key={`party-office-${role.office}`}
+                    to="/dashboard/parties/$partyId"
+                    params={{ partyId: String(currentUser.partyId) }}
+                    hash="party-leadership"
+                    className="group flex items-center justify-between gap-3 px-4 py-4 hover:bg-muted/30"
+                  >
+                    <span className="font-semibold">Appoint a {role.title} for your party</span>
+                    <span className="text-sm font-semibold text-primary">Manage officers →</span>
                   </Link>
                 ))}
                 {primaryActions.stand && (
@@ -481,6 +497,7 @@ export function DashboardContent({
                     key={`coalition-${proposal.id}`}
                     to="/dashboard/parties/coalitions/$id"
                     params={{ id: String(proposal.coalitionId) }}
+                    hash="proposals"
                     className="group flex items-center justify-between gap-3 px-4 py-4 hover:bg-muted/30"
                   >
                     <span className="flex items-center gap-2 font-semibold">
@@ -491,6 +508,18 @@ export function DashboardContent({
                     <span className="text-sm font-semibold text-primary">
                       Review proposal →
                     </span>
+                  </Link>
+                ))}
+                {pendingCoalitionJoinRequests.map((request) => (
+                  <Link
+                    key={`coalition-request-${request.id}`}
+                    to="/dashboard/parties/coalitions/$id"
+                    params={{ id: String(request.coalitionId) }}
+                    hash="requests"
+                    className="group flex items-center justify-between gap-3 px-4 py-4 hover:bg-muted/30"
+                  >
+                    <span className="font-semibold">Propose accepting {request.partyName} into your coalition</span>
+                    <span className="text-sm font-semibold text-primary">Review request →</span>
                   </Link>
                 ))}
               </div>
@@ -505,10 +534,10 @@ export function DashboardContent({
           <WikiSection
             title="Your notifications"
             icon={MessageSquareText}
-            description="Mentions across accounts you control."
+            description="Mentions and comments on your posts."
             className="flex h-full flex-col [&>.wiki-section-content]:flex-1"
           >
-            <ZNotifications initialPage={zMentionSummary} />
+            <div id="z-notifications" className="scroll-mt-24"><ZNotifications initialPage={zMentionSummary} /></div>
           </WikiSection>
         </div>
       )}

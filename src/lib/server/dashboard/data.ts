@@ -3,14 +3,10 @@ import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   bills,
-  coalitionMembers,
-  coalitionProposals,
-  coalitionVotes,
   committeeAssessments,
   electionCandidateHistory,
   nations,
   parties,
-  partyJoinRequests,
   users,
 } from "@/db/schema";
 import { authMiddleware } from "@/middleware/auth";
@@ -24,6 +20,7 @@ import { primaryNextMoves } from "@/lib/dashboard/action-eligibility";
 import { officeVotingConfig } from "@/lib/server/dashboard/office-votes";
 import { getPendingBillGuidance } from "@/lib/server/bills/pending-guidance";
 import { getPartyFormationInvites } from "@/lib/server/organizations/party";
+import { getPartyLeaderActions } from "@/lib/server/dashboard/party-leader-actions";
 
 export const getDashboardData = createServerFn()
   .middleware([authMiddleware])
@@ -84,6 +81,8 @@ export const getDashboardData = createServerFn()
         pendingCommitteeAssessments: [],
         pendingBillGuidance: [],
         pendingPartyJoinRequests: [],
+        pendingCoalitionJoinRequests: [],
+        vacantPartyOffices: [],
         partyFormationInvites: [],
         primaryActions: {
           stand: false,
@@ -136,6 +135,8 @@ export const getDashboardData = createServerFn()
         pendingCommitteeAssessments: [],
         pendingBillGuidance: [],
         pendingPartyJoinRequests: [],
+        pendingCoalitionJoinRequests: [],
+        vacantPartyOffices: [],
         partyFormationInvites: [],
         primaryActions: {
           stand: false,
@@ -182,8 +183,7 @@ export const getDashboardData = createServerFn()
       pendingBillVotes,
       pendingCommitteeAssessments,
       pendingBillGuidance,
-      pendingPartyJoinRequests,
-      pendingCoalitionProposals,
+      leaderActions,
     ] = await Promise.all([
       config && currentUser.active
         ? db
@@ -224,49 +224,7 @@ export const getDashboardData = createServerFn()
             .orderBy(bills.createdAt)
         : Promise.resolve([]),
       getPendingBillGuidance(currentUser),
-      currentUser.active &&
-      currentUser.partyId &&
-      currentUser.partyLeaderId === currentUser.id &&
-      !currentUser.partyArchivedAt
-        ? db
-            .select({ id: partyJoinRequests.id })
-            .from(partyJoinRequests)
-            .where(
-              and(
-                eq(partyJoinRequests.partyId, currentUser.partyId),
-                eq(partyJoinRequests.status, "pending"),
-              ),
-            )
-            .orderBy(partyJoinRequests.id)
-        : Promise.resolve([]),
-      currentUser.active &&
-      currentUser.partyId &&
-      currentUser.partyLeaderId === currentUser.id
-        ? db
-            .select({
-              id: coalitionProposals.id,
-              proposalType: coalitionProposals.proposalType,
-              coalitionId: coalitionProposals.coalitionId,
-            })
-            .from(coalitionProposals)
-            .innerJoin(
-              coalitionMembers,
-              and(
-                eq(
-                  coalitionMembers.coalitionId,
-                  coalitionProposals.coalitionId,
-                ),
-                eq(coalitionMembers.partyId, currentUser.partyId),
-              ),
-            )
-            .where(
-              and(
-                eq(coalitionProposals.status, "open"),
-                sql`not exists (select 1 from ${coalitionVotes} where ${coalitionVotes.proposalId} = ${coalitionProposals.id} and ${coalitionVotes.voterPartyId} = ${currentUser.partyId})`,
-              ),
-            )
-            .orderBy(coalitionProposals.createdAt)
-        : Promise.resolve([]),
+      getPartyLeaderActions(currentUser),
     ]);
 
     return {
@@ -279,9 +237,11 @@ export const getDashboardData = createServerFn()
       })),
       pendingCommitteeAssessments,
       pendingBillGuidance,
-      pendingPartyJoinRequests,
+      pendingPartyJoinRequests: leaderActions.membershipRequests,
+      pendingCoalitionJoinRequests: leaderActions.coalitionJoinRequests,
+      vacantPartyOffices: leaderActions.vacantOffices,
       partyFormationInvites,
-      pendingCoalitionProposals,
+      pendingCoalitionProposals: leaderActions.coalitionVotes,
       primaryActions,
       zMentionSummary,
       activity,

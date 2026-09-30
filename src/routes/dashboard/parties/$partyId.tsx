@@ -223,11 +223,13 @@ function PartyArticle() {
         </WikiInfobox>
       </div>
       {party.current && (
-        <PartyLeadership
-          party={party}
-          members={members}
-          currentUserId={currentUser?.id ?? null}
-        />
+        <div id="party-leadership" className="scroll-mt-20">
+          <PartyLeadership
+            party={party}
+            members={members}
+            currentUserId={currentUser?.id ?? null}
+          />
+        </div>
       )}
       {party.current && currentUser && (
         <PartyGovernance

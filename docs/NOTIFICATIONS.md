@@ -1,6 +1,6 @@
 # Notification delivery
 
-The dashboard's Z.com mention list and **Your next moves** are in-app
+The dashboard's Z.com alerts (mentions and comments on your posts) and **Your next moves** are in-app
 notifications. Pending next moves cannot be hidden or dismissed; individual
 mentions retain their existing dismiss controls. Web Push is a separate, optional
 delivery channel for both. It is **off by default**, requires a

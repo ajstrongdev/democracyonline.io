@@ -74,7 +74,7 @@ test("two players see a new post without a refresh", async ({
     await expect(reader.getByText(post).first()).toBeVisible();
     await reader.goto("/dashboard");
     await expect(
-      reader.getByText(/\d+ mentions? across \d+ accounts?/),
+      reader.getByText(/\d+ Z\.com alerts?/),
     ).toBeVisible({
       timeout: 10_000,
     });
@@ -102,7 +102,7 @@ test("two players see a new post without a refresh", async ({
       .first()
       .click();
     await expect(
-      reader.getByText(/\d+ mentions? across \d+ accounts?/),
+      reader.getByText(/\d+ Z\.com alerts?/),
     ).toBeVisible();
     await reader.getByRole("button", { name: "Account settings" }).click();
     await reader.getByRole("tab", { name: "Alerts" }).click();

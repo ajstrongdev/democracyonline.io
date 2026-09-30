@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Link,
   createFileRoute,
@@ -133,6 +133,15 @@ function CoalitionPage() {
       ? "proposals"
       : "parties",
   );
+  useEffect(() => {
+    if (
+      window.location.hash === "#requests" ||
+      window.location.hash === "#proposals"
+    ) {
+      setActiveTab(window.location.hash.slice(1));
+      document.getElementById("coalition-decisions")?.scrollIntoView();
+    }
+  }, []);
   const legacyRequests = pendingRequests.filter(
     (request) =>
       !proposals.some(
@@ -479,7 +488,12 @@ function CoalitionPage() {
         </WikiStatGrid>
 
         {/* New join requests are proposals immediately; only older requests need proposing. */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs
+          id="coalition-decisions"
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="w-full scroll-mt-20"
+        >
           <TabsList
             className={`grid w-full ${coalition.archivedAt ? "grid-cols-1" : legacyRequests.length ? "grid-cols-3" : "grid-cols-2"} mb-4`}
           >
