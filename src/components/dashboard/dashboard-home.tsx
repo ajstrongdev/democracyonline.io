@@ -29,6 +29,7 @@ import {
 } from "@/components/dashboard/dashboard-election-hub";
 import { DashboardActionDeadline } from "@/components/dashboard/dashboard-action-deadline";
 import { DashboardPrimaryAction } from "@/components/dashboard/dashboard-primary-action";
+import { PrimaryRaces } from "@/components/organizations/primary-races";
 import { DashboardSocialPostDialog } from "@/components/dashboard/dashboard-social-post-dialog";
 import { NewBillDialog } from "@/components/wiki/new-bill-dialog";
 import { ResultBar, WikiHeader } from "@/components/wiki/wiki-header";
@@ -88,6 +89,7 @@ export function DashboardContent({
     partyFormationInvites,
     pendingCoalitionProposals,
     primaryActions,
+    primaryRaces,
     zMentionSummary,
     activity,
     electionDashboard,
@@ -338,7 +340,7 @@ export function DashboardContent({
                   >
                     <span className="space-y-1">
                       <span className="block font-semibold">
-                        Vote in your presidential primary
+                         Vote in your {primaryRaces.find((race) => race.canVote)?.kind ?? "party"} presidential primary
                       </span>
                       <DashboardActionDeadline
                         deadline={primaryActions.deadline}
@@ -664,6 +666,8 @@ export function DashboardContent({
           )}
         </WikiSection>
       )}
+
+      <PrimaryRaces races={primaryRaces} />
 
       <div
         className={

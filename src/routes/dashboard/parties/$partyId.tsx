@@ -43,6 +43,8 @@ import {
   withdrawLeadershipBid,
 } from "@/lib/server/organizations/party-governance";
 import { getPartyCoalition } from "@/lib/server/organizations/coalitions";
+import { getPrimaryRaces } from "@/lib/server/organizations/primaries";
+import { PrimaryRaces } from "@/components/organizations/primary-races";
 import { coalitionDesignation } from "@/lib/organizations/coalition-status";
 import { EntityReferenceText } from "@/components/entity-reference-text";
 import { SocialPartyPosts } from "@/components/social/social-party-posts";
@@ -66,6 +68,7 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
       revival,
       socialPosts,
       governance,
+      primaryRaces,
     ] = await Promise.all([
       getWikiParty({ data: { id } }),
       getWikiArticle({
@@ -76,6 +79,7 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
       getPartyRevivalState({ data: { partyId: id } }),
       getSocialPartyPosts({ data: { partyId: id } }),
       getPartyGovernance({ data: { partyId: id } }),
+      getPrimaryRaces(),
     ]);
     if (!party) throw new Response("Party not found", { status: 404 });
     return {
@@ -86,6 +90,7 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
       revival,
       socialPosts,
       governance,
+      primaryRaces,
     };
   },
   component: PartyArticle,
@@ -106,6 +111,7 @@ function PartyArticle() {
     leader,
     socialPosts,
     governance,
+    primaryRaces,
   } = Route.useLoaderData();
   return (
     <WikiPage width="article">
@@ -222,6 +228,8 @@ function PartyArticle() {
           )}
         </WikiInfobox>
       </div>
+      {party.current && <PrimaryRaces compact title={coalition ? "Coalition primary" : "Party primary"}
+        races={primaryRaces.filter((race) => race.partyIds.includes(party.id))} />}
       {party.current && (
         <div id="party-leadership" className="scroll-mt-20">
           <PartyLeadership
