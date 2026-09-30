@@ -1,14 +1,14 @@
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
-// Base pace (regular / 1x). Mirrors DEFAULT_ELECTION_TIMING plus the 8h bill
+// Base pace (regular / 1x). Mirrors DEFAULT_ELECTION_TIMING plus the 12h bill
 // stages and the daily game-advance tick.
 const BASE_PRES_CYCLE_MS =
   10 * DAY_MS + 10 * DAY_MS + 12 * HOUR_MS + 8 * DAY_MS;
 const BASE_SENATE_CYCLE_MS =
   4 * DAY_MS + 4 * DAY_MS + 12 * HOUR_MS + 6 * DAY_MS;
 const BASE_NIGHT_MS = 12 * HOUR_MS;
-const BASE_BILL_STAGE_MS = 8 * HOUR_MS;
+export const BASE_BILL_STAGE_MS = 12 * HOUR_MS;
 const BASE_GAME_TICK_MS = 24 * HOUR_MS;
 
 export type GameSpeedMode = {
@@ -47,13 +47,13 @@ export const GAME_SPEED_MODES: Array<GameSpeedMode> = [
     mode: "super-fast",
     multiplier: 72,
     label: "Super fast",
-    blurb: "72x. Pres cycle ≈9.5h, bill stages ≈7min.",
+    blurb: "72x. Pres cycle ≈9.5h, bill stages ≈10min.",
   },
   {
     mode: "dev",
     multiplier: 720,
     label: "Dev",
-    blurb: "720x for beta testing. Pres cycle ≈57min, bill stages ≈40s.",
+    blurb: "720x for beta testing. Pres cycle ≈57min, bill stages ≈1min.",
   },
   {
     mode: "dev-relaxed",
@@ -100,7 +100,7 @@ export function describeGameSpeed(multiplier: number): GameSpeedPace {
   };
 }
 
-/** Bill stage length at a multiplier (8h at regular). Floored at 1s. */
+/** Bill stage length at a multiplier (12h at regular). Floored at 1s. */
 export function getBillStageDurationMs(multiplier: number): number {
   const m = multiplier > 0 ? multiplier : 1;
   return Math.max(1_000, Math.round(BASE_BILL_STAGE_MS / m));

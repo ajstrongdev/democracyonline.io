@@ -1,20 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, FileText, PenLine, Search, Send, Users, X } from "lucide-react";
-import type { AccountFilter, FeedSort, loadSocialData } from "@/lib/social/queries";
+import type {
+  AccountFilter,
+  FeedSort,
+  loadSocialData,
+} from "@/lib/social/queries";
 import type { SocialEntry } from "@/components/social/social-timeline";
 import { SocialTimeline } from "@/components/social/social-timeline";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import ProtectedRoute from "@/components/auth/protected-route";
 import { PartyMark, WikiHeader } from "@/components/wiki/wiki-header";
 import { WikiPage } from "@/components/wiki/wiki-layout";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { officeArtwork } from "@/lib/masthead-artwork";
 import { SocialAccountAvatar } from "@/components/social/social-account-avatar";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
 import { createSocialPost, getSocialFeed } from "@/lib/server/social/social";
 import { searchDiscussionBills } from "@/lib/server/bills/bill-comments";
@@ -23,15 +31,14 @@ import { socialFeedQuery } from "@/lib/social/queries";
 
 type BillOption = Awaited<ReturnType<typeof searchDiscussionBills>>[number];
 
-export function SocialContent({ data, search }: {
+export function SocialContent({
+  data,
+  search,
+}: {
   data: Awaited<ReturnType<typeof loadSocialData>>;
   search: { postId?: number; commentId?: number };
 }) {
-  const {
-    viewer,
-    entries: initialEntries,
-    focusedEntry,
-  } = data;
+  const { viewer, entries: initialEntries, focusedEntry } = data;
   const { postId, commentId } = search;
   const [entries, setEntries] = useState<Array<SocialEntry>>(initialEntries);
   const [content, setContent] = useState("");
@@ -44,13 +51,16 @@ export function SocialContent({ data, search }: {
   const queryClient = useQueryClient();
   const feedQuery = useQuery({
     ...socialFeedQuery(account, sort),
-    initialData: account === "all" && sort === "newest"
-      ? { viewer, entries: initialEntries }
-      : undefined,
+    initialData:
+      account === "all" && sort === "newest"
+        ? { viewer, entries: initialEntries }
+        : undefined,
   });
   const entriesRef = useRef(entries);
   const displayedFilter = useRef("all:newest");
-  useEffect(() => { entriesRef.current = entries; }, [entries]);
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
   const [feedBusy, setFeedBusy] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [billPickerOpen, setBillPickerOpen] = useState(false);
@@ -73,12 +83,23 @@ export function SocialContent({ data, search }: {
       setFeedBusy(false);
       return;
     }
-    const updated = new Map(newest.map((entry) => [`${entry.entryType}:${entry.entryId}`, entry]));
-    const visible = new Set(entriesRef.current.map((entry) => `${entry.entryType}:${entry.entryId}`));
-    const unseen = newest.filter((entry) => !visible.has(`${entry.entryType}:${entry.entryId}`));
-    if (unseen.length) setNewPostsCount((count) => Math.max(count, unseen.length));
+    const updated = new Map(
+      newest.map((entry) => [`${entry.entryType}:${entry.entryId}`, entry]),
+    );
+    const visible = new Set(
+      entriesRef.current.map((entry) => `${entry.entryType}:${entry.entryId}`),
+    );
+    const unseen = newest.filter(
+      (entry) => !visible.has(`${entry.entryType}:${entry.entryId}`),
+    );
+    if (unseen.length)
+      setNewPostsCount((count) => Math.max(count, unseen.length));
     // Update scores and counts in place, but never insert new posts into a reader's list.
-    setEntries((current) => current.map((entry) => updated.get(`${entry.entryType}:${entry.entryId}`) ?? entry));
+    setEntries((current) =>
+      current.map(
+        (entry) => updated.get(`${entry.entryType}:${entry.entryId}`) ?? entry,
+      ),
+    );
   }, [feedQuery.data, account, sort]);
 
   useEffect(() => {
@@ -94,10 +115,16 @@ export function SocialContent({ data, search }: {
     const timeout = setTimeout(() => {
       searchDiscussionBills({ data: { query: billQuery } })
         .then((options) => {
-          if (active) { setBillOptions(options); setBillSearchLoading(false); }
+          if (active) {
+            setBillOptions(options);
+            setBillSearchLoading(false);
+          }
         })
         .catch(() => {
-          if (active) { setBillOptions([]); setBillSearchLoading(false); }
+          if (active) {
+            setBillOptions([]);
+            setBillSearchLoading(false);
+          }
         });
     }, 250);
     return () => {
@@ -127,7 +154,9 @@ export function SocialContent({ data, search }: {
     setFeedError(null);
     setAccount(nextAccount);
     setSort(nextSort);
-    await queryClient.invalidateQueries({ queryKey: socialFeedQuery(nextAccount, nextSort).queryKey });
+    await queryClient.invalidateQueries({
+      queryKey: socialFeedQuery(nextAccount, nextSort).queryKey,
+    });
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -183,7 +212,10 @@ export function SocialContent({ data, search }: {
         <div className="mx-auto grid w-full max-w-7xl items-start gap-5 lg:grid-cols-[minmax(15rem,18rem)_minmax(0,1fr)] xl:grid-cols-[minmax(15rem,18rem)_minmax(0,1fr)_minmax(12rem,15rem)]">
           <aside className="hidden space-y-5 lg:order-1 lg:sticky lg:top-6 lg:block">
             <Card className="overflow-hidden rounded-2xl shadow-sm">
-              <div className={`wiki-masthead wiki-masthead--${officeArtwork(viewer?.role)} h-16 rounded-none border-0`} aria-hidden="true" />
+              <div
+                className={`wiki-masthead wiki-masthead--${officeArtwork(viewer?.role)} h-16 rounded-none border-0`}
+                aria-hidden="true"
+              />
               <CardContent className="-mt-9 space-y-3 p-5">
                 <PlayerAvatar
                   username={viewer?.username ?? "Z"}
@@ -211,8 +243,12 @@ export function SocialContent({ data, search }: {
           <section className="order-1 min-w-0 space-y-4 lg:order-2">
             <Card className="overflow-hidden rounded-2xl border-primary/20 shadow-sm">
               <div className="flex items-center justify-between gap-3 border-b bg-primary/5 px-5 py-4">
-                <h2 className="flex items-center gap-2 text-sm font-bold"><PenLine className="size-4 text-primary" /> Create a post</h2>
-                <span className="text-xs text-muted-foreground">Share a thought or discuss a bill</span>
+                <h2 className="flex items-center gap-2 text-sm font-bold">
+                  <PenLine className="size-4 text-primary" /> Create a post
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  Share a thought or discuss a bill
+                </span>
               </div>
               <CardContent className="p-5">
                 <form onSubmit={submit} className="space-y-4">
@@ -222,7 +258,11 @@ export function SocialContent({ data, search }: {
                       id="social-post"
                       value={content}
                       onChange={(event) => setContent(event.target.value)}
-                      placeholder={selectedBill ? `What do you think about Bill #${selectedBill.id}?` : `What's happening, @${viewer?.username ?? "player"}?`}
+                      placeholder={
+                        selectedBill
+                          ? `What do you think about Bill #${selectedBill.id}?`
+                          : `What's happening, @${viewer?.username ?? "player"}?`
+                      }
                       maxLength={280}
                       rows={5}
                       required
@@ -231,18 +271,36 @@ export function SocialContent({ data, search }: {
                   </label>
                   <div className="flex flex-wrap items-center gap-2">
                     {postAs === "player" && (
-                      <Popover open={billPickerOpen} onOpenChange={setBillPickerOpen}>
+                      <Popover
+                        open={billPickerOpen}
+                        onOpenChange={setBillPickerOpen}
+                      >
                         <PopoverTrigger asChild>
-                          <Button type="button" variant={selectedBill ? "secondary" : "outline"} size="sm" className="max-w-full gap-1.5">
-                            <FileText className="size-4 shrink-0" /> <span className="truncate">{selectedBill ? `Bill #${selectedBill.id}: ${selectedBill.title}` : "Attach a bill"}</span>
+                          <Button
+                            type="button"
+                            variant={selectedBill ? "secondary" : "outline"}
+                            size="sm"
+                            className="max-w-full gap-1.5"
+                          >
+                            <FileText className="size-4 shrink-0" />{" "}
+                            <span className="truncate">
+                              {selectedBill
+                                ? `Bill #${selectedBill.id}: ${selectedBill.title}`
+                                : "Attach a bill"}
+                            </span>
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent align="start" className="w-[min(22rem,calc(100vw-2rem))] p-2">
+                        <PopoverContent
+                          align="start"
+                          className="w-[min(22rem,calc(100vw-2rem))] p-2"
+                        >
                           <div className="relative">
                             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
                             <input
                               value={billQuery}
-                              onChange={(event) => setBillQuery(event.target.value)}
+                              onChange={(event) =>
+                                setBillQuery(event.target.value)
+                              }
                               placeholder="Search by title or bill number"
                               aria-label="Search bills"
                               maxLength={100}
@@ -250,26 +308,81 @@ export function SocialContent({ data, search }: {
                             />
                           </div>
                           <div className="mt-2 max-h-60 overflow-y-auto">
-                            {!billSearchLoading && billOptions.map((bill) => (
-                              <button key={bill.id} type="button" onClick={() => { setSelectedBill(bill); setBillPickerOpen(false); setBillQuery(""); }} className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted">
-                                <span className="shrink-0 font-semibold text-primary">#{bill.id}</span>
-                                <span className="min-w-0"><span className="block line-clamp-2">{bill.title}</span><span className="text-xs text-muted-foreground">{bill.status}</span></span>
-                              </button>
-                            ))}
-                            {billSearchLoading ? <p className="px-2 py-3 text-sm text-muted-foreground">Searching bills…</p> : !billOptions.length && <p className="px-2 py-3 text-sm text-muted-foreground">No bills found.</p>}
+                            {!billSearchLoading &&
+                              billOptions.map((bill) => (
+                                <button
+                                  key={bill.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedBill(bill);
+                                    setBillPickerOpen(false);
+                                    setBillQuery("");
+                                  }}
+                                  className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted"
+                                >
+                                  <span className="shrink-0 font-semibold text-primary">
+                                    #{bill.id}
+                                  </span>
+                                  <span className="min-w-0">
+                                    <span className="block line-clamp-2">
+                                      {bill.title}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {bill.status}
+                                    </span>
+                                  </span>
+                                </button>
+                              ))}
+                            {billSearchLoading ? (
+                              <p className="px-2 py-3 text-sm text-muted-foreground">
+                                Searching bills…
+                              </p>
+                            ) : (
+                              !billOptions.length && (
+                                <p className="px-2 py-3 text-sm text-muted-foreground">
+                                  No bills found.
+                                </p>
+                              )
+                            )}
                           </div>
                         </PopoverContent>
                       </Popover>
                     )}
                     {selectedBill && (
-                      <Button type="button" variant="ghost" size="icon-sm" onClick={() => setSelectedBill(null)} aria-label="Remove attached bill"><X className="size-4" /></Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setSelectedBill(null)}
+                        aria-label="Remove attached bill"
+                      >
+                        <X className="size-4" />
+                      </Button>
                     )}
-                    <ReferenceInsert textareaId="social-post" value={content} onChange={setContent} />
+                    <MarkdownToolbar
+                      textareaId="social-post"
+                      value={content}
+                      onChange={setContent}
+                    />
                     {content.trim() && (
-                      <Button type="button" variant="ghost" size="sm" onClick={() => setShowPreview((show) => !show)} aria-expanded={showPreview}><Eye className="size-4" /> {showPreview ? "Hide preview" : "Preview"}</Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowPreview((show) => !show)}
+                        aria-expanded={showPreview}
+                      >
+                        <Eye className="size-4" />{" "}
+                        {showPreview ? "Hide preview" : "Preview"}
+                      </Button>
                     )}
                   </div>
-                  {selectedBill && <p className="text-xs text-muted-foreground">This post will also appear in Bill #{selectedBill.id}’s discussion.</p>}
+                  {selectedBill && (
+                    <p className="text-xs text-muted-foreground">
+                      This post will also appear in Bill #{selectedBill.id}’s
+                      discussion.
+                    </p>
+                  )}
                   {showPreview && content.trim() && (
                     <div className="rounded-lg border bg-muted/20 p-3">
                       <p className="mb-2 text-xs font-semibold text-muted-foreground">
@@ -287,20 +400,45 @@ export function SocialContent({ data, search }: {
                   )}
                   {((viewer?.role === "President" && viewer.isActive) ||
                     (viewer?.partyId &&
-                      viewer.partyLeaderId === viewer.id)) && (
+                      viewer.partySocialMediaOfficerId === viewer.id)) && (
                     <fieldset className="space-y-2">
-                      <legend className="text-xs font-semibold text-muted-foreground">Post as</legend>
+                      <legend className="text-xs font-semibold text-muted-foreground">
+                        Post as
+                      </legend>
                       <div className="flex flex-wrap gap-2">
-                        {([
-                          { key: "player", label: `@${viewer.username}` },
-                          ...(viewer.partyId && viewer.partyLeaderId === viewer.id ? [{ key: "party", label: viewer.partyName ?? "Party" }] : []),
-                          ...(viewer.role === "President" && viewer.isActive ? [{ key: "potro", label: "POTRO" }] : []),
-                        ] as Array<{ key: typeof postAs; label: string }>).map((identity) => (
-                          <Button key={identity.key} type="button" size="sm" variant={postAs === identity.key ? "default" : "outline"} aria-pressed={postAs === identity.key} onClick={() => {
-                            setPostAs(identity.key);
-                            setSelectedBill(null);
-                            setBillPickerOpen(false);
-                          }}>{identity.label}</Button>
+                        {(
+                          [
+                            { key: "player", label: `@${viewer.username}` },
+                            ...(viewer.partyId &&
+                            viewer.partySocialMediaOfficerId === viewer.id
+                              ? [
+                                  {
+                                    key: "party",
+                                    label: viewer.partyName ?? "Party",
+                                  },
+                                ]
+                              : []),
+                            ...(viewer.role === "President" && viewer.isActive
+                              ? [{ key: "potro", label: "POTRO" }]
+                              : []),
+                          ] as Array<{ key: typeof postAs; label: string }>
+                        ).map((identity) => (
+                          <Button
+                            key={identity.key}
+                            type="button"
+                            size="sm"
+                            variant={
+                              postAs === identity.key ? "default" : "outline"
+                            }
+                            aria-pressed={postAs === identity.key}
+                            onClick={() => {
+                              setPostAs(identity.key);
+                              setSelectedBill(null);
+                              setBillPickerOpen(false);
+                            }}
+                          >
+                            {identity.label}
+                          </Button>
                         ))}
                       </div>
                     </fieldset>
@@ -392,8 +530,15 @@ export function SocialContent({ data, search }: {
               </p>
             )}
             {newPostsCount > 0 && (
-              <Button type="button" variant="secondary" className="w-full" onClick={() => void refresh()} aria-live="polite">
-                Show {newPostsCount} new {newPostsCount === 1 ? "post" : "posts"}
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={() => void refresh()}
+                aria-live="polite"
+              >
+                Show {newPostsCount} new{" "}
+                {newPostsCount === 1 ? "post" : "posts"}
               </Button>
             )}
             {focusedEntry && (
@@ -449,7 +594,7 @@ export function SocialContent({ data, search }: {
             )}
           </section>
 
-            <aside className="hidden space-y-5 xl:order-3 xl:block">
+          <aside className="hidden space-y-5 xl:order-3 xl:block">
             <Card className="overflow-hidden rounded-2xl shadow-sm">
               <CardContent className="space-y-3 p-5">
                 <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">

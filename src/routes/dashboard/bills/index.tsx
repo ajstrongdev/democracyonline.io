@@ -181,7 +181,7 @@ function BillsIndex() {
               const voteRecorded =
                 bill.status === "Voting" && votedBillIds.includes(bill.id);
               const voteTally =
-                bill.status === "Committee"
+                bill.status === "Committee" || bill.stage === "Committee"
                   ? null
                   : bill.stage === "Presidential"
                     ? {
@@ -252,8 +252,27 @@ function BillsIndex() {
                               <span>· Next: {getNextBillStage(bill)}</span>
                             )}
                           </span>
+                        ) : bill.status === "Queued" ? (
+                          <span>Waiting for a {listStage} slot</span>
                         ) : null}
-                        {voteTally && <StageVotes {...voteTally} />}
+                        {voteTally &&
+                          (bill.status === "Voting" ? (
+                            <span>
+                              {bill.stage === "House"
+                                ? bill.houseTotal
+                                : bill.stage === "Senate"
+                                  ? bill.senateTotal
+                                  : bill.presidentTotal}{" "}
+                              {bill.stage === "House"
+                                ? "Representatives"
+                                : bill.stage === "Senate"
+                                  ? "Senators"
+                                  : "Presidents"}{" "}
+                              have voted · Results hidden until stage closes
+                            </span>
+                          ) : (
+                            <StageVotes {...voteTally} />
+                          ))}
                         {votePending && (
                           <span className="font-semibold text-primary">
                             Your vote is pending

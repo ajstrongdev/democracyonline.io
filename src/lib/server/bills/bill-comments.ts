@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { asc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, ilike, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   billComments,
@@ -13,6 +13,7 @@ import { db } from "@/db";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware/auth";
 import { userEmailEquals } from "@/lib/server/auth/user-email";
 import { publishBillComment } from "@/lib/server/bills/publish-bill-comment";
+import { canGuideBill } from "@/lib/bills/pending-guidance";
 
 export const searchDiscussionBills = createServerFn()
   .inputValidator(z.object({ query: z.string().trim().max(100) }))
@@ -123,6 +124,7 @@ export const getBillWhips = createServerFn()
             partyId: users.partyId,
             isActive: users.isActive,
             leaderId: parties.leaderId,
+            chiefWhipId: parties.chiefWhipId,
             archivedAt: parties.archivedAt,
           })
           .from(users)
@@ -140,6 +142,7 @@ export const getBillWhips = createServerFn()
         position: billPartyWhips.position,
         note: billPartyWhips.note,
         updatedAt: billPartyWhips.updatedAt,
+        enforcedAt: billPartyWhips.enforcedAt,
       })
       .from(billPartyWhips)
       .innerJoin(parties, eq(parties.id, billPartyWhips.partyId))
@@ -148,22 +151,25 @@ export const getBillWhips = createServerFn()
       .orderBy(asc(parties.name));
 
     const [bill] = await db
-      .select({ status: bills.status })
+      .select({
+        status: bills.status,
+        stage: bills.stage,
+        stageEndsAt: bills.stageEndsAt,
+      })
       .from(bills)
       .where(eq(bills.id, data.billId))
       .limit(1);
-    const isLeader = Boolean(
+    const isChiefWhip = Boolean(
       currentUser?.isActive &&
       currentUser.partyId &&
-      currentUser.leaderId === currentUser.id &&
+      currentUser.chiefWhipId === currentUser.id &&
       currentUser.archivedAt === null,
     );
     return {
       whips,
       currentPartyId: currentUser?.partyId ?? null,
-      isLeader,
-      canWhip: isLeader && bill?.status === "Voting",
-      isVoting: bill?.status === "Voting",
+      isChiefWhip,
+      canWhip: isChiefWhip && Boolean(bill && canGuideBill(bill)),
     };
   });
 
@@ -174,11 +180,13 @@ export const saveBillWhip = createServerFn({ method: "POST" })
       billId: z.number().int().positive(),
       position: z.enum(["For", "Against"]),
       note: z.string().trim().max(1_000).optional(),
+      enforce: z.boolean().default(false),
     }),
   )
   .handler(async ({ data, context }) => {
     if (!context.user?.email) throw new Error("Authentication required");
     return db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(24092026)`);
       const [leader] = await tx
         .select({
           id: users.id,
@@ -186,6 +194,7 @@ export const saveBillWhip = createServerFn({ method: "POST" })
           isActive: users.isActive,
           partyName: parties.name,
           leaderId: parties.leaderId,
+          chiefWhipId: parties.chiefWhipId,
           archivedAt: parties.archivedAt,
         })
         .from(users)
@@ -195,21 +204,67 @@ export const saveBillWhip = createServerFn({ method: "POST" })
       if (
         !leader?.isActive ||
         !leader.partyId ||
-        leader.leaderId !== leader.id ||
+        leader.chiefWhipId !== leader.id ||
         leader.archivedAt !== null
       ) {
-        throw new Error("Only active party leaders can issue voting guidance");
+        throw new Error(
+          "Only the active party Chief Whip can issue voting guidance",
+        );
       }
       const [bill] = await tx
-        .select({ id: bills.id, title: bills.title, status: bills.status })
+        .select({
+          id: bills.id,
+          title: bills.title,
+          status: bills.status,
+          stage: bills.stage,
+          stageEndsAt: bills.stageEndsAt,
+        })
         .from(bills)
         .where(eq(bills.id, data.billId))
         .limit(1);
       if (!bill) throw new Error("Bill not found");
-      if (bill.status !== "Voting")
+      if (!canGuideBill(bill))
         throw new Error(
-          "Voting guidance can only be set while a bill is in voting",
+          "Voting guidance can only be set while a bill is queued for committee, in committee, or in voting",
         );
+      const [existing] = await tx
+        .select({
+          position: billPartyWhips.position,
+          enforcedAt: billPartyWhips.enforcedAt,
+        })
+        .from(billPartyWhips)
+        .where(
+          and(
+            eq(billPartyWhips.billId, bill.id),
+            eq(billPartyWhips.partyId, leader.partyId),
+          ),
+        )
+        .limit(1);
+      if (existing?.enforcedAt && existing.position !== data.position)
+        throw new Error("An enforced whip cannot change direction");
+
+      const enforcedAt =
+        existing?.enforcedAt ?? (data.enforce ? new Date() : null);
+      if (data.enforce && !existing?.enforcedAt) {
+        const [recent] = await tx
+          .select({ id: billPartyWhips.id })
+          .from(billPartyWhips)
+          .where(
+            and(
+              eq(billPartyWhips.partyId, leader.partyId),
+              isNotNull(billPartyWhips.enforcedAt),
+              gt(
+                billPartyWhips.enforcedAt,
+                new Date(Date.now() - 24 * 60 * 60 * 1000),
+              ),
+            ),
+          )
+          .limit(1);
+        if (recent)
+          throw new Error(
+            "Your party can enforce only one bill every 24 hours",
+          );
+      }
 
       await tx
         .insert(billPartyWhips)
@@ -219,6 +274,7 @@ export const saveBillWhip = createServerFn({ method: "POST" })
           leaderUserId: leader.id,
           position: data.position,
           note: data.note || null,
+          enforcedAt,
         })
         .onConflictDoUpdate({
           target: [billPartyWhips.billId, billPartyWhips.partyId],
@@ -226,12 +282,13 @@ export const saveBillWhip = createServerFn({ method: "POST" })
             leaderUserId: leader.id,
             position: data.position,
             note: data.note || null,
+            enforcedAt,
             updatedAt: sql`now()`,
           },
         });
       await tx.insert(feed).values({
         userId: leader.id,
-        content: `issued ${data.position.toLowerCase()} voting guidance for ${leader.partyName} on bill #${bill.id}: ${bill.title}`,
+        content: `${existing ? "updated" : "issued"} ${data.position.toLowerCase()} voting guidance for ${leader.partyName} on bill #${bill.id}: ${bill.title}${data.enforce && !existing?.enforcedAt ? ". Enforced the party whip: members voting against it must change their vote by the end of each voting stage or be ejected from the party; abstention is allowed." : existing?.enforcedAt ? ". The party whip remains enforced: final contrary votes at stage close lead to ejection." : "."}`,
       });
       return { success: true };
     });

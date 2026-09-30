@@ -85,6 +85,7 @@ export const getSocialFeed = createServerFn()
             isActive: users.isActive,
             partyId: parties.id,
             partyLeaderId: parties.leaderId,
+            partySocialMediaOfficerId: parties.socialMediaOfficerId,
             partyName: parties.name,
             partyColor: parties.color,
           })
@@ -290,6 +291,7 @@ export const getSocialProfile = createServerFn()
         partyName: parties.name,
         partyColor: parties.color,
         partyLeaderId: parties.leaderId,
+        partySocialMediaOfficerId: parties.socialMediaOfficerId,
       })
       .from(users)
       .leftJoin(
@@ -365,14 +367,14 @@ export const createSocialPost = createServerFn({ method: "POST" })
         .where(
           and(
             eq(parties.id, data.partyId),
-            eq(parties.leaderId, player.id),
+            eq(parties.socialMediaOfficerId, player.id),
             isNull(parties.archivedAt),
           ),
         )
         .limit(1);
       if (!party)
         throw new Error(
-          "Only the current leader of an active party can post as that party.",
+          "Only the Social Media Officer of an active party can post as that party.",
         );
       accountPartyId = party.id;
       partyAccountName = party.name;
@@ -557,12 +559,10 @@ export const toggleSocialVote = createServerFn({ method: "POST" })
         (data.vote === "up" && removedUp) ||
         (data.vote === "down" && removedDown)
       ) {
-        await tx
-          .insert(feed)
-          .values({
-            userId: player.id,
-            content: `removed their Z.com vote on post #${data.postId}`,
-          });
+        await tx.insert(feed).values({
+          userId: player.id,
+          content: `removed their Z.com vote on post #${data.postId}`,
+        });
         return { vote: null };
       }
       if (data.vote === "up") {
@@ -574,12 +574,10 @@ export const toggleSocialVote = createServerFn({ method: "POST" })
           .insert(socialDislikes)
           .values({ postId: data.postId, userId: player.id });
       }
-      await tx
-        .insert(feed)
-        .values({
-          userId: player.id,
-          content: `${data.vote === "up" ? "liked" : "disliked"} Z.com post #${data.postId}`,
-        });
+      await tx.insert(feed).values({
+        userId: player.id,
+        content: `${data.vote === "up" ? "liked" : "disliked"} Z.com post #${data.postId}`,
+      });
       return { vote: data.vote };
     });
   });
@@ -627,12 +625,10 @@ export const toggleSocialCommentVote = createServerFn({ method: "POST" })
         (data.vote === "up" && removedUp) ||
         (data.vote === "down" && removedDown)
       ) {
-        await tx
-          .insert(feed)
-          .values({
-            userId: player.id,
-            content: `removed their Z.com vote on comment #${data.commentId}`,
-          });
+        await tx.insert(feed).values({
+          userId: player.id,
+          content: `removed their Z.com vote on comment #${data.commentId}`,
+        });
         return { vote: null };
       }
       if (data.vote === "up") {
@@ -644,12 +640,10 @@ export const toggleSocialCommentVote = createServerFn({ method: "POST" })
           .insert(socialCommentDislikes)
           .values({ commentId: data.commentId, userId: player.id });
       }
-      await tx
-        .insert(feed)
-        .values({
-          userId: player.id,
-          content: `${data.vote === "up" ? "liked" : "disliked"} Z.com comment #${data.commentId}`,
-        });
+      await tx.insert(feed).values({
+        userId: player.id,
+        content: `${data.vote === "up" ? "liked" : "disliked"} Z.com comment #${data.commentId}`,
+      });
       return { vote: data.vote };
     });
   });
@@ -680,23 +674,19 @@ export const toggleSocialRepost = createServerFn({ method: "POST" })
         )
         .returning({ postId: socialReposts.postId });
       if (deleted) {
-        await tx
-          .insert(feed)
-          .values({
-            userId: player.id,
-            content: `removed their Z.com repost of post #${data.postId}`,
-          });
+        await tx.insert(feed).values({
+          userId: player.id,
+          content: `removed their Z.com repost of post #${data.postId}`,
+        });
         return { reposted: false };
       }
       await tx
         .insert(socialReposts)
         .values({ postId: data.postId, userId: player.id });
-      await tx
-        .insert(feed)
-        .values({
-          userId: player.id,
-          content: `reposted Z.com post #${data.postId}`,
-        });
+      await tx.insert(feed).values({
+        userId: player.id,
+        content: `reposted Z.com post #${data.postId}`,
+      });
       return { reposted: true };
     });
   });

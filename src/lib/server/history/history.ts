@@ -3,6 +3,7 @@ import { and, asc, desc, eq, getTableColumns, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { getOfficeholderSelection } from "@/lib/utils/history";
+import { coalitionCompositionFor } from "@/lib/utils/coalition-composition";
 import { getElectionCoverage } from "@/lib/server/elections/election-coverage";
 import { ensureElectionSchedule } from "@/lib/server/elections/election-schedule";
 import {
@@ -12,6 +13,9 @@ import {
   billVotesSenate,
   bills,
   candidates,
+  coalitionFormerMembers,
+  coalitionMembers,
+  coalitions,
   coupHistory,
   coupOfficeholderHistory,
   coupRoleChanges,
@@ -149,7 +153,7 @@ const voteCount = (
     | typeof billVotesPresidential,
   yes: boolean,
 ) =>
-  sql<number>`(select count(*)::int from ${table} where ${table.billId} = ${bills.id} and ${table.voteYes} = ${yes})`;
+  sql<number>`(select count(*)::int from ${table} where ${table.billId} = ${bills.id} and ${table.voteYes} = ${yes} and not (${bills.status} = 'Voting' and ${bills.stage} = ${table === billVotesHouse ? "House" : table === billVotesSenate ? "Senate" : "Presidential"}))`;
 
 export const getWikiHome = createServerFn().handler(async () => {
   const [
@@ -340,7 +344,12 @@ function getPlayerBillVotes(
     })
     .from(table)
     .innerJoin(bills, eq(table.billId, bills.id))
-    .where(eq(table.voterId, userId));
+    .where(
+      and(
+        eq(table.voterId, userId),
+        sql`not (${bills.status} = 'Voting' and ${bills.stage} = ${table === billVotesHouse ? "House" : table === billVotesSenate ? "Senate" : "Presidential"})`,
+      ),
+    );
 }
 
 export const getWikiBills = createServerFn().handler(() =>
@@ -354,6 +363,9 @@ export const getWikiBills = createServerFn().handler(() =>
       senateNo: voteCount(billVotesSenate, false),
       presidentYes: voteCount(billVotesPresidential, true),
       presidentNo: voteCount(billVotesPresidential, false),
+      houseTotal: sql<number>`(select count(*)::int from ${billVotesHouse} where ${billVotesHouse.billId} = ${bills.id})`,
+      senateTotal: sql<number>`(select count(*)::int from ${billVotesSenate} where ${billVotesSenate.billId} = ${bills.id})`,
+      presidentTotal: sql<number>`(select count(*)::int from ${billVotesPresidential} where ${billVotesPresidential.billId} = ${bills.id})`,
     })
     .from(bills)
     .leftJoin(users, eq(bills.creatorId, users.id))
@@ -376,7 +388,20 @@ export const getWikiBill = createServerFn()
       getBillRollCall(billVotesSenate, data.id),
       getBillRollCall(billVotesPresidential, data.id),
     ]);
-    return { bill, rollCalls: { house, senate, president } };
+    const open = bill.status === "Voting";
+    return {
+      bill,
+      rollCalls: {
+        house: open && bill.stage === "House" ? [] : house,
+        senate: open && bill.stage === "Senate" ? [] : senate,
+        president: open && bill.stage === "Presidential" ? [] : president,
+      },
+      voteCounts: {
+        house: house.length,
+        senate: senate.length,
+        president: president.length,
+      },
+    };
   });
 
 function getBillRollCall(
@@ -774,6 +799,8 @@ export const getWikiParty = createServerFn()
         logo: storedParty?.logo ?? archivedParty?.logo ?? null,
         discord: storedParty?.discord ?? null,
         leaderId,
+        chiefWhipId: storedParty?.chiefWhipId ?? null,
+        socialMediaOfficerId: storedParty?.socialMediaOfficerId ?? null,
         current: Boolean(storedParty && !storedParty.archivedAt),
         archivedAt:
           storedParty?.archivedAt ?? archivedParty?.archivedAt ?? null,
@@ -788,38 +815,70 @@ export const getWikiParty = createServerFn()
 
 export const getGovernmentCompositionHistory = createServerFn().handler(
   async () => {
-    const [rows, membershipEvents, coups, coupMembers, changes] =
-      await Promise.all([
-        db
-          .select({
-            historyId: electionHistory.id,
-            election: electionHistory.election,
-            cycle: electionHistory.cycle,
-            concludedAt: electionHistory.concludedAt,
-            userId: electionOfficeholderHistory.userId,
-            username: electionOfficeholderHistory.username,
-            office: electionOfficeholderHistory.office,
-            partyId: electionOfficeholderHistory.partyId,
-            partyName: electionOfficeholderHistory.partyName,
-            partyColor: electionOfficeholderHistory.partyColor,
-          })
-          .from(electionOfficeholderHistory)
-          .innerJoin(
-            electionHistory,
-            eq(
-              electionOfficeholderHistory.electionHistoryId,
-              electionHistory.id,
-            ),
-          )
-          .orderBy(electionHistory.concludedAt, electionHistory.id),
-        db
-          .select()
-          .from(partyMembershipEvents)
-          .orderBy(partyMembershipEvents.occurredAt, partyMembershipEvents.id),
-        db.select().from(coupHistory),
-        db.select().from(coupOfficeholderHistory),
-        db.select().from(coupRoleChanges),
-      ]);
+    const [
+      rows,
+      membershipEvents,
+      coups,
+      coupMembers,
+      changes,
+      currentCoalitions,
+      formerCoalitions,
+    ] = await Promise.all([
+      db
+        .select({
+          historyId: electionHistory.id,
+          election: electionHistory.election,
+          cycle: electionHistory.cycle,
+          concludedAt: electionHistory.concludedAt,
+          userId: electionOfficeholderHistory.userId,
+          username: electionOfficeholderHistory.username,
+          office: electionOfficeholderHistory.office,
+          partyId: electionOfficeholderHistory.partyId,
+          partyName: electionOfficeholderHistory.partyName,
+          partyColor: electionOfficeholderHistory.partyColor,
+        })
+        .from(electionOfficeholderHistory)
+        .innerJoin(
+          electionHistory,
+          eq(electionOfficeholderHistory.electionHistoryId, electionHistory.id),
+        )
+        .orderBy(electionHistory.concludedAt, electionHistory.id),
+      db
+        .select()
+        .from(partyMembershipEvents)
+        .orderBy(partyMembershipEvents.occurredAt, partyMembershipEvents.id),
+      db.select().from(coupHistory),
+      db.select().from(coupOfficeholderHistory),
+      db.select().from(coupRoleChanges),
+      db
+        .select({
+          partyId: coalitionMembers.partyId,
+          coalitionId: coalitions.id,
+          name: coalitions.name,
+          color: coalitions.color,
+          joinedAt: coalitionMembers.joinDate,
+        })
+        .from(coalitionMembers)
+        .innerJoin(coalitions, eq(coalitions.id, coalitionMembers.coalitionId)),
+      db
+        .select({
+          partyId: coalitionFormerMembers.partyId,
+          coalitionId: coalitions.id,
+          name: coalitions.name,
+          color: coalitions.color,
+          joinedAt: coalitionFormerMembers.firstJoinedAt,
+          leftAt: coalitionFormerMembers.lastLeftAt,
+        })
+        .from(coalitionFormerMembers)
+        .innerJoin(
+          coalitions,
+          eq(coalitions.id, coalitionFormerMembers.coalitionId),
+        ),
+    ]);
+    const coalitionMemberships = [
+      ...currentCoalitions.map((member) => ({ ...member, leftAt: null })),
+      ...formerCoalitions,
+    ];
 
     const snapshots = new Map<
       number,
@@ -962,6 +1021,11 @@ export const getGovernmentCompositionHistory = createServerFn().handler(
       history.push({
         ...point,
         composition: composition.map((party) => ({ ...party })),
+        coalitionComposition: coalitionCompositionFor(
+          composition,
+          point.occurredAt,
+          coalitionMemberships,
+        ),
       });
     }
     return history.reverse();

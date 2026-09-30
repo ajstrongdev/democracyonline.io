@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { MarkdownContent } from "./markdown-content";
 import type { WikiEntityType } from "@/lib/server/wiki/wiki-articles";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -116,7 +116,7 @@ export function WikiArticleSection({
               </TabsList>
               <TabsContent value="edit">
                 <div className="mb-2 flex justify-end">
-                  <ReferenceInsert
+                  <MarkdownToolbar
                     textareaId={editorId}
                     value={content}
                     onChange={setContent}

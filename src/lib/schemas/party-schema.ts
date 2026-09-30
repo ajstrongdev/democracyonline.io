@@ -17,6 +17,7 @@ export const PartySchema = z.object({
 export const CreatePartySchema = z.object({
   party: PartySchema,
   platform: z.string().trim().max(50_000),
+  cofounders: z.tuple([z.string().trim().min(1), z.string().trim().min(1)]),
 });
 
 export const UpdatePartySchema = z.object({

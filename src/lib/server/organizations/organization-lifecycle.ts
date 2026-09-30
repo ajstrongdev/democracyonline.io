@@ -1,6 +1,10 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { db } from "@/db";
 import {
+  lockPresidentialPrimary,
+  syncPartyPrimaryMembership,
+} from "@/lib/server/organizations/primary-membership";
+import {
   coalitionFormerMembers,
   coalitionMembers,
   coalitions,
@@ -94,6 +98,7 @@ export async function removePartyFromCoalitions(
   partyId: number,
   actorUserId: number | null = null,
 ) {
+  await lockPresidentialPrimary(tx);
   const memberships = await tx
     .select({
       coalitionId: coalitionMembers.coalitionId,
@@ -110,6 +115,7 @@ export async function removePartyFromCoalitions(
     await tx
       .delete(coalitionMembers)
       .where(eq(coalitionMembers.partyId, partyId));
+    await syncPartyPrimaryMembership(tx, partyId, null);
   }
   for (const membership of memberships) {
     await archiveCoalitionIfEmpty(tx, membership.coalitionId, actorUserId);
@@ -122,6 +128,7 @@ export async function leaveCoalitionMembership(
   partyId: number,
   actorUserId: number,
 ) {
+  await lockPresidentialPrimary(tx);
   const [membership] = await tx
     .select({
       coalitionId: coalitionMembers.coalitionId,
@@ -147,6 +154,7 @@ export async function leaveCoalitionMembership(
         eq(coalitionMembers.partyId, partyId),
       ),
     );
+  await syncPartyPrimaryMembership(tx, partyId, null);
   await archiveCoalitionIfEmpty(tx, coalitionId, actorUserId);
   return true;
 }
@@ -155,6 +163,7 @@ export async function archivePartyIfEmpty(
   tx: Transaction,
   partyId: number,
   actorUserId: number | null = null,
+  convertedToPressureGroup = false,
 ) {
   await tx.execute(sql`select pg_advisory_xact_lock(${partyId})`);
   const [party] = await tx
@@ -182,6 +191,8 @@ export async function archivePartyIfEmpty(
       archivedAt: new Date(),
       formerLeaderId: party.leaderId,
       leaderId: null,
+      chiefWhipId: null,
+      socialMediaOfficerId: null,
     })
     .where(and(eq(parties.id, partyId), isNull(parties.archivedAt)))
     .returning({ id: parties.id });
@@ -200,12 +211,19 @@ export async function archivePartyIfEmpty(
     organizationName: party.name,
     action: "archived",
     actorUserId,
-    metadata: { reason: "last_member_left", formerLeaderId: party.leaderId },
+    metadata: {
+      reason: convertedToPressureGroup
+        ? "below_three_members"
+        : "last_member_left",
+      formerLeaderId: party.leaderId,
+    },
   });
   await tx.insert(feed).values({
     userId: actorUserId,
-    visibility: "admin",
-    content: `${party.name} was archived after its last member left`,
+    visibility: convertedToPressureGroup ? "player" : "admin",
+    content: convertedToPressureGroup
+      ? `${party.name} became a pressure group after falling below three members`
+      : `${party.name} was archived after its last member left`,
   });
   return true;
 }

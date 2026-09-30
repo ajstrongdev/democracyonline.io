@@ -28,9 +28,16 @@ import { MarkdownContent } from "@/components/wiki/markdown-content";
 import { BillComments } from "@/components/bills/bill-comments";
 import { BillProgress } from "@/components/bills/bill-progress";
 import { DashboardBillVoteAction } from "@/components/dashboard/dashboard-bill-vote-action";
-import { getBillComments, getBillWhips } from "@/lib/server/bills/bill-comments";
+import { BillVoteIndication } from "@/components/bills/bill-vote-indication";
+import { getMyVoteIndications } from "@/lib/server/bills/vote-indications";
+import { getOwnBillVote } from "@/lib/server/bills/own-vote";
+import {
+  getBillComments,
+  getBillWhips,
+} from "@/lib/server/bills/bill-comments";
 import { getCurrentUserInfo } from "@/lib/server/users/users";
 import { reviveDefeatedBill } from "@/lib/server/bills/bills";
+import { canIndicateVote } from "@/lib/bills/vote-rules";
 import {
   Dialog,
   DialogContent,
@@ -45,52 +52,102 @@ export const Route = createFileRoute("/dashboard/bills/$billId")({
     const id = Number(params.billId);
     if (!Number.isInteger(id))
       throw new Response("Bill not found", { status: 404 });
-    const [billData, article, committee, comments, whipData, currentUser] =
-      await Promise.all([
-        getWikiBill({ data: { id } }),
-        getWikiArticle({
-          data: { entityType: "bill", entityId: params.billId },
-        }),
-        getCommitteeData({ data: { billId: id } }),
-        getBillComments({ data: { billId: id } }),
-        getBillWhips({ data: { billId: id } }).catch((error) => {
-          // Party guidance is an optional bill feature. Older seeded databases
-          // can be missing its migration; keep the bill readable and log the
-          // schema error so it can be diagnosed instead of crashing the route.
-          console.error("Could not load bill party guidance", error);
-          return {
-            whips: [],
-            currentPartyId: null,
-            isLeader: false,
-            canWhip: false,
-            isVoting: false,
-          };
-        }),
-        getCurrentUserInfo(),
-      ]);
+    const [
+      billData,
+      article,
+      committee,
+      comments,
+      whipData,
+      currentUser,
+      indications,
+      ownVote,
+    ] = await Promise.all([
+      getWikiBill({ data: { id } }),
+      getWikiArticle({
+        data: { entityType: "bill", entityId: params.billId },
+      }),
+      getCommitteeData({ data: { billId: id } }),
+      getBillComments({ data: { billId: id } }),
+      getBillWhips({ data: { billId: id } }).catch((error) => {
+        // Party guidance is an optional bill feature. Older seeded databases
+        // can be missing its migration; keep the bill readable and log the
+        // schema error so it can be diagnosed instead of crashing the route.
+        console.error("Could not load bill party guidance", error);
+        return {
+          whips: [],
+          currentPartyId: null,
+          isChiefWhip: false,
+          canWhip: false,
+        };
+      }),
+      getCurrentUserInfo(),
+      getMyVoteIndications({ data: { billId: id } }),
+      getOwnBillVote({ data: { billId: id } }),
+    ]);
     if (!billData) throw new Response("Bill not found", { status: 404 });
-    return { billData, article, committee, comments, whipData, currentUser };
+    return {
+      billData,
+      article,
+      committee,
+      comments,
+      whipData,
+      currentUser,
+      indications,
+      ownVote,
+    };
   },
   component: BillArticle,
 });
 
 function BillArticle() {
-  const { billData, article, committee, comments, whipData, currentUser } =
-    Route.useLoaderData();
+  const {
+    billData,
+    article,
+    committee,
+    comments,
+    whipData,
+    currentUser,
+    indications,
+    ownVote,
+  } = Route.useLoaderData();
   const partyGuidance = whipData ?? {
     whips: [],
     currentPartyId: null,
-    isLeader: false,
+    isChiefWhip: false,
     canWhip: false,
-    isVoting: false,
   };
-  const guidancePending = partyGuidance.canWhip &&
-    !partyGuidance.whips.some((whip) => whip.partyId === partyGuidance.currentPartyId);
-  const { bill, rollCalls } = billData;
-  const votingRole = bill.stage === "House" ? "Representative" : bill.stage === "Senate" ? "Senator" : "President";
-  const eligibleToVote = bill.status === "Voting" && currentUser?.isActive && currentUser.role === votingRole;
-  const stageVotes = bill.stage === "House" ? rollCalls.house : bill.stage === "Senate" ? rollCalls.senate : rollCalls.president;
-  const ownVote = stageVotes.find((vote) => vote.userId === currentUser?.id);
+  const guidancePending =
+    partyGuidance.canWhip &&
+    !partyGuidance.whips.some(
+      (whip) => whip.partyId === partyGuidance.currentPartyId,
+    );
+  const { bill, rollCalls, voteCounts } = billData;
+  const votingRole =
+    bill.stage === "House"
+      ? "Representative"
+      : bill.stage === "Senate"
+        ? "Senator"
+        : "President";
+  const eligibleToVote =
+    bill.status === "Voting" &&
+    currentUser?.isActive &&
+    currentUser.role === votingRole;
+  const myWhip = partyGuidance.whips.find(
+    (whip) => whip.partyId === partyGuidance.currentPartyId,
+  );
+  const enforcedPosition = myWhip?.enforcedAt ? myWhip.position : null;
+  const indicationStage =
+    currentUser?.role === "Representative"
+      ? "House"
+      : currentUser?.role === "Senator"
+        ? "Senate"
+        : currentUser?.role === "President"
+          ? "Presidential"
+          : null;
+  const futureStage =
+    indicationStage && canIndicateVote(bill.status, bill.stage, indicationStage)
+      ? indicationStage
+      : null;
   const router = useRouter();
   const [reviveOpen, setReviveOpen] = useState(false);
   const [reviving, setReviving] = useState(false);
@@ -116,16 +173,27 @@ function BillArticle() {
   return (
     <WikiPage width="article">
       <WikiHeader
-        artwork={bill.status === "Committee" ? "bills" : bill.stage === "House" ? "house" : bill.stage === "Senate" ? "senate" : "president"}
+        artwork={
+          bill.status === "Committee" || bill.stage === "Committee"
+            ? "bills"
+            : bill.stage === "House"
+              ? "house"
+              : bill.stage === "Senate"
+                ? "senate"
+                : "president"
+        }
         eyebrow={`Bill #${bill.id} · ${billStatusLabel(bill.status)}${bill.status === "Committee" ? "" : ` · ${bill.stage} stage`}`}
         title={bill.title}
         description={`Proposed by ${bill.creator ?? "Unknown"}${bill.createdAt ? ` on ${formatWikiDate(bill.createdAt)}` : ""}.`}
         status={<Badge variant="outline">{billStatusLabel(bill.status)}</Badge>}
       >
-        {partyGuidance.isLeader && (
+        {partyGuidance.isChiefWhip && (
           <Button asChild variant="outline" size="sm">
             <a href="#party-guidance">
-              <Megaphone className="size-4" /> {guidancePending ? "Issue voting guidance" : "Party voting guidance"}
+              <Megaphone className="size-4" />{" "}
+              {guidancePending
+                ? "Issue voting guidance"
+                : "Party voting guidance"}
             </a>
           </Button>
         )}
@@ -159,6 +227,23 @@ function BillArticle() {
         </DialogContent>
       </Dialog>
       <BillProgress status={bill.status} stage={bill.stage} />
+      {myWhip?.enforcedAt && currentUser?.partyId === myWhip.partyId && (
+        <div
+          role="alert"
+          className="rounded-md border-2 border-destructive bg-destructive/10 p-5"
+        >
+          <p className="font-serif text-xl font-bold text-destructive">
+            ENFORCED PARTY WHIP — {myWhip.position.toUpperCase()}
+          </p>
+          <p className="mt-2 text-sm font-medium">
+            Your party has made this line binding for the entire bill. If your
+            final vote in a chamber is against it when that stage closes, you
+            will be automatically ejected from the party. You can change your
+            vote until the stage closes; you may also abstain. Check your vote
+            below.
+          </p>
+        </div>
+      )}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <WikiArticleSection
           entityType="bill"
@@ -170,7 +255,9 @@ function BillArticle() {
             {billStatusLabel(bill.status)}
           </WikiInfoboxRow>
           <WikiInfoboxRow label="Stage">
-            {bill.status === "Committee" ? "Senate Committee" : bill.stage}
+            {bill.stage === "Committee" || bill.status === "Committee"
+              ? "Senate Committee"
+              : bill.stage}
           </WikiInfoboxRow>
           <WikiInfoboxRow label="Stage ends">
             {bill.stageEndsAt ? (
@@ -183,6 +270,8 @@ function BillArticle() {
                   }
                 />
               </Badge>
+            ) : bill.status === "Queued" ? (
+              "Waiting for an open slot"
             ) : (
               "No active deadline"
             )}
@@ -214,20 +303,45 @@ function BillArticle() {
             title="Your vote"
             description={`This bill is currently before the ${bill.stage === "Presidential" ? "President" : bill.stage}.`}
           >
-            {ownVote ? (
+            {ownVote !== null ? (
               <p className="text-sm text-muted-foreground">
-                Your vote has been recorded: {bill.stage === "Presidential" ? (ownVote.voteYes ? "Signed" : "Vetoed") : (ownVote.voteYes ? "For" : "Against")}.
+                Your vote has been recorded:{" "}
+                {bill.stage === "Presidential"
+                  ? ownVote
+                    ? "Signed"
+                    : "Vetoed"
+                  : ownVote
+                    ? "For"
+                    : "Against"}
+                .
               </p>
-            ) : (
-              <DashboardBillVoteAction
-                billId={bill.id}
-                title={bill.title}
-                stage={bill.stage}
-                userId={currentUser.id}
-              />
-            )}
+            ) : null}
+            <DashboardBillVoteAction
+              billId={bill.id}
+              title={bill.title}
+              stage={bill.stage}
+              userId={currentUser.id}
+              enforcedPosition={enforcedPosition}
+              currentVote={ownVote}
+            />
           </WikiSection>
         </div>
+      )}
+      {futureStage && currentUser?.isActive && (
+        <WikiSection
+          title="Indicate your vote in advance"
+          description="Your indication will become a vote when the bill reaches your chamber."
+        >
+          <BillVoteIndication
+            billId={bill.id}
+            stage={futureStage}
+            voteYes={
+              indications.find((item) => item.stage === futureStage)?.voteYes ??
+              null
+            }
+            enforcedPosition={enforcedPosition}
+          />
+        </WikiSection>
       )}
       {committee && <CommitteeOutcome billId={bill.id} data={committee} />}
       <BillComments
@@ -235,16 +349,27 @@ function BillArticle() {
         comments={comments}
         whips={partyGuidance.whips}
         currentPartyId={partyGuidance.currentPartyId}
-        isLeader={partyGuidance.isLeader}
+        isChiefWhip={partyGuidance.isChiefWhip}
         canWhip={partyGuidance.canWhip}
-        isVoting={partyGuidance.isVoting}
       />
       <section className="grid gap-4 lg:grid-cols-3">
-        <RollCall title="House of Representatives" votes={rollCalls.house} />
-        <RollCall title="Senate" votes={rollCalls.senate} />
+        <RollCall
+          title="House of Representatives"
+          votes={rollCalls.house}
+          hidden={bill.status === "Voting" && bill.stage === "House"}
+          count={voteCounts.house}
+        />
+        <RollCall
+          title="Senate"
+          votes={rollCalls.senate}
+          hidden={bill.status === "Voting" && bill.stage === "Senate"}
+          count={voteCounts.senate}
+        />
         <RollCall
           title="President"
           votes={rollCalls.president}
+          hidden={bill.status === "Voting" && bill.stage === "Presidential"}
+          count={voteCounts.president}
           yesLabel="Signed"
           noLabel="Vetoed"
         />
@@ -256,10 +381,14 @@ function BillArticle() {
 function RollCall({
   title,
   votes,
+  hidden = false,
+  count = 0,
   yesLabel = "For",
   noLabel = "Against",
 }: {
   title: string;
+  hidden?: boolean;
+  count?: number;
   votes: Array<{
     userId: number | null;
     username: string | null;
@@ -270,6 +399,28 @@ function RollCall({
   yesLabel?: string;
   noLabel?: string;
 }) {
+  if (hidden)
+    return (
+      <WikiSection
+        title={title}
+        aside={
+          <span className="text-sm font-semibold">
+            {count}{" "}
+            {title === "House of Representatives"
+              ? "Representatives"
+              : title === "Senate"
+                ? "Senators"
+                : "Presidents"}{" "}
+            have voted
+          </span>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          Vote choices and results are hidden until this stage closes. You may
+          change your own vote until then.
+        </p>
+      </WikiSection>
+    );
   const yes = votes.filter((vote) => vote.voteYes).length;
   const no = votes.length - yes;
   return (

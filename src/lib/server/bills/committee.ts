@@ -26,6 +26,7 @@ import {
 } from "@/lib/nation/simulation";
 import { userEmailEquals } from "@/lib/server/auth/user-email";
 import { authMiddleware, requireAuthMiddleware } from "@/middleware";
+import { BASE_BILL_STAGE_MS } from "@/lib/game-speed";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -45,13 +46,11 @@ const assessmentSchema = z.object({
   ),
 });
 
-const BILL_STAGE_DURATION_MS = 8 * 60 * 60 * 1000;
-
 export async function lockCommitteeOutcome(
   tx: Transaction,
   billId: number,
   now: Date = new Date(),
-  stageDurationMs: number = BILL_STAGE_DURATION_MS,
+  stageDurationMs: number = BASE_BILL_STAGE_MS,
 ) {
   const [bill] = await tx
     .select()
@@ -131,7 +130,7 @@ export async function lockCommitteeOutcome(
       committeeClosedAt: now,
       committeeParticipantCount: assessments.length,
       // A bill closed early from Committee must start a fresh voting
-      // window (8h at regular speed, scaled by the game speed). Without this
+      // window (12h at regular speed, scaled by the game speed). Without this
       // it would retain the original Committee deadline and advance (or
       // stall) at the wrong time. See docs/BILL_HANDOVER.md.
       stageStartedAt: now,

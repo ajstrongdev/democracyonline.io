@@ -5,6 +5,7 @@ export type BotEndpoint =
   | "users"
   | "parties"
   | "bills"
+  | "posts"
   | "candidates"
   | "game-state";
 export type BotStage = "House" | "Senate" | "Presidential";
@@ -25,6 +26,11 @@ export type BotQuery =
       offset: number;
     }
   | {
+      endpoint: "posts";
+      limit: number;
+      offset: number;
+    }
+  | {
       endpoint: "candidates";
       election: "President" | "Senate" | null;
       limit: number;
@@ -40,6 +46,7 @@ const endpoints: ReadonlyArray<BotEndpoint> = [
   "users",
   "parties",
   "bills",
+  "posts",
   "candidates",
   "game-state",
 ];
@@ -71,6 +78,7 @@ export function parseBotQuery(url: URL): BotParseResult {
     users: ["id", "limit", "offset"],
     parties: ["id", "limit", "offset"],
     bills: ["stage", "status", "limit", "offset"],
+    posts: ["limit", "offset"],
     candidates: ["election", "limit", "offset"],
     "game-state": [],
   };
@@ -142,6 +150,9 @@ export function parseBotQuery(url: URL): BotParseResult {
       },
     };
   }
+
+  if (key === "posts")
+    return { ok: true, query: { endpoint: "posts", limit, offset } };
 
   const election = params.get("election");
   if (election !== null && election !== "President" && election !== "Senate")

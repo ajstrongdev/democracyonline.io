@@ -14,6 +14,10 @@ describe("bot API query contract", () => {
       ok: true,
       query: { limit: 100, offset: 30 },
     });
+    expect(parse("endpoint=posts&limit=25&offset=10")).toMatchObject({
+      ok: true,
+      query: { endpoint: "posts", limit: 25, offset: 10 },
+    });
     for (const id of [
       "",
       "0",
@@ -38,6 +42,7 @@ describe("bot API query contract", () => {
       "endpoint=candidates&election=Other",
       "endpoint=unknown",
       "endpoint=bills&stage=",
+      "endpoint=posts&stage=House",
     ])
       expect(parse(query).ok).toBe(false);
   });

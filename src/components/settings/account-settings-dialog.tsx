@@ -10,7 +10,7 @@ import { InvitationManager } from "@/components/settings/invitation-manager";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
 import { AvatarEditor } from "@/components/players/avatar-editor";
 import { PlayerAvatar } from "@/components/players/player-avatar";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -185,7 +185,7 @@ export function AccountSettingsDialog({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <Label htmlFor="settings-bio">Bio</Label>
-                      <ReferenceInsert textareaId="settings-bio" value={bio} onChange={setBio} />
+                      <MarkdownToolbar textareaId="settings-bio" value={bio} onChange={setBio} />
                     </div>
                     <Textarea id="settings-bio" value={bio} onChange={(event) => setBio(event.target.value)} maxLength={1000} required rows={4} />
                     <p className="text-xs text-muted-foreground">{bio.length}/1000 characters</p>

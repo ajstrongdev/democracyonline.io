@@ -16,7 +16,8 @@ export function billListStage(bill: {
 }): Exclude<BillListStage, "All"> {
   if (bill.status === "Passed") return "Enacted";
   if (bill.status === "Defeated") return "Defeated";
-  if (bill.status === "Committee") return "Committee";
+  if (bill.status === "Committee" || bill.stage === "Committee")
+    return "Committee";
   if (bill.stage === "Senate") return "Senate";
   if (bill.stage === "Presidential") return "President";
   return "House";

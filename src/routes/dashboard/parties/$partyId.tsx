@@ -10,7 +10,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { WikiArticleSection } from "@/components/wiki/wiki-article-section";
-import { ManagePartyDialog } from "@/components/wiki/manage-party-dialog";
+import { PartyLeadership } from "@/components/wiki/party-leadership";
 import { MessageDialog } from "@/components/message-dialog";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { SocialAccountAvatar } from "@/components/social/social-account-avatar";
@@ -19,6 +19,7 @@ import {
   WikiInfobox,
   WikiInfoboxRow,
   WikiPage,
+  WikiSection,
 } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,12 +29,21 @@ import { getWikiArticle } from "@/lib/server/wiki/wiki-articles";
 import { getCurrentUserInfo } from "@/lib/server/users/users";
 import {
   becomePartyLeader,
+  ejectPartyMember,
   getPartyRevivalState,
-  joinParty,
   leaveParty,
   reviveParty,
 } from "@/lib/server/organizations/party";
+import {
+  decidePartyMembership,
+  getPartyGovernance,
+  requestPartyMembership,
+  startLeadershipBid,
+  supportLeadershipBid,
+  withdrawLeadershipBid,
+} from "@/lib/server/organizations/party-governance";
 import { getPartyCoalition } from "@/lib/server/organizations/coalitions";
+import { coalitionDesignation } from "@/lib/organizations/coalition-status";
 import { EntityReferenceText } from "@/components/entity-reference-text";
 import { SocialPartyPosts } from "@/components/social/social-party-posts";
 import { getSocialPartyPosts } from "@/lib/server/social/social";
@@ -48,24 +58,41 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
     const id = Number(params.partyId);
     if (!Number.isInteger(id))
       throw new Response("Party not found", { status: 404 });
-    const [party, article, currentUser, coalition, revival, socialPosts] =
-      await Promise.all([
-        getWikiParty({ data: { id } }),
-        getWikiArticle({
-          data: { entityType: "party", entityId: params.partyId },
-        }),
-        getCurrentUserInfo(),
-        getPartyCoalition({ data: { partyId: id } }),
-        getPartyRevivalState({ data: { partyId: id } }),
-        getSocialPartyPosts({ data: { partyId: id } }),
-      ]);
+    const [
+      party,
+      article,
+      currentUser,
+      coalition,
+      revival,
+      socialPosts,
+      governance,
+    ] = await Promise.all([
+      getWikiParty({ data: { id } }),
+      getWikiArticle({
+        data: { entityType: "party", entityId: params.partyId },
+      }),
+      getCurrentUserInfo(),
+      getPartyCoalition({ data: { partyId: id } }),
+      getPartyRevivalState({ data: { partyId: id } }),
+      getSocialPartyPosts({ data: { partyId: id } }),
+      getPartyGovernance({ data: { partyId: id } }),
+    ]);
     if (!party) throw new Response("Party not found", { status: 404 });
-    return { ...party, article, currentUser, coalition, revival, socialPosts };
+    return {
+      ...party,
+      article,
+      currentUser,
+      coalition,
+      revival,
+      socialPosts,
+      governance,
+    };
   },
   component: PartyArticle,
 });
 
 function PartyArticle() {
+  const router = useRouter();
   const {
     party,
     members,
@@ -78,6 +105,7 @@ function PartyArticle() {
     revival,
     leader,
     socialPosts,
+    governance,
   } = Route.useLoaderData();
   return (
     <WikiPage width="article">
@@ -150,7 +178,7 @@ function PartyArticle() {
             )}
           </WikiInfoboxRow>
           {party.current && coalition && (
-            <WikiInfoboxRow label="Coalition">
+            <WikiInfoboxRow label={coalitionDesignation(coalition.memberCount)}>
               <Link
                 to="/dashboard/parties/coalitions/$id"
                 params={{ id: String(coalition.id) }}
@@ -163,7 +191,14 @@ function PartyArticle() {
           <WikiInfoboxRow label="Members">{members.length}</WikiInfoboxRow>
           {party.discord && (
             <WikiInfoboxRow label="Discord">
-              <a href={party.discord} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Join server</a>
+              <a
+                href={party.discord}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Join server
+              </a>
             </WikiInfoboxRow>
           )}
           {!party.current && party.archivedAt && (
@@ -173,7 +208,11 @@ function PartyArticle() {
           )}
           {party.current && currentUser && (
             <WikiInfoboxRow label="Organization">
-              <PartyActions party={party} currentUser={currentUser} />
+              <PartyActions
+                party={party}
+                currentUser={currentUser}
+                requested={governance.ownRequest}
+              />
             </WikiInfoboxRow>
           )}
           {!party.current && revival.canRevive && (
@@ -183,6 +222,22 @@ function PartyArticle() {
           )}
         </WikiInfobox>
       </div>
+      {party.current && (
+        <PartyLeadership
+          party={party}
+          members={members}
+          currentUserId={currentUser?.id ?? null}
+        />
+      )}
+      {party.current && currentUser && (
+        <PartyGovernance
+          partyId={party.id}
+          partyName={party.name}
+          leaderId={party.leaderId}
+          currentUser={currentUser}
+          governance={governance}
+        />
+      )}
       <SocialPartyPosts posts={socialPosts} />
       <section className="grid gap-6 lg:grid-cols-2">
         <Card className="rounded-sm shadow-none">
@@ -328,22 +383,52 @@ function PartyArticle() {
           </CardHeader>
           <CardContent className="grid gap-2 sm:grid-cols-2">
             {members.map((member) => (
-              <Link
-                key={member.id}
-                to="/dashboard/players/$playerId"
-                params={{ playerId: String(member.id) }}
-                className="flex justify-between rounded-md border p-3 hover:border-primary"
-              >
-                <span className="flex items-center gap-2">
-                  <PlayerAvatar
-                    username={member.username}
-                    photoUrl={member.photoUrl}
-                    className="size-8 text-xs"
-                  />
-                  <strong>{member.username}</strong>
-                </span>
-                <Badge variant="outline">{member.role}</Badge>
-              </Link>
+              <div key={member.id} className="flex items-center gap-2">
+                <Link
+                  to="/dashboard/players/$playerId"
+                  params={{ playerId: String(member.id) }}
+                  className="flex flex-1 justify-between rounded-md border p-3 hover:border-primary"
+                >
+                  <span className="flex items-center gap-2">
+                    <PlayerAvatar
+                      username={member.username}
+                      photoUrl={member.photoUrl}
+                      className="size-8 text-xs"
+                    />
+                    <strong>{member.username}</strong>
+                  </span>
+                  <Badge variant="outline">{member.role}</Badge>
+                </Link>
+                {currentUser?.id === party.leaderId &&
+                  member.id !== currentUser.id && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={async () => {
+                        if (
+                          !window.confirm(
+                            `Eject ${member.username} from ${party.name}?`,
+                          )
+                        )
+                          return;
+                        try {
+                          await ejectPartyMember({
+                            data: { partyId: party.id, userId: member.id },
+                          });
+                          await router.invalidate();
+                        } catch (error) {
+                          toast.error(
+                            error instanceof Error
+                              ? error.message
+                              : "Could not eject member",
+                          );
+                        }
+                      }}
+                    >
+                      Expel
+                    </Button>
+                  )}
+              </div>
             ))}
           </CardContent>
         </Card>
@@ -402,6 +487,7 @@ function RevivePartyButton({
 function PartyActions({
   party,
   currentUser,
+  requested,
 }: {
   party: {
     id: number;
@@ -416,14 +502,13 @@ function PartyActions({
     id: number;
     partyId: number | null;
   };
+  requested: boolean;
 }) {
   const router = useRouter();
   const isMember = currentUser.partyId === party.id;
-  const isLeader = party.leaderId === currentUser.id;
   const refresh = () => router.invalidate();
   const [showMembershipDialog, setShowMembershipDialog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const isDefecting = !isMember && currentUser.partyId !== null;
 
   const changeMembership = async () => {
     setSubmitting(true);
@@ -432,12 +517,8 @@ function PartyActions({
         await leaveParty({ data: { userId: currentUser.id } });
         toast.success("You are now an independent");
       } else {
-        await joinParty({
-          data: { userId: currentUser.id, partyId: party.id },
-        });
-        toast.success(
-          isDefecting ? "Party defection recorded" : "Party joined",
-        );
+        await requestPartyMembership({ data: { partyId: party.id } });
+        toast.success("Membership request sent to the Party Leader");
       }
       await refresh();
     } catch (error) {
@@ -451,7 +532,6 @@ function PartyActions({
 
   return (
     <div className="flex flex-col items-end gap-1">
-      {isLeader && <ManagePartyDialog party={party} />}
       {isMember && !party.leaderId && (
         <Button
           variant="link"
@@ -480,32 +560,226 @@ function PartyActions({
           variant="link"
           className="h-auto p-0"
           onClick={() => setShowMembershipDialog(true)}
-          disabled={submitting}
+          disabled={submitting || requested}
         >
-          {isDefecting ? "Defect" : "Join party"}
+          {requested ? "Request pending" : "Request to join"}
         </Button>
       )}
       <MessageDialog
         open={showMembershipDialog}
         onOpenChange={setShowMembershipDialog}
-        title={
-          isMember
-            ? "Leave party"
-            : isDefecting
-              ? `Defect to ${party.name}`
-              : `Join ${party.name}`
-        }
+        title={isMember ? "Leave party" : `Request to join ${party.name}`}
         description={
           isMember
             ? "You will become an independent. If you lead this party, its leadership will become vacant."
-            : isDefecting
-              ? `You will leave your current party and immediately join ${party.name}. This will be recorded as a defection.`
-              : `You will join ${party.name}.`
+            : `The Party Leader must approve your request. Approval will transfer you from any current party or pressure group.`
         }
-        confirmText={isMember ? "Leave party" : isDefecting ? "Defect" : "Join"}
-        variant={isMember || isDefecting ? "destructive" : "default"}
+        confirmText={isMember ? "Leave party" : "Send request"}
+        variant={isMember ? "destructive" : "default"}
         onConfirm={changeMembership}
       />
+    </div>
+  );
+}
+
+function PartyGovernance({
+  partyId,
+  partyName,
+  leaderId,
+  currentUser,
+  governance,
+}: {
+  partyId: number;
+  partyName: string;
+  leaderId: number | null;
+  currentUser: { id: number; partyId: number | null };
+  governance: Awaited<ReturnType<typeof getPartyGovernance>>;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const act = async (action: () => Promise<unknown>, success: string) => {
+    setBusy(true);
+    try {
+      await action();
+      toast.success(success);
+      await router.invalidate();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not update party governance",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      {currentUser.id === leaderId && (
+        <WikiSection
+          title="Membership requests"
+          description="Only the Party Leader can accept or decline applicants."
+          className="col-span-full"
+        >
+          <div className="space-y-3">
+            {governance.requests.map((request) => (
+              <div
+                key={request.id}
+                className="flex flex-wrap items-center gap-3 rounded-md border p-3"
+              >
+                <PlayerAvatar
+                  username={request.username}
+                  photoUrl={request.photoUrl}
+                  className="size-8"
+                />
+                <span className="flex-1 font-medium">{request.username}</span>
+                <Button
+                  size="sm"
+                  disabled={busy}
+                  onClick={() =>
+                    act(
+                      () =>
+                        decidePartyMembership({
+                          data: { requestId: request.id, approve: true },
+                        }),
+                      `${request.username} joined ${partyName}`,
+                    )
+                  }
+                >
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    act(
+                      () =>
+                        decidePartyMembership({
+                          data: { requestId: request.id, approve: false },
+                        }),
+                      "Request declined",
+                    )
+                  }
+                >
+                  Decline
+                </Button>
+              </div>
+            ))}
+            {!governance.requests.length && (
+              <p className="text-sm text-muted-foreground">
+                No pending requests.
+              </p>
+            )}
+          </div>
+        </WikiSection>
+      )}
+      {currentUser.partyId === partyId && leaderId !== null && (
+        <WikiSection
+          title={
+            governance.bid ? "Leadership contested" : "Leadership challenge"
+          }
+          description={
+            governance.bid
+              ? "A challenge to the party leader is underway."
+              : "A member can challenge the leader with the support of half the party."
+          }
+          className={
+            governance.bid
+              ? "col-span-full border-l-4 border-l-destructive"
+              : "col-span-full"
+          }
+        >
+          {governance.bid ? (
+            <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+              <div className="min-w-0">
+                <h3 className="font-serif text-2xl font-semibold tracking-tight">
+                  {governance.bid.candidate} has challenged the party leader
+                </h3>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                  If enough members back the challenge,{" "}
+                  {governance.bid.candidate} becomes leader immediately. The
+                  current leader stays in the party as a regular member.
+                </p>
+                <div className="mt-5 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t pt-4">
+                  <span className="font-serif text-3xl font-semibold tabular-nums">
+                    {governance.bid.supportCount}{" "}
+                    <span className="text-lg font-normal text-muted-foreground">
+                      / {governance.bid.threshold}
+                    </span>
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    members supporting the challenge · threshold set when it
+                    began
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 md:max-w-56 md:justify-end">
+                {!governance.bid.hasSupported && governance.bid.canSupport && (
+                  <Button
+                    disabled={busy}
+                    onClick={() =>
+                      act(
+                        () =>
+                          supportLeadershipBid({
+                            data: { bidId: governance.bid!.id },
+                          }),
+                        "Support recorded",
+                      )
+                    }
+                  >
+                    Support the challenge
+                  </Button>
+                )}
+                {governance.bid.hasSupported && (
+                  <p className="text-sm font-medium">
+                    You support this challenge.
+                  </p>
+                )}
+                {!governance.bid.canSupport && (
+                  <p className="text-sm text-muted-foreground">
+                    Only members present when the bid launched can support it.
+                  </p>
+                )}
+                {currentUser.id === governance.bid.candidateId && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      act(
+                        () =>
+                          withdrawLeadershipBid({
+                            data: { bidId: governance.bid!.id },
+                          }),
+                        "Leadership bid withdrawn",
+                      )
+                    }
+                  >
+                    Withdraw bid
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : currentUser.id !== leaderId ? (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() =>
+                act(
+                  () => startLeadershipBid({ data: { partyId } }),
+                  "Leadership bid started",
+                )
+              }
+            >
+              Launch leadership bid
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No active leadership bid.
+            </p>
+          )}
+        </WikiSection>
+      )}
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { WikiEmpty, WikiSection } from "@/components/wiki/wiki-layout";
 import { PlayerAvatar } from "@/components/players/player-avatar";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 import { MarkdownContent } from "@/components/wiki/markdown-content";
 import { billCommentPostContent } from "@/lib/bill-comment-post";
 import { buildCommentTree } from "@/lib/social-comment-tree";
@@ -34,6 +34,7 @@ type PartyWhip = {
   position: string;
   note: string | null;
   updatedAt: Date;
+  enforcedAt: Date | null;
 };
 
 export function BillComments({
@@ -41,17 +42,15 @@ export function BillComments({
   comments,
   whips,
   currentPartyId,
-  isLeader,
+  isChiefWhip,
   canWhip,
-  isVoting,
 }: {
   billId: number;
   comments: Array<BillComment>;
   whips: Array<PartyWhip>;
   currentPartyId: number | null;
-  isLeader: boolean;
+  isChiefWhip: boolean;
   canWhip: boolean;
-  isVoting: boolean;
 }) {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -65,6 +64,7 @@ export function BillComments({
   const [whipNote, setWhipNote] = useState(currentWhip?.note ?? "");
   const [whipError, setWhipError] = useState<string | null>(null);
   const [savingWhip, setSavingWhip] = useState(false);
+  const [enforce, setEnforce] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -86,9 +86,19 @@ export function BillComments({
   const submitWhip = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setWhipError(null);
+    if (
+      enforce &&
+      !currentWhip?.enforcedAt &&
+      !window.confirm(
+        "Enforce this whip for the entire bill? Members whose final vote opposes the party line when a voting stage closes will be ejected. Abstaining is allowed. This cannot be undone.",
+      )
+    )
+      return;
     setSavingWhip(true);
     try {
-      await saveBillWhip({ data: { billId, position, note: whipNote } });
+      await saveBillWhip({
+        data: { billId, position, note: whipNote, enforce },
+      });
       await router.invalidate();
     } catch (cause) {
       setWhipError(
@@ -106,7 +116,7 @@ export function BillComments({
       <div id="party-guidance" className="scroll-mt-6">
         <WikiSection
           title="Party voting guidance"
-          description="Party leaders can recommend a vote while this bill is in voting. Guidance is non-binding."
+          description="The Chief Whip can recommend a vote from the committee queue onward. They can enforce one bill every 24 hours; members whose final vote at a voting stage close opposes an enforced whip are ejected. Abstention is allowed."
         >
           {whips.length ? (
             <div className="space-y-3">
@@ -132,6 +142,12 @@ export function BillComments({
                     <span className="text-xs text-muted-foreground">
                       Guidance from {whip.leaderUsername ?? "party leadership"}
                     </span>
+                    {whip.enforcedAt && (
+                      <Badge variant="destructive">
+                        ENFORCED — a final vote against this position at stage
+                        close ejects party members
+                      </Badge>
+                    )}
                   </div>
                   {whip.note && (
                     <div className="mt-2">
@@ -178,11 +194,40 @@ export function BillComments({
                   ))}
                 </div>
               </fieldset>
+              {currentWhip?.enforcedAt && (
+                <p
+                  role="alert"
+                  className="text-sm font-semibold text-destructive"
+                >
+                  Enforced whip: its direction cannot be changed. Members who
+                  have a final contrary vote when a stage closes will be
+                  ejected.
+                </p>
+              )}
+              {!currentWhip?.enforcedAt && (
+                <label className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-background p-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1 size-4 accent-destructive"
+                    checked={enforce}
+                    onChange={(event) => setEnforce(event.target.checked)}
+                    disabled={savingWhip}
+                  />
+                  <span>
+                    <strong>Enforce the party whip on this bill</strong>
+                    <br />
+                    One bill per 24 hours. Members whose final vote opposes this
+                    guidance when a voting stage closes will be ejected. They
+                    can change their vote before the stage closes or abstain.
+                    Enforcement lasts through later stages and cannot be undone.
+                  </span>
+                </label>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <label htmlFor="guidance-note" className="text-sm font-medium">
                   Reason (optional)
                 </label>
-                <ReferenceInsert
+                <MarkdownToolbar
                   textareaId="guidance-note"
                   value={whipNote}
                   onChange={setWhipNote}
@@ -219,10 +264,10 @@ export function BillComments({
               )}
             </form>
           )}
-          {isLeader && !isVoting && (
+          {isChiefWhip && !canWhip && (
             <p className="mt-4 text-sm text-muted-foreground">
-              You can issue or update guidance when this bill enters the Voting
-              stage.
+              You can issue or update guidance when this bill reaches the
+              committee queue.
             </p>
           )}
         </WikiSection>
@@ -242,7 +287,7 @@ export function BillComments({
               <label htmlFor="bill-comment" className="text-sm font-medium">
                 Add a comment
               </label>
-              <ReferenceInsert
+              <MarkdownToolbar
                 textareaId="bill-comment"
                 value={content}
                 onChange={setContent}
@@ -354,7 +399,11 @@ function BillCommentThread({
   return (
     <div
       className={
-        depth === 0 ? "border-t pt-4" : depth <= 3 ? "ml-3 border-l-2 pl-3 sm:ml-5 sm:pl-5" : "border-l-2 pl-2"
+        depth === 0
+          ? "border-t pt-4"
+          : depth <= 3
+            ? "ml-3 border-l-2 pl-3 sm:ml-5 sm:pl-5"
+            : "border-l-2 pl-2"
       }
     >
       <article id={`bill-comment-${comment.id}`} className="scroll-mt-6">
@@ -399,7 +448,7 @@ function BillCommentThread({
               >
                 Reply to {comment.username}
               </label>
-              <ReferenceInsert
+              <MarkdownToolbar
                 textareaId={`bill-reply-${comment.id}`}
                 value={reply}
                 onChange={setReply}

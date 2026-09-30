@@ -10,7 +10,7 @@ const requestTimeoutMs = Number.parseInt(
 );
 // game-advance self-throttles server-side (game_settings.last_game_advance_at
 // at game pace: 24h at regular speed), so it is safe to call every tick and
-// log skips quietly. Election + bill endpoints reconcile due deadlines and
+// log skips quietly. Election, coalition + bill endpoints reconcile due deadlines and
 // are idempotent.
 
 if (!token) {
@@ -60,6 +60,7 @@ async function tick() {
   let failures = 0;
   const jobs = [
     { path: "/api/election-advance", method: "POST" },
+    { path: "/api/coalition-advance", method: "POST" },
     { path: "/api/bill-advance", method: "GET" },
     {
       path: "/api/game-advance",

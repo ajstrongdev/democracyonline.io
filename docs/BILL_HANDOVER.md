@@ -6,18 +6,18 @@ Bills use durable per-row deadlines. The application no longer relies on a globa
 
 Each bill has:
 
-- `stage`: `House`, `Senate`, or `Presidential`
-- `status`: `Committee`, `Voting`, `Passed`, or `Defeated`
+- `stage`: `Committee` (waiting only), `House`, `Senate`, or `Presidential`
+- `status`: `Queued`, `Committee`, `Voting`, `Passed`, or `Defeated`
 - `stage_started_at`
 - `stage_ends_at`
 
 The intended lifecycle is:
 
 ```text
-Committee -> House voting -> Senate voting -> Presidential voting -> Passed
+Committee queue -> Committee -> House queue -> House voting -> Senate queue -> Senate voting -> Presidential queue -> Presidential voting -> Passed
 ```
 
-Each stage is intended to last 8 hours. A failed vote changes the bill to `Defeated` instead of advancing it.
+Each stage lasts 12 hours at regular (1x) speed, starting on admission. Each stage has three active slots; additional bills wait FIFO (`stage_started_at`, then bill ID) with no deadline until a slot opens. A failed vote changes the bill to `Defeated` instead of advancing it. Creation, admin moves, and the scheduler share a transaction lock for slot admission.
 
 ## Main files
 
@@ -42,7 +42,7 @@ super-slow 0.25x, slow 0.5x, regular 1x, fast 2x,
 super-fast 72x, dev 720x, dev-relaxed 2x
 ```
 
-The multiplier scales elections, 8h bill stages, and the game-advance tick
+The multiplier scales elections, 12h bill stages, and the game-advance tick
 (24h at regular) together. Switching rescales every live bill, election, and
 reveal deadline proportionally in one transaction (`setGameSpeedFn` in
 `src/lib/server/game-speed.ts`); overdue items stay overdue and advance on
@@ -57,7 +57,7 @@ The `election-scheduler` sidecar calls these endpoints in a loop every 60 second
 
 ```text
 POST /api/election-advance   (every tick: due election deadlines)
-GET  /api/bill-advance       (every tick: due per-bill stage deadlines — 8h at regular speed, scaled by game speed)
+GET  /api/bill-advance       (every tick: due per-bill stage deadlines — 12h at regular speed, scaled by game speed)
 GET  /api/game-advance       (every tick; self-throttles server-side to game pace)
 ```
 
@@ -150,7 +150,7 @@ a fresh 8-hour voting window when it transitions Committee -> Voting:
 
 ```text
 stage_started_at = now
-stage_ends_at = now + 8 hours
+stage_ends_at = now + 12 hours at 1x (on admission, not while queued)
 ```
 
 It accepts an optional `now` so the bill reconciler (`src/routes/api/bill-advance.ts`)

@@ -20,7 +20,7 @@ import {
   WikiPage,
   WikiSection,
 } from "@/components/wiki/wiki-layout";
-import { ReferenceInsert } from "@/components/reference-insert";
+import { MarkdownToolbar } from "@/components/markdown-toolbar";
 
 export const Route = createFileRoute("/dashboard/parties/coalitions/create")({
   loader: async () => {
@@ -80,11 +80,13 @@ function CreateCoalitionPage() {
       <ProtectedRoute>
         <WikiPage>
           <WikiHeader
-            eyebrow="Political coalitions"
-            title="Create a coalition"
+            eyebrow="Political alliances"
+            title="Create an electoral pact"
             description="Form an alliance of political parties around a shared identity and purpose."
           />
-          <WikiEmpty>You must be in a party to create a coalition.</WikiEmpty>
+          <WikiEmpty>
+            You must be in a party to create an electoral pact.
+          </WikiEmpty>
         </WikiPage>
       </ProtectedRoute>
     );
@@ -95,11 +97,13 @@ function CreateCoalitionPage() {
       <ProtectedRoute>
         <WikiPage>
           <WikiHeader
-            eyebrow="Political coalitions"
-            title="Create a coalition"
+            eyebrow="Political alliances"
+            title="Create an electoral pact"
             description="Form an alliance of political parties around a shared identity and purpose."
           />
-          <WikiEmpty>Only your party leader can create a coalition.</WikiEmpty>
+          <WikiEmpty>
+            Only your party leader can create an electoral pact.
+          </WikiEmpty>
         </WikiPage>
       </ProtectedRoute>
     );
@@ -110,11 +114,11 @@ function CreateCoalitionPage() {
       <ProtectedRoute>
         <WikiPage>
           <WikiHeader
-            eyebrow="Political coalitions"
-            title="Create a coalition"
+            eyebrow="Political alliances"
+            title="Create an electoral pact"
             description="Form an alliance of political parties around a shared identity and purpose."
           />
-          <WikiEmpty>Your party is already in a coalition.</WikiEmpty>
+          <WikiEmpty>Your party is already in an alliance.</WikiEmpty>
         </WikiPage>
       </ProtectedRoute>
     );
@@ -124,13 +128,13 @@ function CreateCoalitionPage() {
     <ProtectedRoute>
       <WikiPage width="article">
         <WikiHeader
-          eyebrow="Political coalitions"
-          title="Create a coalition"
-          description="Form a new coalition. Your party will be recorded as its founding member."
+          eyebrow="Political alliances"
+          title="Create an electoral pact"
+          description="Form an electoral pact with your party as its founding member. It becomes a coalition when three parties join."
         />
         <WikiSection
-          title="Coalition charter"
-          description="Set the public identity shown in the coalition archive."
+          title="Alliance charter"
+          description="Set the public identity shown in the alliance directory."
           icon={Handshake}
         >
           <form
@@ -248,7 +252,7 @@ function CreateCoalitionPage() {
                     >
                       Description
                     </Label>
-                    <ReferenceInsert
+                    <MarkdownToolbar
                       textareaId={field.name}
                       value={field.state.value}
                       onChange={field.handleChange}
@@ -276,7 +280,13 @@ function CreateCoalitionPage() {
               {(field) => (
                 <div className="grid grid-cols-1 gap-2">
                   <Label htmlFor={field.name}>Coalition Discord invite</Label>
-                  <Input id={field.name} type="url" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="https://discord.gg/…" />
+                  <Input
+                    id={field.name}
+                    type="url"
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    placeholder="https://discord.gg/…"
+                  />
                 </div>
               )}
             </form.Field>
@@ -340,7 +350,9 @@ function CreateCoalitionPage() {
                   className="w-full"
                   disabled={isSubmitting || !canSubmit}
                 >
-                  {isSubmitting ? "Creating coalition..." : "Create coalition"}
+                  {isSubmitting
+                    ? "Creating electoral pact..."
+                    : "Create electoral pact"}
                 </Button>
               )}
             </form.Subscribe>

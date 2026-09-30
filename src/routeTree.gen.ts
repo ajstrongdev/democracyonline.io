@@ -49,6 +49,7 @@ import { Route as ApiLiveRouteImport } from './routes/api/live'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiGameAdvanceRouteImport } from './routes/api/game-advance'
 import { Route as ApiElectionAdvanceRouteImport } from './routes/api/election-advance'
+import { Route as ApiCoalitionAdvanceRouteImport } from './routes/api/coalition-advance'
 import { Route as ApiBotRouteImport } from './routes/api/bot'
 import { Route as ApiBillAdvanceRouteImport } from './routes/api/bill-advance'
 import { Route as PartiesCoalitionsIndexRouteImport } from './routes/parties/coalitions/index'
@@ -73,6 +74,7 @@ import { Route as DashboardBillsBillIdRouteImport } from './routes/dashboard/bil
 import { Route as BillsEditIdRouteImport } from './routes/bills/edit/$id'
 import { Route as DashboardPartiesCoalitionsIndexRouteImport } from './routes/dashboard/parties/coalitions/index'
 import { Route as DashboardRevisionsEntityTypeEntityIdRouteImport } from './routes/dashboard/revisions/$entityType/$entityId'
+import { Route as DashboardPartiesPressureGroupsGroupIdRouteImport } from './routes/dashboard/parties/pressure-groups/$groupId'
 import { Route as DashboardPartiesManageIdRouteImport } from './routes/dashboard/parties/manage/$id'
 import { Route as DashboardPartiesCoalitionsCreateRouteImport } from './routes/dashboard/parties/coalitions/create'
 import { Route as DashboardPartiesCoalitionsIdRouteImport } from './routes/dashboard/parties/coalitions/$id'
@@ -279,6 +281,11 @@ const ApiElectionAdvanceRoute = ApiElectionAdvanceRouteImport.update({
   path: '/api/election-advance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCoalitionAdvanceRoute = ApiCoalitionAdvanceRouteImport.update({
+  id: '/api/coalition-advance',
+  path: '/api/coalition-advance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBotRoute = ApiBotRouteImport.update({
   id: '/api/bot',
   path: '/api/bot',
@@ -407,6 +414,12 @@ const DashboardRevisionsEntityTypeEntityIdRoute =
     path: '/revisions/$entityType/$entityId',
     getParentRoute: () => DashboardRouteRoute,
   } as any)
+const DashboardPartiesPressureGroupsGroupIdRoute =
+  DashboardPartiesPressureGroupsGroupIdRouteImport.update({
+    id: '/parties/pressure-groups/$groupId',
+    path: '/parties/pressure-groups/$groupId',
+    getParentRoute: () => DashboardRouteRoute,
+  } as any)
 const DashboardPartiesManageIdRoute =
   DashboardPartiesManageIdRouteImport.update({
     id: '/parties/manage/$id',
@@ -445,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/social': typeof SocialRoute
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
+  '/api/coalition-advance': typeof ApiCoalitionAdvanceRoute
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/api/health': typeof ApiHealthRoute
@@ -498,6 +512,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/parties/coalitions/$id': typeof DashboardPartiesCoalitionsIdRoute
   '/dashboard/parties/coalitions/create': typeof DashboardPartiesCoalitionsCreateRoute
   '/dashboard/parties/manage/$id': typeof DashboardPartiesManageIdRoute
+  '/dashboard/parties/pressure-groups/$groupId': typeof DashboardPartiesPressureGroupsGroupIdRoute
   '/dashboard/revisions/$entityType/$entityId': typeof DashboardRevisionsEntityTypeEntityIdRoute
   '/dashboard/parties/coalitions/': typeof DashboardPartiesCoalitionsIndexRoute
 }
@@ -514,6 +529,7 @@ export interface FileRoutesByTo {
   '/social': typeof SocialRoute
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
+  '/api/coalition-advance': typeof ApiCoalitionAdvanceRoute
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/api/health': typeof ApiHealthRoute
@@ -567,6 +583,7 @@ export interface FileRoutesByTo {
   '/dashboard/parties/coalitions/$id': typeof DashboardPartiesCoalitionsIdRoute
   '/dashboard/parties/coalitions/create': typeof DashboardPartiesCoalitionsCreateRoute
   '/dashboard/parties/manage/$id': typeof DashboardPartiesManageIdRoute
+  '/dashboard/parties/pressure-groups/$groupId': typeof DashboardPartiesPressureGroupsGroupIdRoute
   '/dashboard/revisions/$entityType/$entityId': typeof DashboardRevisionsEntityTypeEntityIdRoute
   '/dashboard/parties/coalitions': typeof DashboardPartiesCoalitionsIndexRoute
 }
@@ -585,6 +602,7 @@ export interface FileRoutesById {
   '/social': typeof SocialRoute
   '/api/bill-advance': typeof ApiBillAdvanceRoute
   '/api/bot': typeof ApiBotRoute
+  '/api/coalition-advance': typeof ApiCoalitionAdvanceRoute
   '/api/election-advance': typeof ApiElectionAdvanceRoute
   '/api/game-advance': typeof ApiGameAdvanceRoute
   '/api/health': typeof ApiHealthRoute
@@ -638,6 +656,7 @@ export interface FileRoutesById {
   '/dashboard/parties/coalitions/$id': typeof DashboardPartiesCoalitionsIdRoute
   '/dashboard/parties/coalitions/create': typeof DashboardPartiesCoalitionsCreateRoute
   '/dashboard/parties/manage/$id': typeof DashboardPartiesManageIdRoute
+  '/dashboard/parties/pressure-groups/$groupId': typeof DashboardPartiesPressureGroupsGroupIdRoute
   '/dashboard/revisions/$entityType/$entityId': typeof DashboardRevisionsEntityTypeEntityIdRoute
   '/dashboard/parties/coalitions/': typeof DashboardPartiesCoalitionsIndexRoute
 }
@@ -657,6 +676,7 @@ export interface FileRouteTypes {
     | '/social'
     | '/api/bill-advance'
     | '/api/bot'
+    | '/api/coalition-advance'
     | '/api/election-advance'
     | '/api/game-advance'
     | '/api/health'
@@ -710,6 +730,7 @@ export interface FileRouteTypes {
     | '/dashboard/parties/coalitions/$id'
     | '/dashboard/parties/coalitions/create'
     | '/dashboard/parties/manage/$id'
+    | '/dashboard/parties/pressure-groups/$groupId'
     | '/dashboard/revisions/$entityType/$entityId'
     | '/dashboard/parties/coalitions/'
   fileRoutesByTo: FileRoutesByTo
@@ -726,6 +747,7 @@ export interface FileRouteTypes {
     | '/social'
     | '/api/bill-advance'
     | '/api/bot'
+    | '/api/coalition-advance'
     | '/api/election-advance'
     | '/api/game-advance'
     | '/api/health'
@@ -779,6 +801,7 @@ export interface FileRouteTypes {
     | '/dashboard/parties/coalitions/$id'
     | '/dashboard/parties/coalitions/create'
     | '/dashboard/parties/manage/$id'
+    | '/dashboard/parties/pressure-groups/$groupId'
     | '/dashboard/revisions/$entityType/$entityId'
     | '/dashboard/parties/coalitions'
   id:
@@ -796,6 +819,7 @@ export interface FileRouteTypes {
     | '/social'
     | '/api/bill-advance'
     | '/api/bot'
+    | '/api/coalition-advance'
     | '/api/election-advance'
     | '/api/game-advance'
     | '/api/health'
@@ -849,6 +873,7 @@ export interface FileRouteTypes {
     | '/dashboard/parties/coalitions/$id'
     | '/dashboard/parties/coalitions/create'
     | '/dashboard/parties/manage/$id'
+    | '/dashboard/parties/pressure-groups/$groupId'
     | '/dashboard/revisions/$entityType/$entityId'
     | '/dashboard/parties/coalitions/'
   fileRoutesById: FileRoutesById
@@ -867,6 +892,7 @@ export interface RootRouteChildren {
   SocialRoute: typeof SocialRoute
   ApiBillAdvanceRoute: typeof ApiBillAdvanceRoute
   ApiBotRoute: typeof ApiBotRoute
+  ApiCoalitionAdvanceRoute: typeof ApiCoalitionAdvanceRoute
   ApiElectionAdvanceRoute: typeof ApiElectionAdvanceRoute
   ApiGameAdvanceRoute: typeof ApiGameAdvanceRoute
   ApiHealthRoute: typeof ApiHealthRoute
@@ -1178,6 +1204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiElectionAdvanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/coalition-advance': {
+      id: '/api/coalition-advance'
+      path: '/api/coalition-advance'
+      fullPath: '/api/coalition-advance'
+      preLoaderRoute: typeof ApiCoalitionAdvanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/bot': {
       id: '/api/bot'
       path: '/api/bot'
@@ -1346,6 +1379,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRevisionsEntityTypeEntityIdRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/dashboard/parties/pressure-groups/$groupId': {
+      id: '/dashboard/parties/pressure-groups/$groupId'
+      path: '/parties/pressure-groups/$groupId'
+      fullPath: '/dashboard/parties/pressure-groups/$groupId'
+      preLoaderRoute: typeof DashboardPartiesPressureGroupsGroupIdRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/dashboard/parties/manage/$id': {
       id: '/dashboard/parties/manage/$id'
       path: '/parties/manage/$id'
@@ -1404,6 +1444,7 @@ interface DashboardRouteRouteChildren {
   DashboardPartiesCoalitionsIdRoute: typeof DashboardPartiesCoalitionsIdRoute
   DashboardPartiesCoalitionsCreateRoute: typeof DashboardPartiesCoalitionsCreateRoute
   DashboardPartiesManageIdRoute: typeof DashboardPartiesManageIdRoute
+  DashboardPartiesPressureGroupsGroupIdRoute: typeof DashboardPartiesPressureGroupsGroupIdRoute
   DashboardRevisionsEntityTypeEntityIdRoute: typeof DashboardRevisionsEntityTypeEntityIdRoute
   DashboardPartiesCoalitionsIndexRoute: typeof DashboardPartiesCoalitionsIndexRoute
 }
@@ -1436,6 +1477,8 @@ const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardPartiesCoalitionsIdRoute: DashboardPartiesCoalitionsIdRoute,
   DashboardPartiesCoalitionsCreateRoute: DashboardPartiesCoalitionsCreateRoute,
   DashboardPartiesManageIdRoute: DashboardPartiesManageIdRoute,
+  DashboardPartiesPressureGroupsGroupIdRoute:
+    DashboardPartiesPressureGroupsGroupIdRoute,
   DashboardRevisionsEntityTypeEntityIdRoute:
     DashboardRevisionsEntityTypeEntityIdRoute,
   DashboardPartiesCoalitionsIndexRoute: DashboardPartiesCoalitionsIndexRoute,
@@ -1459,6 +1502,7 @@ const rootRouteChildren: RootRouteChildren = {
   SocialRoute: SocialRoute,
   ApiBillAdvanceRoute: ApiBillAdvanceRoute,
   ApiBotRoute: ApiBotRoute,
+  ApiCoalitionAdvanceRoute: ApiCoalitionAdvanceRoute,
   ApiElectionAdvanceRoute: ApiElectionAdvanceRoute,
   ApiGameAdvanceRoute: ApiGameAdvanceRoute,
   ApiHealthRoute: ApiHealthRoute,

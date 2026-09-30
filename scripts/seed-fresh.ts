@@ -76,7 +76,7 @@ try {
       "party_notifications", "merge_request_stances", "merge_request",
       "join_requests", "coalition_members", "coalition_former_members", "coalitions",
       "social_notification_dismissals", "social_comment_dislikes", "social_comment_likes", "social_comments", "social_likes", "social_dislikes", "social_reposts", "social_posts",
-      "bill_comments", "bill_party_whips",
+       "bill_comments", "bill_party_whips", "bill_vote_indications", "party_formation_invites", "party_join_requests", "party_leadership_support", "party_leadership_eligible", "party_leadership_bids", "pressure_group_members", "pressure_groups",
       "moderation_audit_log", "moderation_flags", "player_reports", "player_invitations",
       "party_stances", "political_stances", "chats", "feed", "bills",
       "game_tracker", "game_settings", "elections", "users", "parties"
@@ -190,6 +190,7 @@ try {
     ],
     [
       ["ajstrongdev@pm.me", "AJ", "Senator", true, 0, "admin", true],
+      ["georgiewdavy@outlook.com", "G", "Representative", true, 0, "admin", true],
       [
         "jenewland1999@gmail.com",
         "jenewland1999",
@@ -203,9 +204,10 @@ try {
     true,
   );
   for (const player of userRows) {
-    const avatar = player.email === "ajstrongdev@pm.me"
-      ? seedAjAvatar
-      : avatarForUsername(String(player.username));
+    const avatar =
+      player.email === "ajstrongdev@pm.me"
+        ? seedAjAvatar
+        : avatarForUsername(String(player.username));
     await client.query(
       "update users set avatar_config = $1::jsonb, photo_url = $2 where id = $3",
       [JSON.stringify(avatar), renderAvatar(avatar), Number(player.id)],
@@ -304,7 +306,7 @@ try {
     (select count(*) from party_membership_events) as "membershipEvents"`);
   const counts = verification.rows[0];
   if (
-    Number(counts.users) !== 2 ||
+    Number(counts.users) !== 3 ||
     Number(counts.bills) !== 0 ||
     Number(counts.parties) !== 0 ||
     Number(counts.socialPosts) !== 0 ||

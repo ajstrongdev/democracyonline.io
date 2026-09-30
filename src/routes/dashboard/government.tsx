@@ -46,6 +46,7 @@ function GovernmentHistory() {
     election: snapshot.election,
     date: formatWikiDate(snapshot.occurredAt),
     composition: snapshot.composition,
+    coalitionComposition: snapshot.coalitionComposition,
   }));
   return (
     <WikiPage>
@@ -53,7 +54,7 @@ function GovernmentHistory() {
         artwork="cabinet"
         eyebrow="Government history"
         title="Composition of government"
-        description="A latest-first record of how party and independent representation changed through elections, defections, and coups."
+        description="A latest-first record of how representation changed through elections, defections, and coups. View seats by party or coalition."
       />
       <WikiArticleSection
         entityType="government"
