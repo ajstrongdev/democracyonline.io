@@ -213,8 +213,10 @@ function PlayerGuide() {
               members remain Independent until a third player joins; then it
               becomes a party automatically. Pressure groups do not have party
               social media or officer powers. The founder becomes Party Leader
-              and can appoint officers after formation. Existing parties do not
-              need to meet this requirement again.
+              and can appoint officers after formation. If a party falls below
+              three members, it becomes a pressure group again on the next
+              scheduled check; its remaining members become Independents until a
+              third player joins. A party with no members is archived instead.
             </p>
             <p>
               Joining an existing party requires a request approved by its
@@ -227,8 +229,8 @@ function PlayerGuide() {
               before a chamber closes; a final vote against an enforced party
               line ejects you at stage close. Voting choices remain hidden until
               each stage concludes. The Social Media Officer manages the party's
-              Z.com account. A member can launch one leadership bid at a time; if
-              current members equal to at least half the party membership at
+              Z.com account. A member can launch one leadership bid at a time;
+              if current members equal to at least half the party membership at
               launch support it, the challenger immediately becomes leader.
             </p>
             <p>

@@ -14,6 +14,7 @@ import {
 } from "@/lib/server/scheduler/game-speed";
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { archiveEmptyParties } from "@/lib/server/organizations/organization-lifecycle";
+import { demoteSmallParties } from "@/lib/server/organizations/party-demotion";
 import { playerArchiveCutoff } from "@/lib/player-archive";
 import { reconcileAutomaticFlags } from "@/lib/server/moderation/moderation";
 
@@ -134,6 +135,19 @@ export const Route = createFileRoute("/api/game-advance")({
               status: 500,
               headers: { "Content-Type": "application/json" },
             },
+          );
+        }
+
+        try {
+          await demoteSmallParties();
+        } catch (error) {
+          console.error(
+            "[game-advance] Error converting small parties:",
+            error,
+          );
+          return new Response(
+            JSON.stringify({ success: false, error: "Internal Server Error" }),
+            { status: 500, headers: { "Content-Type": "application/json" } },
           );
         }
 

@@ -192,10 +192,28 @@ export const joinPressureGroup = createServerFn({ method: "POST" })
       )
         throw new Error("All three members must remain active independents");
       const details = group.details;
-      const [party] = await tx
-        .insert(parties)
-        .values({ ...details.party, leaderId: group.founderId })
-        .returning({ id: parties.id, name: parties.name });
+      const [party] = group.dormantPartyId
+        ? await tx
+            .update(parties)
+            .set({
+              archivedAt: null,
+              leaderId: group.founderId,
+              formerLeaderId: null,
+              chiefWhipId: null,
+              socialMediaOfficerId: null,
+            })
+            .where(
+              and(
+                eq(parties.id, group.dormantPartyId),
+                sql`${parties.archivedAt} is not null`,
+              ),
+            )
+            .returning({ id: parties.id, name: parties.name })
+        : await tx
+            .insert(parties)
+            .values({ ...details.party, leaderId: group.founderId })
+            .returning({ id: parties.id, name: parties.name });
+      if (!party) throw new Error("This party is no longer available to form");
       await tx
         .update(users)
         .set({ partyId: party.id })
@@ -205,7 +223,7 @@ export const joinPressureGroup = createServerFn({ method: "POST" })
         .where(eq(pressureGroupMembers.groupId, group.id));
       await tx
         .update(pressureGroups)
-        .set({ formedPartyId: party.id })
+        .set({ formedPartyId: party.id, dormantPartyId: null })
         .where(eq(pressureGroups.id, group.id));
       await tx.insert(feed).values({
         userId: actor.id,
@@ -215,14 +233,14 @@ export const joinPressureGroup = createServerFn({ method: "POST" })
         organizationType: "party",
         organizationId: party.id,
         organizationName: party.name,
-        action: "created",
+        action: group.dormantPartyId ? "revived" : "created",
         actorUserId: group.founderId,
       });
       await tx.insert(feed).values({
         userId: group.founderId,
         content: `formed ${party.name} with two cofounders`,
       });
-      if (details.platform) {
+      if (details.platform && !group.dormantPartyId) {
         const [article] = await tx
           .insert(wikiArticles)
           .values({ entityType: "party", entityId: String(party.id) })

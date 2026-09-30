@@ -7,6 +7,7 @@ import {
   parties,
   partyFormationInvites,
   pressureGroupMembers,
+  pressureGroups,
   users,
   wikiArticleRevisions,
   wikiArticles,
@@ -877,6 +878,15 @@ export const reviveParty = createServerFn({ method: "POST" })
         .where(eq(parties.id, data.partyId))
         .limit(1);
       if (!party?.archivedAt) throw new Error("Archived party not found");
+      const [formingGroup] = await tx
+        .select({ id: pressureGroups.id })
+        .from(pressureGroups)
+        .where(eq(pressureGroups.dormantPartyId, party.id))
+        .limit(1);
+      if (formingGroup)
+        throw new Error(
+          "This party is currently a pressure group; join it to reform the party",
+        );
       if (
         !canReviveParty({
           actorUserId: actor.id,

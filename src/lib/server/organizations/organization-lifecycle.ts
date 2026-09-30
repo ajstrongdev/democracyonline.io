@@ -155,6 +155,7 @@ export async function archivePartyIfEmpty(
   tx: Transaction,
   partyId: number,
   actorUserId: number | null = null,
+  convertedToPressureGroup = false,
 ) {
   await tx.execute(sql`select pg_advisory_xact_lock(${partyId})`);
   const [party] = await tx
@@ -202,12 +203,19 @@ export async function archivePartyIfEmpty(
     organizationName: party.name,
     action: "archived",
     actorUserId,
-    metadata: { reason: "last_member_left", formerLeaderId: party.leaderId },
+    metadata: {
+      reason: convertedToPressureGroup
+        ? "below_three_members"
+        : "last_member_left",
+      formerLeaderId: party.leaderId,
+    },
   });
   await tx.insert(feed).values({
     userId: actorUserId,
-    visibility: "admin",
-    content: `${party.name} was archived after its last member left`,
+    visibility: convertedToPressureGroup ? "player" : "admin",
+    content: convertedToPressureGroup
+      ? `${party.name} became a pressure group after falling below three members`
+      : `${party.name} was archived after its last member left`,
   });
   return true;
 }

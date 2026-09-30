@@ -1048,6 +1048,7 @@ export const pressureGroups = pgTable(
       }>()
       .notNull(),
     formedPartyId: integer("formed_party_id").references(() => parties.id),
+    dormantPartyId: integer("dormant_party_id").references(() => parties.id),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
