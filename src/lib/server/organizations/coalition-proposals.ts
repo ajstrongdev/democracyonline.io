@@ -178,6 +178,20 @@ export const createProposal = createServerFn({ method: "POST" })
         .limit(1);
       if (!existing.length)
         throw new Error("No pending join request found for this party");
+      const [openVote] = await db
+        .select({ id: coalitionProposals.id })
+        .from(coalitionProposals)
+        .where(
+          and(
+            eq(coalitionProposals.coalitionId, data.coalitionId),
+            eq(coalitionProposals.proposalType, "join_request"),
+            eq(coalitionProposals.targetId, data.targetId),
+            eq(coalitionProposals.status, "open"),
+          ),
+        )
+        .limit(1);
+      if (openVote)
+        throw new Error("This join request is already being voted on");
     }
 
     const [proposal] = await db

@@ -373,6 +373,7 @@ export function DashboardContent({
                       <DashboardActionDeadline
                         deadline={race.timestamps.votingEndsAt}
                         onExpire={() => void router.invalidate()}
+                        electionVoting
                       />
                     </span>
                     <DashboardElectionBallot

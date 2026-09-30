@@ -86,6 +86,7 @@ function CoalitionPage() {
     coalition,
     memberParties,
     pendingRequests,
+    votedProposalIds,
     isCallerPartyLeader,
     callerPartyId: loaderCallerPartyId,
     callerCoalitionId: loaderCallerCoalitionId,
@@ -108,6 +109,9 @@ function CoalitionPage() {
     isCallerPartyLeader &&
     !isInThisCoalition &&
     loaderCallerCoalitionId == null;
+  const hasPendingJoinRequest = pendingRequests.some(
+    (request) => request.partyId === callerPartyId,
+  );
 
   // Edit state
   const [editing, setEditing] = useState(false);
@@ -123,6 +127,21 @@ function CoalitionPage() {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [showReviveDialog, setShowReviveDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState(
+    isMemberPartyLeader &&
+      proposals.some((proposal) => proposal.status === "open")
+      ? "proposals"
+      : "parties",
+  );
+  const legacyRequests = pendingRequests.filter(
+    (request) =>
+      !proposals.some(
+        (proposal) =>
+          proposal.status === "open" &&
+          proposal.proposalType === "join_request" &&
+          proposal.targetId === request.partyId,
+      ),
+  );
 
   if (!coalition) {
     return (
@@ -173,10 +192,10 @@ function CoalitionPage() {
   const handleJoin = async () => {
     try {
       await requestJoinCoalition({ data: { coalitionId: coalition.id } });
-      navigate({
-        to: "/dashboard/parties/coalitions/$id",
-        params: { id: coalition.id.toString() },
-      });
+      toast.success("Join request sent to a member-party vote");
+      setShowJoinDialog(false);
+      setActiveTab("proposals");
+      await router.invalidate();
     } catch (e: any) {
       toast.error(e instanceof Error ? e.message : "Could not join coalition");
     }
@@ -220,10 +239,8 @@ function CoalitionPage() {
         },
       });
       toast.success("Join request proposed for a member-party vote");
-      navigate({
-        to: "/dashboard/parties/coalitions/$id",
-        params: { id: coalition.id.toString() },
-      });
+      setActiveTab("proposals");
+      await router.invalidate();
     } catch (e: any) {
       toast.error(e instanceof Error ? e.message : "Could not accept request");
     }
@@ -232,10 +249,8 @@ function CoalitionPage() {
   const handleVote = async (proposalId: number, vote: boolean) => {
     try {
       await castVote({ data: { proposalId, vote } });
-      navigate({
-        to: "/dashboard/parties/coalitions/$id",
-        params: { id: coalition.id.toString() },
-      });
+      toast.success("Your party's vote has been recorded");
+      await router.invalidate();
     } catch (e: any) {
       toast.error(e instanceof Error ? e.message : "Could not cast vote");
     }
@@ -324,10 +339,13 @@ function CoalitionPage() {
             <Button
               variant="default"
               size="sm"
+              disabled={hasPendingJoinRequest}
               onClick={() => setShowJoinDialog(true)}
             >
               <Handshake className="mr-2 h-4 w-4" />
-              Request to join
+              {hasPendingJoinRequest
+                ? "Request awaiting vote"
+                : "Request to join"}
             </Button>
           )}
           {coalition.archivedAt && canRevive && (
@@ -448,7 +466,10 @@ function CoalitionPage() {
             value={totalCoalitionMembers}
             detail="Across all member parties"
           />
-          <WikiStat label="Pending requests" value={pendingRequests.length} />
+          <WikiStat
+            label="Join requests to vote on"
+            value={pendingRequests.length}
+          />
           {coalition.archivedAt && (
             <WikiStat
               label="Archived"
@@ -457,32 +478,22 @@ function CoalitionPage() {
           )}
         </WikiStatGrid>
 
-        {/* Tabs: Parties | Join Requests | Proposals */}
-        <Tabs
-          defaultValue={
-            isMemberPartyLeader &&
-            proposals.some((proposal) => proposal.status === "open")
-              ? "proposals"
-              : "parties"
-          }
-          className="w-full"
-        >
+        {/* New join requests are proposals immediately; only older requests need proposing. */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList
-            className={`grid w-full ${coalition.archivedAt ? "grid-cols-1" : "grid-cols-3"} mb-4`}
+            className={`grid w-full ${coalition.archivedAt ? "grid-cols-1" : legacyRequests.length ? "grid-cols-3" : "grid-cols-2"} mb-4`}
           >
             <TabsTrigger value="parties">
               {coalition.archivedAt
                 ? "Former Member Parties"
                 : "Member Parties"}
             </TabsTrigger>
-            {!coalition.archivedAt && (
+            {!coalition.archivedAt && legacyRequests.length > 0 && (
               <TabsTrigger value="requests">
-                Join Requests
-                {pendingRequests.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
-                    {pendingRequests.length}
-                  </Badge>
-                )}
+                Unscheduled requests
+                <Badge variant="secondary" className="ml-2">
+                  {legacyRequests.length}
+                </Badge>
               </TabsTrigger>
             )}
             {!coalition.archivedAt && (
@@ -580,16 +591,12 @@ function CoalitionPage() {
             <WikiSection
               title="Pending join requests"
               icon={Crown}
-              description={`Parties requesting to join this coalition.${!isMemberPartyLeader ? " Only coalition member party leaders can accept or decline." : ""}`}
+              description="Older requests that have not yet been placed on a vote. New requests go straight to a vote."
             >
               <div>
-                <p className="sr-only">
-                  Parties requesting to join this coalition.
-                  {!isMemberPartyLeader &&
-                    " Only coalition member party leaders can accept or decline."}
-                </p>
+                <p className="sr-only">Older requests not yet on a vote.</p>
                 <div className="space-y-3 md:space-y-4">
-                  {pendingRequests.map((req) => (
+                  {legacyRequests.map((req) => (
                     <div
                       key={req.id}
                       className="flex flex-col items-start gap-3 border-b bg-card p-3 last:border-b-0 sm:flex-row sm:items-center md:gap-4 md:p-4"
@@ -628,7 +635,7 @@ function CoalitionPage() {
                       )}
                     </div>
                   ))}
-                  {pendingRequests.length === 0 && (
+                  {legacyRequests.length === 0 && (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground">
                         No pending join requests.
@@ -644,7 +651,7 @@ function CoalitionPage() {
             <WikiSection
               title="Coalition proposals"
               icon={FileText}
-              description="Votes close after 24 hours or when every member-party leader has voted. A majority passes; otherwise the proposal is rejected."
+              description="Join requests go straight to a vote. Each member-party leader has one vote; voting closes after 24 hours or when all parties have voted. A majority passes."
             >
               <div>
                 <div className="space-y-3 md:space-y-4">
@@ -657,7 +664,9 @@ function CoalitionPage() {
                   )}
                   {proposals.map((proposal) => {
                     const canVote =
-                      isMemberPartyLeader && proposal.status === "open";
+                      isMemberPartyLeader &&
+                      proposal.status === "open" &&
+                      !votedProposalIds.includes(proposal.id);
                     return (
                       <div
                         key={proposal.id}
@@ -686,7 +695,7 @@ function CoalitionPage() {
                             </div>
                             <p className="mt-1 text-sm">
                               {proposal.proposalType === "join_request" &&
-                                `Join request for party #${proposal.targetId}`}
+                                `Admit ${pendingRequests.find((request) => request.partyId === proposal.targetId)?.partyName ?? (proposal.proposerPartyId === proposal.targetId ? proposal.proposerPartyName : `party #${proposal.targetId}`)} to the coalition`}
                               {proposal.proposalType === "edit" &&
                                 "Edit coalition details"}
                               {proposal.proposalType === "leave" &&
@@ -721,6 +730,13 @@ function CoalitionPage() {
                               )}
                             </div>
                           </div>
+                          {isMemberPartyLeader &&
+                            proposal.status === "open" &&
+                            votedProposalIds.includes(proposal.id) && (
+                              <Badge variant="secondary">
+                                Your party voted
+                              </Badge>
+                            )}
                           {canVote && (
                             <div className="flex gap-2">
                               <Button
@@ -771,7 +787,7 @@ function CoalitionPage() {
           open={showJoinDialog}
           onOpenChange={setShowJoinDialog}
           title="Request to Join"
-          description="Send a request for your party to join this coalition? A coalition member party leader will need to accept your request."
+          description="Send a request for your party to join this coalition? This will immediately open a 24-hour vote for member-party leaders."
           confirmText="Send Request"
           onConfirm={handleJoin}
         />
