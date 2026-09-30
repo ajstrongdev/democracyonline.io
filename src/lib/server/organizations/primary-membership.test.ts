@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
-import type { SQL } from "drizzle-orm";
 import { syncPartyPrimaryMembership } from "./primary-membership";
+import type { SQL } from "drizzle-orm";
 
 function transaction() {
   const statements: Array<string> = [];
