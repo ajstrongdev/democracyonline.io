@@ -41,7 +41,6 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT || 22 }}
-          script_stop: true
           command_timeout: 30m
           script: |
             set -eu
@@ -72,7 +71,6 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT || 22 }}
-          script_stop: true
           command_timeout: 30m
           script: |
             set -eu
