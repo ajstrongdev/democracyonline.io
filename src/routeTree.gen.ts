@@ -78,6 +78,7 @@ import { Route as DashboardPartiesPressureGroupsGroupIdRouteImport } from './rou
 import { Route as DashboardPartiesManageIdRouteImport } from './routes/dashboard/parties/manage/$id'
 import { Route as DashboardPartiesCoalitionsCreateRouteImport } from './routes/dashboard/parties/coalitions/create'
 import { Route as DashboardPartiesCoalitionsIdRouteImport } from './routes/dashboard/parties/coalitions/$id'
+import { Route as DashboardElectionsBallotElectionRouteImport } from './routes/dashboard/elections/ballot/$election'
 import { Route as DashboardBillsEditIdRouteImport } from './routes/dashboard/bills/edit/$id'
 
 const SocialRoute = SocialRouteImport.update({
@@ -438,6 +439,12 @@ const DashboardPartiesCoalitionsIdRoute =
     path: '/parties/coalitions/$id',
     getParentRoute: () => DashboardRouteRoute,
   } as any)
+const DashboardElectionsBallotElectionRoute =
+  DashboardElectionsBallotElectionRouteImport.update({
+    id: '/elections/ballot/$election',
+    path: '/elections/ballot/$election',
+    getParentRoute: () => DashboardRouteRoute,
+  } as any)
 const DashboardBillsEditIdRoute = DashboardBillsEditIdRouteImport.update({
   id: '/bills/edit/$id',
   path: '/bills/edit/$id',
@@ -509,6 +516,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/players/': typeof DashboardPlayersIndexRoute
   '/parties/coalitions/': typeof PartiesCoalitionsIndexRoute
   '/dashboard/bills/edit/$id': typeof DashboardBillsEditIdRoute
+  '/dashboard/elections/ballot/$election': typeof DashboardElectionsBallotElectionRoute
   '/dashboard/parties/coalitions/$id': typeof DashboardPartiesCoalitionsIdRoute
   '/dashboard/parties/coalitions/create': typeof DashboardPartiesCoalitionsCreateRoute
   '/dashboard/parties/manage/$id': typeof DashboardPartiesManageIdRoute
@@ -580,6 +588,7 @@ export interface FileRoutesByTo {
   '/dashboard/players': typeof DashboardPlayersIndexRoute
   '/parties/coalitions': typeof PartiesCoalitionsIndexRoute
   '/dashboard/bills/edit/$id': typeof DashboardBillsEditIdRoute
+  '/dashboard/elections/ballot/$election': typeof DashboardElectionsBallotElectionRoute
   '/dashboard/parties/coalitions/$id': typeof DashboardPartiesCoalitionsIdRoute
   '/dashboard/parties/coalitions/create': typeof DashboardPartiesCoalitionsCreateRoute
   '/dashboard/parties/manage/$id': typeof DashboardPartiesManageIdRoute
@@ -653,6 +662,7 @@ export interface FileRoutesById {
   '/dashboard/players/': typeof DashboardPlayersIndexRoute
   '/parties/coalitions/': typeof PartiesCoalitionsIndexRoute
   '/dashboard/bills/edit/$id': typeof DashboardBillsEditIdRoute
+  '/dashboard/elections/ballot/$election': typeof DashboardElectionsBallotElectionRoute
   '/dashboard/parties/coalitions/$id': typeof DashboardPartiesCoalitionsIdRoute
   '/dashboard/parties/coalitions/create': typeof DashboardPartiesCoalitionsCreateRoute
   '/dashboard/parties/manage/$id': typeof DashboardPartiesManageIdRoute
@@ -727,6 +737,7 @@ export interface FileRouteTypes {
     | '/dashboard/players/'
     | '/parties/coalitions/'
     | '/dashboard/bills/edit/$id'
+    | '/dashboard/elections/ballot/$election'
     | '/dashboard/parties/coalitions/$id'
     | '/dashboard/parties/coalitions/create'
     | '/dashboard/parties/manage/$id'
@@ -798,6 +809,7 @@ export interface FileRouteTypes {
     | '/dashboard/players'
     | '/parties/coalitions'
     | '/dashboard/bills/edit/$id'
+    | '/dashboard/elections/ballot/$election'
     | '/dashboard/parties/coalitions/$id'
     | '/dashboard/parties/coalitions/create'
     | '/dashboard/parties/manage/$id'
@@ -870,6 +882,7 @@ export interface FileRouteTypes {
     | '/dashboard/players/'
     | '/parties/coalitions/'
     | '/dashboard/bills/edit/$id'
+    | '/dashboard/elections/ballot/$election'
     | '/dashboard/parties/coalitions/$id'
     | '/dashboard/parties/coalitions/create'
     | '/dashboard/parties/manage/$id'
@@ -1407,6 +1420,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPartiesCoalitionsIdRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/dashboard/elections/ballot/$election': {
+      id: '/dashboard/elections/ballot/$election'
+      path: '/elections/ballot/$election'
+      fullPath: '/dashboard/elections/ballot/$election'
+      preLoaderRoute: typeof DashboardElectionsBallotElectionRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/dashboard/bills/edit/$id': {
       id: '/dashboard/bills/edit/$id'
       path: '/bills/edit/$id'
@@ -1441,6 +1461,7 @@ interface DashboardRouteRouteChildren {
   DashboardPartiesIndexRoute: typeof DashboardPartiesIndexRoute
   DashboardPlayersIndexRoute: typeof DashboardPlayersIndexRoute
   DashboardBillsEditIdRoute: typeof DashboardBillsEditIdRoute
+  DashboardElectionsBallotElectionRoute: typeof DashboardElectionsBallotElectionRoute
   DashboardPartiesCoalitionsIdRoute: typeof DashboardPartiesCoalitionsIdRoute
   DashboardPartiesCoalitionsCreateRoute: typeof DashboardPartiesCoalitionsCreateRoute
   DashboardPartiesManageIdRoute: typeof DashboardPartiesManageIdRoute
@@ -1474,6 +1495,7 @@ const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardPartiesIndexRoute: DashboardPartiesIndexRoute,
   DashboardPlayersIndexRoute: DashboardPlayersIndexRoute,
   DashboardBillsEditIdRoute: DashboardBillsEditIdRoute,
+  DashboardElectionsBallotElectionRoute: DashboardElectionsBallotElectionRoute,
   DashboardPartiesCoalitionsIdRoute: DashboardPartiesCoalitionsIdRoute,
   DashboardPartiesCoalitionsCreateRoute: DashboardPartiesCoalitionsCreateRoute,
   DashboardPartiesManageIdRoute: DashboardPartiesManageIdRoute,

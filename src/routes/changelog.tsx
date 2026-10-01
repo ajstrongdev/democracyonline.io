@@ -10,6 +10,20 @@ export const Route = createFileRoute("/changelog")({
 
 const releases = [
   {
+    version: "0.2.2",
+    date: "October 1, 2026",
+    dateTime: "2026-10-01",
+    headline: "A better way to cast your ballot.",
+    summary: "Ranking candidates is easier, especially in a crowded race.",
+    highlights: [
+      {
+        title: "Take your time with your vote",
+        detail:
+          "Ballots now open on their own page and work better on phones. Tap a candidate to move them up or down as many times as you like, or send them straight to a rank. If you leave before submitting, your choices will be waiting when you come back on the same device.",
+      },
+    ],
+  },
+  {
     version: "0.2.0",
     date: "September 30, 2026",
     dateTime: "2026-09-30",

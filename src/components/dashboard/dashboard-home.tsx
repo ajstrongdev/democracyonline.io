@@ -359,7 +359,6 @@ export function DashboardContent({
                     <DashboardElectionBallot
                       race={race}
                       currentUser={currentUser}
-                      onActionComplete={() => void router.invalidate()}
                     />
                   </div>
                 ))}

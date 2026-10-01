@@ -24,7 +24,6 @@ import {
 import { canDeclareNationalCandidacy } from "@/lib/elections/dashboard-actions";
 import { writeElectionCoverage } from "@/lib/elections/coverage-copy";
 import { DashboardElectionCountdown } from "@/components/dashboard/dashboard-election-countdown";
-import { RankedBallot } from "@/components/elections/ranked-ballot";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,7 +76,7 @@ function formatFeedTime(value: Date | string) {
   }).format(new Date(value));
 }
 
-function toBallotCandidate(race: Race, candidate: Race["candidates"][number]) {
+export function toBallotCandidate(race: Race, candidate: Race["candidates"][number]) {
   return {
     id: candidate.id,
     userId: candidate.userId,
@@ -292,12 +291,11 @@ function CompactRaceRow({
             />
           )}
           {race.status === "VOTING" && (
-            <CompactVotingStatus
-              race={race}
-              currentUser={currentUser}
-              actionsInQueue={actionsInQueue}
-              onActionComplete={onActionComplete}
-            />
+              <CompactVotingStatus
+                race={race}
+                currentUser={currentUser}
+                actionsInQueue={actionsInQueue}
+              />
           )}
           {race.status === "CONCLUDED" && (
             <CompactConcludedStatus race={race} />
@@ -486,19 +484,12 @@ export function CompactCandidacyStatus({
 function CompactVotingStatus({
   race,
   currentUser,
-  onActionComplete,
   actionsInQueue = false,
 }: {
   race: Race;
   currentUser: CurrentUser;
-  onActionComplete: () => void;
   actionsInQueue?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const ballotCandidates = race.candidates.map((candidate) =>
-    toBallotCandidate(race, candidate),
-  );
-
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
       {race.player.hasVoted ? (
@@ -508,30 +499,7 @@ function CompactVotingStatus({
       ) : currentUser && race.candidates.length && actionsInQueue ? (
         <span className="text-xs text-muted-foreground">Your ballot is waiting in the action queue above.</span>
       ) : currentUser && race.candidates.length ? (
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="h-7 text-xs">
-              <Vote className="h-3 w-3" /> Cast ballot
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto p-3 sm:p-5">
-            <DialogHeader className="pr-8">
-              <DialogTitle>Cast your {race.election} ballot</DialogTitle>
-              <DialogDescription>
-                Rank all candidates in order of preference. Submission is final.
-              </DialogDescription>
-            </DialogHeader>
-            <RankedBallot
-              election={race.election}
-              candidates={ballotCandidates}
-              votingStatus={{ hasVoted: false, ranking: [] }}
-              onSubmitted={() => {
-                setOpen(false);
-                onActionComplete();
-              }}
-            />
-          </DialogContent>
-        </Dialog>
+        <Button size="sm" asChild><Link to="/dashboard/elections/ballot/$election" params={{ election: race.election.toLowerCase() }}><Vote className="size-4" /> Open ballot</Link></Button>
       ) : currentUser ? (
         <span className="text-xs text-muted-foreground">No candidates</span>
       ) : (
@@ -546,12 +514,11 @@ function CompactVotingStatus({
   );
 }
 
-export function DashboardElectionBallot({ race, currentUser, onActionComplete }: {
+export function DashboardElectionBallot({ race, currentUser }: {
   race: Race;
   currentUser: CurrentUser;
-  onActionComplete: () => void;
 }) {
-  return <CompactVotingStatus race={race} currentUser={currentUser} onActionComplete={onActionComplete} />;
+  return <CompactVotingStatus race={race} currentUser={currentUser} />;
 }
 
 function CompactConcludedStatus({ race }: { race: Race }) {
