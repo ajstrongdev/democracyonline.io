@@ -29,6 +29,9 @@ import { getSelectedColorScheme } from "@/lib/server/settings/color-schemes";
 import { PlayerPresenceHeartbeat } from "@/components/players/player-presence-heartbeat";
 import { LiveUpdates } from "@/components/notifications/live-updates";
 
+const commitSha = import.meta.env.VITE_COMMIT_SHA;
+const sourceUrl = "https://github.com/ajstrongdev/polsimmer";
+
 type AuthContext = {
   user: User | null;
   loading: boolean;
@@ -128,7 +131,7 @@ function RootLayout() {
             <Outlet />
             <footer className="mt-auto border-t bg-muted/30 px-4 py-4 text-center text-sm text-muted-foreground">
               Running Polsimmer v{packageJson.version}{" "}
-              <a href="https://github.com/ajstrongdev/polsimmer" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">(source)</a>
+               <a href={commitSha ? `${sourceUrl}/commit/${commitSha}` : sourceUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">(source{commitSha ? ` - ${commitSha.slice(0, 7)}` : ""})</a>
               {" "}·{" "}
               <Link to="/changelog" className="font-medium text-primary hover:underline">Changelog</Link>
               {" "}·{" "}

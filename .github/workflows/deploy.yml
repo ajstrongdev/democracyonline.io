@@ -16,6 +16,11 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # Hold the shared VPS slot through QA approval so dev cannot change underneath reviewers.
+  group: deploy-vps
+  cancel-in-progress: false
+
 jobs:
   validate:
     uses: ./.github/workflows/ci.yml
@@ -23,12 +28,11 @@ jobs:
   development:
     name: Deploy development
     needs: validate
-    if: github.event_name == 'push' || inputs.target == 'development'
+    if: github.event_name == 'push' || inputs.target == 'development' || (inputs.target == 'production' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    environment: Dev
-    concurrency:
-      group: deploy-vps
-      cancel-in-progress: false
+    environment:
+      name: Dev
+      url: https://dev.oscana.nya.je
     steps:
       - name: Deploy validated revision over SSH
         uses: appleboy/ssh-action@v1.2.5
@@ -37,22 +41,28 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT || 22 }}
-          script_stop: true
           command_timeout: 30m
           script: |
             set -eu
             cd /srv/democracyonline-dev
             bash scripts/vps.sh deploy-revision ${{ github.sha }} development
+      - name: Request QA on development
+        if: inputs.target == 'production'
+        run: |
+          {
+            echo '## QA before production approval'
+            echo 'Development is deployed at https://dev.oscana.nya.je from this run.'
+            echo 'Verify the release and migration checklist in deploy.md, then approve the pending Production environment deployment. Reject it if QA fails.'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   production:
-    name: Deploy production
-    needs: validate
+    name: QA approval and deploy production
+    needs: development
     if: github.event_name == 'workflow_dispatch' && inputs.target == 'production' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: Production
-    concurrency:
-      group: deploy-vps
-      cancel-in-progress: false
+    environment:
+      name: Production
+      url: https://oscana.nya.je
     steps:
       - name: Deploy validated main revision over SSH
         uses: appleboy/ssh-action@v1.2.5
@@ -61,7 +71,6 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT || 22 }}
-          script_stop: true
           command_timeout: 30m
           script: |
             set -eu
