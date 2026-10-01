@@ -26,7 +26,7 @@ test("two players see a new post without a refresh", async ({
     .click();
   await expect(page).toHaveURL(/\/dashboard\/social/);
   await expect(
-    page.getByRole("heading", { name: "The town square" }),
+    page.getByRole("heading", { name: "Z.com", exact: true }),
   ).toBeVisible();
   const readerContext = await browser.newContext({
     baseURL: "http://127.0.0.1:31017",
@@ -48,13 +48,13 @@ test("two players see a new post without a refresh", async ({
       .getByRole("link", { name: "Z.com" })
       .click();
     await expect(
-      reader.getByRole("heading", { name: "The town square" }),
+      reader.getByRole("heading", { name: "Z.com", exact: true }),
     ).toBeVisible();
     await liveConnection;
 
     const post = `E2E smoke ${Date.now()} @E2EReader`;
     await page.getByLabel("Write a post").fill(post);
-    await page.getByRole("button", { name: "Publish post" }).click();
+    await page.getByRole("button", { name: "Post", exact: true }).click();
     await expect(page.getByText(post, { exact: true })).toBeVisible();
     await expect(page.getByLabel("Write a post")).toHaveValue("");
     await expect(
@@ -128,7 +128,7 @@ test("two players see a new post without a refresh", async ({
     const deepLink = await page.goto("/dashboard/social");
     expect(deepLink?.status()).toBe(200);
     await expect(
-      page.getByRole("heading", { name: "The town square" }),
+      page.getByRole("heading", { name: "Z.com", exact: true }),
     ).toBeVisible();
   } finally {
     await readerContext.close();
