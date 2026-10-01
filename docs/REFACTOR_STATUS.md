@@ -107,11 +107,11 @@ existing local database. The E2E command requires explicitly exported
   `VITE_FIREBASE_AUTH_EMULATOR_URL=http://127.0.0.1:9099`, and dummy values for
   the other required `VITE_FIREBASE_*` keys. VAPID keys must be absent to avoid
   external delivery. Run
-`pnpm exec firebase emulators:exec --only auth --project demo-oscana 'pnpm e2e:prepare && pnpm test:e2e'`
+`bunx firebase emulators:exec --only auth --project demo-oscana 'bun run e2e:prepare && bun run test:e2e'`
 only after confirming the target is disposable. The guard cannot detect a
 loopback tunnel to a remote database; verify your own port mapping as well.
 
-Non-mutating checks include `pnpm typecheck`, `pnpm test`, `pnpm lint .`, and
-`pnpm build` with dummy client Firebase values. Seeding, migrations, and
+Non-mutating checks include `bun run typecheck`, `bun run test`, `bun run lint .`, and
+`bun run build` with dummy client Firebase values. Seeding, migrations, and
 authenticated browser tests require an explicitly isolated disposable stack;
 the repository's default `.env` is not an E2E target.

@@ -70,7 +70,7 @@ bash scripts/vps.sh status
 curl -I https://dev.oscana.nya.je
 ```
 
-`deploy` checks configuration, starts its database, makes a timestamped custom-format backup, builds the app and migration image, applies Drizzle migrations, and starts the app and scheduler. `seed` resets game data, so run it only once for an empty environment. It also makes a backup first. Create Firebase users for seeded officeholders if needed; see [Firebase Authentication](docs/FIREBASE_AUTH.md). Verify login, admin, a bill stage, and an election advancement on development.
+`deploy` checks configuration, starts its database, makes a timestamped custom-format backup, builds the Bun dependency/tooling and app images (`bun install --frozen-lockfile`, then `bun run build` inside Docker), applies Drizzle migrations, and starts the app and scheduler. The VPS does not need a host-side Node, Bun, pnpm, or Corepack install. `seed` resets game data, so run it only once for an empty environment. It also makes a backup first. Create Firebase users for seeded officeholders if needed; see [Firebase Authentication](docs/FIREBASE_AUTH.md). Verify login, admin, a bill stage, and an election advancement on development.
 
 The app now has a database-backed `/api/health` readiness probe, and deploy waits for it before reporting success. This probe does not validate the scheduler, migrations' data semantics, or external services. Follow the pre-production API and migration checklist in [API operations](docs/API_OPERATIONS.md), especially the duplicate-vote preflight before migration 0051.
 

@@ -67,7 +67,7 @@ async function cleanup() {
     child.once("exit", done);
     setTimeout(done, 3_000).unref();
   })));
-  // pnpm exits before Nitro's graceful five-second shutdown finishes; do not
+  // The command exits before Nitro's graceful five-second shutdown finishes; do not
   // kill PostgreSQL underneath its still-closing pool connections.
   if (children.length) await new Promise((done) => setTimeout(done, 5_500));
   for (const child of children) {
@@ -144,12 +144,12 @@ try {
     ELECTION_TASK_SERVICE_ACCOUNT: "",
   };
   await run("node", ["scripts/e2e/check-env.mjs"], safe);
-  const emulator = start("pnpm", ["exec", "firebase", "emulators:start", "--only", "auth", "--project", "demo-oscana"], safe);
+  const emulator = start("bunx", ["firebase", "emulators:start", "--only", "auth", "--project", "demo-oscana"], safe);
   await waitForPort(9099, emulator);
-  await run("pnpm", ["db:migrate"], safe);
-  await run("pnpm", ["seed:fresh"], safe);
+  await run("bun", ["run", "db:migrate"], safe);
+  await run("bun", ["run", "seed:fresh"], safe);
   await run("node", ["scripts/e2e/seed-auth.mjs"], safe);
-  await run("pnpm", ["build"], { ...safe, NODE_ENV: "production" });
+  await run("bun", ["run", "build"], { ...safe, NODE_ENV: "production" });
 
   if (!existsSync(vapidFile)) {
     mkdirSync(resolve(root, ".vscode"), { recursive: true });

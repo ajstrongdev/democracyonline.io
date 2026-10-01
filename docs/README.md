@@ -46,7 +46,7 @@ Oscana is a full-stack web application that simulates a democratic government sy
 ### Development Tools
 
 - **Build Tool**: [Vite](https://vitejs.dev/)
-- **Package Manager**: pnpm
+- **Package Manager**: Bun
 - **Linting**: ESLint with [TanStack Config](https://tanstack.com/config)
 - **Formatting**: Prettier
 - **Testing**: [Vitest](https://vitest.dev/)
@@ -251,9 +251,9 @@ change the reveal order.
 For a five-minute local demonstration after applying migrations and seeding:
 
 ```bash
-pnpm election:dry-run
-pnpm election:dry-run --player ajstrongdev
-pnpm election:dry-run --player 1
+bun run election:dry-run
+bun run election:dry-run --player ajstrongdev
+bun run election:dry-run --player 1
 ```
 
 The command replaces only the current Senate race's candidates, ballots, and
@@ -277,18 +277,18 @@ parties, bills, nation data, or other application state.
 
 ```bash
 # Install dependencies
-pnpm install
+bun install --frozen-lockfile
 
 # Configure `.env` as described in the repository README, then apply the
 # checked-in migrations.
-pnpm db:migrate
+bun run db:migrate
 ```
 
 ### Development Server
 
 ```bash
 # Start development server
-pnpm dev
+bun run dev
 
 # Or use VS Code task
 # Run task: "Start Dev Server (Unix/macOS)"
@@ -303,42 +303,42 @@ This starts:
 
 ```bash
 # Generate migration
-pnpm db:generate
+bun run db:generate
 
 # Apply migrations
-pnpm db:migrate
+bun run db:migrate
 
 # Push schema changes directly (dev)
-pnpm db:push
+bun run db:push
 
 # Open Drizzle Studio (database GUI)
-pnpm db:studio
+bun run db:studio
 ```
 
 ### Code Quality
 
 ```bash
 # Run linter
-pnpm lint
+bun run lint
 
 # Format code
-pnpm format
+bun run format
 
 # Check and fix all issues
-pnpm check
+bun run check
 
 # Run tests
-pnpm test
+bun run test
 ```
 
 ### Build for Production
 
 ```bash
 # Build application
-pnpm build
+bun run build
 
 # Preview production build
-pnpm preview
+bun run start
 ```
 
 ## Environment Variables
@@ -427,7 +427,7 @@ development first, verify it, then update production separately.
 
 1. Create feature branch from `develop`
 2. Implement feature with tests
-3. Run `pnpm check` to ensure code quality
+3. Run `bun run check` to ensure code quality
 4. Submit pull request to `develop`
 5. Address code review feedback
 6. Merge after approval
@@ -460,10 +460,10 @@ echo $DATABASE_URL
 rm -rf .tanstack node_modules/.vite
 
 # Reinstall dependencies
-pnpm install
+bun install --frozen-lockfile
 
 # Rebuild
-pnpm build
+bun run build
 ```
 
 ## Resources

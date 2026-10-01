@@ -4,17 +4,17 @@ Oscana is a TanStack Start game application with PostgreSQL and Firebase Authent
 
 ## Local development
 
-Use Node.js 24, pnpm 10.28.2, PostgreSQL, and Firebase credentials. Copy `.env.example` to `.env`, fill it, then run:
+Use Node.js 24, Bun 1.4.2, PostgreSQL, and Firebase credentials. Copy `.env.example` to `.env`, fill it, then run:
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm db:migrate
-pnpm dev
+bun install --frozen-lockfile
+bun run db:migrate
+bun run dev
 ```
 
-`pnpm seed:fresh` resets game data. Use it only for a new or disposable database. The scheduler can be run locally with `CRON_INTERNAL_TOKEN` set to the local cron token and `APP_BASE_URL=http://localhost:3001`.
+`bun run seed:fresh` resets game data. Use it only for a new or disposable database. The scheduler can be run locally with `CRON_INTERNAL_TOKEN` set to the local cron token and `APP_BASE_URL=http://localhost:3001`.
 
-To test party permissions on a **local development database**, first make sure AJ (`ajstrongdev@pm.me`) belongs to an active party with another active, unappointed member. Run `pnpm db:seed:party-leader`, `pnpm db:seed:chief-whip`, or `pnpm db:seed:social-media-officer` to switch AJ to that post. These commands do not reset the database, but replace the incumbent in the chosen post; moving AJ out of the leadership post assigns an eligible party member as successor. Set `PARTY_TEST_EMAIL` to use another existing party member instead. They refuse non-local database hosts and production mode. The admin panel's **Database Users** tab can create a database-only player with an email and username; no Firebase account or invitation is created. A player needs a matching Firebase login before they can sign in.
+To test party permissions on a **local development database**, first make sure AJ (`ajstrongdev@pm.me`) belongs to an active party with another active, unappointed member. Run `bun run db:seed:party-leader`, `bun run db:seed:chief-whip`, or `bun run db:seed:social-media-officer` to switch AJ to that post. These commands do not reset the database, but replace the incumbent in the chosen post; moving AJ out of the leadership post assigns an eligible party member as successor. Set `PARTY_TEST_EMAIL` to use another existing party member instead. They refuse non-local database hosts and production mode. The admin panel's **Database Users** tab can create a database-only player with an email and username; no Firebase account or invitation is created. A player needs a matching Firebase login before they can sign in.
 
 ## VPS
 

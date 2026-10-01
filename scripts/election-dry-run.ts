@@ -25,7 +25,7 @@ type DemoCandidate = {
 };
 
 function usage() {
-  console.log(`Usage: pnpm election:dry-run [options]
+  console.log(`Usage: bun run election:dry-run [options]
 
 Prepare deterministic President and Senate election-night simulations from
 50 existing local players, with 48 complete ballots cast in each race.
@@ -37,9 +37,9 @@ Options:
   --help              Show this help without connecting to the database
 
 Examples:
-  pnpm election:dry-run
-  pnpm election:dry-run -- --duration 5m
-  pnpm election:dry-run -- --duration 30m --election President
+  bun run election:dry-run
+  bun run election:dry-run --duration 5m
+  bun run election:dry-run --duration 30m --election President
 
 Safety:
   Refuses NODE_ENV=production. Non-local DATABASE_URL values also require

@@ -17,14 +17,14 @@
     "seed:fresh": "node --import tsx scripts/seed-fresh.ts",
     "test": "vitest run --exclude 'tests/e2e/**'",
     "test:e2e": "playwright test",
-    "e2e:prepare": "node scripts/e2e/check-env.mjs && pnpm db:migrate && pnpm seed:fresh && node scripts/e2e/seed-auth.mjs && NODE_ENV=production pnpm build",
+    "e2e:prepare": "node scripts/e2e/check-env.mjs && bun run db:migrate && bun run seed:fresh && node scripts/e2e/seed-auth.mjs && NODE_ENV=production bun run build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint",
     "format": "prettier",
     "check": "prettier --write . && eslint --fix",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "pnpm db:seed:elections",
+    "db:seed": "bun run db:seed:elections",
     "db:seed:elections": "tsx scripts/seed.ts elections",
     "db:seed:elections-finished": "tsx scripts/seed.ts elections-finished",
     "db:seed:candidate-signup": "tsx scripts/seed.ts candidate-signup",
@@ -123,5 +123,6 @@
     "vitest": "^3.0.5",
     "web-vitals": "^5.1.0"
   },
-  "packageManager": "pnpm@10.28.2+sha512.41872f037ad22f7348e3b1debbaf7e867cfd448f2726d9cf74c08f19507c31d2c8e7a11525b983febc2df640b5438dee6023ebb1f84ed43cc2d654d2bc326264"
+  "packageManager": "bun@1.4.2",
+  "trustedDependencies": ["@firebase/util", "esbuild", "protobufjs", "unrs-resolver"]
 }

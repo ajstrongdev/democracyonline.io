@@ -69,7 +69,7 @@ services:
       context: .
       target: tooling
     env_file: .env
-    command: ["pnpm", "exec", "drizzle-kit", "migrate"]
+    command: ["bun", "run", "db:migrate"]
     depends_on:
       db:
         condition: service_healthy

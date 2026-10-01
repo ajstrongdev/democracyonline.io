@@ -13,7 +13,7 @@ time interval are skipped, not delayed. The in-app list remains available.
 
 ## VPS configuration
 
-Generate one VAPID key pair with `pnpm exec web-push generate-vapid-keys` and
+Generate one VAPID key pair with `bunx web-push generate-vapid-keys` and
 store `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` (for example,
 `mailto:ops@example.com`) in the server-side VPS `.env`. Treat the private key
 as a secret and **keep the same pair between deployments**. Do not commit it or
