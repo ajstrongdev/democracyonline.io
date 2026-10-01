@@ -95,7 +95,7 @@ test("mobile dashboard controls and workspace fit on narrow screens", async ({
 
     await page.goto("/dashboard/social");
     await expect(
-      page.getByRole("heading", { name: "The town square" }),
+      page.getByRole("heading", { name: "Z.com", exact: true }),
     ).toBeVisible();
     const composerBox = await page.getByLabel("Write a post").boundingBox();
     expect(composerBox).not.toBeNull();
