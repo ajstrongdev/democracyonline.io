@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { BILL_QUEUE_STAGES, availableBillStageSlots } from "./stage-queue";
 
 describe("bill stage queues", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { publicFirebaseUser } from "./firebase-user-public";
 import type { UserRecord } from "firebase-admin/auth";
 

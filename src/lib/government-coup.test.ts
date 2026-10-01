@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { planCoup } from "./government-coup";
 
 const target = { id: 2, username: "New leader", role: "Senator" };

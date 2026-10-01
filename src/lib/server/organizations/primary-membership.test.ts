@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { syncPartyPrimaryMembership } from "./primary-membership";
 import type { SQL } from "drizzle-orm";
@@ -7,13 +7,13 @@ function transaction() {
   const statements: Array<string> = [];
   const dialect = new PgDialect();
   const tx = {
-    update: vi.fn(() => ({
-      set: vi.fn((values: { coalitionId: number | null }) => {
+    update: mock(() => ({
+      set: mock((values: { coalitionId: number | null }) => {
         statements.push(`coalition:${values.coalitionId}`);
-        return { where: vi.fn(async () => {}) };
+        return { where: mock(async () => {}) };
       }),
     })),
-    execute: vi.fn(async (query: SQL) => {
+    execute: mock(async (query: SQL) => {
       statements.push(dialect.sqlToQuery(query).sql);
     }),
   };

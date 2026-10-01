@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { billCommentPostContent } from "./bill-comment-post";
 import { getEntityReferenceHref } from "./entity-references";
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { coalitionDesignation } from "@/lib/organizations/coalition-status";
 
 describe("coalition designation", () => {

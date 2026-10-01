@@ -49,7 +49,7 @@ Oscana is a full-stack web application that simulates a democratic government sy
 - **Package Manager**: Bun
 - **Linting**: ESLint with [TanStack Config](https://tanstack.com/config)
 - **Formatting**: Prettier
-- **Testing**: [Vitest](https://vitest.dev/)
+- **Unit testing**: [Bun test](https://bun.com/docs/test)
 - **Environment Variables**: [T3 Env](https://env.t3.gg/) for type-safe env validation
 
 ## Project Structure

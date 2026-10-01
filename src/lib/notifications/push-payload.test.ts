@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "bun:test";
 import { mentionPushPayload, nextMovePushPayload } from "./push-payload";
 
 it("keeps mention text out of Web Push unless the recipient opted into previews", () => {

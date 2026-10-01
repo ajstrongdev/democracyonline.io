@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { getFeedDestination } from "@/lib/feed-destination";
 
 describe("getFeedDestination", () => {

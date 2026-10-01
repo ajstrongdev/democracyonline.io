@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { getAuthRedirect } from "./auth-guard.ts";
 
 describe("getAuthRedirect", () => {
