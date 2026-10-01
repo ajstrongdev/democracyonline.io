@@ -132,7 +132,9 @@ function RootLayout() {
               {" "}·{" "}
               <Link to="/changelog" className="font-medium text-primary hover:underline">Changelog</Link>
               {" "}·{" "}
-              <a href="https://discord.gg/XREYCNFAdC" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Join the Polsimmer Discord</a>
+               <a href="https://discord.gg/XREYCNFAdC" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Join the Polsimmer Discord</a>
+              {" "}·{" "}
+              <a href="https://ko-fi.com/polsimmer" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Buy me a Coffee</a>
             </footer>
           </div>
         </div>

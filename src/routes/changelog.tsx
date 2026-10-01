@@ -20,7 +20,7 @@ const releases = [
       {
         title: "Follow every primary race",
         detail:
-          "For the first time, you can follow live candidates and vote totals in every party and coalition primary—not just the race for your own party or coalition. Browse other parties’ and coalitions’ races with the arrows or swipe on mobile, and vote in your own race right from the dashboard. Primaries also appear on their party and coalition pages. If you are eligible and have not voted, Your next moves reminds you while voting is open; optional browser notifications can remind you too.",
+          "For the first time, you can follow live candidates and vote totals in every party and coalition primary, not just the race for your own party or coalition. Browse other parties’ and coalitions’ races with the arrows or swipe on mobile, and vote in your own race right from the dashboard. Primaries also appear on their party and coalition pages. If you are eligible and have not voted, Your next moves reminds you while voting is open; optional browser notifications can remind you too.",
       },
       {
         title: "Make Z.com your own",
@@ -125,7 +125,7 @@ const releases = [
       {
         title: "Find a bill, then cast your vote",
         detail:
-          "Browse bills by stage, search the list, or filter to your own bills—even on mobile. Eligible officeholders can vote on a bill’s page and see when their vote is recorded.",
+          "Browse bills by stage, search the list, or filter to your own bills, even on mobile. Eligible officeholders can vote on a bill’s page and see when their vote is recorded.",
       },
       {
         title: "A nudge for party leaders",
