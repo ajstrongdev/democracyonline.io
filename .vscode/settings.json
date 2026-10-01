@@ -1,4 +1,9 @@
 {
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "explicit"
+  },
   "chat.tools.terminal.autoApprove": {
     "git add": true,
     "git commit": true,
