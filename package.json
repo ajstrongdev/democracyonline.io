@@ -15,7 +15,7 @@
     "deploy:backup": "bash scripts/vps.sh backup",
     "update": "bash scripts/vps.sh update",
     "seed:fresh": "node --import tsx scripts/seed-fresh.ts",
-    "test": "bun test --path-ignore-patterns tests/e2e",
+    "test": "bun test",
     "test:e2e": "playwright test",
     "e2e:prepare": "node scripts/e2e/check-env.mjs && bun run db:migrate && bun run seed:fresh && node scripts/e2e/seed-auth.mjs && NODE_ENV=production bun run build",
     "typecheck": "tsc --noEmit",

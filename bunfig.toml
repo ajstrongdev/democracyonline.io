@@ -1,0 +1,3 @@
+[test]
+# Playwright specs run with `bun run test:e2e`, not Bun's unit-test runner.
+pathIgnorePatterns = ["tests/e2e/**"]
