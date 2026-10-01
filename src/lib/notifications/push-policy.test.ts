@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { inQuietHours, isTrustedPushEndpoint, isValidTimeZone } from "./push-policy";
 
 describe("Web Push safety and quiet hours", () => {

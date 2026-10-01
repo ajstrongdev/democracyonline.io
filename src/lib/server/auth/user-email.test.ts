@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { normalizeEmail } from "@/lib/server/auth/user-email";
 
 describe("normalizeEmail", () => {

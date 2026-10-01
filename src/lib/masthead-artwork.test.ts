@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { featuredOffice, officeArtwork, pageArtwork } from "./masthead-artwork";
 
 describe("masthead artwork", () => {

@@ -55,8 +55,14 @@ test("two players see a new post without a refresh", async ({
     const post = `E2E smoke ${Date.now()} @E2EReader`;
     await page.getByLabel("Write a post").fill(post);
     await page.getByRole("button", { name: "Post", exact: true }).click();
-    await expect(page.getByText(post, { exact: true })).toBeVisible();
-    await expect(page.getByLabel("Write a post")).toHaveValue("");
+    await expect(page.getByLabel("Write a post")).toHaveValue("", {
+      timeout: 10_000,
+    });
+    await expect(
+      page
+        .getByRole("region", { name: "Z.com timeline" })
+        .getByText(post, { exact: true }),
+    ).toBeVisible();
     await expect(
       reader.getByRole("button", { name: "Show 1 new post" }),
     ).toBeVisible({ timeout: 10_000 });

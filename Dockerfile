@@ -2,27 +2,19 @@
 # check=skip=SecretsUsedInArgOrEnv
 
 # =============================================================================
-# Stage 1: Build the application
+# Install Bun once on the Node 24 Alpine base used by all stages. The app and
+# its maintenance scripts still run under Node.
 # =============================================================================
-FROM node:24-alpine AS tooling
+FROM docker.io/oven/bun:1.4.2-alpine AS bun
+FROM docker.io/library/node:24-alpine AS deps
 
-# Set environment variables for build
-ENV NODE_ENV=production
-ENV PNPM_HOME=/pnpm
-ENV PATH="$PNPM_HOME:$PATH"
-
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /usr/src/app
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
-# Install pnpm using corepack (Node.js built-in package manager manager)
-RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
-
-# Copy package files for dependency installation
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
-# Install dependencies
-RUN pnpm install --frozen-lockfile
-
-# Copy source code and config files
+FROM deps AS tooling
+WORKDIR /usr/src/app
 COPY . .
 
 # Build the web application only for the runtime image. The tooling stage is
@@ -60,30 +52,27 @@ RUN --mount=type=secret,id=firebase_project_id \
     FIREBASE_PROJECT_ID=$(cat /run/secrets/firebase_project_id 2>/dev/null || echo "") \
     FIREBASE_CLIENT_EMAIL=$(cat /run/secrets/firebase_client_email 2>/dev/null || echo "") \
     FIREBASE_PRIVATE_KEY=$(cat /run/secrets/firebase_private_key 2>/dev/null || echo "") \
-    NODE_OPTIONS="--max-old-space-size=${BUILD_NODE_HEAP_MB}" pnpm run build
+    NODE_OPTIONS="--max-old-space-size=${BUILD_NODE_HEAP_MB}" bun run build
+
+# Runtime dependencies are cached independently of changes to application code.
+FROM docker.io/library/node:24-alpine AS production-deps
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
+WORKDIR /usr/src/app
+COPY package.json bun.lock ./
+RUN bun install --production --frozen-lockfile
 
 # =============================================================================
-# Stage 2: Production runtime
+# Production runtime
 # =============================================================================
-FROM node:24-alpine AS runner
+FROM docker.io/library/node:24-alpine AS runner
 
 # Set production environment
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
-ENV PNPM_HOME=/pnpm
-ENV PATH="$PNPM_HOME:$PATH"
-
 WORKDIR /usr/src/app
 
-# Install pnpm for production dependency installation
-RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
-
-# Copy package files
-COPY --from=builder /usr/src/app/package.json /usr/src/app/pnpm-lock.yaml ./
-
-# Install only production dependencies (needed for externalized packages like firebase-admin)
-RUN pnpm install --prod --frozen-lockfile
+COPY --from=production-deps /usr/src/app/node_modules ./node_modules
 
 # Copy built application from builder stage
 # TanStack Start with Nitro outputs to .output directory

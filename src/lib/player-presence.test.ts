@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { formatPlayerLastSeen, isPlayerOnline } from "./player-presence";
 
 const now = new Date("2026-09-27T12:00:00.000Z");

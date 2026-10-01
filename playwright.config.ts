@@ -14,7 +14,7 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "PORT=31017 HOST=127.0.0.1 pnpm start",
+    command: "PORT=31017 HOST=127.0.0.1 bun run start",
     url: "http://127.0.0.1:31017/api/health",
     reuseExistingServer: false,
     timeout: 120_000,

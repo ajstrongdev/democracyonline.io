@@ -122,7 +122,7 @@ Migration numbering is sequential:
 0034_useful_martin_li (game_settings for DB-owned game speed)
 ```
 
-Apply with `pnpm db:migrate` per environment before deploying the speed-mode
+Apply with `bun run db:migrate` per environment before deploying the speed-mode
 code; without the table every timing call falls back to the env multiplier.
 
 The target database had migration `0032` applied in schema but its bookkeeping row was missing. That history was repaired, and `pnpm db:migrate` successfully applied `0033`.
@@ -133,14 +133,14 @@ For another environment, run from the repository with the correct `.env` target:
 set -a
 source .env
 set +a
-pnpm db:migrate
+bun run db:migrate
 ```
 
 Schema changes are managed through Drizzle migrations. Generate a migration
 after updating the schema:
 
 ```bash
-pnpm db:generate
+bun run db:generate
 ```
 
 ## Important known edge case (fixed)
@@ -167,12 +167,12 @@ The old pool fields should only be removed in a separate cleanup after confirmin
 ## Validation commands
 
 ```bash
-pnpm exec tsc --noEmit --pretty false
+bunx tsc --noEmit --pretty false
 node --check scripts/scheduler.mjs
-pnpm db:generate
+bun run db:generate
 ```
 
-`pnpm db:generate` should report:
+`bun run db:generate` should report:
 
 ```text
 No schema changes, nothing to migrate

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import {
   FIXED_POLICY_VALUES,
   POLICY_BY_KEY,

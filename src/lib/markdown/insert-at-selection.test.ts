@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { insertAtSelection, prefixSelectedLines } from "./insert-at-selection";
 
 describe("insertAtSelection", () => {

@@ -24,7 +24,7 @@ if (
   )
 ) {
   throw new Error(
-    "Usage: pnpm db:seed:party-leader | db:seed:chief-whip | db:seed:social-media-officer",
+    "Usage: bun run db:seed:party-leader | bun run db:seed:chief-whip | bun run db:seed:social-media-officer",
   );
 }
 const client = new pg.Client({ connectionString: url });

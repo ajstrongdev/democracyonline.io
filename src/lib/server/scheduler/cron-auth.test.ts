@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { authorizeCronRequest } from "@/lib/server/scheduler/cron-auth";
 
 const defaultEnv = {
@@ -16,7 +16,7 @@ describe("authorizeCronRequest", () => {
     const result = await authorizeCronRequest({
       request,
       env: defaultEnv,
-      verifySchedulerIdToken: vi.fn(),
+      verifySchedulerIdToken: mock(),
     });
 
     expect(result?.status).toBe(401);
@@ -32,7 +32,7 @@ describe("authorizeCronRequest", () => {
     const result = await authorizeCronRequest({
       request,
       env: defaultEnv,
-      verifySchedulerIdToken: vi.fn(),
+      verifySchedulerIdToken: mock(),
     });
 
     expect(result?.status).toBe(401);
@@ -46,7 +46,7 @@ describe("authorizeCronRequest", () => {
       },
     });
 
-    const verifySchedulerIdToken = vi.fn(async () => ({
+    const verifySchedulerIdToken = mock(async () => ({
       email: "game-scheduler@proj.iam.gserviceaccount.com",
     }));
     const result = await authorizeCronRequest({
@@ -73,7 +73,7 @@ describe("authorizeCronRequest", () => {
         },
       },
     );
-    const verifySchedulerIdToken = vi.fn(async () => ({
+    const verifySchedulerIdToken = mock(async () => ({
       email: "game-scheduler@proj.iam.gserviceaccount.com",
     }));
 
@@ -97,7 +97,7 @@ describe("authorizeCronRequest", () => {
       },
     });
 
-    const verifySchedulerIdToken = vi.fn();
+    const verifySchedulerIdToken = mock();
 
     const result = await authorizeCronRequest({
       request,
@@ -119,7 +119,7 @@ describe("authorizeCronRequest", () => {
     const result = await authorizeCronRequest({
       request,
       env: defaultEnv,
-      verifySchedulerIdToken: vi.fn(),
+      verifySchedulerIdToken: mock(),
     });
 
     expect(result?.status).toBe(401);
@@ -138,7 +138,7 @@ describe("authorizeCronRequest", () => {
         ...defaultEnv,
         NODE_ENV: "production",
       },
-      verifySchedulerIdToken: vi.fn(),
+      verifySchedulerIdToken: mock(),
     });
 
     expect(result?.status).toBe(401);
@@ -155,8 +155,8 @@ describe("authorizeCronRequest", () => {
     const result = await authorizeCronRequest({
       request,
       env: defaultEnv,
-      verifySchedulerIdToken: vi.fn(),
-      verifyAdminIdToken: vi.fn(async () => ({
+      verifySchedulerIdToken: mock(),
+      verifyAdminIdToken: mock(async () => ({
         email: "admin@example.com",
       })),
     });
@@ -175,8 +175,8 @@ describe("authorizeCronRequest", () => {
     const result = await authorizeCronRequest({
       request,
       env: defaultEnv,
-      verifySchedulerIdToken: vi.fn(),
-      verifyAdminIdToken: vi.fn(async () => ({
+      verifySchedulerIdToken: mock(),
+      verifyAdminIdToken: mock(async () => ({
         email: "admin@example.com",
       })),
     });
@@ -195,8 +195,8 @@ describe("authorizeCronRequest", () => {
     const result = await authorizeCronRequest({
       request,
       env: defaultEnv,
-      verifySchedulerIdToken: vi.fn(),
-      verifyAdminIdToken: vi.fn(async () => ({
+      verifySchedulerIdToken: mock(),
+      verifyAdminIdToken: mock(async () => ({
         email: "not-admin@example.com",
       })),
     });

@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -12,16 +13,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm lint .
-      - run: pnpm build
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run lint .
+      - run: bun run build
         env:
           VITE_FIREBASE_API_KEY: dummy-for-ci
           VITE_FIREBASE_AUTH_DOMAIN: dummy-for-ci
@@ -64,14 +66,15 @@ jobs:
       SITE_URL: http://127.0.0.1:31017
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm exec firebase emulators:exec --only auth --project demo-oscana 'pnpm e2e:prepare && pnpm test:e2e'
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bunx firebase emulators:exec --only auth --project demo-oscana 'bun run e2e:prepare && bun run test:e2e'
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

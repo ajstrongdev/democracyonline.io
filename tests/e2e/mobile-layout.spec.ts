@@ -39,6 +39,7 @@ test("mobile dashboard controls and workspace fit on narrow screens", async ({
     await page.getByRole("button", { name: "Open navigation" }).press("Enter");
     const navigation = page.getByRole("dialog", { name: "Oscana" });
     await expect(navigation).toBeVisible();
+    // Chromium reports fractional bounding boxes (e.g. 43.99998px for 44px).
     for (const name of [
       "Open command palette",
       "Choose theme",
@@ -48,11 +49,11 @@ test("mobile dashboard controls and workspace fit on narrow screens", async ({
       const box = await navigation.getByRole("button", { name }).boundingBox();
       expect(box, `${name} should be visible at ${width}px`).not.toBeNull();
       expect(
-        box!.width,
+        Math.round(box!.width),
         `${name} should be at least 44px wide`,
       ).toBeGreaterThanOrEqual(44);
       expect(
-        box!.height,
+        Math.round(box!.height),
         `${name} should be at least 44px high`,
       ).toBeGreaterThanOrEqual(44);
     }
@@ -63,8 +64,8 @@ test("mobile dashboard controls and workspace fit on narrow screens", async ({
     if (await privilegedLink.count()) {
       const box = await privilegedLink.boundingBox();
       expect(box).not.toBeNull();
-      expect(box!.width).toBeGreaterThanOrEqual(44);
-      expect(box!.height).toBeGreaterThanOrEqual(44);
+      expect(Math.round(box!.width)).toBeGreaterThanOrEqual(44);
+      expect(Math.round(box!.height)).toBeGreaterThanOrEqual(44);
     }
 
     await navigation
