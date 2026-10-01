@@ -326,6 +326,7 @@ function CompactRaceRow({
             <DashboardElectionCountdown
               target={deadline}
               onExpire={onRefresh}
+              closingTimeOnExpire={race.status === "VOTING"}
             />
           </Badge>
         )}

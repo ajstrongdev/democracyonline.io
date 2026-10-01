@@ -35,6 +35,21 @@ function PlayersIndex() {
     const playerPresence = presence[player.id] ?? player;
     return now !== null && isPlayerOnline({ ...playerPresence, now });
   });
+  const sortedPlayers = [...filtered].sort((a, b) => {
+    const aPresence = presence[a.id] ?? a;
+    const bPresence = presence[b.id] ?? b;
+    const aOnline = now !== null && isPlayerOnline({ ...aPresence, now });
+    const bOnline = now !== null && isPlayerOnline({ ...bPresence, now });
+    if (aOnline !== bOnline) return aOnline ? -1 : 1;
+
+    const aLastSeen = aPresence.lastSeenAt
+      ? new Date(aPresence.lastSeenAt).getTime()
+      : Number.NEGATIVE_INFINITY;
+    const bLastSeen = bPresence.lastSeenAt
+      ? new Date(bPresence.lastSeenAt).getTime()
+      : Number.NEGATIVE_INFINITY;
+    return bLastSeen - aLastSeen;
+  });
 
   return (
     <WikiPage>
@@ -65,7 +80,7 @@ function PlayersIndex() {
         }
       />
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((player) => (
+        {sortedPlayers.map((player) => (
           <Link
             key={player.id}
             to="/dashboard/players/$playerId"

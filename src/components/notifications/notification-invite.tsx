@@ -50,8 +50,8 @@ export function NotificationInvite({ active }: { active: boolean }) {
 
   return (
     <aside aria-label="Notification invitation" className="fixed bottom-4 right-4 z-40 w-[min(22rem,calc(100vw-2rem))] space-y-3 rounded-xl border bg-card p-4 shadow-lg">
-      <p className="font-semibold">Stay up to date on mentions?</p>
-      <p className="text-sm text-muted-foreground">Enable browser notifications for Z.com mentions and Your next moves when Oscana is closed. You can change this any time.</p>
+       <p className="font-semibold">Stay up to date on Z.com?</p>
+       <p className="text-sm text-muted-foreground">Enable browser notifications for mentions, comments on your posts and Your next moves when Oscana is closed. You can change this any time.</p>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="flex flex-wrap gap-2">
         <Button size="sm" disabled={busy} onClick={() => void enable()}>Enable notifications</Button>

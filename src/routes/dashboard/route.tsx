@@ -4,9 +4,11 @@ import { DashboardContent } from "@/components/dashboard/dashboard-home";
 import { NotificationInvite } from "@/components/notifications/notification-invite";
 import { getDashboardData } from "@/lib/server/dashboard/data";
 import { dashboardQuery } from "@/lib/dashboard/queries";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const Route = createFileRoute("/dashboard")({
   loader: () => getDashboardData(),
+  pendingComponent: GenericSkeleton,
   component: DashboardWorkspace,
 });
 
@@ -22,12 +24,12 @@ function DashboardWorkspace() {
   const isHome = pathname.replace(/\/$/, "") === "/dashboard";
 
   return isHome ? (
-    <div key="dashboard" className="workspace-page min-w-0 flex-1">
+    <div className="min-w-0 flex-1">
       <DashboardContent data={data} />
       <NotificationInvite active />
     </div>
   ) : (
-    <div key={pathname} className="workspace-page min-w-0 flex-1">
+    <div className="min-w-0 flex-1">
       <Outlet />
     </div>
   );

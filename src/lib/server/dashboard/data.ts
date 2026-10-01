@@ -3,9 +3,6 @@ import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   bills,
-  coalitionMembers,
-  coalitionProposals,
-  coalitionVotes,
   committeeAssessments,
   electionCandidateHistory,
   nations,
@@ -18,45 +15,56 @@ import { userEmailEquals } from "@/lib/server/auth/user-email";
 import { getWikiHome } from "@/lib/server/history/history";
 import { getFeedItems } from "@/lib/server/dashboard/feed";
 import { getZNotificationPage } from "@/lib/server/notifications/social-notifications";
-import { getPrimariesData } from "@/lib/server/organizations/primaries";
+import {
+  getPrimariesData,
+  getPrimaryRaces,
+} from "@/lib/server/organizations/primaries";
 import { primaryNextMoves } from "@/lib/dashboard/action-eligibility";
 import { officeVotingConfig } from "@/lib/server/dashboard/office-votes";
 import { getPendingBillGuidance } from "@/lib/server/bills/pending-guidance";
 import { getPartyFormationInvites } from "@/lib/server/organizations/party";
+import { getPartyLeaderActions } from "@/lib/server/dashboard/party-leader-actions";
 
 export const getDashboardData = createServerFn()
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    const [record, activity, electionDashboard, nation, recentBills] =
-      await Promise.all([
-        getWikiHome(),
-        getFeedItems({ data: { limit: 7, offset: 0 } }),
-        getCurrentElectionDashboard(),
-        db
-          .select({
-            name: nations.name,
-            civilRights: nations.civilRights,
-            economy: nations.economy,
-            politicalFreedoms: nations.politicalFreedoms,
-          })
-          .from(nations)
-          .limit(1)
-          .then((rows) => rows[0] ?? null),
-        db
-          .select({
-            id: bills.id,
-            title: bills.title,
-            status: bills.status,
-            stage: bills.stage,
-            stageEndsAt: bills.stageEndsAt,
-          })
-          .from(bills)
-          .orderBy(
-            sql`case when ${bills.status} in ('Voting', 'Committee') then 0 else 1 end`,
-            desc(bills.createdAt),
-          )
-          .limit(6),
-      ]);
+    const [
+      record,
+      activity,
+      electionDashboard,
+      nation,
+      recentBills,
+      primaryRaces,
+    ] = await Promise.all([
+      getWikiHome(),
+      getFeedItems({ data: { limit: 7, offset: 0 } }),
+      getCurrentElectionDashboard(),
+      db
+        .select({
+          name: nations.name,
+          civilRights: nations.civilRights,
+          economy: nations.economy,
+          politicalFreedoms: nations.politicalFreedoms,
+        })
+        .from(nations)
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
+      db
+        .select({
+          id: bills.id,
+          title: bills.title,
+          status: bills.status,
+          stage: bills.stage,
+          stageEndsAt: bills.stageEndsAt,
+        })
+        .from(bills)
+        .orderBy(
+          sql`case when ${bills.status} in ('Voting', 'Committee') then 0 else 1 end`,
+          desc(bills.createdAt),
+        )
+        .limit(6),
+      getPrimaryRaces(),
+    ]);
 
     const recentElectionCandidateData = await Promise.all(
       record.recentElections.map(async (election) => {
@@ -82,6 +90,9 @@ export const getDashboardData = createServerFn()
         pendingBillVotes: [],
         pendingCommitteeAssessments: [],
         pendingBillGuidance: [],
+        pendingPartyJoinRequests: [],
+        pendingCoalitionJoinRequests: [],
+        vacantPartyOffices: [],
         partyFormationInvites: [],
         primaryActions: {
           stand: false,
@@ -90,6 +101,7 @@ export const getDashboardData = createServerFn()
           hasVoted: false,
           deadline: null,
         },
+        primaryRaces,
         pendingCoalitionProposals: [],
         zMentionSummary: {
           notifications: 0,
@@ -133,6 +145,9 @@ export const getDashboardData = createServerFn()
         pendingBillVotes: [],
         pendingCommitteeAssessments: [],
         pendingBillGuidance: [],
+        pendingPartyJoinRequests: [],
+        pendingCoalitionJoinRequests: [],
+        vacantPartyOffices: [],
         partyFormationInvites: [],
         primaryActions: {
           stand: false,
@@ -141,6 +156,7 @@ export const getDashboardData = createServerFn()
           hasVoted: false,
           deadline: null,
         },
+        primaryRaces,
         pendingCoalitionProposals: [],
         zMentionSummary: {
           notifications: 0,
@@ -179,7 +195,7 @@ export const getDashboardData = createServerFn()
       pendingBillVotes,
       pendingCommitteeAssessments,
       pendingBillGuidance,
-      pendingCoalitionProposals,
+      leaderActions,
     ] = await Promise.all([
       config && currentUser.active
         ? db
@@ -220,34 +236,7 @@ export const getDashboardData = createServerFn()
             .orderBy(bills.createdAt)
         : Promise.resolve([]),
       getPendingBillGuidance(currentUser),
-      currentUser.active &&
-      currentUser.partyId &&
-      currentUser.partyLeaderId === currentUser.id
-        ? db
-            .select({
-              id: coalitionProposals.id,
-              proposalType: coalitionProposals.proposalType,
-              coalitionId: coalitionProposals.coalitionId,
-            })
-            .from(coalitionProposals)
-            .innerJoin(
-              coalitionMembers,
-              and(
-                eq(
-                  coalitionMembers.coalitionId,
-                  coalitionProposals.coalitionId,
-                ),
-                eq(coalitionMembers.partyId, currentUser.partyId),
-              ),
-            )
-            .where(
-              and(
-                eq(coalitionProposals.status, "open"),
-                sql`not exists (select 1 from ${coalitionVotes} where ${coalitionVotes.proposalId} = ${coalitionProposals.id} and ${coalitionVotes.voterPartyId} = ${currentUser.partyId})`,
-              ),
-            )
-            .orderBy(coalitionProposals.createdAt)
-        : Promise.resolve([]),
+      getPartyLeaderActions(currentUser),
     ]);
 
     return {
@@ -260,9 +249,13 @@ export const getDashboardData = createServerFn()
       })),
       pendingCommitteeAssessments,
       pendingBillGuidance,
+      pendingPartyJoinRequests: leaderActions.membershipRequests,
+      pendingCoalitionJoinRequests: leaderActions.coalitionJoinRequests,
+      vacantPartyOffices: leaderActions.vacantOffices,
       partyFormationInvites,
-      pendingCoalitionProposals,
+      pendingCoalitionProposals: leaderActions.coalitionVotes,
       primaryActions,
+      primaryRaces,
       zMentionSummary,
       activity,
       electionDashboard,

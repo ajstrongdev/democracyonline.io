@@ -43,6 +43,8 @@ import {
   withdrawLeadershipBid,
 } from "@/lib/server/organizations/party-governance";
 import { getPartyCoalition } from "@/lib/server/organizations/coalitions";
+import { getPrimaryRaces } from "@/lib/server/organizations/primaries";
+import { PrimaryRaces } from "@/components/organizations/primary-races";
 import { coalitionDesignation } from "@/lib/organizations/coalition-status";
 import { EntityReferenceText } from "@/components/entity-reference-text";
 import { SocialPartyPosts } from "@/components/social/social-party-posts";
@@ -66,6 +68,7 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
       revival,
       socialPosts,
       governance,
+      primaryRaces,
     ] = await Promise.all([
       getWikiParty({ data: { id } }),
       getWikiArticle({
@@ -76,6 +79,7 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
       getPartyRevivalState({ data: { partyId: id } }),
       getSocialPartyPosts({ data: { partyId: id } }),
       getPartyGovernance({ data: { partyId: id } }),
+      getPrimaryRaces(),
     ]);
     if (!party) throw new Response("Party not found", { status: 404 });
     return {
@@ -86,6 +90,7 @@ export const Route = createFileRoute("/dashboard/parties/$partyId")({
       revival,
       socialPosts,
       governance,
+      primaryRaces,
     };
   },
   component: PartyArticle,
@@ -106,6 +111,7 @@ function PartyArticle() {
     leader,
     socialPosts,
     governance,
+    primaryRaces,
   } = Route.useLoaderData();
   return (
     <WikiPage width="article">
@@ -222,12 +228,16 @@ function PartyArticle() {
           )}
         </WikiInfobox>
       </div>
+      {party.current && <PrimaryRaces compact title={coalition ? "Coalition primary" : "Party primary"}
+        races={primaryRaces.filter((race) => race.partyIds.includes(party.id))} />}
       {party.current && (
-        <PartyLeadership
-          party={party}
-          members={members}
-          currentUserId={currentUser?.id ?? null}
-        />
+        <div id="party-leadership" className="scroll-mt-20">
+          <PartyLeadership
+            party={party}
+            members={members}
+            currentUserId={currentUser?.id ?? null}
+          />
+        </div>
       )}
       {party.current && currentUser && (
         <PartyGovernance
@@ -616,63 +626,64 @@ function PartyGovernance({
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       {currentUser.id === leaderId && (
-        <WikiSection
-          title="Membership requests"
-          description="Only the Party Leader can accept or decline applicants."
-          className="col-span-full"
-        >
-          <div className="space-y-3">
-            {governance.requests.map((request) => (
-              <div
-                key={request.id}
-                className="flex flex-wrap items-center gap-3 rounded-md border p-3"
-              >
-                <PlayerAvatar
-                  username={request.username}
-                  photoUrl={request.photoUrl}
-                  className="size-8"
-                />
-                <span className="flex-1 font-medium">{request.username}</span>
-                <Button
-                  size="sm"
-                  disabled={busy}
-                  onClick={() =>
-                    act(
-                      () =>
-                        decidePartyMembership({
-                          data: { requestId: request.id, approve: true },
-                        }),
-                      `${request.username} joined ${partyName}`,
-                    )
-                  }
+        <div id="membership-requests" className="col-span-full scroll-mt-20">
+          <WikiSection
+            title="Membership requests"
+            description="Only the Party Leader can accept or decline applicants."
+          >
+            <div className="space-y-3">
+              {governance.requests.map((request) => (
+                <div
+                  key={request.id}
+                  className="flex flex-wrap items-center gap-3 rounded-md border p-3"
                 >
-                  Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() =>
-                    act(
-                      () =>
-                        decidePartyMembership({
-                          data: { requestId: request.id, approve: false },
-                        }),
-                      "Request declined",
-                    )
-                  }
-                >
-                  Decline
-                </Button>
-              </div>
-            ))}
-            {!governance.requests.length && (
-              <p className="text-sm text-muted-foreground">
-                No pending requests.
-              </p>
-            )}
-          </div>
-        </WikiSection>
+                  <PlayerAvatar
+                    username={request.username}
+                    photoUrl={request.photoUrl}
+                    className="size-8"
+                  />
+                  <span className="flex-1 font-medium">{request.username}</span>
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() =>
+                      act(
+                        () =>
+                          decidePartyMembership({
+                            data: { requestId: request.id, approve: true },
+                          }),
+                        `${request.username} joined ${partyName}`,
+                      )
+                    }
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      act(
+                        () =>
+                          decidePartyMembership({
+                            data: { requestId: request.id, approve: false },
+                          }),
+                        "Request declined",
+                      )
+                    }
+                  >
+                    Decline
+                  </Button>
+                </div>
+              ))}
+              {!governance.requests.length && (
+                <p className="text-sm text-muted-foreground">
+                  No pending requests.
+                </p>
+              )}
+            </div>
+          </WikiSection>
+        </div>
       )}
       {currentUser.partyId === partyId && leaderId !== null && (
         <WikiSection

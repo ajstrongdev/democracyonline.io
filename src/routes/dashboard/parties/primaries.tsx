@@ -5,6 +5,7 @@ import { AlertCircle, Crown, Trophy, Users, Vote } from "lucide-react";
 import {
   declarePrimaryCandidate,
   getPrimariesData,
+  getPrimaryRaces,
   voteInPrimary,
   withdrawPrimaryCandidate,
 } from "@/lib/server/organizations/primaries";
@@ -39,11 +40,12 @@ import {
 import { MessageDialog } from "@/components/message-dialog";
 import PartyLogo from "@/components/organizations/party-logo";
 import ProtectedRoute from "@/components/auth/protected-route";
+import { PrimaryRaces } from "@/components/organizations/primary-races";
 
 export const Route = createFileRoute("/dashboard/parties/primaries")({
   loader: async () => {
-    const data = await getPrimariesData();
-    return data;
+    const [data, races] = await Promise.all([getPrimariesData(), getPrimaryRaces()]);
+    return { ...data, races };
   },
   gcTime: 0,
   component: PrimariesPage,
@@ -78,6 +80,7 @@ function PrimariesPage() {
     groupName,
     groupColor,
     isCoalitionPrimary,
+    races,
   } = data;
 
   const isCandidatePhase = electionStatus === "CANDIDACY";
@@ -156,6 +159,7 @@ function PrimariesPage() {
               </Button>
             </CardContent>
           </Card>
+          <PrimaryRaces races={races} detailsLink={false} />
         </WikiPage>
       </ProtectedRoute>
     );
@@ -432,6 +436,8 @@ function PrimariesPage() {
             </div>
           )}
         </WikiSection>
+
+        <PrimaryRaces races={races.filter((race) => !race.canVote)} title="Other primary races" detailsLink={false} />
 
         {/* Dialogs */}
         <MessageDialog

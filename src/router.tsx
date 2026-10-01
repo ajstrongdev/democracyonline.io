@@ -6,6 +6,7 @@ import { routeTree } from "./routeTree.gen";
 import { auth } from "@/lib/firebase";
 import { AuthProvider } from "@/lib/auth-context";
 import { NotFound } from "@/components/not-found";
+import GenericSkeleton from "@/components/generic-skeleton";
 
 export const getRouter = () => {
   const rqContext = TanstackQuery.getContext();
@@ -21,6 +22,8 @@ export const getRouter = () => {
       },
     },
     defaultPreload: "intent",
+    defaultPendingComponent: GenericSkeleton,
+    defaultPendingMs: 200,
     defaultNotFoundComponent: NotFound,
     Wrap: ({ children }) => (
       <TanstackQuery.Provider {...rqContext}>

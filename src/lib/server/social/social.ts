@@ -10,6 +10,7 @@ import {
   socialCommentLikes,
   socialComments,
   socialDislikes,
+  socialFollows,
   socialLikes,
   socialPosts,
   socialReposts,
@@ -68,7 +69,7 @@ export const getSocialFeed = createServerFn()
     z.object({
       limit: z.number().int().min(1).max(50).default(20),
       offset: z.number().int().min(0).default(0),
-      account: z.enum(["all", "players", "parties", "potro"]).default("all"),
+      account: z.enum(["all", "following", "players", "parties", "potro"]).default("all"),
       sort: z.enum(["newest", "popular", "least-popular"]).default("newest"),
       postId: z.number().int().positive().optional(),
     }),
@@ -152,9 +153,20 @@ export const getSocialFeed = createServerFn()
           party.color AS author_party_color,
           party.leader_id AS author_party_leader_id,
         post.content,
+        quoted.id AS quoted_post_id,
+        quoted.content AS quoted_content,
+        CASE
+          WHEN quoted.account_key = 'potro' THEN 'POTRO'
+          WHEN quoted.account_key = 'party' THEN coalesce(quoted_party.name, quoted.username)
+          ELSE quoted.username
+        END AS quoted_author_username,
+        quoted.account_key AS quoted_account_key,
+        EXISTS (SELECT 1 FROM social_follows following WHERE following.follower_id = ${viewerId} AND following.followed_id = post.user_id) AS viewer_follows_author,
+        EXISTS (SELECT 1 FROM social_follows following WHERE following.follower_id = ${viewerId} AND following.followed_id = timeline.actor_user_id) AS viewer_follows_actor,
         (SELECT count(*)::int FROM social_comments comment WHERE comment.post_id = post.id) AS comment_count,
         (ups.total - downs.total) AS score,
-        (SELECT count(*)::int FROM social_reposts shared WHERE shared.post_id = post.id) AS repost_count,
+        ((SELECT count(*)::int FROM social_reposts shared WHERE shared.post_id = post.id) +
+         (SELECT count(*)::int FROM social_posts quoted_share WHERE quoted_share.quoted_post_id = post.id)) AS repost_count,
         EXISTS (
           SELECT 1 FROM social_likes liked
           WHERE liked.post_id = post.id AND liked.user_id = ${viewerId}
@@ -169,6 +181,8 @@ export const getSocialFeed = createServerFn()
         ) AS viewer_reposted
       FROM timeline
       JOIN social_posts post ON post.id = timeline.post_id
+      LEFT JOIN social_posts quoted ON quoted.id = post.quoted_post_id
+      LEFT JOIN parties quoted_party ON quoted_party.id = quoted.account_party_id
       LEFT JOIN users author ON author.id = post.user_id
       LEFT JOIN parties party ON party.id = author.party_id AND party.archived_at IS NULL
       LEFT JOIN parties account_party ON account_party.id = post.account_party_id
@@ -176,6 +190,8 @@ export const getSocialFeed = createServerFn()
       LEFT JOIN LATERAL (SELECT count(*)::int AS total FROM social_dislikes WHERE post_id = post.id) downs ON true
       WHERE ${data.account === "players" ? sql`post.account_key IS NULL` : data.account === "parties" ? sql`post.account_key = 'party'` : data.account === "potro" ? sql`post.account_key = 'potro'` : sql`true`}
         AND ${data.postId ? sql`post.id = ${data.postId} AND timeline.entry_type = 'post'` : sql`true`}
+        AND ${data.postId || data.account === "following" ? sql`true` : sql`timeline.entry_type = 'post'`}
+        AND ${data.account === "following" ? sql`EXISTS (SELECT 1 FROM ${socialFollows} following WHERE following.follower_id = ${viewerId} AND following.followed_id = timeline.actor_user_id)` : sql`true`}
       ORDER BY ${data.sort === "popular" ? sql`(ups.total - downs.total) DESC,` : data.sort === "least-popular" ? sql`(ups.total - downs.total) ASC,` : sql``}
         timeline.occurred_at DESC, timeline.entry_type, timeline.entry_id DESC
       LIMIT ${data.limit} OFFSET ${data.offset}
@@ -244,14 +260,42 @@ export const getSocialFeed = createServerFn()
           Number(row.author_party_leader_id) ===
             (row.author_user_id === null ? -1 : Number(row.author_user_id)),
         content: String(row.content),
+        quotedPostId: row.quoted_post_id === null ? null : Number(row.quoted_post_id),
+        quotedContent: row.quoted_content === null ? null : String(row.quoted_content),
+        quotedAuthorUsername: row.quoted_author_username === null ? null : String(row.quoted_author_username),
+        quotedAccountKey: row.quoted_account_key === null ? null : String(row.quoted_account_key),
         commentCount: Number(row.comment_count),
         score: Number(row.score),
         repostCount: Number(row.repost_count),
         viewerLiked: Boolean(row.viewer_liked),
         viewerDisliked: Boolean(row.viewer_disliked),
         viewerReposted: Boolean(row.viewer_reposted),
+        viewerFollowsAuthor: Boolean(row.viewer_follows_author),
+        viewerFollowsActor: Boolean(row.viewer_follows_actor),
       })),
     };
+  });
+
+export const toggleSocialFollow = createServerFn({ method: "POST" })
+  .middleware([requireAuthMiddleware])
+  .inputValidator(z.object({ userId: z.number().int().positive() }))
+  .handler(async ({ data, context }) => {
+    if (!context.user?.email) throw new Error("Authentication required");
+    const viewer = await getActivePlayer(context.user.email);
+    if (viewer.id === data.userId) throw new Error("You cannot follow yourself");
+    const [target] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.id, data.userId), eq(users.isActive, true)))
+      .limit(1);
+    if (!target) throw new Error("This player is not available to follow");
+    const [removed] = await db
+      .delete(socialFollows)
+      .where(and(eq(socialFollows.followerId, viewer.id), eq(socialFollows.followedId, target.id)))
+      .returning({ followedId: socialFollows.followedId });
+    if (removed) return { following: false };
+    await db.insert(socialFollows).values({ followerId: viewer.id, followedId: target.id }).onConflictDoNothing();
+    return { following: true };
   });
 
 export const getSocialPartyPosts = createServerFn()
@@ -278,8 +322,9 @@ export const getSocialPartyPosts = createServerFn()
   );
 
 export const getSocialProfile = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(z.object({ userId: z.number().int().positive() }))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const [profile] = await db
       .select({
         id: users.id,
@@ -301,6 +346,12 @@ export const getSocialProfile = createServerFn()
       .where(eq(users.id, data.userId))
       .limit(1);
     if (!profile) return null;
+    const [viewer] = context.user?.email
+      ? await db.select({ id: users.id }).from(users).where(userEmailEquals(context.user.email)).limit(1)
+      : [];
+    const [follow] = viewer
+      ? await db.select({ followedId: socialFollows.followedId }).from(socialFollows).where(and(eq(socialFollows.followerId, viewer.id), eq(socialFollows.followedId, profile.id))).limit(1)
+      : [];
     const posts = await db
       .select({
         id: socialPosts.id,
@@ -319,6 +370,8 @@ export const getSocialProfile = createServerFn()
     return {
       ...profile,
       isPartyLeader: profile.partyLeaderId === profile.id,
+      viewerId: viewer?.id ?? null,
+      viewerFollows: Boolean(follow),
       posts,
     };
   });
@@ -331,6 +384,7 @@ export const createSocialPost = createServerFn({ method: "POST" })
       accountKey: z.enum(["player", "potro", "party"]).default("player"),
       partyId: z.number().int().positive().optional(),
       billId: z.number().int().positive().optional(),
+      quotedPostId: z.number().int().positive().optional(),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -340,6 +394,9 @@ export const createSocialPost = createServerFn({ method: "POST" })
       throw new Error(
         "Bill discussions must be posted from your player account.",
       );
+    }
+    if (data.quotedPostId && (data.billId || data.accountKey !== "player")) {
+      throw new Error("Quote posts must use your player account without a bill attachment.");
     }
     if (data.accountKey === "potro") {
       const [president] = await db
@@ -381,6 +438,14 @@ export const createSocialPost = createServerFn({ method: "POST" })
     }
     return db.transaction(async (tx) => {
       await enforceCooldown(tx, player.id, "post");
+      if (data.quotedPostId) {
+        const [quoted] = await tx
+          .select({ id: socialPosts.id })
+          .from(socialPosts)
+          .where(eq(socialPosts.id, data.quotedPostId))
+          .limit(1);
+        if (!quoted) throw new Error("The original post is no longer available.");
+      }
       if (data.billId) {
         const [bill] = await tx
           .select({ id: bills.id })
@@ -426,6 +491,7 @@ export const createSocialPost = createServerFn({ method: "POST" })
           username: player.username,
           accountKey: data.accountKey === "player" ? null : data.accountKey,
           accountPartyId,
+          quotedPostId: data.quotedPostId ?? null,
           content: data.content,
         })
         .returning({ id: socialPosts.id });
@@ -437,7 +503,9 @@ export const createSocialPost = createServerFn({ method: "POST" })
             : `@${player.username}`;
       await tx.insert(feed).values({
         userId: player.id,
-        content: `${accountName} posted on Z.com: ${data.content}`,
+        content: data.quotedPostId
+          ? `${accountName} quoted Z.com post #${data.quotedPostId}: ${data.content}`
+          : `${accountName} posted on Z.com: ${data.content}`,
       });
       return post;
     });

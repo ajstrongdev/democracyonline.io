@@ -29,6 +29,7 @@ import {
 } from "@/components/dashboard/dashboard-election-hub";
 import { DashboardActionDeadline } from "@/components/dashboard/dashboard-action-deadline";
 import { DashboardPrimaryAction } from "@/components/dashboard/dashboard-primary-action";
+import { PrimaryRaces } from "@/components/organizations/primary-races";
 import { DashboardSocialPostDialog } from "@/components/dashboard/dashboard-social-post-dialog";
 import { NewBillDialog } from "@/components/wiki/new-bill-dialog";
 import { ResultBar, WikiHeader } from "@/components/wiki/wiki-header";
@@ -82,9 +83,13 @@ export function DashboardContent({
     pendingBillVotes,
     pendingCommitteeAssessments,
     pendingBillGuidance,
+    pendingPartyJoinRequests,
+    pendingCoalitionJoinRequests,
+    vacantPartyOffices,
     partyFormationInvites,
     pendingCoalitionProposals,
     primaryActions,
+    primaryRaces,
     zMentionSummary,
     activity,
     electionDashboard,
@@ -98,6 +103,9 @@ export function DashboardContent({
     pendingBillVotes.length +
     pendingCommitteeAssessments.length +
     pendingBillGuidance.length +
+    pendingPartyJoinRequests.length +
+    pendingCoalitionJoinRequests.length +
+    vacantPartyOffices.length +
     partyFormationInvites.length +
     pendingCoalitionProposals.length +
     Number(primaryActions.stand) +
@@ -268,6 +276,35 @@ export function DashboardContent({
                     </Button>
                   </div>
                 ))}
+                {pendingPartyJoinRequests.map((request) => (
+                  <Link
+                    key={`party-request-${request.id}`}
+                    to="/dashboard/parties/$partyId"
+                    params={{ partyId: String(currentUser.partyId) }}
+                    hash="membership-requests"
+                    className="group flex items-center justify-between gap-3 px-4 py-4 hover:bg-muted/30"
+                  >
+                    <span className="flex items-center gap-2 font-semibold">
+                      <Users className="size-4 text-primary" /> Review a party
+                      membership request
+                    </span>
+                    <span className="text-sm font-semibold text-primary">
+                      Review request →
+                    </span>
+                  </Link>
+                ))}
+                {vacantPartyOffices.map((role) => (
+                  <Link
+                    key={`party-office-${role.office}`}
+                    to="/dashboard/parties/$partyId"
+                    params={{ partyId: String(currentUser.partyId) }}
+                    hash="party-leadership"
+                    className="group flex items-center justify-between gap-3 px-4 py-4 hover:bg-muted/30"
+                  >
+                    <span className="font-semibold">Appoint a {role.title} for your party</span>
+                    <span className="text-sm font-semibold text-primary">Manage officers →</span>
+                  </Link>
+                ))}
                 {primaryActions.stand && (
                   <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
                     <span className="space-y-1">
@@ -303,7 +340,7 @@ export function DashboardContent({
                   >
                     <span className="space-y-1">
                       <span className="block font-semibold">
-                        Vote in your presidential primary
+                         Vote in your {primaryRaces.find((race) => race.canVote)?.kind ?? "party"} presidential primary
                       </span>
                       <DashboardActionDeadline
                         deadline={primaryActions.deadline}
@@ -354,6 +391,7 @@ export function DashboardContent({
                       <DashboardActionDeadline
                         deadline={race.timestamps.votingEndsAt}
                         onExpire={() => void router.invalidate()}
+                        electionVoting
                       />
                     </span>
                     <DashboardElectionBallot
@@ -461,6 +499,7 @@ export function DashboardContent({
                     key={`coalition-${proposal.id}`}
                     to="/dashboard/parties/coalitions/$id"
                     params={{ id: String(proposal.coalitionId) }}
+                    hash="proposals"
                     className="group flex items-center justify-between gap-3 px-4 py-4 hover:bg-muted/30"
                   >
                     <span className="flex items-center gap-2 font-semibold">
@@ -471,6 +510,18 @@ export function DashboardContent({
                     <span className="text-sm font-semibold text-primary">
                       Review proposal →
                     </span>
+                  </Link>
+                ))}
+                {pendingCoalitionJoinRequests.map((request) => (
+                  <Link
+                    key={`coalition-request-${request.id}`}
+                    to="/dashboard/parties/coalitions/$id"
+                    params={{ id: String(request.coalitionId) }}
+                    hash="requests"
+                    className="group flex items-center justify-between gap-3 px-4 py-4 hover:bg-muted/30"
+                  >
+                    <span className="font-semibold">Propose accepting {request.partyName} into your coalition</span>
+                    <span className="text-sm font-semibold text-primary">Review request →</span>
                   </Link>
                 ))}
               </div>
@@ -485,10 +536,10 @@ export function DashboardContent({
           <WikiSection
             title="Your notifications"
             icon={MessageSquareText}
-            description="Mentions across accounts you control."
+            description="Mentions and comments on your posts."
             className="flex h-full flex-col [&>.wiki-section-content]:flex-1"
           >
-            <ZNotifications initialPage={zMentionSummary} />
+            <div id="z-notifications" className="scroll-mt-24"><ZNotifications initialPage={zMentionSummary} /></div>
           </WikiSection>
         </div>
       )}
@@ -615,6 +666,8 @@ export function DashboardContent({
           )}
         </WikiSection>
       )}
+
+      <PrimaryRaces races={primaryRaces} />
 
       <div
         className={
