@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   coalitionMembers,
+  coalitions,
   candidates as electionCandidates,
   elections,
   feed,
@@ -15,6 +16,150 @@ import { requireAuthMiddleware } from "@/middleware";
 import { canDeclareCandidacy } from "@/lib/elections/lifecycle";
 import { advanceElectionLifecycle } from "@/lib/server/elections/election-lifecycle";
 import { ensureElectionSchedule } from "@/lib/server/elections/election-schedule";
+import { authMiddleware } from "@/middleware/auth";
+import { userEmailEquals } from "@/lib/server/auth/user-email";
+
+/** Live nomination races, grouped by current membership rather than stale candidate snapshots. */
+export const getPrimaryRaces = createServerFn()
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await ensureElectionSchedule();
+    const [election] = await db
+      .select({
+        status: elections.status,
+        candidacyEndsAt: elections.candidacyEndsAt,
+      })
+      .from(elections)
+      .where(eq(elections.election, "President"))
+      .limit(1);
+    if (
+      election?.status !== "CANDIDACY" ||
+      (election.candidacyEndsAt && election.candidacyEndsAt <= new Date())
+    )
+      return [];
+
+    const [partyRows, candidateRows, viewerRows] = await Promise.all([
+      db
+        .select({
+          id: parties.id,
+          name: parties.name,
+          color: parties.color,
+          coalitionId: coalitionMembers.coalitionId,
+          coalitionName: coalitions.name,
+          coalitionColor: coalitions.color,
+        })
+        .from(parties)
+        .leftJoin(coalitionMembers, eq(coalitionMembers.partyId, parties.id))
+        .leftJoin(coalitions, eq(coalitions.id, coalitionMembers.coalitionId))
+        .where(isNull(parties.archivedAt)),
+      db
+        .select({
+          id: primaryCandidates.id,
+          userId: primaryCandidates.userId,
+          partyId: primaryCandidates.partyId,
+          votes: primaryCandidates.votes,
+          username: users.username,
+          photoUrl: users.photoUrl,
+        })
+        .from(primaryCandidates)
+        .innerJoin(users, eq(users.id, primaryCandidates.userId))
+        .orderBy(desc(primaryCandidates.votes), primaryCandidates.id),
+      context.user?.email
+        ? db
+            .select({
+              id: users.id,
+              partyId: users.partyId,
+              active: users.isActive,
+            })
+            .from(users)
+            .where(userEmailEquals(context.user.email))
+            .limit(1)
+        : Promise.resolve([]),
+    ]);
+    const viewer = viewerRows[0];
+    const [ballot] = viewer
+      ? await db
+          .select({ candidateId: primaryVotes.candidateId })
+          .from(primaryVotes)
+          .where(eq(primaryVotes.userId, viewer.id))
+          .limit(1)
+      : [];
+    const viewerParty = partyRows.find((party) => party.id === viewer?.partyId);
+    const races = new Map<
+      string,
+      {
+        key: string;
+        id: number;
+        name: string;
+        color: string;
+        kind: "party" | "coalition";
+        partyIds: Array<number>;
+        canVote: boolean;
+        votedCandidateId: number | null;
+        deadline: Date | null;
+        candidates: Array<{
+          id: number;
+          userId: number;
+          partyId: number;
+          partyName: string;
+          partyColor: string;
+          username: string;
+          photoUrl: string | null;
+          votes: number;
+        }>;
+      }
+    >();
+    for (const party of partyRows) {
+      const coalition = party.coalitionId != null;
+      const key = `${coalition ? "coalition" : "party"}:${coalition ? party.coalitionId : party.id}`;
+      let race = races.get(key);
+      if (!race) {
+        race = {
+          key,
+          id: coalition ? party.coalitionId! : party.id,
+          name: coalition ? (party.coalitionName ?? party.name) : party.name,
+          color: coalition
+            ? (party.coalitionColor ?? party.color)
+            : party.color,
+          kind: coalition ? "coalition" : "party",
+          partyIds: [],
+          canVote: false,
+          votedCandidateId: null,
+          deadline: election.candidacyEndsAt,
+          candidates: [],
+        };
+        races.set(key, race);
+      }
+      race.partyIds.push(party.id);
+      race.canVote ||= Boolean(
+        viewer?.active &&
+        viewerParty &&
+        (coalition
+          ? viewerParty.coalitionId === party.coalitionId
+          : viewerParty.id === party.id),
+      );
+    }
+    for (const candidate of candidateRows) {
+      const party = partyRows.find((row) => row.id === candidate.partyId);
+      if (!party) continue;
+      const key =
+        party.coalitionId != null
+          ? `coalition:${party.coalitionId}`
+          : `party:${party.id}`;
+      const race = races.get(key);
+      race?.candidates.push({
+        ...candidate,
+        partyName: party.name,
+        partyColor: party.color,
+      });
+      if (ballot?.candidateId === candidate.id)
+        race!.votedCandidateId = candidate.id;
+    }
+    return [...races.values()].sort(
+      (a, b) =>
+        Number(b.canVote) - Number(a.canVote) || a.name.localeCompare(b.name),
+    );
+  });
 
 async function resolveUser(email: string) {
   const [user] = await db

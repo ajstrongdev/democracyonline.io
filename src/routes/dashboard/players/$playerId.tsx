@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Crown, FileText, Vote } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Crown, FileText, UserPlus, Vote } from "lucide-react";
+import { toast } from "sonner";
 import { WikiArticleSection } from "@/components/wiki/wiki-article-section";
 import { PartyMark, WikiHeader } from "@/components/wiki/wiki-header";
 import {
@@ -11,6 +12,7 @@ import {
   WikiSection,
 } from "@/components/wiki/wiki-layout";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ReportPlayerDialog } from "@/components/players/report-player-dialog";
 import { PlayerAvatar } from "@/components/players/player-avatar";
 import {
@@ -29,7 +31,7 @@ import {
 } from "@/lib/utils/history";
 import { EntityReferenceText } from "@/components/entity-reference-text";
 import { SocialPlayerPosts } from "@/components/social/social-player-posts";
-import { getSocialProfile } from "@/lib/server/social/social";
+import { getSocialProfile, toggleSocialFollow } from "@/lib/server/social/social";
 import { featuredOffice, officeArtwork } from "@/lib/masthead-artwork";
 
 export const Route = createFileRoute("/dashboard/players/$playerId")({
@@ -52,7 +54,12 @@ export const Route = createFileRoute("/dashboard/players/$playerId")({
 
 function PlayerArticle() {
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
   const { playerData, article, socialProfile } = Route.useLoaderData();
+  const [following, setFollowing] = useState(socialProfile?.viewerFollows ?? false);
+  useEffect(() => {
+    setFollowing(socialProfile?.viewerFollows ?? false);
+  }, [socialProfile?.id, socialProfile?.viewerFollows]);
   const now = usePresenceClock();
   const presence = usePlayerPresenceData(playerData.player.id);
   const {
@@ -154,6 +161,22 @@ function PlayerArticle() {
         }
         status={
           <div className="flex items-center gap-2">
+            {socialProfile?.viewerId && socialProfile.viewerId !== player.id && player.isActive && (
+              <Button type="button" size="sm" variant={following ? "outline" : "default"} disabled={followBusy} onClick={async () => {
+                setFollowBusy(true);
+                try {
+                  const result = await toggleSocialFollow({ data: { userId: player.id } });
+                  setFollowing(result.following);
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Could not update follow");
+                } finally {
+                  setFollowBusy(false);
+                }
+              }}>
+                {!following && <UserPlus className="size-4" />}
+                {following ? "Following" : "Follow on Z.com"}
+              </Button>
+            )}
             <Badge
               variant={
                 player.archivedAt || !player.isActive ? "secondary" : "default"

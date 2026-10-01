@@ -4,6 +4,8 @@ import { z } from "zod";
 import {
   coalitionFormerMembers,
   coalitionMembers,
+  coalitionProposals,
+  coalitionVotes,
   coalitions,
   feed,
   joinRequests,
@@ -209,6 +211,7 @@ export const getCoalitionDetails = createServerFn()
     let callerPartyId: number | null = null;
     let callerCoalitionId: number | null = null;
     let canRevive = false;
+    let votedProposalIds: Array<number> = [];
 
     if (context.user?.email) {
       const user = await db
@@ -223,6 +226,23 @@ export const getCoalitionDetails = createServerFn()
         callerPartyId = user[0].partyId;
         callerCoalitionId = await getPartyCoalitionId(user[0].partyId);
         isCallerPartyLeader = await isPartyLeader(user[0].id, user[0].partyId);
+        if (isCallerPartyLeader) {
+          votedProposalIds = (
+            await db
+              .select({ id: coalitionVotes.proposalId })
+              .from(coalitionVotes)
+              .innerJoin(
+                coalitionProposals,
+                eq(coalitionProposals.id, coalitionVotes.proposalId),
+              )
+              .where(
+                and(
+                  eq(coalitionProposals.coalitionId, data.coalitionId),
+                  eq(coalitionVotes.voterPartyId, user[0].partyId),
+                ),
+              )
+          ).map((vote) => vote.id);
+        }
         const [[callerParty], [formerMembership]] = await Promise.all([
           db
             .select({ archivedAt: parties.archivedAt })
@@ -258,6 +278,7 @@ export const getCoalitionDetails = createServerFn()
       coalition,
       memberParties,
       pendingRequests,
+      votedProposalIds,
       isCallerPartyLeader,
       callerPartyId,
       callerCoalitionId,
@@ -345,41 +366,52 @@ export const requestJoinCoalition = createServerFn()
       throw new Error("Only a party leader can request to join a coalition");
     }
 
-    const existing = await getPartyCoalitionId(user.partyId);
-    if (existing) throw new Error("Your party is already in a coalition");
-
-    const [coalition] = await db
-      .select({ id: coalitions.id })
-      .from(coalitions)
-      .where(
-        and(eq(coalitions.id, data.coalitionId), isNull(coalitions.archivedAt)),
-      )
-      .limit(1);
-    if (!coalition) throw new Error("Coalition not found");
-
-    const [existingReq] = await db
-      .select()
-      .from(joinRequests)
-      .where(
-        and(
-          eq(joinRequests.partyId, user.partyId),
-          eq(joinRequests.coalitionId, data.coalitionId),
-          eq(joinRequests.status, "Pending"),
-        ),
-      )
-      .limit(1);
-
-    if (existingReq) throw new Error("You already have a pending request");
-
     await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${user.partyId})`);
+      const [existing] = await tx
+        .select({ coalitionId: coalitionMembers.coalitionId })
+        .from(coalitionMembers)
+        .where(eq(coalitionMembers.partyId, user.partyId!))
+        .limit(1);
+      if (existing) throw new Error("Your party is already in a coalition");
+      const [coalition] = await tx
+        .select({ id: coalitions.id })
+        .from(coalitions)
+        .where(
+          and(
+            eq(coalitions.id, data.coalitionId),
+            isNull(coalitions.archivedAt),
+          ),
+        )
+        .limit(1);
+      if (!coalition) throw new Error("Coalition not found");
+      const [existingReq] = await tx
+        .select({ id: joinRequests.id })
+        .from(joinRequests)
+        .where(
+          and(
+            eq(joinRequests.partyId, user.partyId!),
+            eq(joinRequests.coalitionId, data.coalitionId),
+            eq(joinRequests.status, "Pending"),
+          ),
+        )
+        .limit(1);
+      if (existingReq) throw new Error("You already have a pending request");
       await tx.insert(joinRequests).values({
         partyId: user.partyId!,
         coalitionId: data.coalitionId,
         status: "Pending",
       });
+      await tx.insert(coalitionProposals).values({
+        coalitionId: data.coalitionId,
+        proposerUserId: user.id,
+        proposerPartyId: user.partyId!,
+        proposalType: "join_request",
+        targetId: user.partyId!,
+      });
       await tx.insert(feed).values({
         userId: user.id,
-        content: `requested to join coalition #${data.coalitionId} on behalf of party #${user.partyId}`,
+        content: `requested to join coalition #${data.coalitionId}; the request is now open for a member-party vote`,
       });
     });
 

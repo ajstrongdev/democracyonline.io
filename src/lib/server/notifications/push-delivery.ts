@@ -82,7 +82,7 @@ async function deliver(event: PendingEvent) {
     const mention = await notificationQuery(player.email);
     if (!mention) continue;
     const match = await db.execute(sql`
-      SELECT 1 FROM (${mention.eligible}) available
+      SELECT account_key FROM (${mention.eligible}) available
       WHERE source_type = ${event.source_type} AND source_id = ${event.source_id} LIMIT 1
     `);
     if (!match.rows.length) continue;
@@ -93,6 +93,7 @@ async function deliver(event: PendingEvent) {
       postId: source.postId,
       content: source.content,
       preview: player.preview,
+      kind: match.rows[0]?.account_key === "post-owner" ? "comment" : "mention",
     });
     for (const subscription of group) {
       // Retry the source after a transient error, without affecting the social transaction.

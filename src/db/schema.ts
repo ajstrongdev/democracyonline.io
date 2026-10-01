@@ -1147,6 +1147,10 @@ export const socialPosts = pgTable(
   "social_posts",
   {
     id: serial("id").primaryKey(),
+    quotedPostId: integer("quoted_post_id").references(
+      (): AnyPgColumn => socialPosts.id,
+      { onDelete: "set null" },
+    ),
     userId: integer("user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -1160,7 +1164,10 @@ export const socialPosts = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (table) => [index("social_posts_created_idx").on(table.createdAt, table.id)],
+  (table) => [
+    index("social_posts_created_idx").on(table.createdAt, table.id),
+    index("social_posts_quoted_idx").on(table.quotedPostId),
+  ],
 );
 
 export const socialComments = pgTable(
@@ -1309,6 +1316,26 @@ export const socialReposts = pgTable(
   (table) => [
     unique("social_reposts_post_user_unique").on(table.postId, table.userId),
     index("social_reposts_created_idx").on(table.createdAt, table.id),
+  ],
+);
+
+export const socialFollows = pgTable(
+  "social_follows",
+  {
+    followerId: integer("follower_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    followedId: integer("followed_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ name: "social_follows_follower_followed_pk", columns: [table.followerId, table.followedId] }),
+    index("social_follows_followed_idx").on(table.followedId),
+    check("social_follows_no_self", sql`${table.followerId} <> ${table.followedId}`),
   ],
 );
 

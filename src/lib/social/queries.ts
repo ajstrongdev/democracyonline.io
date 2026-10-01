@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { getSocialFeed } from "@/lib/server/social/social";
 
-export type AccountFilter = "all" | "players" | "parties" | "potro";
+export type AccountFilter = "all" | "following" | "players" | "parties" | "potro";
 export type FeedSort = "newest" | "popular" | "least-popular";
 
 export const parseSocialSearch = (search: Record<string, unknown>) => ({

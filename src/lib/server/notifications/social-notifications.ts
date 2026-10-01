@@ -76,6 +76,18 @@ export async function notificationQuery(email: string) {
         comment.user_id IS DISTINCT FROM ${player.id} OR accounts.account_key <> 'player'
       )
       LEFT JOIN ${users} author ON author.id = comment.user_id
+      UNION ALL
+      SELECT 'post-owner'::text AS account_key, 'your post'::text AS account_label,
+        'comment'::text AS source_type, comment.id AS source_id, comment.post_id,
+        comment.id AS comment_id, comment.username AS actor_username,
+        author.photo_url AS photo_url, NULL::text AS source_account_key,
+        NULL::text AS source_party_color, NULL::text AS source_party_logo,
+        comment.content, comment.created_at
+      FROM ${socialComments} comment
+      JOIN ${socialPosts} post ON post.id = comment.post_id AND post.user_id = ${player.id}
+      LEFT JOIN ${users} author ON author.id = comment.user_id
+      WHERE comment.user_id IS DISTINCT FROM ${player.id}
+        AND NOT EXISTS (SELECT 1 FROM accounts own_account WHERE comment.content ~* own_account.pattern)
     )
     SELECT mentions.* FROM mentions
     WHERE NOT EXISTS (

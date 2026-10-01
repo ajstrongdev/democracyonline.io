@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { ArrowRight, BellOff, X } from "lucide-react";
+import { ArrowRight, AtSign, BellOff, MessageCircle, X } from "lucide-react";
 import type { getZNotificationPage } from "@/lib/server/notifications/social-notifications";
 import {
   dismissZNotifications,
@@ -98,8 +99,7 @@ export function ZNotifications({
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span className="font-semibold">
           {page.notifications}{" "}
-          {page.notifications === 1 ? "mention" : "mentions"} across{" "}
-          {page.accounts} {page.accounts === 1 ? "account" : "accounts"}
+          {page.notifications === 1 ? "Z.com alert" : "Z.com alerts"}
         </span>
         {page.notifications > 0 && (
           <Button
@@ -115,11 +115,11 @@ export function ZNotifications({
         )}
       </div>
       {page.entries.length ? (
-        <div className="space-y-2">
+        <div className="divide-y overflow-hidden rounded-2xl border bg-card">
           {page.entries.map((entry) => (
             <article
               key={`${entry.accountKey}-${entry.sourceType}-${entry.sourceId}`}
-              className="flex items-start gap-3 rounded-xl border bg-card p-3"
+              className="flex items-start gap-3 p-3 transition-colors hover:bg-muted/20 sm:p-4"
             >
               {entry.sourceAccountKey === "party" ||
               entry.sourceAccountKey === "potro" ? (
@@ -138,17 +138,20 @@ export function ZNotifications({
                 />
               )}
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">
+                <p className="flex flex-wrap items-center gap-1.5 text-sm leading-5">
+                  {entry.accountKey === "post-owner" ? <MessageCircle className="size-3.5 shrink-0 text-primary" /> : <AtSign className="size-3.5 shrink-0 text-primary" />}
+                  <strong>
                   {entry.sourceAccountKey === "party" ||
                   entry.sourceAccountKey === "potro"
                     ? entry.actorUsername
                     : `@${entry.actorUsername}`}{" "}
-                  <span className="font-normal text-muted-foreground">
-                    mentioned
+                  </strong>
+                  <span className="text-muted-foreground">
+                     {entry.accountKey === "post-owner" ? "commented on" : "mentioned"}
                   </span>{" "}
                   {entry.accountLabel}
                 </p>
-                <p className="mt-1 line-clamp-2 break-words text-xs leading-5 text-muted-foreground">
+                <p className="mt-2 line-clamp-2 break-words text-sm leading-6 text-foreground/80">
                   {entry.content}
                 </p>
                 <time
@@ -159,13 +162,14 @@ export function ZNotifications({
                   {dayjs(entry.createdAt).fromNow()}
                 </time>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <a
-                    href={`/social?postId=${entry.postId}${entry.commentId ? `&commentId=${entry.commentId}` : ""}`}
-                    className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                   <Link
+                     to="/dashboard/social"
+                     search={{ postId: entry.postId, commentId: entry.commentId ?? undefined }}
+                    className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-primary"
                   >
-                    View {entry.sourceType === "comment" ? "reply" : "post"}{" "}
+                    Open {entry.sourceType === "comment" ? "comment" : "post"}{" "}
                     <ArrowRight className="size-3" />
-                  </a>
+                   </Link>
                   <Button
                     type="button"
                     size="sm"
@@ -183,7 +187,7 @@ export function ZNotifications({
         </div>
       ) : (
         <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
-          You’re caught up. New mentions will appear here.
+          You’re caught up. New mentions and comments on your posts will appear here.
         </div>
       )}
       {error && (
@@ -205,7 +209,7 @@ export function ZNotifications({
           disabled={busy}
           onClick={loadMore}
         >
-          Load more mentions
+          Load more alerts
         </Button>
       )}
       <Dialog open={confirmAll} onOpenChange={setConfirmAll}>

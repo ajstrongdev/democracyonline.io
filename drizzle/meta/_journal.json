@@ -456,6 +456,20 @@
       "when": 1790611200005,
       "tag": "0064_pressure_group_party_return",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1790611200006,
+      "tag": "0065_social_follows",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1790611200007,
+      "tag": "0066_social_quote_posts",
+      "breakpoints": true
     }
   ]
 }

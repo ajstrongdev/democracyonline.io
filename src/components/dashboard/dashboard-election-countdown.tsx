@@ -17,9 +17,13 @@ function formatRemaining(milliseconds: number) {
 export function DashboardElectionCountdown({
   target,
   onExpire,
+  closingTimeOnExpire = false,
+  prefix = "",
 }: {
   target: Date | string | null;
   onExpire: () => void;
+  closingTimeOnExpire?: boolean;
+  prefix?: string;
 }) {
   const [remaining, setRemaining] = useState<number | null>(null);
   const expire = useEffectEvent(onExpire);
@@ -49,7 +53,11 @@ export function DashboardElectionCountdown({
   return (
     <DeadlineTooltip target={target}>
       <span className="font-mono tabular-nums" aria-live="off">
-        {remaining === null ? "Calculating..." : formatRemaining(remaining)}
+        {remaining === null
+          ? "Calculating..."
+          : remaining === 0 && closingTimeOnExpire
+            ? `Closing at ${new Date(targetTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZoneName: "short" })}`
+            : `${prefix}${formatRemaining(remaining)}`}
       </span>
     </DeadlineTooltip>
   );

@@ -19,3 +19,13 @@ it("keeps next-move details private by default", () => {
   expect(JSON.parse(hidden).url).toBe("/dashboard#next-moves");
   expect(nextMovePushPayload({ ...move, preview: true })).toContain(move.title);
 });
+
+it("labels comments on your post without exposing their text by default", () => {
+  const payload = mentionPushPayload({ sourceType: "comment", sourceId: 4, postId: 8, content: "Private reply", preview: false, kind: "comment" });
+  expect(JSON.parse(payload)).toMatchObject({
+    title: "Z.com comment",
+    body: "Someone commented on your Z.com post.",
+    url: "/dashboard/social?postId=8&commentId=4",
+  });
+  expect(payload).not.toContain("Private reply");
+});
