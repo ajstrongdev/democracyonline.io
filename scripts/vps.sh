@@ -52,6 +52,9 @@ deploy() {
     return 1
   fi
   check
+  # .git is excluded from the Docker build context. Stamp the built image with
+  # the exact checkout revision so the footer reports what is actually running.
+  export DEPLOY_COMMIT_SHA="$(git rev-parse --verify HEAD)"
   # Build serially to keep peak memory manageable on a small VPS.
   compose --profile tools build migrator
   compose build app
