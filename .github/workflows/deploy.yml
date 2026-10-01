@@ -1,22 +1,36 @@
-name: Deploy Dev VPS
+name: Deploy VPS
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: deploy-vps-dev
-  cancel-in-progress: false
+    inputs:
+      target:
+        description: Deploy to development or production (production requires main and environment approval)
+        required: true
+        type: choice
+        options:
+          - development
+          - production
 
 permissions:
   contents: read
 
 jobs:
-  deploy:
-    name: Deploy Dev
+  validate:
+    uses: ./.github/workflows/ci.yml
+
+  development:
+    name: Deploy development
+    needs: validate
+    if: github.event_name == 'push' || inputs.target == 'development'
     runs-on: ubuntu-latest
     environment: Dev
+    concurrency:
+      group: deploy-vps
+      cancel-in-progress: false
     steps:
-      - name: Deploy over SSH
+      - name: Deploy validated revision over SSH
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -24,7 +38,32 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT || 22 }}
           script_stop: true
+          command_timeout: 30m
           script: |
             set -eu
             cd /srv/democracyonline-dev
-            bash scripts/vps.sh update
+            bash scripts/vps.sh deploy-revision ${{ github.sha }} development
+
+  production:
+    name: Deploy production
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'production' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: Production
+    concurrency:
+      group: deploy-vps
+      cancel-in-progress: false
+    steps:
+      - name: Deploy validated main revision over SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            set -eu
+            cd /srv/democracyonline-prod
+            bash scripts/vps.sh deploy-revision ${{ github.sha }} production

@@ -52,11 +52,11 @@ deploy() {
     return 1
   fi
   check
-  compose up -d --wait db
-  backup
   # Build serially to keep peak memory manageable on a small VPS.
   compose --profile tools build migrator
   compose build app
+  compose up -d --wait db
+  backup
   compose stop app election-scheduler >/dev/null 2>&1 || true
   compose --profile tools run --rm migrator
   # Fail deployment if the app cannot answer its DB-backed readiness probe.
@@ -113,8 +113,28 @@ case "${1:-}" in
     git pull --ff-only origin "$branch"
     deploy
     ;;
+  deploy-revision)
+    # Deploy precisely the commit validated by Actions, not whatever happens to
+    # be at the tip of a branch when the SSH step starts.
+    revision="${2:-}"
+    target="${3:-}"
+    [[ "$revision" =~ ^[a-f0-9]{40}$ ]] || { echo "Expected a full commit SHA" >&2; exit 1; }
+    [[ "$target" =~ ^(production|development)$ && "$(value DEPLOYED_ENV)" == "$target" ]] || { echo "Wrong deployment target" >&2; exit 1; }
+    if [[ "$target" == production && -e /etc/democracyonline/production-offline ]]; then
+      echo "Production is offline; refusing to deploy" >&2; exit 1
+    fi
+    test -z "$(git status --porcelain)" || { echo "Checkout is dirty" >&2; exit 1; }
+    check
+    git fetch origin "$revision"
+    if [[ "$target" == production ]]; then
+      git fetch origin main
+      git merge-base --is-ancestor "$revision" FETCH_HEAD || { echo "Production revision is not on main" >&2; exit 1; }
+    fi
+    git switch --detach "$revision"
+    deploy
+    ;;
   status) compose ps ;;
   logs) compose logs -f --tail=200 ;;
   stop) compose down ;;
-  *) echo "Usage: bash scripts/vps.sh {check|deploy|backup|seed [--allow-production]|restore DUMP --confirm-ENV|update|status|logs|stop}" >&2; exit 2 ;;
+  *) echo "Usage: bash scripts/vps.sh {check|deploy|deploy-revision SHA ENV|backup|seed [--allow-production]|restore DUMP --confirm-ENV|update|status|logs|stop}" >&2; exit 2 ;;
 esac
