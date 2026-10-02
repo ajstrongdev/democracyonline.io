@@ -1,3 +1,4 @@
+import { instance } from "@/lib/instance-config";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useEffect, useState } from "react";
@@ -117,17 +118,17 @@ function LoginPage() {
           </form>
         </Card>
         <p className="text-center text-sm text-muted-foreground">
-          Don't have an account? Ask a player for an invite link to sign up, or
-          ask in the Oscana{" "}
+           Don't have an account? Ask a player for an invite link to sign up
+           {instance.social.community && <>, or ask in the {instance.name}{" "}
           <a
-            href="https://discord.gg/kYdDXfJFdn"
+             href={instance.social.community}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-primary underline underline-offset-4 hover:text-primary/80"
           >
             Discord
           </a>
-          .
+           .</>}
         </p>
       </div>
     </div>

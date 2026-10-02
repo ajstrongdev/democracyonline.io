@@ -1,3 +1,4 @@
+import { instance } from "@/lib/instance-config";
 import { Link, createFileRoute, redirect } from "@tanstack/react-router";
 import { ArrowRight, CheckCircle2, Crown, Handshake, Vote } from "lucide-react";
 import { motion } from "motion/react";
@@ -25,7 +26,7 @@ const FEATURES = [
   {
     title: "Run for Office",
     description:
-      "Campaign for the Senate or Presidency. Debate opponents, rally supporters, and win elections.",
+       `Campaign for the ${instance.terminology.senate} or ${instance.terminology.president}. Debate opponents, rally supporters, and win elections.`,
     icon: Crown,
     gradient: "from-blue-400 to-cyan-600",
   },
@@ -79,8 +80,7 @@ function RouteComponent() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-balance max-w-prose mx-auto text-lg sm:text-xl md:text-2xl text-muted-foreground leading-relaxed"
           >
-              Oscana is the ultimate political arena. Build parties,
-            win elections, and pass legislation in a living democracy.
+              {instance.description}
           </motion.p>
 
           {/* CTA Buttons */}
@@ -163,7 +163,7 @@ function RouteComponent() {
             className="text-center mb-12 md:mb-16"
           >
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
-              Why Join Oscana?
+               Why Join {instance.name}?
             </h2>
           </motion.div>
 
@@ -224,7 +224,7 @@ function RouteComponent() {
             className="mt-12 md:mt-16 pt-8 border-t border-border"
           >
             <p className="text-xs md:text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} Oscana - All rights
+               &copy; {new Date().getFullYear()} {instance.name} - All rights
               reserved.
             </p>
           </motion.div>
