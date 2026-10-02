@@ -6,6 +6,7 @@ import { signIn } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { AuthIntro } from "@/components/auth/auth-intro";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -35,8 +36,7 @@ function LoginPage() {
   });
 
   return (
-    <div className="flex flex-1 items-center justify-center p-4 py-8">
-      <div className="w-full max-w-md space-y-4">
+    <AuthIntro>
         <Card className="w-full space-y-6 rounded-sm p-5 shadow-sm sm:p-7">
           <div className="space-y-2 text-center">
             <h1 className="text-2xl font-bold">Sign In</h1>
@@ -130,7 +130,6 @@ function LoginPage() {
           </a>
            .</>}
         </p>
-      </div>
-    </div>
+    </AuthIntro>
   );
 }

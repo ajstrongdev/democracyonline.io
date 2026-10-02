@@ -4,7 +4,7 @@ import { NavigationFooter, NavigationLinks } from "@/components/wiki/navigation-
 
 export function DesktopNavigation() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  if (["/login", "/register", "/banned"].includes(pathname)) return null;
+  if (pathname !== "/dashboard" && !pathname.startsWith("/dashboard/")) return null;
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col border-r bg-background lg:flex" aria-label="Game navigation">

@@ -24,6 +24,25 @@ describe("instance configuration", () => {
     expect(config.terminology.president).toBe("President");
     expect(config.features.social).toBe(true);
     expect(config.branding.socialName).toBe("Social");
+    expect(config.theme.default).toBe("dark");
+  });
+
+  it("accepts a built-in theme label and a custom default palette", () => {
+    const config = parseInstanceConfig({
+      ...oscana,
+      theme: {
+        default: "Default (Dark)",
+        colors: {
+          mode: "dark",
+          background: "#111111",
+          foreground: "#ffffff",
+          primary: "#888888",
+          accent: "#333333",
+        },
+      },
+    });
+    expect(config.theme.default).toBe("Default (Dark)");
+    expect(config.theme.colors?.primary).toBe("#888888");
   });
 
   it("rejects missing identity and invalid locale, timezone, or paths", () => {

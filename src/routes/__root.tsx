@@ -73,15 +73,18 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     }
   },
   loader: async () => {
-    const [storedTheme, customScheme] = await Promise.all([
+    const [savedTheme, selectedScheme] = await Promise.all([
       getThemeServerFn(),
       getSelectedColorScheme(),
     ]);
+    const customScheme = selectedScheme ?? (!savedTheme.hasPreference && instance.theme.colors
+      ? { id: -1, name: "Instance default", ...instance.theme.colors }
+      : null);
     const theme = customScheme
       ? customScheme.mode === "dark"
         ? "dark"
         : "light"
-      : storedTheme;
+      : savedTheme.theme;
     return { theme, customScheme };
   },
   head: () => ({

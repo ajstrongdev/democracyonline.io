@@ -12,7 +12,7 @@ import { pageArtwork } from "@/lib/masthead-artwork";
 export function WikiNavigation() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const authScreen = ["/login", "/register", "/banned"].includes(pathname);
-  if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) return null;
+  if (pathname !== "/dashboard" && !pathname.startsWith("/dashboard/")) return null;
   return (
     <header className={`sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 ${authScreen ? "" : "lg:hidden"}`}>
       <div className="mx-auto flex max-w-7xl items-center border-x">
