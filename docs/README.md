@@ -317,6 +317,9 @@ bun run db:studio
 
 ### Code Quality
 
+Oxlint and Oxfmt provide linting and formatting. In VS Code, install the
+recommended Oxc extension to format and apply lint fixes on save.
+
 ```bash
 # Run linter
 bun run lint

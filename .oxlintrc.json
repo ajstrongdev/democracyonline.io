@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": [
+    ".output/**",
+    "dist/**",
+    "coverage/**",
+    "src/components/ui/**",
+    "src/routeTree.gen.ts",
+    "public/push-sw.js"
+  ]
+}
