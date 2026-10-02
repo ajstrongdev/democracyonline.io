@@ -1,17 +1,14 @@
 // VS Code's safe, disposable local stack. Never falls back to the repository
 // .env: it may point at production Firebase and a deployed database.
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createConnection } from "node:net";
 import { resolve } from "node:path";
 import pg from "pg";
-import webpush from "web-push";
 
 const root = resolve(import.meta.dirname, "../..");
 const containerName = `oscana-vscode-${process.pid}`;
 const dbUrl = "postgresql://e2e:e2e@127.0.0.1:55440/oscana_e2e";
 const siteUrl = "http://127.0.0.1:31017";
-const vapidFile = resolve(root, ".vscode/.local-vapid.json");
 const children = [];
 let containerStarted = false;
 let shuttingDown = false;
@@ -144,23 +141,20 @@ try {
     ELECTION_TASK_SERVICE_ACCOUNT: "",
   };
   await run("node", ["scripts/e2e/check-env.mjs"], safe);
+  if (!process.env.OSCANA_VPS_SSH) throw new Error("Set OSCANA_VPS_SSH to the authenticated VPS SSH destination before starting Oscana");
+  await run("node", ["scripts/sync-vps-db.mjs", "--yes", "--container", containerName], {
+    ...safe, OSCANA_VPS_SSH: process.env.OSCANA_VPS_SSH,
+    OSCANA_VPS_ENV: process.env.OSCANA_VPS_ENV || "production",
+    OSCANA_CONTAINER_RUNTIME: runtime,
+  });
   const emulator = start("bunx", ["firebase", "emulators:start", "--only", "auth", "--project", "demo-oscana"], safe);
   await waitForPort(9099, emulator);
   await run("bun", ["run", "db:migrate"], safe);
-  await run("bun", ["run", "seed:fresh"], safe);
-  await run("node", ["scripts/e2e/seed-auth.mjs"], safe);
+  await run("node", ["scripts/e2e/seed-auth.mjs", "--auth-only"], safe);
   await run("bun", ["run", "build"], { ...safe, NODE_ENV: "production" });
 
-  if (!existsSync(vapidFile)) {
-    mkdirSync(resolve(root, ".vscode"), { recursive: true });
-    writeFileSync(vapidFile, JSON.stringify(webpush.generateVAPIDKeys()), { mode: 0o600, flag: "wx" });
-  }
-  const keys = JSON.parse(readFileSync(vapidFile, "utf8"));
   const appEnv = {
     ...safe,
-    VAPID_PUBLIC_KEY: keys.publicKey,
-    VAPID_PRIVATE_KEY: keys.privateKey,
-    VAPID_SUBJECT: "mailto:local-push@oscana.test",
     PORT: "31017",
     HOST: "127.0.0.1",
   };
@@ -168,46 +162,9 @@ try {
   await waitForPort(31017, app, 60_000);
   const health = await fetch(`${siteUrl}/api/health`);
   if (!health.ok) throw new Error(`Local app health returned ${health.status}`);
-  if (process.argv.includes("--check")) {
-    const connection = new pg.Client({ connectionString: dbUrl });
-    await connection.connect();
-    try {
-      // Quiet hours cover the test window, so a fake subscription can verify
-      // action eligibility/deduplication without contacting an external service.
-      const minutes = new Date().getUTCHours() * 60 + new Date().getUTCMinutes();
-      const start = (minutes + 1440 - 60) % 1440;
-      const end = (minutes + 60) % 1440;
-      const player = await connection.query("SELECT id FROM users WHERE email = $1", ["ajstrongdev@pm.me"]);
-      const userId = player.rows[0]?.id;
-      if (!userId) throw new Error("Local seed is missing the demo player");
-      await connection.query(`
-        INSERT INTO notification_preferences (user_id, push_next_moves, quiet_start, quiet_end, time_zone)
-        VALUES ($1, true, $2, $3, 'UTC')
-      `, [userId, start, end]);
-      await connection.query(`
-        INSERT INTO notification_push_subscriptions (user_id, endpoint, p256dh, auth)
-        VALUES ($1, 'https://fcm.googleapis.com/fcm/send/local-check', $2, $3)
-      `, [userId, "A".repeat(87), "A".repeat(22)]);
-      const headers = { "x-internal-cron-token": appEnv.CRON_INTERNAL_TOKEN };
-      const mentionResponse = await fetch(`${siteUrl}/api/notification-delivery`, { method: "POST", headers });
-      if (!mentionResponse.ok) throw new Error(`Local mention delivery returned ${mentionResponse.status}`);
-      const scan = () => fetch(`${siteUrl}/api/notification-delivery`, {
-        method: "POST", headers: { ...headers, "x-notification-scan": "actions" },
-      });
-      const first = await scan();
-      if (!first.ok) throw new Error(`Local next-move scan returned ${first.status}`);
-      const result = await first.json();
-      if (!result.handled) throw new Error("Local next-move scan found no pending decisions");
-      const second = await scan();
-      if (!second.ok || (await second.json()).handled !== 0) throw new Error("Local next-move receipts did not deduplicate the scan");
-      console.log(`[local] Verified ${result.handled} next moves during quiet hours; no push service was contacted`);
-    } finally {
-      await connection.end();
-    }
-  }
   if (!process.argv.includes("--check")) start("node", ["scripts/scheduler.mjs"], appEnv);
-  console.log(`[local] Ready: ${siteUrl} — Auth Emulator demo-oscana, disposable DB, scheduler and Web Push enabled`);
-  console.log("[local] Demo login: ajstrongdev@pm.me / local-e2e-password. Stop this task to stop its database and services.");
+  console.log(`[local] Ready: ${siteUrl} — VPS production data in a disposable DB, Auth Emulator demo-oscana${process.argv.includes("--check") ? "" : ", local scheduler"}; Web Push disabled`);
+  console.log("[local] Emulator login: ajstrongdev@pm.me / local-e2e-password (requires matching user in the restored DB). Stop this task to stop its database and services.");
   if (process.argv.includes("--check")) await cleanup();
 } catch (error) {
   console.error("[local] Could not start the isolated stack", error);

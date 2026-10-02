@@ -46,21 +46,19 @@ is waiting. A player must opt into notification details to show its title.
 
 ## Safe VS Code local testing
 
-Run the default VS Code build task, **Oscana: isolated app + scheduler + Web
-Push** (`.vscode/tasks.json`). It creates its own disposable PostgreSQL
-container on loopback port 55440, starts the `demo-oscana` Firebase Auth
-Emulator, migrates and seeds only that database, builds and serves the app on
-`http://127.0.0.1:31017`, and starts the existing scheduler. It generates a
-stable local VAPID pair in ignored `.vscode/.local-vapid.json`. Stop the VS Code
-task to stop the app, emulator, scheduler and its container. Never point it at
-the repository `.env`; the task sets safe values explicitly and refuses to
-reuse occupied ports. Sign in as `ajstrongdev@pm.me` with
-`local-e2e-password`. Browser permission still requires your click. A real
-push receipt may require external network access to the browser push service;
-the Firebase Auth Emulator is **not** a Push emulator. For a no-network
-integration check, run `node scripts/local/full-stack.mjs --check`; it verifies
-next-move eligibility and receipt deduplication under quiet hours using only a
-fake subscription in its disposable database, then shuts down the stack.
+Run the default VS Code build task, **Oscana: production clone + isolated app +
+scheduler** (`.vscode/tasks.json`) with `OSCANA_VPS_SSH` exported in VS Code's
+environment. It creates a disposable PostgreSQL container on loopback port
+55440, copies a fresh VPS production backup over SSH, restores it into the
+container, starts the `demo-oscana` Firebase Auth Emulator, migrates the copy,
+and serves the app on `http://127.0.0.1:31017` with a local scheduler. It
+does not seed synthetic database users. Stop the task to stop the app,
+emulator, scheduler and its container. Never point it at the repository
+`.env`; the task sets safe values explicitly and refuses to reuse occupied
+ports. An emulator login for `ajstrongdev@pm.me` uses `local-e2e-password` if
+that user is present in the clone. Web Push is disabled so production push
+subscriptions are not contacted. `node scripts/local/full-stack.mjs --check`
+checks startup and health without starting the scheduler and shuts down.
 
 Web Push cannot be fully exercised against the Firebase Auth Emulator alone:
 the browser's push service is external. CI exercises the database transaction,

@@ -13,6 +13,7 @@
     "deploy:ps": "bash scripts/vps.sh status",
     "deploy:check": "bash scripts/vps.sh check",
     "deploy:backup": "bash scripts/vps.sh backup",
+    "db:sync:vps": "node scripts/sync-vps-db.mjs",
     "update": "bash scripts/vps.sh update",
     "seed:fresh": "node --import tsx scripts/seed-fresh.ts",
     "test": "bun test",

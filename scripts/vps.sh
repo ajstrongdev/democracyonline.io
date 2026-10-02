@@ -70,7 +70,16 @@ deploy() {
 case "${1:-}" in
   check) check ;;
   deploy) deploy ;;
-  backup) check; compose up -d --wait db; backup ;;
+  backup)
+    check
+    # An offline production backup may need to start its DB temporarily.
+    # Keep the stack offline afterward without touching a DB already running.
+    if [[ "$(value DEPLOYED_ENV)" == production && -e /etc/democracyonline/production-offline && -z "$(compose ps --status running -q db)" ]]; then
+      trap 'compose stop db' EXIT
+    fi
+    compose up -d --wait db
+    backup
+    ;;
   seed)
     check
     if [[ "$(value DEPLOYED_ENV)" == production && -e /etc/democracyonline/production-offline ]]; then

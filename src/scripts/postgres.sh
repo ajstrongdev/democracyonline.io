@@ -6,7 +6,7 @@ POSTGRES_USER="${POSTGRES_USER:-postgres}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-postgres}"
 POSTGRES_DB="${POSTGRES_DB:-postgres}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
-IMAGE="${POSTGRES_IMAGE:-docker.io/library/postgres:15}"
+IMAGE="${POSTGRES_IMAGE:-docker.io/library/postgres:17-alpine}"
 
 # Auto-detect container runtime (podman or docker)
 CONTAINER_CMD=""
@@ -41,7 +41,7 @@ else
         --env POSTGRES_USER="$POSTGRES_USER" \
         --env POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
         --env POSTGRES_DB="$POSTGRES_DB" \
-        -p "$POSTGRES_PORT:5432" \
+        -p "127.0.0.1:$POSTGRES_PORT:5432" \
         "$IMAGE"
 
     echo "Waiting for Postgres to be ready..."
